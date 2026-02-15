@@ -1,0 +1,2840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Media Comparison Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: rgb(32, 32, 32);
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 8px 20px;
+            background: #2a2a2a;
+            border-bottom: 2px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .position-toggle {
+            padding: 4px 8px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            margin-left: 10px;
+        }
+
+        .position-toggle:hover {
+            background: #666;
+        }
+
+        .help-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .help-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.95);
+        }
+
+        [data-help]:hover .help-tooltip {
+            opacity: 1;
+        }
+
+        .drop-zone[data-help] {
+            position: relative;
+        }
+
+        button[data-help] {
+            position: relative;
+        }
+
+        .help-text-area {
+            grid-column: span 2;
+            background: #2a2a2a;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #999;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            min-height: 60px;
+        }
+
+        .help-text-content {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .help-text-content.show {
+            opacity: 1;
+        }
+
+        .keyboard-hints {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .keyboard-hints kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            margin: 0 2px;
+            font-size: 10px;
+        }
+
+        .drop-zones {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #252525;
+            align-items: stretch;
+            justify-content: center;
+        }
+
+        .drop-zones.quick-load-left {
+            flex-direction: row;
+        }
+
+        .drop-zones.quick-load-left #multiDropZone {
+            order: -1;
+        }
+
+        .drop-zone {
+            border: 2px dashed #808080;
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgb(32, 32, 32);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-width: 120px;
+            max-width: 120px;
+            height: 100px;
+            flex: 0 0 auto;
+        }
+
+
+        #multiDropZone {
+            min-width: 120px;
+            max-width: 120px;
+            height: 100px;
+            flex: 0 0 auto;
+        }
+
+        .drop-zone:hover {
+            border-color: #007bff;
+            background: rgb(32, 32, 32);
+        }
+
+        .drop-zone.dragover {
+            border-color: #007bff;
+            background: #1a3a52;
+            transform: scale(1.02);
+        }
+
+        .drop-zone.loaded {
+            border-color: #808080;
+            border-style: solid;
+            background: #1a3a2a;
+        }
+
+        .drop-zone.active {
+            background: #1a4d2e;
+            border-color: #28a745;
+            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+        }
+
+        .drop-zone-label {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 3px;
+            color: rgb(160, 160, 160);
+        }
+
+        .drop-zone.active .drop-zone-label {
+            color: #28a745;
+        }
+
+        .drop-zone-icon {
+            display: none;
+        }
+
+        .drop-zone-text {
+            display: none;
+        }
+
+        .drop-zone input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-resolution {
+            font-size: 12px;
+            color: rgb(160, 160, 160);
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        .drop-zone-aspect {
+            font-size: 10px;
+            color: rgb(160, 160, 160);
+            margin-top: 1px;
+            font-family: monospace;
+        }
+
+        .drop-zone-duration {
+            font-size: 9px;
+            color: rgb(160, 160, 160);
+            margin-top: 1px;
+            font-family: monospace;
+        }
+
+        .video-progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(160, 160, 160, 0.3);
+            cursor: pointer;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .video-progress-container:active {
+            cursor: grabbing;
+        }
+
+        .video-progress-bar {
+            height: 100%;
+            background: rgb(160, 160, 160);
+            width: 0%;
+        }
+
+        .video-timecode {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgb(160, 160, 160);
+            font-family: monospace;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .video-timecode:hover {
+            color: #fff;
+        }
+
+        .audio-waveform-container {
+            width: 100%;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.7);
+            margin-bottom: 10px;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-waveform {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .audio-source-label {
+            position: absolute;
+            top: 4px;
+            right: 8px;
+            font-size: 11px;
+            color: rgb(160, 160, 160);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: 600;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .audio-source-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }
+
+        .audio-source-selector button {
+            padding: 3px 8px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .audio-source-selector button.active {
+            background: rgb(160, 160, 160);
+            color: #000;
+            border-color: rgb(160, 160, 160);
+        }
+
+        .audio-source-selector button.muted {
+            background: #2a2a2a;
+            color: #666;
+            text-decoration: line-through;
+            border: 2px solid #ff4444;
+            opacity: 0.6;
+        }
+
+        .audio-source-selector button.muted .audio-mute-icon {
+            color: #ff4444;
+        }
+
+        .audio-source-selector button:hover {
+            background: #666;
+        }
+
+        .audio-source-selector button.active:hover {
+            background: rgb(180, 180, 180);
+        }
+
+        .audio-source-selector button.muted:hover {
+            background: #333;
+            opacity: 0.8;
+        }
+
+        .audio-mute-icon {
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: rgb(160, 160, 160);
+        }
+
+        .volume-slider {
+            width: 120px;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(160, 160, 160, 0.3);
+            outline: none;
+            border-radius: 2px;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: rgb(160, 160, 160);
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: rgb(160, 160, 160);
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            gap: 10px;
+            z-index: 10;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+
+        .video-controls.active {
+            display: flex;
+        }
+
+        .video-controls-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .drop-zone.empty-slot {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .quick-start-btn {
+            padding: 4px 10px;
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 15px;
+            position: relative;
+        }
+
+        .quick-start-btn:hover {
+            background: #666;
+        }
+
+        .quick-start-popup {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 5px;
+            background: #2a2a2a;
+            border: 2px solid rgb(160, 160, 160);
+            border-radius: 8px;
+            padding: 20px 30px;
+            z-index: 1000;
+            width: 450px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            display: none;
+        }
+
+        .quick-start-popup.show {
+            display: block;
+        }
+
+        .quick-start-overlay {
+            display: none;
+        }
+
+        .quick-start-close {
+            float: right;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .comparison-view {
+            flex: 1;
+            position: relative;
+            background: #000;
+            display: none;
+        }
+
+        .comparison-view.active {
+            display: block;
+        }
+
+        .overlay-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .overlay-layer.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        body.side-by-side .overlay-layer {
+            position: relative;
+            width: 50%;
+            display: inline-block;
+            vertical-align: top;
+            cursor: grab;
+        }
+
+        body.side-by-side .overlay-container {
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+
+        body.side-by-side .overlay-layer.active {
+            opacity: 1;
+        }
+
+        body.side-by-side .overlay-layer:not(.active) {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Make videos same size in horizontal split */
+        body.side-by-side .overlay-layer {
+            height: calc(100vh - 180px); /* Account for drop zones (160px) + padding */
+        }
+
+        body.side-by-side .overlay-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0; /* No gap between videos */
+        }
+
+        body.side-by-side .overlay-layer img,
+        body.side-by-side .overlay-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Show full frame by default */
+            display: block;
+        }
+
+        body.side-by-side.fit-cover .overlay-layer img,
+        body.side-by-side.fit-cover .overlay-layer video {
+            object-fit: cover; /* Crop to fill when toggled */
+        }
+
+        /* Vertical stacking mode */
+        body.vertical-stack .overlay-layer {
+            position: relative !important;
+            width: 100%;
+            height: calc((100vh - 200px) / 3); /* Divide remaining space by 3, accounting for drop zones and margins */
+            display: block !important;
+            vertical-align: top;
+            cursor: grab;
+            margin-bottom: 10px;
+            border: 2px solid rgb(80, 80, 80);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        body.vertical-stack .overlay-container {
+            white-space: normal;
+            overflow-y: visible; /* No scrolling needed */
+            display: block;
+            padding-bottom: 20px;
+        }
+
+        body.vertical-stack .overlay-layer img,
+        body.vertical-stack .overlay-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Show full frame by default */
+            display: block;
+        }
+
+        body.vertical-stack.fit-cover .overlay-layer img,
+        body.vertical-stack.fit-cover .overlay-layer video {
+            object-fit: cover; /* Crop to fill when toggled */
+        }
+
+        /* Labels for vertical stack */
+        .stack-label {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 8px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            color: rgb(160, 160, 160);
+            z-index: 10;
+            border-radius: 4px;
+            border: 2px solid rgb(160, 160, 160);
+            pointer-events: none;
+            display: none;
+        }
+
+        body.vertical-stack .stack-label {
+            display: block;
+        }
+
+        /* Also show in horizontal split view */
+        body.side-by-side .stack-label {
+            display: block;
+        }
+        
+        /* Zoom level indicator per image in split view */
+        .split-zoom-indicator {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 6px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            pointer-events: none;
+            z-index: 10;
+            color: rgb(160, 160, 160);
+            font-family: monospace;
+            border: 2px solid rgb(160, 160, 160);
+            display: none;
+        }
+        
+        body.side-by-side .split-zoom-indicator,
+        body.vertical-stack .split-zoom-indicator {
+            display: block;
+        }
+
+        /* Drag and drop styling */
+        .overlay-layer.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        .overlay-layer.drag-over {
+            border: 3px solid rgb(160, 160, 160);
+        }
+
+        .layout-controls {
+            display: none !important;
+        }
+
+        .overlay-layer img,
+        .overlay-layer video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            width: auto;
+            height: auto;
+        }
+
+        .asset-label {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #808080;
+            z-index: 10;
+            text-align: center;
+            border-bottom: 2px solid #808080;
+            transition: all 0.3s ease;
+        }
+
+        .asset-label.bottom {
+            top: auto;
+            bottom: 0;
+            border-bottom: none;
+            border-top: 2px solid #808080;
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #999;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .controls-hint.fade {
+            opacity: 1;
+        }
+
+        .zoom-level-display {
+            color: rgb(160, 160, 160);
+            font-weight: 600;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .controls-hint kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: rgb(160, 160, 160);
+            margin: 0 2px;
+        }
+
+        body.fullscreen {
+            background: #000;
+        }
+
+        body.fullscreen .header,
+        body.fullscreen .drop-zones {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        body.fullscreen .drop-zone {
+            min-width: 100px;
+            max-width: 150px;
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        body.fullscreen .drop-zone-label {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        body.fullscreen .drop-zone-resolution,
+        body.fullscreen .drop-zone-aspect,
+        body.fullscreen .drop-zone-duration {
+            font-size: 10px;
+        }
+
+        body.fullscreen .drop-zone-text {
+            font-size: 9px;
+        }
+
+        body.fullscreen .comparison-view {
+            display: block;
+            padding-top: 80px; /* Space for drop zones */
+        }
+
+        body.fullscreen .overlay-layer img {
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            user-select: none;
+            -webkit-user-drag: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body.fullscreen .overlay-layer video {
+            user-select: none;
+            -webkit-user-drag: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body.fullscreen .overlay-container {
+            user-select: none;
+        }
+
+        .reset-btn {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .reset-btn:hover {
+            background: #c82333;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px 20px;
+            border-radius: 6px;
+            z-index: 10;
+            display: none;
+        }
+
+        .video-controls.active {
+            display: block;
+        }
+
+        .video-controls button {
+            padding: 8px 16px;
+            margin: 0 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .video-controls button:hover {
+            background: #0056b3;
+        }
+
+        .identical-warning {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 193, 7, 0.95);
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+        }
+
+        .identical-warning.show {
+            display: block;
+        }
+
+        body.fullscreen .overlay-container {
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        body.fullscreen .overlay-container.panning {
+            cursor: grabbing;
+        }
+
+        body.fullscreen .overlay-layer img,
+        body.fullscreen .overlay-layer video {
+            position: relative;
+            transition: none;
+        }
+
+        .pan-hint {
+            position: absolute;
+            bottom: 60px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #999;
+            z-index: 10;
+            display: none;
+        }
+
+        body.fullscreen .pan-hint {
+            display: block;
+        }
+
+        .zoom-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgb(160, 160, 160);
+            z-index: 10;
+            display: none;
+        }
+
+        body.fullscreen .zoom-indicator {
+            display: block;
+        }
+
+        .instructions {
+            padding: 12px 20px;
+            background: #2a2a2a;
+            border-radius: 4px;
+            margin: 10px 20px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .instructions h2 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: rgb(160, 160, 160);
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        .instructions p {
+            margin-top: 8px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="position: relative;">
+                <span style="font-size: 16px; font-weight: 600;">⚡ Fast Media Comparison</span>
+                <button class="quick-start-btn" onclick="toggleQuickStart()">❓ Quick Start</button>
+                
+                <!-- Quick Start Popup -->
+                <div class="quick-start-popup" id="quickStartPopup">
+                    <button class="quick-start-close" onclick="toggleQuickStart()">Close</button>
+                    <h2 style="margin-top: 0; color: rgb(160, 160, 160);">⚡ Quick Start Guide</h2>
+                    <ol style="line-height: 1.8;">
+                        <li>Right-click save files from in-house tool in order: <strong>&lt;Original, A, B&gt;</strong></li>
+                        <li><strong>Select 2 or 3 files</strong> (Cmd+click) and drag to "Load" or click it
+                            <ul style="margin-top: 5px; font-size: 11px; color: #999;">
+                                <li><strong>2 files:</strong> Edit A vs Edit B (no original)</li>
+                                <li><strong>3 files:</strong> Original vs Edit A vs Edit B</li>
+                            </ul>
+                        </li>
+                        <li>Tool auto-sorts by save time and loads into correct slots</li>
+                        <li>Press <kbd>F</kbd> for fullscreen, use <kbd>←</kbd> <kbd>→</kbd> to compare</li>
+                        <li>Press <kbd>+</kbd> <kbd>-</kbd> to zoom in/out</li>
+                        <li>Press <kbd>Space</kbd> to play/pause videos</li>
+                    </ol>
+                    <p style="margin-top: 15px; font-size: 11px; color: #999;">
+                        <em>Tip: Files are automatically sorted by modification time. Arrow keys skip empty slots.</em>
+                    </p>
+                </div>
+            </div>
+            <div>
+                <button class="position-toggle" onclick="toggleQuickLoadPosition()" id="positionToggle" data-help="Move Load box to left or right side">
+                    Move Load Left
+                    <div class="help-tooltip">Move Load box to left or right side</div>
+                </button>
+                <button class="position-toggle" onclick="setViewMode('overlay')" id="overlayViewBtn" data-help="Single asset view with arrow key switching" style="display: none;">
+                    Overlay
+                    <div class="help-tooltip">Single asset view</div>
+                </button>
+                <button class="position-toggle" onclick="setViewMode('horizontal')" id="horizontalViewBtn" data-help="Side-by-side horizontal comparison" style="display: none;">
+                    Horizontal
+                    <div class="help-tooltip">Side-by-side view</div>
+                </button>
+                <button class="position-toggle" onclick="setViewMode('vertical')" id="verticalViewBtn" data-help="Vertically stacked comparison" style="display: none;">
+                    Vertical
+                    <div class="help-tooltip">Stacked view</div>
+                </button>
+                <button class="position-toggle" onclick="toggleLabelPosition()" id="labelToggle" data-help="Show asset name at top or bottom of image">
+                    Label: Top
+                    <div class="help-tooltip">Show asset name at top or bottom of image</div>
+                </button>
+                <button class="position-toggle" onclick="toggleSplitFitMode()" id="splitFitToggle" data-help="Toggle between fit (no crop) and fill (crop) in split view" style="display: none;">
+                    Fit (No Crop)
+                    <div class="help-tooltip">Toggle between fit (no crop) and fill (crop) in split view</div>
+                </button>
+                <button class="position-toggle" onclick="toggleDistortion()" id="distortionToggle" data-help="Toggle between showing actual distortion vs preserving aspect ratios">
+                    Show Distortion
+                    <div class="help-tooltip">Toggle between showing actual distortion vs preserving aspect ratios</div>
+                </button>
+            </div>
+            <div>
+                <button class="reset-btn" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
+                    🔄 Reset All
+                    <div class="help-tooltip">Clear all assets and start over</div>
+                </button>
+            </div>
+            <div class="keyboard-hints">
+                <kbd>←</kbd> <kbd>→</kbd> Switch Assets | <kbd>F</kbd> or <kbd>Esc</kbd> Fullscreen
+            </div>
+        </div>
+
+        <div class="drop-zones">
+            <div class="drop-zone" id="dropOriginal" data-help="Drop the oldest file here (or use Load)">
+                <div class="drop-zone-label">ORIGINAL</div>
+                <div class="drop-zone-resolution" id="resOriginal">-</div>
+                <div class="drop-zone-aspect" id="aspectOriginal">-</div>
+                <div class="drop-zone-duration" id="durationOriginal"></div>
+                <div class="drop-zone-text">-</div>
+                <div class="help-tooltip">Drop the oldest file here (or use Load)</div>
+            </div>
+
+            <div class="drop-zone" id="dropEditA" data-help="Drop the middle file here (or use Load)">
+                <div class="drop-zone-label">EDIT A</div>
+                <div class="drop-zone-resolution" id="resEditA">-</div>
+                <div class="drop-zone-aspect" id="aspectEditA">-</div>
+                <div class="drop-zone-duration" id="durationEditA"></div>
+                <div class="drop-zone-text">-</div>
+                <div class="help-tooltip">Drop the middle file here (or use Load)</div>
+            </div>
+
+            <div class="drop-zone" id="dropEditB" data-help="Drop the newest file here (or use Load)">
+                <div class="drop-zone-label">EDIT B</div>
+                <div class="drop-zone-resolution" id="resEditB">-</div>
+                <div class="drop-zone-aspect" id="aspectEditB">-</div>
+                <div class="drop-zone-duration" id="durationEditB"></div>
+                <div class="drop-zone-text">-</div>
+                <div class="help-tooltip">Drop the newest file here (or use Load)</div>
+            </div>
+
+            <!-- Multi-file drop zone inline -->
+            <div id="multiDropZone" onclick="document.getElementById('multiFileInput').click()" data-help="Select or drag 2-3 files - auto-sorts by save time" style="border: 2px dashed #808080; border-radius: 4px; padding: 12px 15px; text-align: center; background: #2a2a2a; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+                <div style="font-size: 18px; font-weight: 700; color: #007bff;">LOAD</div>
+                <div style="font-size: 9px; color: #999; text-align: center; line-height: 1.3;">Drop 2 or 3 files<br>(auto-sorts)</div>
+                <button onclick="event.stopPropagation(); document.getElementById('multiFileInput').click()" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 600; margin-top: 3px;">
+                    Select Files
+                </button>
+                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <div class="help-tooltip">Select or drag 2-3 files - auto-sorts by save time</div>
+            </div>
+        </div>
+
+        <div class="comparison-view" id="comparisonView">
+            <div class="overlay-container" id="overlayContainer">
+                <!-- Layout controls for side-by-side mode -->
+                <div class="layout-controls" id="layoutControls">
+                    <button onclick="setLayoutMode('horizontal')" id="horizontalBtn" class="active">Horizontal</button>
+                    <button onclick="setLayoutMode('vertical')" id="verticalBtn">Vertical</button>
+                    <span style="color: #999; font-size: 11px; margin: 0 5px;">Drag to reorder</span>
+                </div>
+                
+                <div class="overlay-layer" id="layerOriginal">
+                    <div class="stack-label">ORIGINAL</div>
+                    <div class="split-zoom-indicator" id="zoomOriginal">1.0×</div>
+                </div>
+                <div class="overlay-layer" id="layerEditA">
+                    <div class="stack-label">EDIT A</div>
+                    <div class="split-zoom-indicator" id="zoomEditA">1.0×</div>
+                </div>
+                <div class="overlay-layer" id="layerEditB">
+                    <div class="stack-label">EDIT B</div>
+                    <div class="split-zoom-indicator" id="zoomEditB">1.0×</div>
+                </div>
+                
+                <div class="asset-label" id="assetLabel">ORIGINAL</div>
+                
+                <div class="identical-warning" id="identicalWarning">
+                    ⚠️ Identical Assets Detected
+                </div>
+                
+                <div class="controls-hint" id="controlsHint">
+                    <span><kbd>←</kbd> <kbd>→</kbd> Switch | <kbd>Space</kbd> Play/Pause | <kbd>R</kbd> Restart | <kbd>S</kbd> Split | <kbd>F</kbd> Fullscreen | <kbd>+</kbd> <kbd>-</kbd> Zoom</span>
+                    <span class="zoom-level-display" id="zoomLevelDisplay">1.0×</span>
+                </div>
+
+                <div class="zoom-indicator" id="zoomIndicator">
+                    2.0×
+                </div>
+
+                <div class="pan-hint">
+                    Click and drag to pan
+                </div>
+
+                <div class="video-controls" id="videoControls">
+                    <div class="video-timecode" id="videoTimecode" onclick="toggleTimecodeMode()" title="Click to toggle time/frame display">0:00 / 0:00</div>
+                    <div class="audio-source-selector" id="audioSourceSelector">
+                        <span style="color: #999;">Audio:</span>
+                        <button onclick="selectAudioSource('original')" id="audioOriginal" class="active" title="Click to select/solo this audio">
+                            <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('original')">🔊</span>
+                            Original
+                        </button>
+                        <button onclick="selectAudioSource('editA')" id="audioEditA" title="Click to select/solo this audio">
+                            <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editA')">🔊</span>
+                            Edit A
+                        </button>
+                        <button onclick="selectAudioSource('editB')" id="audioEditB" title="Click to select/solo this audio">
+                            <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editB')">🔊</span>
+                            Edit B
+                        </button>
+                    </div>
+                    <div class="audio-waveform-container" id="waveformContainer">
+                        <canvas class="audio-waveform" id="audioWaveform"></canvas>
+                        <div class="audio-source-label" id="audioSourceLabel">ORIGINAL</div>
+                    </div>
+                    <div class="volume-control">
+                        <span>🔊</span>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                        <span id="volumeLabel">100%</span>
+                    </div>
+                    <div class="video-progress-container" id="videoProgressContainer">
+                        <div class="video-progress-bar" id="videoProgressBar"></div>
+                    </div>
+                    <div class="video-controls-buttons">
+                        <button onclick="togglePlayPause()">▶️ Play/Pause</button>
+                        <button onclick="restartAllVideos()">⏮️ Restart</button>
+                        <button onclick="toggleMute()" id="muteBtn">🔊 Mute</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const mediaData = {
+            original: null,
+            editA: null,
+            editB: null
+        };
+
+        const assetOrder = ['original', 'editA', 'editB'];
+        let currentAssetIndex = 0;
+        let isFullscreen = false;
+        let hasVideos = false;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+        let panOffsetX = 0;
+        let panOffsetY = 0;
+        let showDistortion = false;
+        let zoomLevel = 1; // Default 1x zoom (actual size/fit)
+        let timecodeMode = 'time'; // 'time' or 'frames'
+        let videoFrameRates = {}; // Store framerate for each video
+        let splitViewFitMode = 'contain'; // 'contain' (fit, no crop - default) or 'cover' (fill, crop)
+        
+        // Undo/Redo state management
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_UNDO_STATES = 20;
+        
+        // New zoom levels
+        const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
+        let currentZoomIndex = 2; // Start at 1.0 (index 2)
+
+        // Setup drag and drop for all zones
+        function setupDragAndDrop() {
+            // Setup multi-file drop zone
+            const multiDropZone = document.getElementById('multiDropZone');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                multiDropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                multiDropZone.addEventListener(eventName, () => {
+                    multiDropZone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                multiDropZone.addEventListener(eventName, () => {
+                    multiDropZone.classList.remove('dragover');
+                }, false);
+            });
+
+            multiDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const files = Array.from(e.dataTransfer.files);
+                handleMultipleFiles(files);
+            }, false);
+
+            // Individual drop zones (legacy support)
+            ['original', 'editA', 'editB'].forEach(slot => {
+                const dropZone = document.getElementById(`drop${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, preventDefaults, false);
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.add('dragover');
+                    }, false);
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    dropZone.addEventListener(eventName, () => {
+                        dropZone.classList.remove('dragover');
+                    }, false);
+                });
+
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        loadFile(slot, files[0]);
+                    }
+                }, false);
+            });
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleFileLoad(slot, event) {
+            const file = event.target.files[0];
+            if (file) {
+                loadFile(slot, file);
+            }
+        }
+
+        function handleMultiFileLoad(event) {
+            const files = Array.from(event.target.files);
+            handleMultipleFiles(files);
+        }
+
+        function handleMultipleFiles(files) {
+            // Filter for images and videos only
+            const mediaFiles = files.filter(f => 
+                f.type.startsWith('image/') || f.type.startsWith('video/')
+            );
+
+            if (mediaFiles.length !== 2 && mediaFiles.length !== 3) {
+                alert(`Please select 2 or 3 media files.\nYou selected ${mediaFiles.length} media file(s).\n\n2 files = Edit A vs Edit B (no original)\n3 files = Original vs Edit A vs Edit B`);
+                return;
+            }
+
+            // Sort by lastModified timestamp (oldest to newest)
+            const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
+
+            if (sortedFiles.length === 3) {
+                // 3 files: oldest -> original, middle -> editA, newest -> editB
+                loadFile('original', sortedFiles[0]);
+                loadFile('editA', sortedFiles[1]);
+                loadFile('editB', sortedFiles[2]);
+
+                setTimeout(() => {
+                    const msg = `✓ Auto-loaded 3 files by save time:\n` +
+                               `  ORIGINAL: ${sortedFiles[0].name}\n` +
+                               `  EDIT A: ${sortedFiles[1].name}\n` +
+                               `  EDIT B: ${sortedFiles[2].name}`;
+                    console.log(msg);
+                }, 500);
+            } else {
+                // 2 files: oldest -> editA, newest -> editB (no original)
+                loadFile('editA', sortedFiles[0]);
+                loadFile('editB', sortedFiles[1]);
+
+                setTimeout(() => {
+                    const msg = `✓ Auto-loaded 2 files (no original):\n` +
+                               `  EDIT A: ${sortedFiles[0].name}\n` +
+                               `  EDIT B: ${sortedFiles[1].name}`;
+                    console.log(msg);
+                }, 500);
+            }
+        }
+
+        function loadFile(slot, file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const isVideo = file.type.startsWith('video/');
+                
+                mediaData[slot] = {
+                    type: isVideo ? 'video' : 'image',
+                    src: dataUrl,
+                    name: file.name
+                };
+
+                // Update drop zone
+                const dropZone = document.getElementById(`drop${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                dropZone.classList.add('loaded');
+                dropZone.querySelector('.drop-zone-text').textContent = file.name;
+
+                // Load into overlay layer
+                const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                layer.innerHTML = '';
+                
+                if (isVideo) {
+                    console.log(`Creating video element for ${slot}`);
+                    const video = document.createElement('video');
+                    video.src = dataUrl;
+                    video.controls = false;
+                    video.volume = 1.0;
+                    
+                    video.addEventListener('loadedmetadata', function() {
+                        console.log(`${slot} loadedmetadata event fired`);
+                        updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
+                        updateDurationDisplay(slot, video.duration);
+                        
+                        console.log(`Video ${slot} metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
+                        
+                        // Setup video handlers
+                        setupVideoHandlers(video, slot);
+                        
+                        console.log(`Video ${slot} fully loaded and ready`);
+                    });
+                    
+                    console.log(`Appending video to layer for ${slot}`);
+                    layer.appendChild(video);
+                    hasVideos = true;
+                    console.log(`hasVideos set to true`);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.addEventListener('load', function() {
+                        updateResolutionDisplay(slot, img.naturalWidth, img.naturalHeight);
+                        // Update zoom indicators if in split view
+                        setTimeout(updateSplitViewZoomIndicators, 50);
+                    });
+                    layer.appendChild(img);
+                }
+
+                checkAllLoaded();
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function updateResolutionDisplay(slot, width, height) {
+            const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+            const resElement = document.getElementById(`res${slotName}`);
+            const aspectElement = document.getElementById(`aspect${slotName}`);
+            
+            if (resElement) {
+                resElement.textContent = `${width}×${height}`;
+            }
+            
+            if (aspectElement) {
+                const ratio = width / height;
+                const standardRatios = [
+                    { value: 16/9, label: '16:9' },
+                    { value: 9/16, label: '9:16' },
+                    { value: 4/3, label: '4:3' },
+                    { value: 3/4, label: '3:4' },
+                    { value: 3/2, label: '3:2' },
+                    { value: 2/3, label: '2:3' },
+                    { value: 1.85, label: '1.85:1' },
+                    { value: 2.39, label: '2.39:1' },
+                    { value: 21/9, label: '21:9' },
+                    { value: 1, label: '1:1' }
+                ];
+                
+                // Find closest standard ratio (within 1% tolerance)
+                let match = null;
+                for (const std of standardRatios) {
+                    if (Math.abs(ratio - std.value) / std.value < 0.01) {
+                        match = std.label;
+                        break;
+                    }
+                }
+                
+                if (match) {
+                    aspectElement.textContent = match;
+                } else {
+                    aspectElement.textContent = `${ratio.toFixed(2)}:1`;
+                }
+            }
+        }
+
+        function updateDurationDisplay(slot, duration) {
+            const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+            const durationElement = document.getElementById(`duration${slotName}`);
+            
+            if (durationElement && duration) {
+                const minutes = Math.floor(duration / 60);
+                const seconds = Math.floor(duration % 60);
+                durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function setupVideoHandlers(video, slot) {
+            // Enable native looping
+            video.loop = true;
+            
+            // Detect framerate from video metadata
+            video.addEventListener('loadedmetadata', function() {
+                videoFrameRates[video.src] = 30;
+                generateWaveform(video, slot);
+            });
+            
+            // Update timecode and progress bar smoothly
+            let animationId = null;
+            function updateLoop() {
+                const activeLayer = document.querySelector('.overlay-layer.active');
+                if (activeLayer && activeLayer.querySelector('video') === video && !video.paused) {
+                    updateVideoProgress(video);
+                }
+                animationId = requestAnimationFrame(updateLoop);
+            }
+            
+            video.addEventListener('play', function() {
+                if (animationId) cancelAnimationFrame(animationId);
+                updateLoop();
+                
+                // Only sync videos in overlay mode, NOT in split view mode
+                if (!isSideBySide) {
+                    // Sync other videos in overlay mode
+                    document.querySelectorAll('.overlay-layer video').forEach(v => {
+                        if (v !== video && Math.abs(v.currentTime - video.currentTime) > 0.5) {
+                            v.currentTime = video.currentTime;
+                        }
+                    });
+                }
+            });
+            
+            video.addEventListener('pause', function() {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            });
+            
+            video.addEventListener('seeked', function() {
+                updateVideoProgress(video);
+            });
+        }
+
+        // Shared audio context and analyzers for waveform
+        let sharedAudioContext = null;
+        let audioAnalyzers = {
+            original: null,
+            editA: null,
+            editB: null
+        };
+        let audioSourceNodes = {
+            original: null,
+            editA: null,
+            editB: null
+        };
+
+        function generateWaveform(video, slot) {
+            // Initialize shared audio context once
+            if (!sharedAudioContext) {
+                sharedAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            try {
+                // Only create source if not already created for this slot
+                if (!audioSourceNodes[slot]) {
+                    const source = sharedAudioContext.createMediaElementSource(video);
+                    const analyser = sharedAudioContext.createAnalyser();
+                    analyser.fftSize = 2048;
+                    
+                    // Connect: video -> analyser -> speakers
+                    source.connect(analyser);
+                    analyser.connect(sharedAudioContext.destination);
+                    
+                    // Store references
+                    audioSourceNodes[slot] = source;
+                    audioAnalyzers[slot] = analyser;
+                    
+                    console.log(`Waveform setup for ${slot}`);
+                }
+                
+                // Start drawing waveform for currently selected source
+                if (slot === currentAudioSource) {
+                    startWaveformDrawing();
+                }
+            } catch (e) {
+                console.log('Audio waveform generation error:', e);
+                // Draw static placeholder
+                const canvas = document.getElementById('audioWaveform');
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgba(160, 160, 160, 0.3)';
+                ctx.fillRect(0, canvas.height / 2 - 2, canvas.width, 4);
+            }
+        }
+        
+        function startWaveformDrawing() {
+            const canvas = document.getElementById('audioWaveform');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            const analyser = audioAnalyzers[currentAudioSource];
+            if (!analyser) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            function draw() {
+                requestAnimationFrame(draw);
+                
+                analyser.getByteTimeDomainData(dataArray);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgb(160, 160, 160)';
+                ctx.beginPath();
+                
+                const sliceWidth = canvas.width / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * canvas.height / 2;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+            }
+            
+            draw();
+        }
+
+        function updateWaveformPlayhead(progress) {
+            // This will be drawn over the waveform to show current position
+            const canvas = document.getElementById('audioWaveform');
+            const ctx = canvas.getContext('2d');
+            const x = (progress / 100) * canvas.width;
+            
+            // Draw playhead line
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+
+        let currentAudioSource = 'original';
+        let audioMuteStates = {
+            original: false,
+            editA: false,
+            editB: false
+        };
+
+        function toggleAudioMute(source) {
+            // Toggle mute state for this source
+            audioMuteStates[source] = !audioMuteStates[source];
+            
+            console.log(`Toggling ${source} mute to:`, audioMuteStates[source]);
+            
+            // Apply mute state IMMEDIATELY using volume (more reliable than muted property)
+            applyAudioMuteImmediate(source);
+            
+            // Update button appearance
+            const slotName = source.charAt(0).toUpperCase() + source.slice(1);
+            const button = document.getElementById(`audio${slotName}`);
+            if (!button) {
+                console.log(`Button audio${slotName} not found`);
+                return;
+            }
+            
+            const icon = button.querySelector('.audio-mute-icon');
+            
+            if (audioMuteStates[source]) {
+                button.classList.add('muted');
+                icon.textContent = '🔇';
+            } else {
+                button.classList.remove('muted');
+                icon.textContent = '🔊';
+            }
+            
+            // If this was the selected audio source, switch waveform to an unmuted source
+            if (source === currentAudioSource && audioMuteStates[source]) {
+                // Find first unmuted source
+                const unmutedSource = Object.keys(audioMuteStates).find(s => !audioMuteStates[s] && mediaData[s]);
+                if (unmutedSource) {
+                    selectAudioSource(unmutedSource);
+                }
+            }
+        }
+
+        function applyAudioMuteImmediate(source) {
+            const slotName = source.charAt(0).toUpperCase() + source.slice(1);
+            const layer = document.getElementById(`layer${slotName}`);
+            
+            if (layer) {
+                const video = layer.querySelector('video');
+                if (video) {
+                    const shouldBeMuted = audioMuteStates[source];
+                    video.muted = shouldBeMuted;
+                    console.log(`Applied ${source}: muted=${video.muted}`);
+                } else {
+                    console.log(`No video found in layer ${slotName}`);
+                }
+            } else {
+                console.log(`Layer ${slotName} not found`);
+            }
+        }
+
+        function selectAudioSource(source) {
+            currentAudioSource = source;
+            
+            // Update button states
+            document.getElementById('audioOriginal').classList.toggle('active', source === 'original');
+            document.getElementById('audioEditA').classList.toggle('active', source === 'editA');
+            document.getElementById('audioEditB').classList.toggle('active', source === 'editB');
+            
+            // Update label
+            const labels = {
+                'original': 'ORIGINAL',
+                'editA': 'EDIT A',
+                'editB': 'EDIT B'
+            };
+            document.getElementById('audioSourceLabel').textContent = labels[source];
+            
+            // Restart waveform drawing for new source
+            startWaveformDrawing();
+        }
+
+        function setVolume(value) {
+            const volume = value / 100;
+            document.querySelectorAll('.overlay-layer video').forEach(v => {
+                v.volume = volume;
+            });
+            document.getElementById('volumeLabel').textContent = value + '%';
+        }
+
+        function updateVideoProgress(video) {
+            const currentTime = video.currentTime;
+            const duration = video.duration;
+            const progress = (currentTime / duration) * 100;
+            
+            // Update progress bar
+            document.getElementById('videoProgressBar').style.width = progress + '%';
+            
+            // Get framerate (assume 30fps if not detected)
+            const fps = videoFrameRates[video.src] || 30;
+            
+            if (timecodeMode === 'frames') {
+                // Frame mode: "Frame 462 / 3720"
+                const currentFrame = Math.floor(currentTime * fps);
+                const totalFrames = Math.floor(duration * fps);
+                document.getElementById('videoTimecode').textContent = `Frame ${currentFrame} / ${totalFrames}`;
+            } else {
+                // Time mode: "0:15:22 / 2:35:18" (min:sec:frame)
+                const currentMinutes = Math.floor(currentTime / 60);
+                const currentSeconds = Math.floor(currentTime % 60);
+                const currentFrames = Math.floor((currentTime % 1) * fps);
+                
+                const totalMinutes = Math.floor(duration / 60);
+                const totalSeconds = Math.floor(duration % 60);
+                const totalFrames = Math.floor((duration % 1) * fps);
+                
+                const currentTC = `${currentMinutes}:${currentSeconds.toString().padStart(2, '0')}:${currentFrames.toString().padStart(2, '0')}`;
+                const totalTC = `${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}:${totalFrames.toString().padStart(2, '0')}`;
+                
+                document.getElementById('videoTimecode').textContent = `${currentTC} / ${totalTC}`;
+            }
+            
+            // Update waveform playhead
+            updateWaveformPlayhead(progress);
+        }
+
+        function toggleTimecodeMode() {
+            timecodeMode = timecodeMode === 'time' ? 'frames' : 'time';
+            // Update display immediately
+            const activeLayer = document.querySelector('.overlay-layer.active');
+            if (activeLayer) {
+                const video = activeLayer.querySelector('video');
+                if (video) {
+                    updateVideoProgress(video);
+                }
+            }
+        }
+
+        function toggleQuickStart() {
+            const popup = document.getElementById('quickStartPopup');
+            
+            if (popup.classList.contains('show')) {
+                popup.classList.remove('show');
+            } else {
+                popup.classList.add('show');
+            }
+        }
+
+        function checkForIdenticalAssets() {
+            const identicalPairs = [];
+            const distortionWarnings = [];
+            const slots = ['original', 'editA', 'editB'];
+            const labels = {
+                'original': 'Original',
+                'editA': 'Edit A',
+                'editB': 'Edit B'
+            };
+            
+            // Get aspect ratios for all assets
+            const aspectRatios = {};
+            slots.forEach(slot => {
+                if (mediaData[slot]) {
+                    const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                    const media = layer.querySelector('img, video');
+                    if (media) {
+                        const w = media.naturalWidth || media.videoWidth || 0;
+                        const h = media.naturalHeight || media.videoHeight || 0;
+                        aspectRatios[slot] = { 
+                            width: w, 
+                            height: h, 
+                            ratio: w / h,
+                            formatted: `${w}×${h}`
+                        };
+                    }
+                }
+            });
+            
+            // Compare all pairs for identical content
+            for (let i = 0; i < slots.length; i++) {
+                for (let j = i + 1; j < slots.length; j++) {
+                    const slot1 = slots[i];
+                    const slot2 = slots[j];
+                    
+                    if (mediaData[slot1] && mediaData[slot2]) {
+                        // Compare data URLs (includes entire file content)
+                        if (mediaData[slot1].src === mediaData[slot2].src) {
+                            identicalPairs.push(`${labels[slot1]} = ${labels[slot2]}`);
+                        }
+                        
+                        // Check for aspect ratio mismatch (tolerance of 0.5%)
+                        if (aspectRatios[slot1] && aspectRatios[slot2]) {
+                            const ratio1 = aspectRatios[slot1].ratio;
+                            const ratio2 = aspectRatios[slot2].ratio;
+                            const difference = Math.abs(ratio1 - ratio2) / ratio1 * 100;
+                            
+                            if (difference > 0.5) {
+                                const type = ratio1 > ratio2 ? 'stretched vertically' : 'stretched horizontally';
+                                distortionWarnings.push(
+                                    `${labels[slot1]} (${aspectRatios[slot1].formatted}) vs ${labels[slot2]} (${aspectRatios[slot2].formatted}) - ${difference.toFixed(1)}% aspect ratio difference`
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Build combined warning message
+            const warnings = [];
+            if (identicalPairs.length > 0) {
+                warnings.push(`Identical: ${identicalPairs.join(', ')}`);
+            }
+            if (distortionWarnings.length > 0) {
+                warnings.push(`Aspect Ratio Mismatch: ${distortionWarnings.join('; ')}`);
+            }
+            
+            // Show warning if any issues found
+            const warningEl = document.getElementById('identicalWarning');
+            if (warnings.length > 0) {
+                warningEl.innerHTML = `⚠️ ${warnings.join(' | ')}`;
+                warningEl.classList.add('show');
+                
+                // Auto-hide after 15 seconds (longer since there may be more info)
+                setTimeout(() => {
+                    warningEl.classList.remove('show');
+                }, 15000);
+            }
+        }
+
+        function switchToAsset(index) {
+            // Save state before switching
+            if (document.getElementById('comparisonView').classList.contains('active')) {
+                saveState();
+            }
+            
+            // Skip empty slots
+            const assetKey = assetOrder[index];
+            if (!mediaData[assetKey]) {
+                // If this slot is empty, try the next one
+                const nextIndex = (index + 1) % assetOrder.length;
+                if (nextIndex !== index) {
+                    switchToAsset(nextIndex);
+                }
+                return;
+            }
+            
+            currentAssetIndex = index;
+            
+            // In split view mode: unmute selected asset, mute others
+            if (isSideBySide) {
+                ['original', 'editA', 'editB'].forEach(slot => {
+                    const shouldBeMuted = (slot !== assetKey);
+                    audioMuteStates[slot] = shouldBeMuted;
+                    
+                    // Update video mute state immediately
+                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                    const layer = document.getElementById(`layer${slotName}`);
+                    if (layer) {
+                        const video = layer.querySelector('video');
+                        if (video) {
+                            video.muted = shouldBeMuted;
+                        }
+                    }
+                    
+                    // Update button appearance
+                    const button = document.getElementById(`audio${slotName}`);
+                    if (button) {
+                        const icon = button.querySelector('.audio-mute-icon');
+                        if (shouldBeMuted) {
+                            button.classList.add('muted');
+                            if (icon) icon.textContent = '🔇';
+                        } else {
+                            button.classList.remove('muted');
+                            if (icon) icon.textContent = '🔊';
+                        }
+                    }
+                });
+                
+                // Update waveform to selected source
+                selectAudioSource(assetKey);
+            }
+            
+            // Update drop zone active states
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('active');
+            });
+            const dropZoneId = 'drop' + assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+            const activeDropZone = document.getElementById(dropZoneId);
+            if (activeDropZone) {
+                activeDropZone.classList.add('active');
+            }
+            
+            // Hide all layers (only in overlay mode)
+            if (!isSideBySide) {
+                console.log('Overlay mode - hiding all layers');
+                document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    layer.classList.remove('active');
+                });
+
+                // Show selected layer
+                const layerName = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+                const activeLayer = document.getElementById(`layer${layerName}`);
+                console.log(`Activating layer: layer${layerName}`, activeLayer);
+                if (activeLayer) {
+                    activeLayer.classList.add('active');
+                    console.log(`Layer activated, has media:`, activeLayer.querySelector('img, video') !== null);
+                } else {
+                    console.error(`Layer layer${layerName} not found!`);
+                }
+            }
+
+            // Check if current asset is video and update progress if so
+            const layerName = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+            const activeLayer = document.getElementById(`layer${layerName}`);
+            const video = activeLayer.querySelector('video');
+            if (video) {
+                updateVideoProgress(video);
+            }
+
+            // Apply current pan offset if in fullscreen
+            if (isFullscreen) {
+                const img = activeLayer.querySelector('img, video');
+                if (img) {
+                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
+                }
+            }
+
+            // Update label
+            const labels = {
+                'original': 'ORIGINAL',
+                'editA': 'EDIT A',
+                'editB': 'EDIT B'
+            };
+            document.getElementById('assetLabel').textContent = labels[assetKey];
+        }
+
+        // Setup video scrubbing with drag support
+        document.addEventListener('DOMContentLoaded', function() {
+            const progressContainer = document.getElementById('videoProgressContainer');
+            let isDragging = false;
+            let wasPlaying = false;
+            
+            function scrubToPosition(e) {
+                const activeLayer = document.querySelector('.overlay-layer.active');
+                if (activeLayer) {
+                    const video = activeLayer.querySelector('video');
+                    if (video) {
+                        const rect = progressContainer.getBoundingClientRect();
+                        const clickX = e.clientX - rect.left;
+                        const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+                        video.currentTime = percentage * video.duration;
+                        
+                        // Also scrub all other videos to same position
+                        document.querySelectorAll('.overlay-layer video').forEach(v => {
+                            if (v !== video) {
+                                v.currentTime = percentage * v.duration;
+                            }
+                        });
+                        
+                        updateVideoProgress(video);
+                    }
+                }
+            }
+            
+            progressContainer.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                
+                // Pause video during scrubbing for smooth experience
+                const activeLayer = document.querySelector('.overlay-layer.active');
+                if (activeLayer) {
+                    const video = activeLayer.querySelector('video');
+                    if (video) {
+                        wasPlaying = !video.paused;
+                        if (wasPlaying) {
+                            pauseAllVideos();
+                        }
+                    }
+                }
+                
+                scrubToPosition(e);
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    scrubToPosition(e);
+                }
+            });
+            
+            document.addEventListener('mouseup', function(e) {
+                if (isDragging) {
+                    isDragging = false;
+                    
+                    // Resume playback if it was playing before
+                    if (wasPlaying) {
+                        playAllVideos();
+                    }
+                }
+            });
+        });
+
+        function toggleFullscreen() {
+            saveState(); // Save state before toggling
+            isFullscreen = !isFullscreen;
+            
+            if (isFullscreen) {
+                document.body.classList.add('fullscreen');
+                // Set zoom to 1x on entering fullscreen (actual size or fit)
+                zoomLevel = 1;
+                currentZoomIndex = 2; // Sync index to 1.0× position in array
+                applyZoom();
+                setupPanHandlers();
+            } else {
+                document.body.classList.remove('fullscreen');
+                // Reset to normal scaling
+                document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
+                    media.style.imageRendering = '';
+                    media.style.width = '';
+                    media.style.height = '';
+                    media.style.maxWidth = '100%';
+                    media.style.maxHeight = '100%';
+                    media.style.transform = '';
+                    media.style.objectFit = '';
+                });
+                
+                // Reset pan state and zoom
+                panOffsetX = 0;
+                panOffsetY = 0;
+                zoomLevel = 1;
+                
+                // Update zoom display
+                document.getElementById('zoomLevelDisplay').textContent = '1.0×';
+                
+                // Remove pan handlers
+                const container = document.getElementById('overlayContainer');
+                container.removeEventListener('mousedown', handlePanStart);
+                container.removeEventListener('mousemove', handlePanMove);
+                container.removeEventListener('mouseup', handlePanEnd);
+                container.removeEventListener('mouseleave', handlePanEnd);
+                container.classList.remove('panning');
+            }
+        }
+
+        function applyZoom() {
+            // Find the largest dimensions across all loaded assets
+            let maxWidth = 0;
+            let maxHeight = 0;
+            
+            ['original', 'editA', 'editB'].forEach(slot => {
+                if (mediaData[slot]) {
+                    const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                    const media = layer.querySelector('img, video');
+                    if (media) {
+                        const w = media.naturalWidth || media.videoWidth || 0;
+                        const h = media.naturalHeight || media.videoHeight || 0;
+                        maxWidth = Math.max(maxWidth, w);
+                        maxHeight = Math.max(maxHeight, h);
+                    }
+                }
+            });
+            
+            if (isFullscreen) {
+                // Apply zoom scaling to all images based on largest dimensions
+                document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
+                    media.style.imageRendering = 'pixelated';
+                    // All assets display at zoom level × the largest asset's size
+                    media.style.width = (maxWidth * zoomLevel) + 'px';
+                    media.style.height = (maxHeight * zoomLevel) + 'px';
+                    media.style.maxWidth = 'none';
+                    media.style.maxHeight = 'none';
+                    // Use object-fit based on distortion toggle
+                    media.style.objectFit = showDistortion ? 'fill' : 'contain';
+                });
+            }
+            
+            // Update both zoom indicators
+            const zoomText = zoomLevel.toFixed(1) + '×';
+            document.getElementById('zoomIndicator').textContent = zoomText;
+            document.getElementById('zoomLevelDisplay').textContent = zoomText;
+        }
+
+        function zoomIn() {
+            if (!isFullscreen) return;
+            currentZoomIndex = Math.min(currentZoomIndex + 1, zoomLevels.length - 1);
+            zoomLevel = zoomLevels[currentZoomIndex];
+            applyZoom();
+            
+            // Reapply pan offset to active image
+            const activeLayer = document.querySelector('.overlay-layer.active');
+            if (activeLayer) {
+                const img = activeLayer.querySelector('img, video');
+                if (img) {
+                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
+                }
+            }
+        }
+
+        function zoomOut() {
+            if (!isFullscreen) return;
+            currentZoomIndex = Math.max(currentZoomIndex - 1, 0);
+            zoomLevel = zoomLevels[currentZoomIndex];
+            applyZoom();
+            
+            // Reapply pan offset to active image
+            const activeLayer = document.querySelector('.overlay-layer.active');
+            if (activeLayer) {
+                const img = activeLayer.querySelector('img, video');
+                if (img) {
+                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
+                }
+            }
+        }
+
+        function setupPanHandlers() {
+            const container = document.getElementById('overlayContainer');
+            
+            container.addEventListener('mousedown', handlePanStart);
+            container.addEventListener('mousemove', handlePanMove);
+            container.addEventListener('mouseup', handlePanEnd);
+            container.addEventListener('mouseleave', handlePanEnd);
+        }
+
+        function handlePanStart(e) {
+            e.preventDefault(); // Prevent browser's default drag behavior
+            isPanning = true;
+            panStartX = e.clientX - panOffsetX;
+            panStartY = e.clientY - panOffsetY;
+            document.getElementById('overlayContainer').classList.add('panning');
+        }
+
+        function handlePanMove(e) {
+            if (!isPanning) return;
+            
+            e.preventDefault();
+            panOffsetX = e.clientX - panStartX;
+            panOffsetY = e.clientY - panStartY;
+            
+            // Apply transform to all active images
+            const activeLayer = document.querySelector('.overlay-layer.active');
+            if (activeLayer) {
+                const img = activeLayer.querySelector('img, video');
+                if (img) {
+                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
+                }
+            }
+        }
+
+        function handlePanEnd(e) {
+            isPanning = false;
+            document.getElementById('overlayContainer').classList.remove('panning');
+        }
+
+        function resetAll() {
+            if (confirm('Reset all assets and start over?')) {
+                mediaData.original = null;
+                mediaData.editA = null;
+                mediaData.editB = null;
+                currentAssetIndex = 0;
+                isFullscreen = false;
+                hasVideos = false;
+
+                document.body.classList.remove('fullscreen');
+                document.getElementById('comparisonView').classList.remove('active');
+                document.getElementById('resetBtn').style.display = 'none';
+                document.getElementById('videoControls').classList.remove('active');
+                document.getElementById('controlsHint').classList.remove('fade');
+
+                // Clear drop zones
+                ['Original', 'EditA', 'EditB'].forEach(slot => {
+                    const dropZone = document.getElementById(`drop${slot}`);
+                    dropZone.classList.remove('loaded');
+                    dropZone.classList.remove('empty-slot');
+                    dropZone.querySelector('.drop-zone-text').textContent = '-';
+                    document.getElementById(`res${slot}`).textContent = '-';
+                    document.getElementById(`aspect${slot}`).textContent = '-';
+                    
+                    const layer = document.getElementById(`layer${slot}`);
+                    layer.innerHTML = '';
+                    layer.classList.remove('active');
+                });
+
+                // Reset file inputs
+                document.getElementById('fileOriginal').value = '';
+                document.getElementById('fileEditA').value = '';
+                document.getElementById('fileEditB').value = '';
+                document.getElementById('multiFileInput').value = '';
+            }
+        }
+
+        // Video controls
+        function getAllVideos() {
+            return [
+                document.querySelector('#layerOriginal video'),
+                document.querySelector('#layerEditA video'),
+                document.querySelector('#layerEditB video')
+            ].filter(v => v);
+        }
+
+        function playAllVideos() {
+            getAllVideos().forEach(v => v.play());
+        }
+
+        function pauseAllVideos() {
+            getAllVideos().forEach(v => v.pause());
+        }
+
+        function togglePlayPause() {
+            const firstVideo = document.querySelector('.overlay-layer video');
+            if (firstVideo) {
+                if (firstVideo.paused) {
+                    playAllVideos();
+                } else {
+                    pauseAllVideos();
+                }
+            }
+        }
+
+        function restartAllVideos() {
+            getAllVideos().forEach(v => {
+                v.currentTime = 0;
+                v.play();
+            });
+        }
+
+        let isSideBySide = false;
+        let layoutMode = 'horizontal'; // 'horizontal' or 'vertical'
+        
+        function toggleSideBySide() {
+            saveState(); // Save state before toggling
+            isSideBySide = !isSideBySide;
+            const btn = document.getElementById('sideBySideBtn');
+            
+            if (isSideBySide) {
+                if (layoutMode === 'vertical') {
+                    document.body.classList.add('vertical-stack');
+                } else {
+                    document.body.classList.add('side-by-side');
+                }
+                btn.textContent = 'Overlay';
+                // Show all loaded layers
+                document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    const hasMedia = layer.querySelector('img, video');
+                    if (hasMedia) {
+                        layer.classList.add('active');
+                    }
+                });
+                setupLayerDragAndDrop();
+            } else {
+                document.body.classList.remove('side-by-side');
+                document.body.classList.remove('vertical-stack');
+                btn.textContent = 'Split View';
+                // Return to single active layer
+                document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    layer.classList.remove('active');
+                });
+                switchToAsset(currentAssetIndex);
+                removeDragAndDrop();
+            }
+        }
+
+        function toggleSplitFitMode() {
+            saveState();
+            
+            if (splitViewFitMode === 'contain') {
+                splitViewFitMode = 'cover';
+                document.body.classList.add('fit-cover');
+                document.getElementById('splitFitToggle').textContent = 'Fill (Crop)';
+            } else {
+                splitViewFitMode = 'contain';
+                document.body.classList.remove('fit-cover');
+                document.getElementById('splitFitToggle').textContent = 'Fit (No Crop)';
+            }
+        }
+
+        function updateSplitViewZoomIndicators() {
+            // Only update in split view modes
+            if (!isSideBySide && !document.body.classList.contains('vertical-stack')) {
+                return;
+            }
+            
+            ['original', 'editA', 'editB'].forEach(slot => {
+                if (!mediaData[slot]) return;
+                
+                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                const layer = document.getElementById(`layer${slotName}`);
+                const media = layer.querySelector('img, video');
+                const indicator = document.getElementById(`zoom${slotName}`);
+                
+                if (!media || !indicator) return;
+                
+                // Get native dimensions
+                const nativeWidth = media.naturalWidth || media.videoWidth || 0;
+                const nativeHeight = media.naturalHeight || media.videoHeight || 0;
+                
+                if (nativeWidth === 0 || nativeHeight === 0) return;
+                
+                // Get displayed dimensions
+                const displayedWidth = media.offsetWidth;
+                const displayedHeight = media.offsetHeight;
+                
+                // Calculate zoom based on width (primary dimension)
+                const zoomX = displayedWidth / nativeWidth;
+                const zoomY = displayedHeight / nativeHeight;
+                
+                // Use the smaller zoom to ensure fit
+                const actualZoom = Math.min(zoomX, zoomY);
+                
+                // Update indicator
+                indicator.textContent = actualZoom.toFixed(2) + '×';
+            });
+        }
+        
+        // Update zoom indicators when window resizes
+        window.addEventListener('resize', updateSplitViewZoomIndicators);
+        
+        function setViewMode(mode) {
+            saveState(); // Save state before changing view
+            
+            // Update view mode
+            if (mode === 'overlay') {
+                // Return to overlay mode
+                if (isSideBySide) {
+                    document.body.classList.remove('side-by-side');
+                    document.body.classList.remove('vertical-stack');
+                    isSideBySide = false;
+                    
+                    // Hide all layers except current
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        layer.classList.remove('active');
+                    });
+                    switchToAsset(currentAssetIndex);
+                    removeDragAndDrop();
+                }
+            } else {
+                // Enable split view
+                if (!isSideBySide) {
+                    isSideBySide = true;
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        const hasMedia = layer.querySelector('img, video');
+                        if (hasMedia) {
+                            layer.classList.add('active');
+                        }
+                    });
+                    setupLayerDragAndDrop();
+                }
+                
+                // Set layout mode
+                layoutMode = mode;
+                if (mode === 'vertical') {
+                    document.body.classList.remove('side-by-side');
+                    document.body.classList.add('vertical-stack');
+                } else {
+                    document.body.classList.remove('vertical-stack');
+                    document.body.classList.add('side-by-side');
+                }
+                
+                // Update zoom indicators after layout change
+                setTimeout(updateSplitViewZoomIndicators, 100);
+            }
+            
+            // Update button visibility and active states
+            updateViewModeButtons(mode);
+        }
+
+        function updateViewModeButtons(activeMode) {
+            const overlayBtn = document.getElementById('overlayViewBtn');
+            const horizontalBtn = document.getElementById('horizontalViewBtn');
+            const verticalBtn = document.getElementById('verticalViewBtn');
+            const splitFitBtn = document.getElementById('splitFitToggle');
+            
+            if (activeMode === 'overlay') {
+                // In overlay mode, show split options, hide fit toggle
+                overlayBtn.style.display = 'none';
+                horizontalBtn.style.display = 'inline-block';
+                verticalBtn.style.display = 'inline-block';
+                splitFitBtn.style.display = 'none';
+            } else {
+                // In split mode, show all options including fit toggle
+                overlayBtn.style.display = 'inline-block';
+                horizontalBtn.style.display = 'inline-block';
+                verticalBtn.style.display = 'inline-block';
+                splitFitBtn.style.display = 'inline-block';
+                
+                // Highlight active button
+                overlayBtn.style.background = activeMode === 'overlay' ? 'rgb(160, 160, 160)' : '';
+                overlayBtn.style.color = activeMode === 'overlay' ? '#000' : '';
+                horizontalBtn.style.background = activeMode === 'horizontal' ? 'rgb(160, 160, 160)' : '';
+                horizontalBtn.style.color = activeMode === 'horizontal' ? '#000' : '';
+                verticalBtn.style.background = activeMode === 'vertical' ? 'rgb(160, 160, 160)' : '';
+                verticalBtn.style.color = activeMode === 'vertical' ? '#000' : '';
+            }
+        }
+
+        // Update checkAllLoaded to show view mode buttons
+        function checkAllLoaded() {
+            console.log('=== checkAllLoaded called ===');
+            const loadedCount = Object.values(mediaData).filter(m => m !== null).length;
+            console.log('Loaded count:', loadedCount);
+            console.log('hasVideos:', hasVideos);
+            
+            // Need at least 2 files loaded (Edit A and Edit B minimum)
+            if (loadedCount >= 2) {
+                console.log('2+ files loaded, activating comparison view');
+                
+                // Hide quick start popup if showing
+                document.getElementById('quickStartPopup').classList.remove('show');
+                
+                document.getElementById('comparisonView').classList.add('active');
+                console.log('comparisonView activated');
+                
+                document.getElementById('resetBtn').style.display = 'block';
+                
+                // Show view mode buttons
+                document.getElementById('horizontalViewBtn').style.display = 'inline-block';
+                document.getElementById('verticalViewBtn').style.display = 'inline-block';
+                console.log('View mode buttons shown');
+                
+                // Show/hide audio source buttons based on what's loaded
+                document.getElementById('audioOriginal').style.display = mediaData.original ? 'inline-block' : 'none';
+                document.getElementById('audioEditA').style.display = mediaData.editA ? 'inline-block' : 'none';
+                document.getElementById('audioEditB').style.display = mediaData.editB ? 'inline-block' : 'none';
+                console.log('Audio buttons configured');
+                
+                // Set initial audio source to first loaded video
+                if (mediaData.original) {
+                    selectAudioSource('original');
+                } else if (mediaData.editA) {
+                    selectAudioSource('editA');
+                } else {
+                    selectAudioSource('editB');
+                }
+                console.log('Audio source selected');
+                
+                // Dim Original box if only 2 files loaded (no original)
+                const originalBox = document.getElementById('dropOriginal');
+                if (!mediaData.original && loadedCount === 2) {
+                    originalBox.classList.add('empty-slot');
+                } else {
+                    originalBox.classList.remove('empty-slot');
+                }
+                
+                // Check for identical assets
+                checkForIdenticalAssets();
+                
+                // Start with first loaded asset
+                console.log('About to switch to asset...');
+                if (mediaData.original) {
+                    console.log('Switching to Original (index 0)');
+                    switchToAsset(0); // Start with original
+                } else if (mediaData.editA) {
+                    console.log('Switching to Edit A (index 1)');
+                    switchToAsset(1); // Start with Edit A if no original
+                } else {
+                    console.log('Switching to Edit B (index 2)');
+                    switchToAsset(2); // Start with Edit B
+                }
+                
+                // Show video controls if any videos
+                console.log('Checking for video controls, hasVideos =', hasVideos);
+                if (hasVideos) {
+                    console.log('Activating video controls');
+                    const videoControls = document.getElementById('videoControls');
+                    console.log('videoControls element:', videoControls);
+                    videoControls.classList.add('active');
+                    console.log('videoControls classes:', videoControls.className);
+                } else {
+                    console.log('No videos, controls will not show');
+                }
+                
+                console.log('=== checkAllLoaded complete ===');
+            } else {
+                console.log('Not enough files loaded yet');
+            }
+        }
+
+        function setupLayerDragAndDrop() {
+            const layers = document.querySelectorAll('.overlay-layer');
+            
+            layers.forEach(layer => {
+                if (!layer.querySelector('img, video')) return; // Skip empty layers
+                
+                layer.draggable = true;
+                
+                layer.addEventListener('dragstart', function(e) {
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/html', this.id);
+                });
+                
+                layer.addEventListener('dragend', function(e) {
+                    this.classList.remove('dragging');
+                });
+                
+                layer.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    this.classList.add('drag-over');
+                });
+                
+                layer.addEventListener('dragleave', function(e) {
+                    this.classList.remove('drag-over');
+                });
+                
+                layer.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    
+                    const draggedId = e.dataTransfer.getData('text/html');
+                    const draggedElement = document.getElementById(draggedId);
+                    
+                    if (draggedElement && draggedElement !== this) {
+                        // Swap positions in DOM
+                        const container = this.parentNode;
+                        const allLayers = Array.from(container.querySelectorAll('.overlay-layer'));
+                        const draggedIndex = allLayers.indexOf(draggedElement);
+                        const targetIndex = allLayers.indexOf(this);
+                        
+                        if (draggedIndex < targetIndex) {
+                            this.parentNode.insertBefore(draggedElement, this.nextSibling);
+                        } else {
+                            this.parentNode.insertBefore(draggedElement, this);
+                        }
+                    }
+                });
+            });
+        }
+
+        function removeDragAndDrop() {
+            const layers = document.querySelectorAll('.overlay-layer');
+            layers.forEach(layer => {
+                layer.draggable = false;
+                // Remove all event listeners by cloning and replacing
+                const newLayer = layer.cloneNode(true);
+                layer.parentNode.replaceChild(newLayer, layer);
+            });
+        }
+
+        function captureState() {
+            const state = {
+                currentAssetIndex: currentAssetIndex,
+                isFullscreen: isFullscreen,
+                isSideBySide: isSideBySide,
+                layoutMode: layoutMode,
+                zoomLevel: zoomLevel,
+                panOffsetX: panOffsetX,
+                panOffsetY: panOffsetY,
+                showDistortion: showDistortion,
+                timecodeMode: timecodeMode,
+                isMuted: isMuted,
+                layerOrder: Array.from(document.querySelectorAll('.overlay-layer')).map(l => l.id),
+                videoStates: {}
+            };
+            
+            // Capture video playback states
+            document.querySelectorAll('.overlay-layer video').forEach(video => {
+                const layer = video.closest('.overlay-layer');
+                state.videoStates[layer.id] = {
+                    currentTime: video.currentTime,
+                    paused: video.paused,
+                    volume: video.volume
+                };
+            });
+            
+            return state;
+        }
+
+        function saveState() {
+            const state = captureState();
+            undoStack.push(state);
+            
+            // Limit stack size
+            if (undoStack.length > MAX_UNDO_STATES) {
+                undoStack.shift();
+            }
+            
+            // Clear redo stack when new action is taken
+            redoStack = [];
+        }
+
+        function undo() {
+            if (undoStack.length === 0) {
+                console.log('Nothing to undo');
+                return;
+            }
+            
+            // Save current state to redo stack
+            redoStack.push(captureState());
+            
+            // Restore previous state
+            const state = undoStack.pop();
+            restoreState(state);
+        }
+
+        function redo() {
+            if (redoStack.length === 0) {
+                console.log('Nothing to redo');
+                return;
+            }
+            
+            // Save current state to undo stack
+            undoStack.push(captureState());
+            
+            // Restore next state
+            const state = redoStack.pop();
+            restoreState(state);
+        }
+
+        function restoreState(state) {
+            // Restore basic state
+            currentAssetIndex = state.currentAssetIndex;
+            zoomLevel = state.zoomLevel;
+            panOffsetX = state.panOffsetX;
+            panOffsetY = state.panOffsetY;
+            showDistortion = state.showDistortion;
+            timecodeMode = state.timecodeMode;
+            isMuted = state.isMuted;
+            
+            // Restore fullscreen
+            if (state.isFullscreen !== isFullscreen) {
+                toggleFullscreen();
+            }
+            
+            // Restore split view
+            if (state.isSideBySide !== isSideBySide) {
+                toggleSideBySide();
+            }
+            
+            // Restore layout mode
+            if (state.layoutMode !== layoutMode) {
+                setLayoutMode(state.layoutMode);
+            }
+            
+            // Restore layer order
+            const container = document.getElementById('overlayContainer');
+            const layoutControls = document.getElementById('layoutControls');
+            state.layerOrder.forEach(layerId => {
+                const layer = document.getElementById(layerId);
+                if (layer) {
+                    container.appendChild(layer);
+                }
+            });
+            // Keep layout controls at top
+            container.insertBefore(layoutControls, container.firstChild);
+            
+            // Restore video states
+            Object.keys(state.videoStates).forEach(layerId => {
+                const layer = document.getElementById(layerId);
+                if (layer) {
+                    const video = layer.querySelector('video');
+                    const videoState = state.videoStates[layerId];
+                    if (video && videoState) {
+                        video.currentTime = videoState.currentTime;
+                        video.volume = videoState.volume;
+                        if (videoState.paused) {
+                            video.pause();
+                        } else {
+                            video.play();
+                        }
+                    }
+                }
+            });
+            
+            // Restore current asset view
+            switchToAsset(state.currentAssetIndex);
+            
+            // Update UI
+            document.getElementById('muteBtn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+            document.getElementById('zoomLevelDisplay').textContent = zoomLevel.toFixed(1) + '×';
+            
+            console.log('State restored');
+        }
+
+        let isMuted = false;
+        function toggleMute() {
+            saveState(); // Save state before muting
+            isMuted = !isMuted;
+            const btn = document.getElementById('muteBtn');
+            
+            getAllVideos().forEach(v => {
+                v.muted = isMuted;
+            });
+            
+            btn.textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            // Undo/Redo - works globally
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const modifier = isMac ? e.metaKey : e.ctrlKey;
+            
+            if (modifier && e.key === 'z' && e.shiftKey) {
+                // Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (PC) - Redo
+                e.preventDefault();
+                redo();
+                return;
+            } else if (modifier && e.key === 'z') {
+                // Cmd+Z (Mac) or Ctrl+Z (PC) - Undo
+                e.preventDefault();
+                undo();
+                return;
+            }
+            
+            // Only work if comparison view is active
+            if (!document.getElementById('comparisonView').classList.contains('active')) {
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                // Move to previous non-empty slot
+                let nextIndex = (currentAssetIndex - 1 + assetOrder.length) % assetOrder.length;
+                let attempts = 0;
+                while (!mediaData[assetOrder[nextIndex]] && attempts < 3) {
+                    nextIndex = (nextIndex - 1 + assetOrder.length) % assetOrder.length;
+                    attempts++;
+                }
+                if (mediaData[assetOrder[nextIndex]]) {
+                    switchToAsset(nextIndex);
+                }
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                // Move to next non-empty slot
+                let nextIndex = (currentAssetIndex + 1) % assetOrder.length;
+                let attempts = 0;
+                while (!mediaData[assetOrder[nextIndex]] && attempts < 3) {
+                    nextIndex = (nextIndex + 1) % assetOrder.length;
+                    attempts++;
+                }
+                if (mediaData[assetOrder[nextIndex]]) {
+                    switchToAsset(nextIndex);
+                }
+            } else if (e.key === 'f' || e.key === 'F' || e.key === 'Escape') {
+                e.preventDefault();
+                toggleFullscreen();
+            } else if (e.key === '+' || e.key === '=') {
+                // Both + and = (no shift needed) zoom in
+                e.preventDefault();
+                if (!isFullscreen) {
+                    toggleFullscreen();
+                }
+                zoomIn();
+            } else if (e.key === '-' || e.key === '_') {
+                // Both - and _ zoom out
+                e.preventDefault();
+                if (!isFullscreen) {
+                    toggleFullscreen();
+                }
+                zoomOut();
+            } else if (e.key === ' ') {
+                // Spacebar toggles play/pause for videos
+                e.preventDefault();
+                togglePlayPause();
+            } else if (e.key === 'r' || e.key === 'R') {
+                // R key restarts from beginning
+                e.preventDefault();
+                restartAllVideos();
+            } else if (e.key === 's' || e.key === 'S') {
+                // S key cycles through view modes: overlay -> horizontal -> vertical -> overlay
+                e.preventDefault();
+                if (!isSideBySide) {
+                    setViewMode('horizontal');
+                } else if (layoutMode === 'horizontal') {
+                    setViewMode('vertical');
+                } else {
+                    setViewMode('overlay');
+                }
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupDragAndDrop();
+            
+            // Restore Quick Load position preference
+            const savedPosition = localStorage.getItem('quickLoadPosition');
+            if (savedPosition === 'left') {
+                const dropZones = document.querySelector('.drop-zones');
+                const toggleBtn = document.getElementById('positionToggle');
+                dropZones.classList.add('quick-load-left');
+                toggleBtn.textContent = 'Move Quick Load Right';
+            }
+            
+            // Restore label position preference
+            const savedLabelPosition = localStorage.getItem('labelPosition');
+            if (savedLabelPosition === 'bottom') {
+                const assetLabel = document.getElementById('assetLabel');
+                const labelToggle = document.getElementById('labelToggle');
+                assetLabel.classList.add('bottom');
+                labelToggle.textContent = 'Label: Bottom';
+            } else if (savedLabelPosition === 'off') {
+                const assetLabel = document.getElementById('assetLabel');
+                const labelToggle = document.getElementById('labelToggle');
+                assetLabel.style.display = 'none';
+                labelToggle.textContent = 'Label: Off';
+            }
+            
+            // Restore distortion preference
+            const savedDistortion = localStorage.getItem('showDistortion');
+            if (savedDistortion === 'true') {
+                showDistortion = true;
+                const distortionToggle = document.getElementById('distortionToggle');
+                distortionToggle.textContent = 'Preserve Aspect';
+            }
+        });
+
+        function toggleInstructions() {
+            const content = document.getElementById('instructionsContent');
+            const icon = document.getElementById('toggleIcon');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                content.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        }
+
+        function toggleQuickLoadPosition() {
+            const dropZones = document.querySelector('.drop-zones');
+            const toggleBtn = document.getElementById('positionToggle');
+            
+            if (dropZones.classList.contains('quick-load-left')) {
+                // Move to right
+                dropZones.classList.remove('quick-load-left');
+                toggleBtn.textContent = 'Move Quick Load Left';
+                localStorage.setItem('quickLoadPosition', 'right');
+            } else {
+                // Move to left
+                dropZones.classList.add('quick-load-left');
+                toggleBtn.textContent = 'Move Quick Load Right';
+                localStorage.setItem('quickLoadPosition', 'left');
+            }
+        }
+
+        function toggleLabelPosition() {
+            const assetLabel = document.getElementById('assetLabel');
+            const toggleBtn = document.getElementById('labelToggle');
+            
+            if (assetLabel.classList.contains('bottom')) {
+                // Bottom -> Off
+                assetLabel.style.display = 'none';
+                assetLabel.classList.remove('bottom');
+                toggleBtn.textContent = 'Label: Off';
+                localStorage.setItem('labelPosition', 'off');
+            } else if (assetLabel.style.display === 'none') {
+                // Off -> Top
+                assetLabel.style.display = 'block';
+                toggleBtn.textContent = 'Label: Top';
+                localStorage.setItem('labelPosition', 'top');
+            } else {
+                // Top -> Bottom
+                assetLabel.classList.add('bottom');
+                toggleBtn.textContent = 'Label: Bottom';
+                localStorage.setItem('labelPosition', 'bottom');
+            }
+        }
+
+        function toggleDistortion() {
+            showDistortion = !showDistortion;
+            const toggleBtn = document.getElementById('distortionToggle');
+            
+            if (showDistortion) {
+                toggleBtn.textContent = 'Preserve Aspect';
+                localStorage.setItem('showDistortion', 'true');
+            } else {
+                toggleBtn.textContent = 'Show Distortion';
+                localStorage.setItem('showDistortion', 'false');
+            }
+            
+            // If in fullscreen, update the object-fit immediately
+            if (isFullscreen) {
+                document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
+                    media.style.objectFit = showDistortion ? 'fill' : 'contain';
+                });
+            }
+        }
+    </script>
+</body>
+</html>
