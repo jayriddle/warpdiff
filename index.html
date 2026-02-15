@@ -1374,6 +1374,46 @@
             }
         }
 
+        // Global progress update loop (shared across all videos)
+        let globalAnimationId = null;
+        function startProgressUpdateLoop() {
+            // Only start if not already running
+            if (globalAnimationId !== null) return;
+
+            function updateLoop() {
+                // Find the video that should drive the progress bar
+                let primaryVideo = null;
+
+                if (!isSideBySide) {
+                    // In overlay mode, use the active layer's video
+                    const activeLayer = document.querySelector('.overlay-layer.active');
+                    if (activeLayer) {
+                        primaryVideo = activeLayer.querySelector('video');
+                    }
+                } else {
+                    // In split view, use the first video
+                    primaryVideo = document.querySelector('.overlay-layer video');
+                }
+
+                // Update progress if we have a primary video and it's playing
+                if (primaryVideo && !primaryVideo.paused) {
+                    updateVideoProgress(primaryVideo);
+                }
+
+                // Always continue the loop
+                globalAnimationId = requestAnimationFrame(updateLoop);
+            }
+
+            updateLoop();
+        }
+
+        function stopProgressUpdateLoop() {
+            if (globalAnimationId !== null) {
+                cancelAnimationFrame(globalAnimationId);
+                globalAnimationId = null;
+            }
+        }
+
         function setupVideoHandlers(video, slot) {
             // Enable native looping
             video.loop = true;
@@ -1384,36 +1424,28 @@
                 generateWaveform(video, slot);
             });
             
-            // Update timecode and progress bar smoothly
-            let animationId = null;
-            function updateLoop() {
-                const activeLayer = document.querySelector('.overlay-layer.active');
-                if (activeLayer && activeLayer.querySelector('video') === video && !video.paused) {
-                    updateVideoProgress(video);
-                }
-                animationId = requestAnimationFrame(updateLoop);
-            }
-            
             video.addEventListener('play', function() {
-                if (animationId) cancelAnimationFrame(animationId);
-                updateLoop();
-                
-                // Only sync videos in overlay mode, NOT in split view mode
-                if (!isSideBySide) {
-                    // Sync other videos in overlay mode
-                    document.querySelectorAll('.overlay-layer video').forEach(v => {
-                        if (v !== video && Math.abs(v.currentTime - video.currentTime) > 0.5) {
+                // Sync all videos when any video plays
+                document.querySelectorAll('video').forEach(v => {
+                    if (v !== video) {
+                        v.play();
+                        if (Math.abs(v.currentTime - video.currentTime) > 0.5) {
                             v.currentTime = video.currentTime;
                         }
-                    });
-                }
+                    }
+                });
+
+                // Start global progress update loop (only once)
+                startProgressUpdateLoop();
             });
-            
+
             video.addEventListener('pause', function() {
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
+                // Sync pause to all other videos
+                document.querySelectorAll('video').forEach(v => {
+                    if (v !== video && !v.paused) {
+                        v.pause();
+                    }
+                });
             });
             
             video.addEventListener('seeked', function() {
@@ -1524,6 +1556,8 @@
         function updateWaveformPlayhead(progress) {
             // This will be drawn over the waveform to show current position
             const canvas = document.getElementById('audioWaveform');
+            if (!canvas) return; // Canvas was removed in compact controls redesign
+
             const ctx = canvas.getContext('2d');
             const x = (progress / 100) * canvas.width;
             
