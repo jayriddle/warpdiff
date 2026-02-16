@@ -581,6 +581,19 @@
             display: block; /* Always show in all modes */
         }
 
+        /* Adjust zoom indicator position for horizontal split - over image bottom right */
+        body.side-by-side .split-zoom-indicator {
+            bottom: 10px;
+            right: 10px;
+        }
+
+        /* Adjust zoom indicator position for vertical split - over image bottom right */
+        body.vertical-stack .split-zoom-indicator {
+            bottom: 10px;
+            right: 10px;
+            left: auto;
+        }
+
         /* Asset info bar styling - base (for overlay mode) */
         .asset-info-bar {
             position: absolute;
@@ -604,7 +617,17 @@
             color: #ffffff;
         }
 
-        /* Horizontal split: info bar on top */
+        /* Active asset indicator - highlight in overlay mode */
+        .overlay-layer.active .asset-info-bar {
+            border: 2px solid #007bff;
+            background: rgba(0, 123, 255, 0.2);
+        }
+
+        .overlay-layer.active .asset-info-bar .asset-name {
+            color: #007bff;
+        }
+
+        /* Horizontal split: info bar on top - attached to image */
         body.side-by-side .asset-info-bar {
             top: 0;
             left: 0;
@@ -617,9 +640,11 @@
             padding: 0 10px;
             font-size: 12px;
             border-radius: 0;
+            border: none;
+            background: rgba(0, 0, 0, 0.9);
         }
 
-        /* Vertical stack: info bar on left */
+        /* Vertical stack: info bar on left - attached to image */
         body.vertical-stack .asset-info-bar {
             top: 0;
             left: 0;
@@ -632,10 +657,24 @@
             padding: 10px;
             font-size: 11px;
             border-radius: 0;
+            border: none;
+            background: rgba(0, 0, 0, 0.9);
         }
 
         body.vertical-stack .asset-info-bar .asset-name {
             font-size: 13px;
+        }
+
+        /* Remove active indicator in split views - not needed */
+        body.side-by-side .overlay-layer.active .asset-info-bar,
+        body.vertical-stack .overlay-layer.active .asset-info-bar {
+            border: none;
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        body.side-by-side .overlay-layer.active .asset-info-bar .asset-name,
+        body.vertical-stack .overlay-layer.active .asset-info-bar .asset-name {
+            color: #ffffff;
         }
 
         /* Drag and drop styling */
