@@ -2351,16 +2351,42 @@
 
                 if (!media || !infoBar || !zoomIndicator) return;
 
-                // Get the actual rendered position and size of the media
+                // Get the media element bounds
                 const mediaRect = media.getBoundingClientRect();
                 const layerRect = layer.getBoundingClientRect();
 
                 // Skip if media not yet rendered
                 if (mediaRect.width === 0 || mediaRect.height === 0) return;
 
-                // Calculate offset from layer to actual rendered media
-                const mediaOffsetX = mediaRect.left - layerRect.left;
-                const mediaOffsetY = mediaRect.top - layerRect.top;
+                // Get natural dimensions
+                const naturalWidth = media.naturalWidth || media.videoWidth || 0;
+                const naturalHeight = media.naturalHeight || media.videoHeight || 0;
+
+                if (naturalWidth === 0 || naturalHeight === 0) return;
+
+                // Calculate actual rendered dimensions accounting for object-fit: contain
+                const mediaAspect = naturalWidth / naturalHeight;
+                const containerAspect = mediaRect.width / mediaRect.height;
+
+                let renderedWidth, renderedHeight, offsetX, offsetY;
+
+                if (containerAspect > mediaAspect) {
+                    // Container is wider - image is limited by height
+                    renderedHeight = mediaRect.height;
+                    renderedWidth = renderedHeight * mediaAspect;
+                    offsetX = (mediaRect.width - renderedWidth) / 2;
+                    offsetY = 0;
+                } else {
+                    // Container is taller - image is limited by width
+                    renderedWidth = mediaRect.width;
+                    renderedHeight = renderedWidth / mediaAspect;
+                    offsetX = 0;
+                    offsetY = (mediaRect.height - renderedHeight) / 2;
+                }
+
+                // Calculate absolute position of rendered image
+                const mediaOffsetX = (mediaRect.left - layerRect.left) + offsetX;
+                const mediaOffsetY = (mediaRect.top - layerRect.top) + offsetY;
 
                 // Position info bar based on mode
                 infoBar.style.position = 'absolute';
@@ -2383,10 +2409,10 @@
                     infoBar.style.alignItems = 'center';
                 }
 
-                // Position zoom indicator at bottom-right of media
+                // Position zoom indicator at bottom-right of rendered image
                 zoomIndicator.style.position = 'absolute';
-                zoomIndicator.style.left = (mediaOffsetX + mediaRect.width - zoomIndicator.offsetWidth - 5) + 'px';
-                zoomIndicator.style.top = (mediaOffsetY + mediaRect.height - zoomIndicator.offsetHeight - 5) + 'px';
+                zoomIndicator.style.left = (mediaOffsetX + renderedWidth - zoomIndicator.offsetWidth - 5) + 'px';
+                zoomIndicator.style.top = (mediaOffsetY + renderedHeight - zoomIndicator.offsetHeight - 5) + 'px';
                 zoomIndicator.style.right = '';
                 zoomIndicator.style.bottom = '';
             });
