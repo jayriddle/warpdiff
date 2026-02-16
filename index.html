@@ -486,9 +486,12 @@
         /* Media container wraps the actual image/video for proper positioning */
         .media-container {
             position: relative;
-            display: inline-block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             max-width: 100%;
             max-height: 100%;
+            height: 100%;
         }
 
         .media-container img,
@@ -497,6 +500,17 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+        }
+
+        /* In overlay mode, position info bar inside the media, not outside */
+        .overlay-layer:not(.active) .asset-info-bar {
+            display: none; /* Only show for active layer in overlay */
+        }
+
+        .overlay-layer.active .asset-info-bar {
+            bottom: auto;
+            top: 0;
+            left: 0;
         }
 
         body.side-by-side .overlay-layer {
@@ -510,12 +524,29 @@
         body.side-by-side .media-container {
             width: 100%;
             height: 100%;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
         body.side-by-side .overlay-container {
             white-space: nowrap;
             overflow-x: auto;
+        }
+
+        /* Show info bar above media in split views */
+        body.side-by-side .asset-info-bar {
+            position: relative;
+            bottom: auto;
+            margin-bottom: 0;
+            width: auto;
+            display: flex;
+        }
+
+        body.side-by-side .media-container img,
+        body.side-by-side .media-container video {
+            flex-shrink: 0;
         }
 
         body.side-by-side .overlay-layer.active {
@@ -574,7 +605,19 @@
         body.vertical-stack .media-container {
             width: 100%;
             height: 100%;
-            display: block;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Show info bar above media in vertical stack */
+        body.vertical-stack .asset-info-bar {
+            position: relative;
+            bottom: auto;
+            margin-bottom: 0;
+            width: auto;
+            display: flex;
         }
 
         body.vertical-stack .media-container img,
@@ -583,6 +626,7 @@
             height: 100%;
             object-fit: contain; /* Show full frame by default */
             display: block;
+            flex-shrink: 0;
         }
 
         body.vertical-stack.fit-cover .media-container img,
@@ -631,61 +675,17 @@
             color: #ffffff;
         }
 
-        /* Active asset indicator - highlight in overlay mode */
-        .overlay-layer.active .asset-info-bar {
+        /* Active asset indicator - highlight in overlay mode only */
+        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar {
             border: 2px solid #007bff;
             background: rgba(0, 123, 255, 0.2);
         }
 
-        .overlay-layer.active .asset-info-bar .asset-name {
+        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar .asset-name {
             color: #007bff;
         }
 
-        /* Horizontal split: info bar just above image */
-        body.side-by-side .asset-info-bar {
-            bottom: 100%; /* Position just above media */
-            left: 0;
-            right: auto;
-            flex-direction: row;
-            align-items: center;
-            gap: 10px;
-            padding: 4px 12px;
-            font-size: 11px;
-            border-radius: 3px 3px 0 0;
-            border: none;
-            background: rgba(0, 0, 0, 0.9);
-        }
 
-        /* Vertical stack: info bar just above image */
-        body.vertical-stack .asset-info-bar {
-            bottom: 100%; /* Position just above media */
-            left: 0;
-            right: auto;
-            flex-direction: row;
-            align-items: center;
-            gap: 10px;
-            padding: 4px 12px;
-            font-size: 11px;
-            border-radius: 3px 3px 0 0;
-            border: none;
-            background: rgba(0, 0, 0, 0.9);
-        }
-
-        body.vertical-stack .asset-info-bar .asset-name {
-            font-size: 11px;
-        }
-
-        /* Remove active indicator in split views - not needed */
-        body.side-by-side .overlay-layer.active .asset-info-bar,
-        body.vertical-stack .overlay-layer.active .asset-info-bar {
-            border: none;
-            background: rgba(0, 0, 0, 0.9);
-        }
-
-        body.side-by-side .overlay-layer.active .asset-info-bar .asset-name,
-        body.vertical-stack .overlay-layer.active .asset-info-bar .asset-name {
-            color: #ffffff;
-        }
 
         /* Drag and drop styling */
         .overlay-layer.dragging {
