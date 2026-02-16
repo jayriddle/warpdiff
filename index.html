@@ -139,6 +139,11 @@
             justify-content: center;
         }
 
+        /* Hide drop zones once comparison view is active */
+        .comparison-view.active ~ .drop-zones {
+            display: none;
+        }
+
         .drop-zones.quick-load-left {
             flex-direction: row;
         }
@@ -562,50 +567,23 @@
             object-fit: cover; /* Crop to fill when toggled */
         }
 
-        /* Labels for vertical stack */
-        .stack-label {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 8px 16px;
-            font-size: 16px;
-            font-weight: 700;
-            color: rgb(160, 160, 160);
-            z-index: 10;
-            border-radius: 4px;
-            border: 2px solid rgb(160, 160, 160);
-            pointer-events: none;
-            display: none;
-        }
-
-        body.vertical-stack .stack-label {
-            display: block;
-        }
-
-        /* Also show in horizontal split view */
-        body.side-by-side .stack-label {
-            display: block;
-        }
-        
-        /* Zoom level indicator per image in split view */
+        /* Zoom level indicator - bottom right corner of each asset */
         .split-zoom-indicator {
             position: absolute;
             bottom: 10px;
             right: 10px;
             background: rgba(0, 0, 0, 0.85);
-            padding: 6px 12px;
-            font-size: 14px;
+            padding: 4px 8px;
+            font-size: 12px;
             font-weight: bold;
-            border-radius: 4px;
+            border-radius: 3px;
             pointer-events: none;
             z-index: 10;
             color: rgb(160, 160, 160);
             font-family: monospace;
-            border: 2px solid rgb(160, 160, 160);
             display: none;
         }
-        
+
         body.side-by-side .split-zoom-indicator,
         body.vertical-stack .split-zoom-indicator {
             display: block;
@@ -1107,7 +1085,6 @@
                 </div>
                 
                 <div class="overlay-layer" id="layerOriginal">
-                    <div class="stack-label">ORIGINAL</div>
                     <div class="split-zoom-indicator" id="zoomOriginal">1.0×</div>
                     <div class="asset-info-bar">
                         <span class="asset-name">ORIGINAL</span>
@@ -1117,7 +1094,6 @@
                     </div>
                 </div>
                 <div class="overlay-layer" id="layerEditA">
-                    <div class="stack-label">EDIT A</div>
                     <div class="split-zoom-indicator" id="zoomEditA">1.0×</div>
                     <div class="asset-info-bar">
                         <span class="asset-name">EDIT A</span>
@@ -1127,7 +1103,6 @@
                     </div>
                 </div>
                 <div class="overlay-layer" id="layerEditB">
-                    <div class="stack-label">EDIT B</div>
                     <div class="split-zoom-indicator" id="zoomEditB">1.0×</div>
                     <div class="asset-info-bar">
                         <span class="asset-name">EDIT B</span>
@@ -1136,8 +1111,6 @@
                         <span class="asset-duration">-</span>
                     </div>
                 </div>
-                
-                <div class="asset-label" id="assetLabel">ORIGINAL</div>
                 
                 <div class="identical-warning" id="identicalWarning">
                     ⚠️ Identical Assets Detected
