@@ -526,7 +526,7 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: stretch;
             justify-content: center;
         }
 
@@ -535,18 +535,24 @@
             overflow-x: auto;
         }
 
-        /* Show info bar above media in split views */
+        /* Show info bar above media in horizontal split */
         body.side-by-side .asset-info-bar {
             position: relative;
             bottom: auto;
             margin-bottom: 0;
-            width: auto;
+            width: 100%;
             display: flex;
+            flex-shrink: 0;
+            order: -1; /* Place before the media */
+            justify-content: center;
         }
 
         body.side-by-side .media-container img,
         body.side-by-side .media-container video {
-            flex-shrink: 0;
+            flex-grow: 1;
+            flex-shrink: 1;
+            min-height: 0;
+            width: 100%;
         }
 
         body.side-by-side .overlay-layer.active {
@@ -606,27 +612,34 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            flex-direction: row;
+            align-items: stretch;
             justify-content: center;
         }
 
-        /* Show info bar above media in vertical stack */
+        /* Show info bar to left of media in vertical stack */
         body.vertical-stack .asset-info-bar {
             position: relative;
             bottom: auto;
-            margin-bottom: 0;
+            margin-right: 0;
             width: auto;
             display: flex;
+            flex-shrink: 0;
+            order: -1; /* Place before the media */
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            writing-mode: horizontal-tb;
         }
 
         body.vertical-stack .media-container img,
         body.vertical-stack .media-container video {
-            width: 100%;
+            flex-grow: 1;
+            flex-shrink: 1;
+            min-width: 0;
             height: 100%;
             object-fit: contain; /* Show full frame by default */
             display: block;
-            flex-shrink: 0;
         }
 
         body.vertical-stack.fit-cover .media-container img,
@@ -683,6 +696,18 @@
 
         body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar .asset-name {
             color: #007bff;
+        }
+
+        /* Active audio indicator for split views - shows which audio is playing */
+        body.side-by-side .overlay-layer.active-audio .asset-info-bar,
+        body.vertical-stack .overlay-layer.active-audio .asset-info-bar {
+            border: 2px solid #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+        }
+
+        body.side-by-side .overlay-layer.active-audio .asset-info-bar .asset-name,
+        body.vertical-stack .overlay-layer.active-audio .asset-info-bar .asset-name {
+            color: #28a745;
         }
 
 
@@ -1688,6 +1713,13 @@
                                 icon.textContent = '🔊';
                             }
                         }
+                    }
+
+                    // Add active-audio class to layer with unmuted audio in split views
+                    if (slot === source && !audioMuteStates[slot]) {
+                        layer.classList.add('active-audio');
+                    } else {
+                        layer.classList.remove('active-audio');
                     }
                 }
             });
