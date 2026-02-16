@@ -524,10 +524,6 @@
         body.side-by-side .media-container {
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            justify-content: center;
         }
 
         body.side-by-side .overlay-container {
@@ -535,24 +531,17 @@
             overflow-x: auto;
         }
 
-        /* Show info bar above media in horizontal split */
-        body.side-by-side .asset-info-bar {
-            position: relative;
-            bottom: auto;
-            margin-bottom: 0;
-            width: 100%;
+        /* Info bars in split views will be positioned by JavaScript */
+        body.side-by-side .asset-info-bar,
+        body.vertical-stack .asset-info-bar {
+            position: absolute;
             display: flex;
-            flex-shrink: 0;
-            order: -1; /* Place before the media */
-            justify-content: center;
         }
 
         body.side-by-side .media-container img,
         body.side-by-side .media-container video {
-            flex-grow: 1;
-            flex-shrink: 1;
-            min-height: 0;
             width: 100%;
+            height: 100%;
         }
 
         body.side-by-side .overlay-layer.active {
@@ -611,32 +600,12 @@
         body.vertical-stack .media-container {
             width: 100%;
             height: 100%;
-            display: flex;
-            flex-direction: row;
-            align-items: stretch;
-            justify-content: center;
         }
 
-        /* Show info bar to left of media in vertical stack */
-        body.vertical-stack .asset-info-bar {
-            position: relative;
-            bottom: auto;
-            margin-right: 0;
-            width: auto;
-            display: flex;
-            flex-shrink: 0;
-            order: -1; /* Place before the media */
-            flex-direction: column;
-            align-items: flex-start;
-            justify-content: center;
-            writing-mode: horizontal-tb;
-        }
 
         body.vertical-stack .media-container img,
         body.vertical-stack .media-container video {
-            flex-grow: 1;
-            flex-shrink: 1;
-            min-width: 0;
+            width: 100%;
             height: 100%;
             object-fit: contain; /* Show full frame by default */
             display: block;
@@ -1410,6 +1379,9 @@
                         // Setup video handlers
                         setupVideoHandlers(video, slot);
 
+                        // Position labels and indicators after metadata loads
+                        setTimeout(positionLabelsAndIndicators, 50);
+
                         console.log(`Video ${slot} fully loaded and ready`);
                     });
 
@@ -1422,8 +1394,11 @@
                     img.src = dataUrl;
                     img.addEventListener('load', function() {
                         updateResolutionDisplay(slot, img.naturalWidth, img.naturalHeight);
-                        // Update zoom indicators if in split view
-                        setTimeout(updateSplitViewZoomIndicators, 50);
+                        // Update zoom indicators and position labels if in split view
+                        setTimeout(() => {
+                            updateSplitViewZoomIndicators();
+                            positionLabelsAndIndicators();
+                        }, 50);
                     });
                     mediaContainer.appendChild(img);
                 }
@@ -2353,7 +2328,45 @@
         
         // Update zoom indicators when window resizes
         window.addEventListener('resize', updateSplitViewZoomIndicators);
-        
+
+        // Position info bars and zoom indicators based on actual rendered media bounds
+        function positionLabelsAndIndicators() {
+            ['original', 'editA', 'editB'].forEach(slot => {
+                if (!mediaData[slot]) return;
+
+                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                const layer = document.getElementById(`layer${slotName}`);
+                const mediaContainer = layer.querySelector('.media-container');
+                const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                const infoBar = layer.querySelector('.asset-info-bar');
+                const zoomIndicator = layer.querySelector('.split-zoom-indicator');
+
+                if (!media || !infoBar || !zoomIndicator) return;
+
+                // Get the actual rendered bounds of the media element
+                const mediaRect = media.getBoundingClientRect();
+                const layerRect = layer.getBoundingClientRect();
+
+                // Calculate offset from layer to media
+                const offsetX = mediaRect.left - layerRect.left;
+                const offsetY = mediaRect.top - layerRect.top;
+
+                // Position info bar just above the media
+                infoBar.style.position = 'absolute';
+                infoBar.style.left = offsetX + 'px';
+                infoBar.style.top = (offsetY - infoBar.offsetHeight) + 'px';
+                infoBar.style.width = 'auto';
+
+                // Position zoom indicator at bottom-right of media
+                zoomIndicator.style.position = 'absolute';
+                zoomIndicator.style.left = (offsetX + mediaRect.width - zoomIndicator.offsetWidth - 5) + 'px';
+                zoomIndicator.style.top = (offsetY + mediaRect.height - zoomIndicator.offsetHeight - 5) + 'px';
+            });
+        }
+
+        // Call on resize and when entering split views
+        window.addEventListener('resize', positionLabelsAndIndicators);
+
         function setViewMode(mode) {
             saveState(); // Save state before changing view
             
@@ -2417,10 +2430,13 @@
                     document.body.classList.add('side-by-side');
                 }
 
-                // Update zoom indicators after layout change
-                setTimeout(updateSplitViewZoomIndicators, 100);
+                // Update zoom indicators and position labels after layout change
+                setTimeout(() => {
+                    updateSplitViewZoomIndicators();
+                    positionLabelsAndIndicators();
+                }, 100);
             }
-            
+
             // Update button visibility and active states
             updateViewModeButtons(mode);
         }
