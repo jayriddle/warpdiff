@@ -483,12 +483,34 @@
             pointer-events: auto;
         }
 
+        /* Media container wraps the actual image/video for proper positioning */
+        .media-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .media-container img,
+        .media-container video {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
         body.side-by-side .overlay-layer {
             position: relative;
             width: 50%;
             display: inline-block;
             vertical-align: top;
             cursor: grab;
+        }
+
+        body.side-by-side .media-container {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
 
         body.side-by-side .overlay-container {
@@ -517,17 +539,16 @@
             gap: 0; /* No gap between videos */
         }
 
-        body.side-by-side .overlay-layer img,
-        body.side-by-side .overlay-layer video {
+        body.side-by-side .media-container img,
+        body.side-by-side .media-container video {
             width: 100%;
-            height: calc(100% - 30px); /* Account for 30px info bar at top */
-            margin-top: 30px;
+            height: 100%;
             object-fit: contain; /* Show full frame by default */
             display: block;
         }
 
-        body.side-by-side.fit-cover .overlay-layer img,
-        body.side-by-side.fit-cover .overlay-layer video {
+        body.side-by-side.fit-cover .media-container img,
+        body.side-by-side.fit-cover .media-container video {
             object-fit: cover; /* Crop to fill when toggled */
         }
 
@@ -550,25 +571,30 @@
             padding-bottom: 20px;
         }
 
-        body.vertical-stack .overlay-layer img,
-        body.vertical-stack .overlay-layer video {
-            width: calc(100% - 120px); /* Account for 120px info bar on left */
-            margin-left: 120px;
+        body.vertical-stack .media-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        body.vertical-stack .media-container img,
+        body.vertical-stack .media-container video {
+            width: 100%;
             height: 100%;
             object-fit: contain; /* Show full frame by default */
             display: block;
         }
 
-        body.vertical-stack.fit-cover .overlay-layer img,
-        body.vertical-stack.fit-cover .overlay-layer video {
+        body.vertical-stack.fit-cover .media-container img,
+        body.vertical-stack.fit-cover .media-container video {
             object-fit: cover; /* Crop to fill when toggled */
         }
 
-        /* Zoom level indicator - bottom right corner of each asset */
+        /* Zoom level indicator - overlays bottom right corner of media */
         .split-zoom-indicator {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
+            bottom: 5px;
+            right: 5px;
             background: rgba(0, 0, 0, 0.85);
             padding: 4px 8px;
             font-size: 12px;
@@ -581,35 +607,23 @@
             display: block; /* Always show in all modes */
         }
 
-        /* Adjust zoom indicator position for horizontal split - over image bottom right */
-        body.side-by-side .split-zoom-indicator {
-            bottom: 10px;
-            right: 10px;
-        }
-
-        /* Adjust zoom indicator position for vertical split - over image bottom right */
-        body.vertical-stack .split-zoom-indicator {
-            bottom: 10px;
-            right: 10px;
-            left: auto;
-        }
-
         /* Asset info bar styling - base (for overlay mode) */
         .asset-info-bar {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            bottom: 100%; /* Position just above the media */
+            left: 0;
             display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
-            padding: 8px 12px;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 12px;
             background: rgba(0, 0, 0, 0.9);
             z-index: 10;
             font-size: 11px;
             color: #a0a0a0;
-            border-radius: 3px;
+            border-radius: 3px 3px 0 0;
             pointer-events: none;
+            white-space: nowrap;
         }
 
         .asset-info-bar .asset-name {
@@ -627,42 +641,38 @@
             color: #007bff;
         }
 
-        /* Horizontal split: info bar on top - attached to image */
+        /* Horizontal split: info bar just above image */
         body.side-by-side .asset-info-bar {
-            top: 0;
+            bottom: 100%; /* Position just above media */
             left: 0;
-            right: 0;
-            height: 30px;
+            right: auto;
             flex-direction: row;
             align-items: center;
-            justify-content: center;
-            gap: 15px;
-            padding: 0 10px;
-            font-size: 12px;
-            border-radius: 0;
+            gap: 10px;
+            padding: 4px 12px;
+            font-size: 11px;
+            border-radius: 3px 3px 0 0;
             border: none;
             background: rgba(0, 0, 0, 0.9);
         }
 
-        /* Vertical stack: info bar on left - attached to image */
+        /* Vertical stack: info bar just above image */
         body.vertical-stack .asset-info-bar {
-            top: 0;
+            bottom: 100%; /* Position just above media */
             left: 0;
-            bottom: 0;
-            width: 120px;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-start;
-            gap: 8px;
-            padding: 10px;
+            right: auto;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+            padding: 4px 12px;
             font-size: 11px;
-            border-radius: 0;
+            border-radius: 3px 3px 0 0;
             border: none;
             background: rgba(0, 0, 0, 0.9);
         }
 
         body.vertical-stack .asset-info-bar .asset-name {
-            font-size: 13px;
+            font-size: 11px;
         }
 
         /* Remove active indicator in split views - not needed */
@@ -1348,9 +1358,15 @@
                 // Load into overlay layer
                 const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
 
-                // Remove old media but preserve info bars and labels
-                const oldMedia = layer.querySelectorAll('video, img');
-                oldMedia.forEach(el => el.remove());
+                // Remove old media container but preserve info bars and zoom indicators at layer level
+                const oldContainer = layer.querySelector('.media-container');
+                if (oldContainer) {
+                    oldContainer.remove();
+                }
+
+                // Create media container to hold the actual image/video
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'media-container';
 
                 if (isVideo) {
                     console.log(`Creating video element for ${slot}`);
@@ -1358,22 +1374,22 @@
                     video.src = dataUrl;
                     video.controls = false;
                     video.volume = 1.0;
-                    
+
                     video.addEventListener('loadedmetadata', function() {
                         console.log(`${slot} loadedmetadata event fired`);
                         updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
                         updateDurationDisplay(slot, video.duration);
-                        
+
                         console.log(`Video ${slot} metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
-                        
+
                         // Setup video handlers
                         setupVideoHandlers(video, slot);
-                        
+
                         console.log(`Video ${slot} fully loaded and ready`);
                     });
-                    
-                    console.log(`Appending video to layer for ${slot}`);
-                    layer.appendChild(video);
+
+                    console.log(`Appending video to container for ${slot}`);
+                    mediaContainer.appendChild(video);
                     hasVideos = true;
                     console.log(`hasVideos set to true`);
                 } else {
@@ -1384,8 +1400,21 @@
                         // Update zoom indicators if in split view
                         setTimeout(updateSplitViewZoomIndicators, 50);
                     });
-                    layer.appendChild(img);
+                    mediaContainer.appendChild(img);
                 }
+
+                // Move info bar and zoom indicator into media container
+                const infoBar = layer.querySelector('.asset-info-bar');
+                const zoomIndicator = layer.querySelector('.split-zoom-indicator');
+
+                if (infoBar) {
+                    mediaContainer.appendChild(infoBar);
+                }
+                if (zoomIndicator) {
+                    mediaContainer.appendChild(zoomIndicator);
+                }
+
+                layer.appendChild(mediaContainer);
 
                 checkAllLoaded();
             };
@@ -2137,12 +2166,14 @@
                     document.getElementById(`aspect${slot}`).textContent = '-';
 
                     const layer = document.getElementById(`layer${slot}`);
-                    // Remove only media elements, preserve info bars and zoom indicators
-                    const oldMedia = layer.querySelectorAll('video, img');
-                    oldMedia.forEach(el => el.remove());
+                    // Remove media container
+                    const mediaContainer = layer.querySelector('.media-container');
+                    if (mediaContainer) {
+                        mediaContainer.remove();
+                    }
                     layer.classList.remove('active');
 
-                    // Reset info bar text
+                    // Reset info bar text - info bars are back at layer level after removal
                     const infoBar = layer.querySelector('.asset-info-bar');
                     if (infoBar) {
                         infoBar.querySelector('.asset-resolution').textContent = '-';
