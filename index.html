@@ -540,29 +540,10 @@
             overflow-x: auto;
         }
 
-        /* Horizontal split: info bar at top of layer */
-        body.side-by-side .asset-info-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            display: flex;
-            justify-content: center;
-        }
-
-        /* Vertical split: info bar at left of layer */
+        /* Info bars positioned by JavaScript to attach to actual media */
+        body.side-by-side .asset-info-bar,
         body.vertical-stack .asset-info-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 120px;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 10px;
-            font-size: 11px;
         }
 
         body.side-by-side .media-container img,
@@ -1406,6 +1387,9 @@
                         // Setup video handlers
                         setupVideoHandlers(video, slot);
 
+                        // Position labels to media after video loads
+                        setTimeout(positionLabelsToMedia, 50);
+
                         console.log(`Video ${slot} fully loaded and ready`);
                     });
 
@@ -1418,8 +1402,11 @@
                     img.src = dataUrl;
                     img.addEventListener('load', function() {
                         updateResolutionDisplay(slot, img.naturalWidth, img.naturalHeight);
-                        // Update zoom indicators if in split view
-                        setTimeout(updateSplitViewZoomIndicators, 50);
+                        // Update zoom indicators and position labels
+                        setTimeout(() => {
+                            updateSplitViewZoomIndicators();
+                            positionLabelsToMedia();
+                        }, 50);
                     });
                     mediaContainer.appendChild(img);
                 }
@@ -2350,34 +2337,66 @@
         // Update zoom indicators when window resizes
         window.addEventListener('resize', updateSplitViewZoomIndicators);
 
-        // Clear inline positioning styles when switching modes
-        function clearInlinePositioning() {
+        // Position info bars and zoom indicators attached to actual rendered media
+        function positionLabelsToMedia() {
+            const inSideBySide = document.body.classList.contains('side-by-side');
+            const inVerticalStack = document.body.classList.contains('vertical-stack');
+
             ['original', 'editA', 'editB'].forEach(slot => {
+                if (!mediaData[slot]) return;
+
                 const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
                 const layer = document.getElementById(`layer${slotName}`);
-                if (!layer) return;
-
+                const mediaContainer = layer.querySelector('.media-container');
+                const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                 const infoBar = layer.querySelector('.asset-info-bar');
                 const zoomIndicator = layer.querySelector('.split-zoom-indicator');
 
-                if (infoBar) {
-                    infoBar.style.position = '';
-                    infoBar.style.left = '';
+                if (!media || !infoBar || !zoomIndicator) return;
+
+                // Get the actual rendered position and size of the media
+                const mediaRect = media.getBoundingClientRect();
+                const layerRect = layer.getBoundingClientRect();
+
+                // Skip if media not yet rendered
+                if (mediaRect.width === 0 || mediaRect.height === 0) return;
+
+                // Calculate offset from layer to actual rendered media
+                const mediaOffsetX = mediaRect.left - layerRect.left;
+                const mediaOffsetY = mediaRect.top - layerRect.top;
+
+                // Position info bar based on mode
+                infoBar.style.position = 'absolute';
+
+                if (inVerticalStack) {
+                    // Vertical stack: info bar to the left of the media
+                    infoBar.style.left = Math.max(0, mediaOffsetX - infoBar.offsetWidth) + 'px';
+                    infoBar.style.top = (mediaOffsetY + mediaRect.height / 2 - infoBar.offsetHeight / 2) + 'px';
                     infoBar.style.right = '';
-                    infoBar.style.top = '';
                     infoBar.style.bottom = '';
-                    infoBar.style.width = '';
+                    infoBar.style.flexDirection = 'column';
+                    infoBar.style.alignItems = 'flex-start';
+                } else {
+                    // Overlay and horizontal: info bar at top-left of media
+                    infoBar.style.left = mediaOffsetX + 'px';
+                    infoBar.style.top = mediaOffsetY + 'px';
+                    infoBar.style.right = '';
+                    infoBar.style.bottom = '';
+                    infoBar.style.flexDirection = 'row';
+                    infoBar.style.alignItems = 'center';
                 }
 
-                if (zoomIndicator) {
-                    zoomIndicator.style.position = '';
-                    zoomIndicator.style.left = '';
-                    zoomIndicator.style.right = '';
-                    zoomIndicator.style.top = '';
-                    zoomIndicator.style.bottom = '';
-                }
+                // Position zoom indicator at bottom-right of media
+                zoomIndicator.style.position = 'absolute';
+                zoomIndicator.style.left = (mediaOffsetX + mediaRect.width - zoomIndicator.offsetWidth - 5) + 'px';
+                zoomIndicator.style.top = (mediaOffsetY + mediaRect.height - zoomIndicator.offsetHeight - 5) + 'px';
+                zoomIndicator.style.right = '';
+                zoomIndicator.style.bottom = '';
             });
         }
+
+        // Call positioning on resize
+        window.addEventListener('resize', positionLabelsToMedia);
 
         function setViewMode(mode) {
             saveState(); // Save state before changing view
@@ -2418,8 +2437,8 @@
                     switchToAsset(currentAssetIndex);
                     removeDragAndDrop();
 
-                    // Clear inline positioning styles
-                    clearInlinePositioning();
+                    // Position labels after switching to overlay
+                    setTimeout(positionLabelsToMedia, 100);
                 }
             } else {
                 // Enable split view
@@ -2447,9 +2466,11 @@
                     document.body.classList.add('side-by-side');
                 }
 
-                // Clear inline styles and update zoom indicators after layout change
-                clearInlinePositioning();
-                setTimeout(updateSplitViewZoomIndicators, 100);
+                // Position labels and update zoom indicators after layout change
+                setTimeout(() => {
+                    updateSplitViewZoomIndicators();
+                    positionLabelsToMedia();
+                }, 100);
             }
 
             // Update button visibility and active states
