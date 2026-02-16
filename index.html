@@ -1642,15 +1642,30 @@
             document.getElementById('audioEditA').classList.toggle('active', source === 'editA');
             document.getElementById('audioEditB').classList.toggle('active', source === 'editB');
 
-            // Mute all videos except the selected source
+            // Mute all videos except the selected source and update button icons
             ['original', 'editA', 'editB'].forEach(slot => {
                 const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
                 const layer = document.getElementById(`layer${slotName}`);
+                const button = document.getElementById(`audio${slotName}`);
+                const icon = button ? button.querySelector('.audio-mute-icon') : null;
+
                 if (layer) {
                     const video = layer.querySelector('video');
                     if (video) {
                         // Mute if not the selected source OR if individually muted
-                        video.muted = (slot !== source) || audioMuteStates[slot];
+                        const shouldMute = (slot !== source) || audioMuteStates[slot];
+                        video.muted = shouldMute;
+
+                        // Update mute icon to reflect actual state
+                        if (button && icon) {
+                            if (shouldMute) {
+                                button.classList.add('muted');
+                                icon.textContent = '🔇';
+                            } else {
+                                button.classList.remove('muted');
+                                icon.textContent = '🔊';
+                            }
+                        }
                     }
                 }
             });
