@@ -623,7 +623,7 @@
             left: 0;
             right: 0;
             height: 30px;
-            display: flex;
+            display: flex !important;
             align-items: center;
             justify-content: center;
             gap: 15px;
@@ -646,7 +646,7 @@
             left: 0;
             bottom: 0;
             width: 120px;
-            display: flex;
+            display: flex !important;
             flex-direction: column;
             justify-content: center;
             align-items: flex-start;
@@ -1357,8 +1357,11 @@
 
                 // Load into overlay layer
                 const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
-                layer.innerHTML = '';
-                
+
+                // Remove old media but preserve info bars and labels
+                const oldMedia = layer.querySelectorAll('video, img');
+                oldMedia.forEach(el => el.remove());
+
                 if (isVideo) {
                     console.log(`Creating video element for ${slot}`);
                     const video = document.createElement('video');
