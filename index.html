@@ -822,29 +822,6 @@
             height: auto;
         }
 
-        .asset-label {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(0, 0, 0, 0.85);
-            padding: 12px 20px;
-            font-size: 18px;
-            font-weight: 600;
-            color: #808080;
-            z-index: 10;
-            text-align: center;
-            border-bottom: 2px solid #808080;
-            transition: all 0.3s ease;
-        }
-
-        .asset-label.bottom {
-            top: auto;
-            bottom: 0;
-            border-bottom: none;
-            border-top: 2px solid #808080;
-        }
-
         .controls-hint {
             position: fixed;
             bottom: 10px;
@@ -1154,10 +1131,6 @@
                 <button class="position-toggle" onclick="setViewMode('vertical')" id="verticalViewBtn" data-help="Vertically stacked comparison" style="display: none;">
                     Vertical
                     <div class="help-tooltip">Stacked view</div>
-                </button>
-                <button class="position-toggle" onclick="toggleLabelPosition()" id="labelToggle" data-help="Show asset name at top or bottom of image">
-                    Label: Top
-                    <div class="help-tooltip">Show asset name at top or bottom of image</div>
                 </button>
                 <button class="position-toggle" onclick="toggleSplitFitMode()" id="splitFitToggle" data-help="Toggle between fit (no crop) and fill (crop) in split view" style="display: none;">
                     Fit (No Crop)
@@ -2076,13 +2049,6 @@
                 }
             }
 
-            // Update label
-            const labels = {
-                'original': 'ORIGINAL',
-                'editA': 'EDIT A',
-                'editB': 'EDIT B'
-            };
-            document.getElementById('assetLabel').textContent = labels[assetKey];
         }
 
         // Setup video scrubbing with drag support
@@ -3106,20 +3072,6 @@
                 toggleBtn.textContent = 'Move Quick Load Right';
             }
             
-            // Restore label position preference
-            const savedLabelPosition = localStorage.getItem('labelPosition');
-            if (savedLabelPosition === 'bottom') {
-                const assetLabel = document.getElementById('assetLabel');
-                const labelToggle = document.getElementById('labelToggle');
-                assetLabel.classList.add('bottom');
-                labelToggle.textContent = 'Label: Bottom';
-            } else if (savedLabelPosition === 'off') {
-                const assetLabel = document.getElementById('assetLabel');
-                const labelToggle = document.getElementById('labelToggle');
-                assetLabel.style.display = 'none';
-                labelToggle.textContent = 'Label: Off';
-            }
-            
             // Restore distortion preference
             const savedDistortion = localStorage.getItem('showDistortion');
             if (savedDistortion === 'true') {
@@ -3156,29 +3108,6 @@
                 dropZones.classList.add('quick-load-left');
                 toggleBtn.textContent = 'Move Quick Load Right';
                 localStorage.setItem('quickLoadPosition', 'left');
-            }
-        }
-
-        function toggleLabelPosition() {
-            const assetLabel = document.getElementById('assetLabel');
-            const toggleBtn = document.getElementById('labelToggle');
-            
-            if (assetLabel.classList.contains('bottom')) {
-                // Bottom -> Off
-                assetLabel.style.display = 'none';
-                assetLabel.classList.remove('bottom');
-                toggleBtn.textContent = 'Label: Off';
-                localStorage.setItem('labelPosition', 'off');
-            } else if (assetLabel.style.display === 'none') {
-                // Off -> Top
-                assetLabel.style.display = 'block';
-                toggleBtn.textContent = 'Label: Top';
-                localStorage.setItem('labelPosition', 'top');
-            } else {
-                // Top -> Bottom
-                assetLabel.classList.add('bottom');
-                toggleBtn.textContent = 'Label: Bottom';
-                localStorage.setItem('labelPosition', 'bottom');
             }
         }
 
