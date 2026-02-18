@@ -2065,14 +2065,26 @@
                     fitDims[slot] = { fw, fh, portrait: nw < nh };
                 });
 
-                // Pass 2: find the minimum contain-fit width (portraits) and height (landscapes)
+                // Pass 2: find the minimum contain-fit width (portraits) and height (landscapes),
+                // capped at the minimum native dimension so we never scale any asset above 1.0×.
                 let minPortraitW = Infinity, minLandscapeH = Infinity;
-                Object.values(fitDims).forEach(({ fw, fh, portrait }) => {
-                    if (portrait) minPortraitW = Math.min(minPortraitW, fw);
-                    else          minLandscapeH = Math.min(minLandscapeH, fh);
+                slots.forEach(slot => {
+                    const d = fitDims[slot];
+                    if (!d) return;
+                    const media = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`)
+                        ?.querySelector('img, video');
+                    const nw = media ? (media.naturalWidth || media.videoWidth || 0) : 0;
+                    const nh = media ? (media.naturalHeight || media.videoHeight || 0) : 0;
+                    if (d.portrait) {
+                        // Cap at native width so no asset exceeds 1.0× zoom
+                        minPortraitW = Math.min(minPortraitW, d.fw, nw);
+                    } else {
+                        // Cap at native height so no asset exceeds 1.0× zoom
+                        minLandscapeH = Math.min(minLandscapeH, d.fh, nh);
+                    }
                 });
 
-                // Pass 3: scale each slot so its reference dimension matches the minimum
+                // Pass 3: scale each slot so its reference dimension matches the capped minimum
                 slots.forEach(slot => {
                     const d = fitDims[slot];
                     if (!d) { normalizeScales[slot] = 1; return; }
