@@ -385,14 +385,15 @@
         }
 
         /* In overlay mode, only show info bar and zoom for the active layer */
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer:not(.active) .asset-info-bar,
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer:not(.active) .split-zoom-indicator {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer:not(.active) .asset-info-bar,
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer:not(.active) .split-zoom-indicator {
             display: none;
         }
 
         /* Info bars always visible in split modes */
         body.side-by-side .asset-info-bar,
-        body.vertical-stack .asset-info-bar {
+        body.vertical-stack .asset-info-bar,
+        body.tripartite .asset-info-bar {
             display: flex;
         }
 
@@ -407,7 +408,9 @@
         body.side-by-side .overlay-layer.active,
         body.side-by-side .overlay-layer:not(.active),
         body.vertical-stack .overlay-layer.active,
-        body.vertical-stack .overlay-layer:not(.active) {
+        body.vertical-stack .overlay-layer:not(.active),
+        body.tripartite .overlay-layer.active,
+        body.tripartite .overlay-layer:not(.active) {
             opacity: 1;
             pointer-events: auto;
         }
@@ -444,11 +447,61 @@
             padding-bottom: 20px;
         }
 
+        /* Tripartite: Original left-half, Edit A top-right, Edit B bottom-right */
+        body.tripartite .overlay-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            height: calc(100vh - 50px);
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+
+        body.tripartite .overlay-layer {
+            position: relative !important;
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+            cursor: grab;
+            overflow: hidden;
+        }
+
+        body.tripartite #layerOriginal {
+            grid-column: 1;
+            grid-row: 1 / 3;
+        }
+
+        body.tripartite #layerEditA {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        body.tripartite #layerEditB {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        body.tripartite .asset-info-bar {
+            display: flex;
+        }
+
+        body.tripartite .overlay-layer.active-audio .asset-info-bar {
+            border: 2px solid #28a745;
+            box-shadow: 0 0 8px rgba(40, 167, 69, 0.4);
+        }
+
+        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name {
+            color: #28a745;
+        }
+
         /* fit-cover toggles */
         body.side-by-side.fit-cover .video-wrapper img,
         body.side-by-side.fit-cover .video-wrapper video,
         body.vertical-stack.fit-cover .video-wrapper img,
-        body.vertical-stack.fit-cover .video-wrapper video {
+        body.vertical-stack.fit-cover .video-wrapper video,
+        body.tripartite.fit-cover .video-wrapper img,
+        body.tripartite.fit-cover .video-wrapper video {
             object-fit: cover;
         }
 
@@ -492,13 +545,13 @@
         }
 
         /* Active asset indicator - show and highlight in overlay mode only */
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar {
             display: flex;
             border: 2px solid #007bff;
             background: rgba(0, 123, 255, 0.2);
         }
 
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar .asset-name {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar .asset-name {
             color: #007bff;
         }
 
@@ -704,7 +757,8 @@
 
         /* In split/stack views, position controls at bottom of viewport */
         body.side-by-side .video-controls,
-        body.vertical-stack .video-controls {
+        body.vertical-stack .video-controls,
+        body.tripartite .video-controls {
             position: fixed;
             bottom: 40px;
             left: 50%;
@@ -891,6 +945,10 @@
                 <button class="position-toggle" onclick="setViewMode('vertical')" id="verticalViewBtn" data-help="Vertically stacked comparison" style="display: none;">
                     Vertical
                     <div class="help-tooltip">Stacked view</div>
+                </button>
+                <button class="position-toggle" onclick="setViewMode('tripartite')" id="tripartiteViewBtn" data-help="Original left, Edit A/B stacked right (3 assets)" style="display: none;">
+                    Tripartite
+                    <div class="help-tooltip">Original left, Edits stacked right</div>
                 </button>
                 <button class="position-toggle" onclick="toggleSplitFitMode()" id="splitFitToggle" data-help="Toggle between fit (no crop) and fill (crop) in split view" style="display: none;">
                     Fit (No Crop)
@@ -1911,6 +1969,11 @@
                 hasVideos = false;
 
                 document.body.classList.remove('fullscreen');
+                document.body.classList.remove('side-by-side');
+                document.body.classList.remove('vertical-stack');
+                document.body.classList.remove('tripartite');
+                isSideBySide = false;
+                layoutMode = 'horizontal';
                 document.getElementById('comparisonView').classList.remove('active');
                 document.getElementById('resetBtn').style.display = 'none';
                 document.getElementById('videoControls').classList.remove('active');
@@ -2259,6 +2322,7 @@
                 if (isSideBySide) {
                     document.body.classList.remove('side-by-side');
                     document.body.classList.remove('vertical-stack');
+                    document.body.classList.remove('tripartite');
                     isSideBySide = false;
 
                     // Clear inline styles set by positionLabelsToMedia() so CSS takes over in overlay mode
@@ -2315,7 +2379,11 @@
                             layer.classList.add('active');
                         }
                     });
-                    setupLayerDragAndDrop();
+                    if (mode !== 'tripartite') {
+                        setupLayerDragAndDrop();
+                    } else {
+                        removeDragAndDrop();
+                    }
 
                     // Ensure only the current audio source plays
                     selectAudioSource(currentAudioSource);
@@ -2335,10 +2403,18 @@
                 layoutMode = mode;
                 if (mode === 'vertical') {
                     document.body.classList.remove('side-by-side');
+                    document.body.classList.remove('tripartite');
                     document.body.classList.add('vertical-stack');
+                } else if (mode === 'tripartite') {
+                    document.body.classList.remove('side-by-side');
+                    document.body.classList.remove('vertical-stack');
+                    document.body.classList.add('tripartite');
+                    removeDragAndDrop();
                 } else {
                     document.body.classList.remove('vertical-stack');
+                    document.body.classList.remove('tripartite');
                     document.body.classList.add('side-by-side');
+                    setupLayerDragAndDrop();
                 }
 
                 // Two nested rAFs guarantee a full layout pass with the new body class
@@ -2361,28 +2437,34 @@
             const overlayBtn = document.getElementById('overlayViewBtn');
             const horizontalBtn = document.getElementById('horizontalViewBtn');
             const verticalBtn = document.getElementById('verticalViewBtn');
+            const tripartiteBtn = document.getElementById('tripartiteViewBtn');
             const splitFitBtn = document.getElementById('splitFitToggle');
+            const allThree = Object.values(mediaData).filter(m => m !== null).length === 3;
 
             if (activeMode === 'overlay') {
-                // In overlay mode, show split options, hide fit toggle
+                // In overlay mode: hide overlay btn, show fit/split options appropriate to asset count
                 overlayBtn.style.display = 'none';
-                horizontalBtn.style.display = 'inline-block';
-                verticalBtn.style.display = 'inline-block';
+                horizontalBtn.style.display = allThree ? 'none' : 'inline-block';
+                verticalBtn.style.display = allThree ? 'none' : 'inline-block';
+                tripartiteBtn.style.display = allThree ? 'inline-block' : 'none';
                 splitFitBtn.style.display = 'none';
             } else {
-                // In split mode, show all options including fit toggle
+                // In split mode: show overlay btn + mode-appropriate split buttons + fit toggle
                 overlayBtn.style.display = 'inline-block';
-                horizontalBtn.style.display = 'inline-block';
-                verticalBtn.style.display = 'inline-block';
+                horizontalBtn.style.display = allThree ? 'none' : 'inline-block';
+                verticalBtn.style.display = allThree ? 'none' : 'inline-block';
+                tripartiteBtn.style.display = allThree ? 'inline-block' : 'none';
                 splitFitBtn.style.display = 'inline-block';
-                
-                // Highlight active button
-                overlayBtn.style.background = activeMode === 'overlay' ? 'rgb(160, 160, 160)' : '';
-                overlayBtn.style.color = activeMode === 'overlay' ? '#000' : '';
+
+                // Reset all highlight styles
+                overlayBtn.style.background = '';
+                overlayBtn.style.color = '';
                 horizontalBtn.style.background = activeMode === 'horizontal' ? 'rgb(160, 160, 160)' : '';
                 horizontalBtn.style.color = activeMode === 'horizontal' ? '#000' : '';
                 verticalBtn.style.background = activeMode === 'vertical' ? 'rgb(160, 160, 160)' : '';
                 verticalBtn.style.color = activeMode === 'vertical' ? '#000' : '';
+                tripartiteBtn.style.background = activeMode === 'tripartite' ? 'rgb(160, 160, 160)' : '';
+                tripartiteBtn.style.color = activeMode === 'tripartite' ? '#000' : '';
             }
         }
 
@@ -2406,8 +2488,7 @@
                 document.getElementById('resetBtn').style.display = 'block';
 
                 // Show view mode buttons (initial state is overlay mode)
-                document.getElementById('horizontalViewBtn').style.display = 'inline-block';
-                document.getElementById('verticalViewBtn').style.display = 'inline-block';
+                // (updateViewModeButtons will set correct visibility based on asset count)
                 console.log('View mode buttons shown');
 
                 // Show/hide audio source buttons based on what's loaded
@@ -2442,8 +2523,8 @@
                     switchToAsset(2); // Start with Edit B
                 }
 
-                // Default to horizontal split so all loaded assets are immediately visible
-                setViewMode('horizontal');
+                // Default to tripartite when 3 assets loaded, otherwise horizontal
+                setViewMode(loadedCount === 3 ? 'tripartite' : 'horizontal');
 
                 // Show video controls if any videos
                 console.log('Checking for video controls, hasVideos =', hasVideos);
@@ -2653,7 +2734,7 @@
             
             // Restore layout mode
             if (state.layoutMode !== layoutMode) {
-                setLayoutMode(state.layoutMode);
+                setViewMode(state.layoutMode);
             }
             
             // Restore layer order
@@ -2800,14 +2881,25 @@
                 e.preventDefault();
                 toggleMute();
             } else if (e.key === 's' || e.key === 'S') {
-                // S key cycles through view modes: overlay -> horizontal -> vertical -> overlay
+                // S key cycles through view modes depending on asset count
                 e.preventDefault();
-                if (!isSideBySide) {
-                    setViewMode('horizontal');
-                } else if (layoutMode === 'horizontal') {
-                    setViewMode('vertical');
+                const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
+                if (allThreeLoaded) {
+                    // 3-asset cycle: overlay <-> tripartite
+                    if (!isSideBySide) {
+                        setViewMode('tripartite');
+                    } else {
+                        setViewMode('overlay');
+                    }
                 } else {
-                    setViewMode('overlay');
+                    // 2-asset cycle: overlay -> horizontal -> vertical -> overlay
+                    if (!isSideBySide) {
+                        setViewMode('horizontal');
+                    } else if (layoutMode === 'horizontal') {
+                        setViewMode('vertical');
+                    } else {
+                        setViewMode('overlay');
+                    }
                 }
             }
         });
