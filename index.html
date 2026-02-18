@@ -2288,8 +2288,13 @@
                     switchToAsset(currentAssetIndex);
                     removeDragAndDrop();
 
-                    // Position labels after switching to overlay
-                    setTimeout(positionLabelsToMedia, 100);
+                    // Two nested rAFs ensure CSS class removal reflow is complete
+                    // before positionLabelsToMedia() reads container dimensions.
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            positionLabelsToMedia();
+                        });
+                    });
                 }
             } else {
                 // Enable split view
@@ -2327,11 +2332,23 @@
                     document.body.classList.add('side-by-side');
                 }
 
-                // Position labels and update zoom indicators after layout change
-                setTimeout(() => {
-                    updateSplitViewZoomIndicators();
-                    positionLabelsToMedia();
-                }, 100);
+                // Hide wrappers for the one transition frame where inline styles are
+                // cleared but positionLabelsToMedia() hasn't run yet (they'd show at top:0/left:0).
+                document.querySelectorAll('.video-wrapper').forEach(vw => {
+                    vw.style.opacity = '0';
+                });
+
+                // Two nested rAFs guarantee a full layout pass with the new body class
+                // applied before we read offsetWidth/offsetHeight to compute positions.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        updateSplitViewZoomIndicators();
+                        positionLabelsToMedia();
+                        document.querySelectorAll('.video-wrapper').forEach(vw => {
+                            vw.style.opacity = '';
+                        });
+                    });
+                });
             }
 
             // Update button visibility and active states
