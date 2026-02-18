@@ -2076,6 +2076,7 @@
         //   - Overlay/Horizontal: above the video-wrapper (top edge)
         //   - Vertical: to the left of the video-wrapper
         function positionLabelsToMedia() {
+            let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = ['original', 'editA', 'editB'];
             const isVertical = document.body.classList.contains('vertical-stack');
             const isOverlay = !isSideBySide && !isVertical;
@@ -2161,7 +2162,7 @@
                 // Get the container bounds
                 const containerW = mediaContainer.offsetWidth;
                 const containerH = mediaContainer.offsetHeight;
-                if (containerW === 0 || containerH === 0) return;
+                if (containerW === 0 || containerH === 0) { anySkipped = true; return; }
 
                 // Calculate the rendered content bounds within object-fit: contain
                 const mediaAspect = naturalWidth / naturalHeight;
@@ -2190,13 +2191,16 @@
                     offsetY = (containerH - renderedH) / 2;
                 }
 
-                // Size and position the video-wrapper to exactly cover the rendered media pixels
+                // Size and position the video-wrapper to exactly cover the rendered media pixels.
+                // Hide during the write so the browser never paints an intermediate state.
+                videoWrapper.style.opacity = '0';
                 videoWrapper.style.width = Math.round(renderedW) + 'px';
                 videoWrapper.style.height = Math.round(renderedH) + 'px';
                 videoWrapper.style.top = Math.round(offsetY) + 'px';
                 videoWrapper.style.left = Math.round(offsetX) + 'px';
                 videoWrapper.style.transform = '';
                 videoWrapper.style.transformOrigin = '';
+                videoWrapper.style.opacity = '';
 
                 // Update zoom indicator to reflect actual displayed size
                 const zoomIndicator = videoWrapper.querySelector('.split-zoom-indicator');
@@ -2236,6 +2240,12 @@
                     }
                 }
             });
+
+            // If any loaded slot had a zero-dimension container (layout not yet committed),
+            // retry after the next paint so those slots get positioned correctly.
+            if (anySkipped) {
+                requestAnimationFrame(positionLabelsToMedia);
+            }
         }
 
         // Call positioning on resize
@@ -2332,21 +2342,14 @@
                     document.body.classList.add('side-by-side');
                 }
 
-                // Hide wrappers for the one transition frame where inline styles are
-                // cleared but positionLabelsToMedia() hasn't run yet (they'd show at top:0/left:0).
-                document.querySelectorAll('.video-wrapper').forEach(vw => {
-                    vw.style.opacity = '0';
-                });
-
                 // Two nested rAFs guarantee a full layout pass with the new body class
                 // applied before we read offsetWidth/offsetHeight to compute positions.
+                // Opacity is managed per-slot inside positionLabelsToMedia() to avoid
+                // race conditions when setViewMode() is called in rapid succession.
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         updateSplitViewZoomIndicators();
                         positionLabelsToMedia();
-                        document.querySelectorAll('.video-wrapper').forEach(vw => {
-                            vw.style.opacity = '';
-                        });
                     });
                 });
             }
