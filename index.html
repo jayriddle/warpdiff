@@ -2268,19 +2268,20 @@
                     const cw = layer.offsetWidth;
                     const ch = layer.offsetHeight;
                     if (!cw || !ch) { anySkipped = true; return; }
-                    // Contain-fit rendered height: height if fitted into this cell
-                    const fitH = Math.min(ch, cw * nh / nw);
-                    tripartiteLayout[slot] = { nw, nh, cw, ch, fitH };
-                    minH = Math.min(minH, fitH);
+                    // Contain-fit zoom: largest scale fitting nw×nh inside cw×ch
+                    const zoom = Math.min(cw / nw, ch / nh);
+                    tripartiteLayout[slot] = { nw, nh, cw, ch, zoom };
+                    minH = Math.min(minH, zoom); // reuse minH variable as minZoom
                 });
-                // Each slot renders at the shared minH; width = minH * aspect, clamped to cell width
+                // All slots render at the shared minimum zoom so they appear the same size.
+                // rw/rh are clamped to cell dimensions as a safety guard.
+                const minZoom = minH; // renamed for clarity below
                 slots.forEach(slot => {
                     const d = tripartiteLayout[slot];
                     if (!d) return;
-                    const aspect = d.nw / d.nh;
-                    d.rh = minH;
-                    d.rw = Math.min(d.cw, minH * aspect);
-                    d.sharedZoom = d.rh / d.nh;
+                    d.rw = Math.min(d.cw, Math.round(d.nw * minZoom));
+                    d.rh = Math.min(d.ch, Math.round(d.nh * minZoom));
+                    d.sharedZoom = minZoom;
                 });
             }
 
@@ -2379,11 +2380,11 @@
                         infoBar.style.height = '';
                         infoBar.style.right = '';
                         if (slot === 'editB') {
-                            // EditB is flush-top so there's no room above — place bar below image
-                            infoBar.style.top = Math.round(ty + th) + 'px';
+                            // EditB is flush-top; place bar just inside the top of the image
+                            infoBar.style.top = ty + 'px';
                             infoBar.style.bottom = '';
                         } else {
-                            // Original and EditA: bar above the image
+                            // Original and EditA: bar above the image, clamped to 0
                             infoBar.style.top = Math.round(Math.max(0, ty - ibH)) + 'px';
                             infoBar.style.bottom = '';
                         }
