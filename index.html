@@ -2075,7 +2075,7 @@
         // The info bar is positioned:
         //   - Overlay/Horizontal: above the video-wrapper (top edge)
         //   - Vertical: to the left of the video-wrapper
-        function positionLabelsToMedia() {
+        function positionLabelsToMedia(retriesLeft = 5) {
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = ['original', 'editA', 'editB'];
             const isVertical = document.body.classList.contains('vertical-stack');
@@ -2102,7 +2102,7 @@
                     if (!nw || !nh) return;
                     const cw = mediaContainer.offsetWidth;
                     const ch = mediaContainer.offsetHeight;
-                    if (!cw || !ch) return;
+                    if (!cw || !ch) { anySkipped = true; return; }
                     const aspect = nw / nh;
                     const containerAspect = cw / ch;
                     let fw, fh;
@@ -2209,42 +2209,22 @@
                     zoomIndicator.textContent = actualZoom.toFixed(2) + '×';
                 }
 
-                // Position the info bar
+                // Position the info bar above the video in all modes
                 if (infoBar) {
-                    if (isVertical) {
-                        // Left of the video: right-align to the video-wrapper's left edge.
-                        // Set height first so the bar has dimensions, then read offsetWidth.
-                        infoBar.style.top = Math.round(offsetY) + 'px';
-                        infoBar.style.height = Math.round(renderedH) + 'px';
-                        infoBar.style.bottom = '';
-                        infoBar.style.right = '';
-                        infoBar.style.width = '';
-                        // Snap left in a rAF so the browser has painted the bar's width
-                        const snapLeft = (ib, ox) => {
-                            const ibW = ib.offsetWidth;
-                            if (ibW > 0) {
-                                ib.style.left = Math.round(ox - ibW - 6) + 'px';
-                            } else {
-                                requestAnimationFrame(() => snapLeft(ib, ox));
-                            }
-                        };
-                        snapLeft(infoBar, offsetX);
-                    } else {
-                        // Above the video: aligned to the video-wrapper's top edge
-                        infoBar.style.left = Math.round(offsetX) + 'px';
-                        infoBar.style.top = '';
-                        infoBar.style.bottom = Math.round(containerH - offsetY) + 'px';
-                        infoBar.style.right = '';
-                        infoBar.style.width = Math.round(renderedW) + 'px';
-                        infoBar.style.height = '';
-                    }
+                    infoBar.style.left = Math.round(offsetX) + 'px';
+                    infoBar.style.top = '';
+                    infoBar.style.bottom = Math.round(containerH - offsetY) + 'px';
+                    infoBar.style.right = '';
+                    infoBar.style.width = Math.round(renderedW) + 'px';
+                    infoBar.style.height = '';
                 }
             });
 
             // If any loaded slot had a zero-dimension container (layout not yet committed),
             // retry after the next paint so those slots get positioned correctly.
-            if (anySkipped) {
-                requestAnimationFrame(positionLabelsToMedia);
+            // Cap retries to avoid infinite loops if a container is permanently zero.
+            if (anySkipped && retriesLeft > 0) {
+                requestAnimationFrame(() => positionLabelsToMedia(retriesLeft - 1));
             }
         }
 
