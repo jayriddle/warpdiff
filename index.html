@@ -462,9 +462,27 @@
             position: relative !important;
             width: 100% !important;
             height: 100% !important;
-            display: block;
+            display: block !important;
+            align-items: unset !important;
+            justify-content: unset !important;
             cursor: grab;
             overflow: hidden;
+        }
+
+        body.tripartite .media-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        body.tripartite .video-wrapper {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         body.tripartite #layerOriginal {
@@ -2260,25 +2278,20 @@
                 }
 
                 // Size and position the video-wrapper.
-                // In tripartite mode: fill the full grid cell so the image is centered within
-                // the wide left column (or the half-height right cells) via CSS object-fit: contain.
+                // In tripartite mode: CSS pins the wrapper to 100%×100% of the grid cell so
+                // object-fit: contain centers the image naturally — no JS geometry needed.
                 // In all other modes: shrink the wrapper to the exact contain-fit pixel bounds so
                 // the zoom indicator always sits at the actual content corner, not the letterbox area.
-                videoWrapper.style.opacity = '0';
-                if (isTripartite) {
-                    videoWrapper.style.width = '100%';
-                    videoWrapper.style.height = '100%';
-                    videoWrapper.style.top = '0';
-                    videoWrapper.style.left = '0';
-                } else {
+                if (!isTripartite) {
+                    videoWrapper.style.opacity = '0';
                     videoWrapper.style.width = Math.round(renderedW) + 'px';
                     videoWrapper.style.height = Math.round(renderedH) + 'px';
                     videoWrapper.style.top = Math.round(offsetY) + 'px';
                     videoWrapper.style.left = Math.round(offsetX) + 'px';
+                    videoWrapper.style.transform = '';
+                    videoWrapper.style.transformOrigin = '';
+                    videoWrapper.style.opacity = '';
                 }
-                videoWrapper.style.transform = '';
-                videoWrapper.style.transformOrigin = '';
-                videoWrapper.style.opacity = '';
 
                 // Update zoom indicator to reflect actual displayed size
                 const zoomIndicator = videoWrapper.querySelector('.split-zoom-indicator');
