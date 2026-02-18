@@ -477,14 +477,6 @@
             height: 100% !important;
         }
 
-        body.tripartite .video-wrapper {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
         body.tripartite .overlay-layer img,
         body.tripartite .overlay-layer video {
             width: 100% !important;
@@ -2237,6 +2229,41 @@
                 });
             }
 
+            // In tripartite mode, compute a shared zoom level so all three assets display
+            // at the same size. Each slot has a different cell size (Original = full height left,
+            // A/B = half height right), so we compute each slot's contain-fit zoom independently,
+            // then take the minimum. All slots then render at that zoom.
+            const tripartiteZoom = {}; // slot → { zoom, rw, rh } at shared zoom
+            if (isTripartite) {
+                let minZoom = Infinity;
+                slots.forEach(slot => {
+                    if (!mediaData[slot]) return;
+                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                    const layer = document.getElementById(`layer${slotName}`);
+                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
+                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                    if (!media) return;
+                    const nw = media.naturalWidth || media.videoWidth || 0;
+                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    if (!nw || !nh) return;
+                    const cw = mediaContainer.offsetWidth;
+                    const ch = mediaContainer.offsetHeight;
+                    if (!cw || !ch) { anySkipped = true; return; }
+                    // Contain-fit zoom: largest scale that fits nw×nh inside cw×ch
+                    const zoom = Math.min(cw / nw, ch / nh);
+                    tripartiteZoom[slot] = { zoom, nw, nh, cw, ch };
+                    minZoom = Math.min(minZoom, zoom);
+                });
+                // Apply the shared minimum zoom to each slot's rendered dimensions
+                slots.forEach(slot => {
+                    const d = tripartiteZoom[slot];
+                    if (!d) return;
+                    d.rw = d.nw * minZoom;
+                    d.rh = d.nh * minZoom;
+                    d.sharedZoom = minZoom;
+                });
+            }
+
             slots.forEach(slot => {
                 if (!mediaData[slot]) return;
 
@@ -2286,21 +2313,56 @@
                     offsetY = (containerH - renderedH) / 2;
                 }
 
-                // Size and position the video-wrapper.
-                // In tripartite mode: CSS pins the wrapper to 100%×100% of the grid cell so
-                // object-fit: contain centers the image naturally — no JS geometry needed.
-                // In all other modes: shrink the wrapper to the exact contain-fit pixel bounds so
-                // the zoom indicator always sits at the actual content corner, not the letterbox area.
-                if (!isTripartite) {
+                // In tripartite mode: use the shared zoom dimensions computed in the pre-pass.
+                // Original is flush-right in its cell; EditA/EditB are flush-left in theirs.
+                // All three are vertically centered. This makes right-edge of Original meet
+                // the left-edge of A/B at the column midpoint, with the whole group centered.
+                if (isTripartite && tripartiteZoom[slot]) {
+                    const td = tripartiteZoom[slot];
+                    const tw = Math.round(td.rw);
+                    const th = Math.round(td.rh);
+                    const ty = Math.round((td.ch - td.rh) / 2);
+                    // Original: flush right; A/B: flush left
+                    const tx = slot === 'original'
+                        ? Math.round(td.cw - td.rw)
+                        : 0;
+
                     videoWrapper.style.opacity = '0';
-                    videoWrapper.style.width = Math.round(renderedW) + 'px';
-                    videoWrapper.style.height = Math.round(renderedH) + 'px';
-                    videoWrapper.style.top = Math.round(offsetY) + 'px';
-                    videoWrapper.style.left = Math.round(offsetX) + 'px';
+                    videoWrapper.style.width = tw + 'px';
+                    videoWrapper.style.height = th + 'px';
+                    videoWrapper.style.top = ty + 'px';
+                    videoWrapper.style.left = tx + 'px';
                     videoWrapper.style.transform = '';
                     videoWrapper.style.transformOrigin = '';
                     videoWrapper.style.opacity = '';
+
+                    const zoomIndicator = videoWrapper.querySelector('.split-zoom-indicator');
+                    if (zoomIndicator) {
+                        zoomIndicator.textContent = td.sharedZoom.toFixed(2) + '×';
+                    }
+
+                    if (infoBar) {
+                        const ibH = infoBar.offsetHeight || 28;
+                        infoBar.style.left = tx + 'px';
+                        infoBar.style.top = Math.round(Math.max(0, ty - ibH)) + 'px';
+                        infoBar.style.bottom = '';
+                        infoBar.style.right = '';
+                        infoBar.style.width = tw + 'px';
+                        infoBar.style.height = '';
+                    }
+                    return; // skip the standard positioning below
                 }
+
+                // Size and position the video-wrapper to exactly cover the rendered media pixels.
+                // Hide during the write so the browser never paints an intermediate state.
+                videoWrapper.style.opacity = '0';
+                videoWrapper.style.width = Math.round(renderedW) + 'px';
+                videoWrapper.style.height = Math.round(renderedH) + 'px';
+                videoWrapper.style.top = Math.round(offsetY) + 'px';
+                videoWrapper.style.left = Math.round(offsetX) + 'px';
+                videoWrapper.style.transform = '';
+                videoWrapper.style.transformOrigin = '';
+                videoWrapper.style.opacity = '';
 
                 // Update zoom indicator to reflect actual displayed size
                 const zoomIndicator = videoWrapper.querySelector('.split-zoom-indicator');
@@ -2321,15 +2383,6 @@
                         infoBar.style.right = '';
                         infoBar.style.width = ibW + 'px';
                         infoBar.style.height = Math.round(renderedH) + 'px';
-                    } else if (isTripartite) {
-                        // Above the actual image content within the cell
-                        const ibH = infoBar.offsetHeight || 28;
-                        infoBar.style.left = Math.round(offsetX) + 'px';
-                        infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
-                        infoBar.style.bottom = '';
-                        infoBar.style.right = '';
-                        infoBar.style.width = Math.round(renderedW) + 'px';
-                        infoBar.style.height = '';
                     } else {
                         // Above the image: position bar so its bottom edge aligns with the image top.
                         // Clamp to 0 so it never goes above the container boundary.
