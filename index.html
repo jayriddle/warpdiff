@@ -440,6 +440,11 @@
             overflow: hidden;
         }
 
+        /* 2-asset vertical: divide by 2 not 3 */
+        body.vertical-stack.two-asset .overlay-layer {
+            height: calc((100vh - 70px) / 2);
+        }
+
         body.vertical-stack .overlay-container {
             white-space: normal;
             overflow-y: visible;
@@ -1991,8 +1996,14 @@
                 document.body.classList.remove('side-by-side');
                 document.body.classList.remove('vertical-stack');
                 document.body.classList.remove('tripartite');
+                document.body.classList.remove('two-asset');
                 isSideBySide = false;
                 layoutMode = 'horizontal';
+
+                // Restore all layers to visible for next load
+                document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    layer.style.display = '';
+                });
                 document.getElementById('comparisonView').classList.remove('active');
                 document.getElementById('resetBtn').style.display = 'none';
                 document.getElementById('videoControls').classList.remove('active');
@@ -2445,7 +2456,13 @@
                     document.body.classList.remove('side-by-side');
                     document.body.classList.remove('vertical-stack');
                     document.body.classList.remove('tripartite');
+                    document.body.classList.remove('two-asset');
                     isSideBySide = false;
+
+                    // Restore all layers to visible so overlay mode can show them
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        layer.style.display = '';
+                    });
 
                     // Clear inline styles set by positionLabelsToMedia() so CSS takes over in overlay mode
                     document.querySelectorAll('.video-wrapper').forEach(vw => {
@@ -2520,6 +2537,20 @@
                     const zi = vw.querySelector('.split-zoom-indicator');
                     if (zi) { zi.style.bottom = ''; zi.style.right = ''; }
                 });
+
+                // Show/hide layers based on whether they have media loaded.
+                // Empty layers must be hidden so they don't take up space in the layout.
+                const loadedSlotCount = Object.values(mediaData).filter(m => m !== null).length;
+                document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    const hasMedia = layer.querySelector('img, video');
+                    layer.style.display = hasMedia ? '' : 'none';
+                });
+                // two-asset class drives /2 height in vertical-stack instead of /3
+                if (loadedSlotCount === 2) {
+                    document.body.classList.add('two-asset');
+                } else {
+                    document.body.classList.remove('two-asset');
+                }
 
                 // Set layout mode
                 layoutMode = mode;
