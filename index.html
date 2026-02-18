@@ -86,10 +86,6 @@
             opacity: 1;
         }
 
-        .drop-zone[data-help] {
-            position: relative;
-        }
-
         button[data-help] {
             position: relative;
         }
@@ -128,125 +124,6 @@
             font-family: monospace;
             margin: 0 2px;
             font-size: 10px;
-        }
-
-        .drop-zones {
-            display: flex;
-            gap: 10px;
-            padding: 10px 20px;
-            background: #252525;
-            align-items: stretch;
-            justify-content: center;
-        }
-
-        /* Drop zones will be hidden via JavaScript when files are loaded */
-
-        .drop-zones.quick-load-left {
-            flex-direction: row;
-        }
-
-        .drop-zones.quick-load-left #multiDropZone {
-            order: -1;
-        }
-
-        .drop-zone {
-            border: 2px dashed #808080;
-            border-radius: 4px;
-            padding: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: rgb(32, 32, 32);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-width: 120px;
-            max-width: 120px;
-            height: 100px;
-            flex: 0 0 auto;
-        }
-
-
-        #multiDropZone {
-            min-width: 120px;
-            max-width: 120px;
-            height: 100px;
-            flex: 0 0 auto;
-        }
-
-        .drop-zone:hover {
-            border-color: #007bff;
-            background: rgb(32, 32, 32);
-        }
-
-        .drop-zone.dragover {
-            border-color: #007bff;
-            background: #1a3a52;
-            transform: scale(1.02);
-        }
-
-        .drop-zone.loaded {
-            border-color: #808080;
-            border-style: solid;
-            background: #1a3a2a;
-            cursor: pointer;
-        }
-
-        .drop-zone.loaded:hover {
-            background: #1a4d2e;
-            transform: scale(1.02);
-        }
-
-        .drop-zone.active {
-            background: #1a4d2e;
-            border-color: #28a745;
-            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-        }
-
-        .drop-zone-label {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 3px;
-            color: rgb(160, 160, 160);
-        }
-
-        .drop-zone.active .drop-zone-label {
-            color: #28a745;
-        }
-
-        .drop-zone-icon {
-            display: none;
-        }
-
-        .drop-zone-text {
-            display: none;
-        }
-
-        .drop-zone input[type="file"] {
-            display: none;
-        }
-
-        .drop-zone-resolution {
-            font-size: 12px;
-            color: rgb(160, 160, 160);
-            margin-top: 2px;
-            font-family: monospace;
-        }
-
-        .drop-zone-aspect {
-            font-size: 10px;
-            color: rgb(160, 160, 160);
-            margin-top: 1px;
-            font-family: monospace;
-        }
-
-        .drop-zone-duration {
-            font-size: 9px;
-            color: rgb(160, 160, 160);
-            margin-top: 1px;
-            font-family: monospace;
         }
 
         .video-progress-container {
@@ -390,10 +267,6 @@
         }
 
 
-        .drop-zone.empty-slot {
-            opacity: 0.3;
-            pointer-events: none;
-        }
 
         .quick-start-btn {
             padding: 4px 10px;
@@ -486,77 +359,42 @@
             pointer-events: auto;
         }
 
-        /* Media container wraps the actual image/video for proper positioning */
+        /* Media container: fills the layer, positioning context for JS-placed children */
         .media-container {
             position: relative;
-            display: grid;
-            place-items: center;
-            /* Explicit 1fr tracks so the grid doesn't auto-expand beyond its own size */
-            grid-template-rows: 1fr;
-            grid-template-columns: 1fr;
-            /* Fill the overlay-layer so percentage max-width/max-height on children resolve */
             width: 100%;
             height: 100%;
         }
 
-        /* video-wrapper fills its grid cell so zoom/info can overlap it */
-        .media-container .video-wrapper {
-            grid-area: 1 / 1;
-            width: 100%;
-            height: 100%;
-            /* Prevent grid item from expanding the track beyond media-container bounds */
-            min-width: 0;
-            min-height: 0;
-        }
-
-        /* video-wrapper: grid so video and zoom indicator overlap */
+        /* video-wrapper: JS sets top/left/width/height to exact rendered media bounds in all modes */
         .video-wrapper {
-            display: grid;
-            place-items: center;
-            /* Also needs explicit tracks so it doesn't expand beyond its own size */
-            grid-template-rows: 1fr;
-            grid-template-columns: 1fr;
+            position: absolute;
         }
 
+        /* Media fills the wrapper exactly — object-fit:contain handled by JS sizing the wrapper */
         .video-wrapper img,
         .video-wrapper video {
             display: block;
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            grid-area: 1 / 1;
-            min-width: 0;
-            min-height: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
-        .video-wrapper .split-zoom-indicator {
-            grid-area: 1 / 1;
+        /* Info bar: JS positions it per mode (above video in overlay/horizontal, left in vertical) */
+        .media-container > .asset-info-bar {
+            position: absolute;
         }
 
-        /* info bar overlaps the video in the grid (sits at same grid cell) */
-        .video-wrapper .asset-info-bar {
-            grid-area: 1 / 1;
-        }
-
-        /* In overlay mode, only show info bar for active layer */
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer:not(.active) .asset-info-bar {
-            display: none;
-        }
-
-        /* Ensure active layer info bar is visible in overlay mode */
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .asset-info-bar {
-            display: flex;
-        }
-
-        /* In overlay mode, only show zoom indicator for active layer */
+        /* In overlay mode, only show info bar and zoom for the active layer */
+        body:not(.side-by-side):not(.vertical-stack) .overlay-layer:not(.active) .asset-info-bar,
         body:not(.side-by-side):not(.vertical-stack) .overlay-layer:not(.active) .split-zoom-indicator {
             display: none;
         }
 
-        /* Ensure active layer zoom indicator is visible in overlay mode */
-        body:not(.side-by-side):not(.vertical-stack) .overlay-layer.active .split-zoom-indicator {
-            display: block;
+        /* Info bars always visible in split modes */
+        body.side-by-side .asset-info-bar,
+        body.vertical-stack .asset-info-bar {
+            display: flex;
         }
 
         body.side-by-side .overlay-layer {
@@ -567,98 +405,32 @@
             cursor: grab;
         }
 
-        /* Horizontal split: media-container fills the layer */
-        body.side-by-side .media-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        /* Horizontal split: video-wrapper is sized by JS to match actual rendered video bounds */
-        body.side-by-side .media-container .video-wrapper {
-            grid-area: unset;
-            display: block !important;
-            position: absolute; /* JS will set top/left/width/height */
-        }
-
-        /* Horizontal split: info bar absolutely positioned at top of actual video */
-        body.side-by-side .video-wrapper .asset-info-bar {
-            grid-area: unset;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            width: auto;
-            align-self: unset;
-            justify-self: unset;
-        }
-
-        /* Horizontal split: zoom indicator absolutely positioned at bottom-right of actual video */
-        body.side-by-side .video-wrapper .split-zoom-indicator {
-            grid-area: unset;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            align-self: unset;
-            justify-self: unset;
-            margin: 0;
-        }
-
-        body.side-by-side .overlay-container {
-            white-space: nowrap;
-            overflow-x: auto;
-        }
-
-        /* Info bars visible in split modes */
-        body.side-by-side .asset-info-bar,
-        body.vertical-stack .asset-info-bar {
-            display: flex;
-        }
-
-        body.side-by-side .overlay-layer.active {
-            opacity: 1;
-        }
-
+        body.side-by-side .overlay-layer.active,
         body.side-by-side .overlay-layer:not(.active) {
             opacity: 1;
             pointer-events: auto;
         }
 
-        /* Make videos same size in horizontal split */
+        /* Horizontal split: layer height */
         body.side-by-side .overlay-layer {
-            height: calc(100vh - 90px); /* Account for header (~41px) + controls hint (~40px) + small buffer */
+            height: calc(100vh - 90px);
         }
 
         body.side-by-side .overlay-container {
+            white-space: nowrap;
+            overflow-x: auto;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 0; /* No gap between videos */
-        }
-
-        body.side-by-side .media-container img,
-        body.side-by-side .media-container video {
-            /* Fill the media-container; object-fit:contain letterboxes within it */
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: block;
-        }
-
-        body.side-by-side.fit-cover .media-container img,
-        body.side-by-side.fit-cover .media-container video {
-            object-fit: cover; /* Crop to fill when toggled */
+            gap: 0;
         }
 
         /* Vertical stacking mode */
         body.vertical-stack .overlay-layer {
             position: relative !important;
             width: 100%;
-            height: calc((100vh - 120px) / 3); /* Fixed height: 90px header/controls + 30px margins */
-            display: flex !important;
-            align-items: center;
-            justify-content: flex-start;
-            vertical-align: top;
+            height: calc((100vh - 120px) / 3);
+            display: block;
             cursor: grab;
             margin-bottom: 10px;
             overflow: hidden;
@@ -666,74 +438,24 @@
 
         body.vertical-stack .overlay-container {
             white-space: normal;
-            overflow-y: visible; /* No scrolling needed */
+            overflow-y: visible;
             display: block;
             padding-bottom: 20px;
         }
 
-        body.vertical-stack .media-container {
-            width: 100%;
-            height: 100%;
-            display: flex !important;
-            flex-direction: row;
-            align-items: stretch;
-            gap: 0;
-        }
-
-        /* video-wrapper in vertical mode: flex row — info bar on left, video on right */
-        body.vertical-stack .media-container .video-wrapper {
-            grid-area: unset;
-            flex: 0 0 auto;
-            min-width: 0;
-            height: calc((100vh - 120px) / 3);
-            max-height: calc((100vh - 120px) / 3);
-            overflow: hidden;
-            display: flex !important;
-            flex-direction: row;
-            align-items: center;
-            position: relative;
-        }
-
-        /* In vertical mode, info bar is a flex child on the LEFT of the video */
-        body.vertical-stack .video-wrapper .asset-info-bar {
-            grid-area: unset;
-            position: static;
-            align-self: center;
-            flex-shrink: 0;
-            order: -1; /* Always render before the video element */
-        }
-
-        body.vertical-stack .media-container img,
-        body.vertical-stack .media-container video {
-            width: auto;
-            height: calc((100vh - 120px) / 3);
-            max-height: calc((100vh - 120px) / 3);
-            max-width: 100vw; /* Prevent overflowing the viewport */
-            display: block;
-            object-fit: contain;
-            flex-shrink: 0;
-        }
-
-        /* Zoom indicator: absolute within video-wrapper in vertical mode */
-        body.vertical-stack .video-wrapper .split-zoom-indicator {
-            grid-area: unset;
-            position: absolute;
-            bottom: 5px;
-            right: 5px;
-            align-self: unset;
-            justify-self: unset;
-        }
-
-        body.vertical-stack.fit-cover .media-container img,
-        body.vertical-stack.fit-cover .media-container video {
-            object-fit: cover; /* Crop to fill when toggled */
+        /* fit-cover toggles */
+        body.side-by-side.fit-cover .video-wrapper img,
+        body.side-by-side.fit-cover .video-wrapper video,
+        body.vertical-stack.fit-cover .video-wrapper img,
+        body.vertical-stack.fit-cover .video-wrapper video {
+            object-fit: cover;
         }
 
         /* Zoom level indicator - overlays bottom right corner of media */
         .split-zoom-indicator {
-            align-self: end;
-            justify-self: end;
-            margin: 5px;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
             background: rgba(0, 0, 0, 0.85);
             padding: 4px 8px;
             font-size: 12px;
@@ -746,11 +468,9 @@
             display: block; /* Always show in all modes */
         }
 
-        /* Asset info bar styling - base (for overlay and horizontal modes) */
+        /* Asset info bar styling */
         .asset-info-bar {
-            align-self: start;
-            justify-self: start;
-            display: flex;
+            display: none; /* Hidden by default in overlay; shown in split modes and active overlay layer */
             flex-direction: row;
             align-items: center;
             gap: 10px;
@@ -762,6 +482,7 @@
             border-radius: 3px;
             pointer-events: none;
             white-space: nowrap;
+            overflow: hidden;
         }
 
         .asset-info-bar .asset-name {
@@ -791,12 +512,11 @@
             color: #28a745;
         }
 
-        /* Vertical stack mode - info bar on left side */
+        /* Vertical mode info bar: column layout to fit the narrow left-side strip */
         body.vertical-stack .asset-info-bar {
-            flex-direction: column !important;
-            writing-mode: horizontal-tb;
+            flex-direction: column;
             padding: 8px 10px;
-            margin-right: 6px;
+            justify-content: center;
         }
 
         /* Drag and drop styling */
@@ -859,8 +579,7 @@
             background: #000;
         }
 
-        body.fullscreen .header,
-        body.fullscreen .drop-zones {
+        body.fullscreen .header {
             position: absolute;
             top: 0;
             left: 0;
@@ -872,31 +591,8 @@
             backdrop-filter: blur(5px);
         }
 
-        body.fullscreen .drop-zone {
-            min-width: 100px;
-            max-width: 150px;
-            padding: 8px;
-            font-size: 12px;
-        }
-
-        body.fullscreen .drop-zone-label {
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        body.fullscreen .drop-zone-resolution,
-        body.fullscreen .drop-zone-aspect,
-        body.fullscreen .drop-zone-duration {
-            font-size: 10px;
-        }
-
-        body.fullscreen .drop-zone-text {
-            font-size: 9px;
-        }
-
         body.fullscreen .comparison-view {
             display: block;
-            padding-top: 80px; /* Space for drop zones */
         }
 
         body.fullscreen .comparison-view.active {
@@ -1099,7 +795,7 @@
                     <h2 style="margin-top: 0; color: rgb(160, 160, 160);">Quick Start Guide</h2>
                     <ol style="line-height: 1.8;">
                         <li>Right-click save files from in-house tool in order: <strong>&lt;Original, A, B&gt;</strong></li>
-                        <li><strong>Select 2 or 3 files</strong> (Cmd+click) and drag to "Load" or click it
+                        <li><strong>Select 2 or 3 files</strong> (Cmd+click) and drag anywhere, or press <kbd>L</kbd> to open the file picker
                             <ul style="margin-top: 5px; font-size: 11px; color: #999;">
                                 <li><strong>2 files:</strong> Edit A vs Edit B (no original)</li>
                                 <li><strong>3 files:</strong> Original vs Edit A vs Edit B</li>
@@ -1116,10 +812,11 @@
                 </div>
             </div>
             <div>
-                <button class="position-toggle" onclick="toggleQuickLoadPosition()" id="positionToggle" data-help="Move Load box to left or right side">
-                    Move Load Left
-                    <div class="help-tooltip">Move Load box to left or right side</div>
+                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click()" id="loadBtn" data-help="Load 2–3 files to compare (or press L)">
+                    Load
+                    <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
                 </button>
+                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button class="position-toggle" onclick="setViewMode('overlay')" id="overlayViewBtn" data-help="Single asset view with arrow key switching" style="display: none;">
                     Overlay
                     <div class="help-tooltip">Single asset view</div>
@@ -1146,46 +843,6 @@
                     Reset All
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
-            </div>
-        </div>
-
-        <div class="drop-zones">
-            <div class="drop-zone" id="dropOriginal" data-help="Drop the oldest file here (or use Load)">
-                <div class="drop-zone-label">ORIGINAL</div>
-                <div class="drop-zone-resolution" id="resOriginal">-</div>
-                <div class="drop-zone-aspect" id="aspectOriginal">-</div>
-                <div class="drop-zone-duration" id="durationOriginal"></div>
-                <div class="drop-zone-text">-</div>
-                <div class="help-tooltip">Drop the oldest file here (or use Load)</div>
-            </div>
-
-            <div class="drop-zone" id="dropEditA" data-help="Drop the middle file here (or use Load)">
-                <div class="drop-zone-label">EDIT A</div>
-                <div class="drop-zone-resolution" id="resEditA">-</div>
-                <div class="drop-zone-aspect" id="aspectEditA">-</div>
-                <div class="drop-zone-duration" id="durationEditA"></div>
-                <div class="drop-zone-text">-</div>
-                <div class="help-tooltip">Drop the middle file here (or use Load)</div>
-            </div>
-
-            <div class="drop-zone" id="dropEditB" data-help="Drop the newest file here (or use Load)">
-                <div class="drop-zone-label">EDIT B</div>
-                <div class="drop-zone-resolution" id="resEditB">-</div>
-                <div class="drop-zone-aspect" id="aspectEditB">-</div>
-                <div class="drop-zone-duration" id="durationEditB"></div>
-                <div class="drop-zone-text">-</div>
-                <div class="help-tooltip">Drop the newest file here (or use Load)</div>
-            </div>
-
-            <!-- Multi-file drop zone inline -->
-            <div id="multiDropZone" onclick="document.getElementById('multiFileInput').click()" data-help="Select or drag 2-3 files - auto-sorts by save time" style="border: 2px dashed #808080; border-radius: 4px; padding: 12px 15px; text-align: center; background: #2a2a2a; cursor: pointer; transition: all 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
-                <div style="font-size: 18px; font-weight: 700; color: #007bff;">LOAD</div>
-                <div style="font-size: 9px; color: #999; text-align: center; line-height: 1.3;">Drop 2 or 3 files<br>(auto-sorts)</div>
-                <button onclick="event.stopPropagation(); document.getElementById('multiFileInput').click()" style="padding: 4px 8px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: 600; margin-top: 3px;">
-                    Select Files
-                </button>
-                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
-                <div class="help-tooltip">Select or drag 2-3 files - auto-sorts by save time</div>
             </div>
         </div>
 
@@ -1231,7 +888,7 @@
                 </div>
                 
                 <div class="controls-hint" id="controlsHint">
-                    <span><kbd>←</kbd> <kbd>→</kbd> Switch | <kbd>Space</kbd> Play/Pause | <kbd>R</kbd> Restart | <kbd>M</kbd> Mute | <kbd>S</kbd> Split | <kbd>F</kbd> Fullscreen | <kbd>+</kbd> <kbd>-</kbd> Zoom</span>
+                    <span><kbd>←</kbd> <kbd>→</kbd> Switch | <kbd>Space</kbd> Play/Pause | <kbd>R</kbd> Restart | <kbd>M</kbd> Mute | <kbd>S</kbd> Split | <kbd>F</kbd> Fullscreen | <kbd>+</kbd> <kbd>-</kbd> Zoom | <kbd>L</kbd> Load</span>
                     <span class="zoom-level-display" id="zoomLevelDisplay">1.0×</span>
                 </div>
 
@@ -1305,65 +962,17 @@
         const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
         let currentZoomIndex = 2; // Start at 1.0 (index 2)
 
-        // Setup drag and drop for all zones
+        // Setup drag and drop — listen on the whole page
         function setupDragAndDrop() {
-            // Setup multi-file drop zone
-            const multiDropZone = document.getElementById('multiDropZone');
-            
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                multiDropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
             });
 
-            ['dragenter', 'dragover'].forEach(eventName => {
-                multiDropZone.addEventListener(eventName, () => {
-                    multiDropZone.classList.add('dragover');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                multiDropZone.addEventListener(eventName, () => {
-                    multiDropZone.classList.remove('dragover');
-                }, false);
-            });
-
-            multiDropZone.addEventListener('drop', (e) => {
+            document.body.addEventListener('drop', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                
                 const files = Array.from(e.dataTransfer.files);
                 handleMultipleFiles(files);
             }, false);
-
-            // Individual drop zones (legacy support)
-            ['original', 'editA', 'editB'].forEach(slot => {
-                const dropZone = document.getElementById(`drop${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
-                
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, preventDefaults, false);
-                });
-
-                ['dragenter', 'dragover'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, () => {
-                        dropZone.classList.add('dragover');
-                    }, false);
-                });
-
-                ['dragleave', 'drop'].forEach(eventName => {
-                    dropZone.addEventListener(eventName, () => {
-                        dropZone.classList.remove('dragover');
-                    }, false);
-                });
-
-                dropZone.addEventListener('drop', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        loadFile(slot, files[0]);
-                    }
-                }, false);
-            });
         }
 
         function preventDefaults(e) {
@@ -1436,11 +1045,6 @@
                     src: dataUrl,
                     name: file.name
                 };
-
-                // Update drop zone
-                const dropZone = document.getElementById(`drop${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
-                dropZone.classList.add('loaded');
-                dropZone.querySelector('.drop-zone-text').textContent = file.name;
 
                 // Load into overlay layer
                 const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
@@ -1527,7 +1131,13 @@
                     zoomIndicator.textContent = '1.0×';
                 }
 
-                // Wrap the video/img + info bar + zoom indicator together
+                // Build the asset structure:
+                //   media-container (position:relative, fills layer)
+                //     ├── asset-info-bar  ← JS-positioned per mode
+                //     └── video-wrapper   ← JS-sized to exact rendered video bounds
+                //           ├── video/img
+                //           └── split-zoom-indicator  ← always bottom-right of wrapper
+
                 const videoWrapper = document.createElement('div');
                 videoWrapper.className = 'video-wrapper';
 
@@ -1535,11 +1145,11 @@
                 const mediaEl = mediaContainer.querySelector('img, video');
                 if (mediaEl) videoWrapper.appendChild(mediaEl);
 
-                // Info bar goes inside the wrapper (overlays video in horizontal/overlay mode,
-                // or sits as left flex-item in vertical mode via CSS)
-                videoWrapper.appendChild(infoBar);
+                // Zoom indicator lives inside the wrapper — always at bottom-right of video bounds
                 videoWrapper.appendChild(zoomIndicator);
 
+                // Info bar is a sibling of video-wrapper — JS positions it per mode
+                mediaContainer.appendChild(infoBar);
                 mediaContainer.appendChild(videoWrapper);
 
                 layer.appendChild(mediaContainer);
@@ -1551,70 +1161,39 @@
         }
 
         function updateResolutionDisplay(slot, width, height) {
-            const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-            const resElement = document.getElementById(`res${slotName}`);
-            const aspectElement = document.getElementById(`aspect${slotName}`);
-
             const resolution = `${width}×${height}`;
-            let aspectRatio = '';
+            const ratio = width / height;
+            const standardRatios = [
+                { value: 16/9, label: '16:9' },
+                { value: 9/16, label: '9:16' },
+                { value: 4/3, label: '4:3' },
+                { value: 3/4, label: '3:4' },
+                { value: 3/2, label: '3:2' },
+                { value: 2/3, label: '2:3' },
+                { value: 1.85, label: '1.85:1' },
+                { value: 2.39, label: '2.39:1' },
+                { value: 21/9, label: '21:9' },
+                { value: 1, label: '1:1' }
+            ];
 
-            if (resElement) {
-                resElement.textContent = resolution;
-            }
-
-            if (aspectElement) {
-                const ratio = width / height;
-                const standardRatios = [
-                    { value: 16/9, label: '16:9' },
-                    { value: 9/16, label: '9:16' },
-                    { value: 4/3, label: '4:3' },
-                    { value: 3/4, label: '3:4' },
-                    { value: 3/2, label: '3:2' },
-                    { value: 2/3, label: '2:3' },
-                    { value: 1.85, label: '1.85:1' },
-                    { value: 2.39, label: '2.39:1' },
-                    { value: 21/9, label: '21:9' },
-                    { value: 1, label: '1:1' }
-                ];
-
-                // Find closest standard ratio (within 1% tolerance)
-                let match = null;
-                for (const std of standardRatios) {
-                    if (Math.abs(ratio - std.value) / std.value < 0.01) {
-                        match = std.label;
-                        break;
-                    }
-                }
-
-                if (match) {
-                    aspectRatio = match;
-                    aspectElement.textContent = match;
-                } else {
-                    aspectRatio = `${ratio.toFixed(2)}:1`;
-                    aspectElement.textContent = aspectRatio;
+            // Find closest standard ratio (within 1% tolerance)
+            let aspectRatio = `${ratio.toFixed(2)}:1`;
+            for (const std of standardRatios) {
+                if (Math.abs(ratio - std.value) / std.value < 0.01) {
+                    aspectRatio = std.label;
+                    break;
                 }
             }
 
-            // Update asset info bar
             updateAssetInfoBar(slot, { resolution, aspectRatio });
         }
 
         function updateDurationDisplay(slot, duration) {
-            const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-            const durationElement = document.getElementById(`duration${slotName}`);
-
-            let durationStr = '';
-            if (durationElement && duration) {
-                const minutes = Math.floor(duration / 60);
-                const seconds = Math.floor(duration % 60);
-                durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                durationElement.textContent = durationStr;
-            }
-
-            // Update asset info bar
-            if (durationStr) {
-                updateAssetInfoBar(slot, { duration: durationStr });
-            }
+            if (!duration) return;
+            const minutes = Math.floor(duration / 60);
+            const seconds = Math.floor(duration % 60);
+            const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            updateAssetInfoBar(slot, { duration: durationStr });
         }
 
         function updateAssetInfoBar(slot, data) {
@@ -2004,16 +1583,6 @@
             // Always switch audio to the selected video
             selectAudioSource(assetKey);
             
-            // Update drop zone active states
-            document.querySelectorAll('.drop-zone').forEach(zone => {
-                zone.classList.remove('active');
-            });
-            const dropZoneId = 'drop' + assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
-            const activeDropZone = document.getElementById(dropZoneId);
-            if (activeDropZone) {
-                activeDropZone.classList.add('active');
-            }
-            
             // Hide all layers (only in overlay mode)
             if (!isSideBySide) {
                 console.log('Overlay mode - hiding all layers');
@@ -2287,18 +1856,8 @@
                 document.getElementById('videoControls').classList.remove('active');
                 document.getElementById('controlsHint').classList.remove('fade');
 
-                // Show drop zones again
-                document.querySelector('.drop-zones').style.display = 'flex';
-
-                // Clear drop zones
+                // Clear layers
                 ['Original', 'EditA', 'EditB'].forEach(slot => {
-                    const dropZone = document.getElementById(`drop${slot}`);
-                    dropZone.classList.remove('loaded');
-                    dropZone.classList.remove('empty-slot');
-                    dropZone.querySelector('.drop-zone-text').textContent = '-';
-                    document.getElementById(`res${slot}`).textContent = '-';
-                    document.getElementById(`aspect${slot}`).textContent = '-';
-
                     const layer = document.getElementById(`layer${slot}`);
                     // Remove media container
                     const mediaContainer = layer.querySelector('.media-container');
@@ -2307,7 +1866,7 @@
                     }
                     layer.classList.remove('active');
 
-                    // Reset info bar text - info bars are back at layer level after removal
+                    // Reset info bar text
                     const infoBar = layer.querySelector('.asset-info-bar');
                     if (infoBar) {
                         infoBar.querySelector('.asset-resolution').textContent = '-';
@@ -2322,10 +1881,7 @@
                     }
                 });
 
-                // Reset file inputs
-                document.getElementById('fileOriginal').value = '';
-                document.getElementById('fileEditA').value = '';
-                document.getElementById('fileEditB').value = '';
+                // Reset file input
                 document.getElementById('multiFileInput').value = '';
             }
         }
@@ -2456,56 +2012,92 @@
         // Update zoom indicators when window resizes
         window.addEventListener('resize', updateSplitViewZoomIndicators);
 
-        // Position video-wrapper to match actual rendered video bounds (accounting for object-fit letterboxing)
+        // Positions the video-wrapper and info bar to exactly match the rendered media bounds.
+        // Works in all modes: overlay, horizontal split, and vertical split.
+        // The video-wrapper is JS-sized to the exact rendered video pixels so that the
+        // zoom indicator (position:absolute; bottom:5px; right:5px inside it) always lands
+        // at the lower-right corner of the actual content, not the black letterbox area.
+        // The info bar is positioned:
+        //   - Overlay/Horizontal: above the video-wrapper (top edge)
+        //   - Vertical: to the left of the video-wrapper
         function positionLabelsToMedia() {
-            // Only needed in horizontal split — vertical and overlay use CSS
-            if (!isSideBySide) return;
-
             ['original', 'editA', 'editB'].forEach(slot => {
                 if (!mediaData[slot]) return;
 
                 const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
                 const layer = document.getElementById(`layer${slotName}`);
-                const mediaContainer = layer.querySelector('.media-container');
+                const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                 const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                 const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
+                const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
 
-                if (!media || !videoWrapper) return;
+                if (!media || !videoWrapper || !mediaContainer) return;
 
                 // Get natural dimensions
                 const naturalWidth = media.naturalWidth || media.videoWidth || 0;
                 const naturalHeight = media.naturalHeight || media.videoHeight || 0;
                 if (naturalWidth === 0 || naturalHeight === 0) return;
 
-                // Get the media element's rendered container bounds
+                // Get the container bounds
                 const containerW = mediaContainer.offsetWidth;
                 const containerH = mediaContainer.offsetHeight;
                 if (containerW === 0 || containerH === 0) return;
 
-                // Calculate actual rendered content bounds within object-fit: contain
+                // Calculate the rendered content bounds within object-fit: contain
                 const mediaAspect = naturalWidth / naturalHeight;
                 const containerAspect = containerW / containerH;
 
                 let renderedW, renderedH, offsetX, offsetY;
                 if (containerAspect > mediaAspect) {
-                    // Container wider than content — pillarboxed (black bars on left/right)
                     renderedH = containerH;
                     renderedW = renderedH * mediaAspect;
                     offsetX = (containerW - renderedW) / 2;
                     offsetY = 0;
                 } else {
-                    // Container taller than content — letterboxed (black bars top/bottom)
                     renderedW = containerW;
                     renderedH = renderedW / mediaAspect;
                     offsetX = 0;
                     offsetY = (containerH - renderedH) / 2;
                 }
 
-                // Size and position the video-wrapper to match the actual content area
+                const isVertical = document.body.classList.contains('vertical-stack');
+
+                // Size and position the video-wrapper to exactly cover the rendered media pixels
                 videoWrapper.style.width = Math.round(renderedW) + 'px';
                 videoWrapper.style.height = Math.round(renderedH) + 'px';
                 videoWrapper.style.top = Math.round(offsetY) + 'px';
                 videoWrapper.style.left = Math.round(offsetX) + 'px';
+
+                // Position the info bar
+                if (infoBar) {
+                    if (isVertical) {
+                        // Left of the video: right-align to the video-wrapper's left edge.
+                        // Set height first so the bar has dimensions, then read offsetWidth.
+                        infoBar.style.top = Math.round(offsetY) + 'px';
+                        infoBar.style.height = Math.round(renderedH) + 'px';
+                        infoBar.style.bottom = '';
+                        infoBar.style.right = '';
+                        infoBar.style.width = '';
+                        // Snap left in a rAF so the browser has painted the bar's width
+                        const snapLeft = (ib, ox) => {
+                            const ibW = ib.offsetWidth;
+                            if (ibW > 0) {
+                                ib.style.left = Math.round(ox - ibW - 6) + 'px';
+                            } else {
+                                requestAnimationFrame(() => snapLeft(ib, ox));
+                            }
+                        };
+                        snapLeft(infoBar, offsetX);
+                    } else {
+                        // Above the video: aligned to the video-wrapper's top edge
+                        infoBar.style.left = Math.round(offsetX) + 'px';
+                        infoBar.style.top = '';
+                        infoBar.style.bottom = Math.round(containerH - offsetY) + 'px';
+                        infoBar.style.right = '';
+                        infoBar.style.width = Math.round(renderedW) + 'px';
+                        infoBar.style.height = '';
+                    }
+                }
             });
         }
 
@@ -2578,6 +2170,16 @@
                     selectAudioSource(currentAudioSource);
                 }
 
+                // Clear any inline styles set by positionLabelsToMedia() so CSS takes over
+                document.querySelectorAll('.video-wrapper').forEach(vw => {
+                    vw.style.width = '';
+                    vw.style.height = '';
+                    vw.style.top = '';
+                    vw.style.left = '';
+                    const zi = vw.querySelector('.split-zoom-indicator');
+                    if (zi) { zi.style.bottom = ''; zi.style.right = ''; }
+                });
+
                 // Set layout mode
                 layoutMode = mode;
                 if (mode === 'vertical') {
@@ -2645,22 +2247,19 @@
                 document.getElementById('comparisonView').classList.add('active');
                 console.log('comparisonView activated');
 
-                // Hide drop zones when files are loaded
-                document.querySelector('.drop-zones').style.display = 'none';
-
                 document.getElementById('resetBtn').style.display = 'block';
-                
+
                 // Show view mode buttons
                 document.getElementById('horizontalViewBtn').style.display = 'inline-block';
                 document.getElementById('verticalViewBtn').style.display = 'inline-block';
                 console.log('View mode buttons shown');
-                
+
                 // Show/hide audio source buttons based on what's loaded
                 document.getElementById('audioOriginal').style.display = mediaData.original ? 'inline-block' : 'none';
                 document.getElementById('audioEditA').style.display = mediaData.editA ? 'inline-block' : 'none';
                 document.getElementById('audioEditB').style.display = mediaData.editB ? 'inline-block' : 'none';
                 console.log('Audio buttons configured');
-                
+
                 // Set initial audio source to first loaded video
                 if (mediaData.original) {
                     selectAudioSource('original');
@@ -2671,25 +2270,6 @@
                 }
                 console.log('Audio source selected');
 
-                // Make drop zones clickable to select assets
-                document.getElementById('dropOriginal').onclick = function() {
-                    if (mediaData.original) switchToAsset(0);
-                };
-                document.getElementById('dropEditA').onclick = function() {
-                    if (mediaData.editA) switchToAsset(1);
-                };
-                document.getElementById('dropEditB').onclick = function() {
-                    if (mediaData.editB) switchToAsset(2);
-                };
-
-                // Dim Original box if only 2 files loaded (no original)
-                const originalBox = document.getElementById('dropOriginal');
-                if (!mediaData.original && loadedCount === 2) {
-                    originalBox.classList.add('empty-slot');
-                } else {
-                    originalBox.classList.remove('empty-slot');
-                }
-                
                 // Check for identical assets
                 checkForIdenticalAssets();
                 
@@ -2988,6 +2568,13 @@
                 return;
             }
             
+            // L key opens file picker — works at any time
+            if (e.key === 'l' || e.key === 'L') {
+                e.preventDefault();
+                document.getElementById('multiFileInput').click();
+                return;
+            }
+
             // Only work if comparison view is active
             if (!document.getElementById('comparisonView').classList.contains('active')) {
                 return;
@@ -3063,15 +2650,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupDragAndDrop();
             
-            // Restore Quick Load position preference
-            const savedPosition = localStorage.getItem('quickLoadPosition');
-            if (savedPosition === 'left') {
-                const dropZones = document.querySelector('.drop-zones');
-                const toggleBtn = document.getElementById('positionToggle');
-                dropZones.classList.add('quick-load-left');
-                toggleBtn.textContent = 'Move Quick Load Right';
-            }
-            
             // Restore distortion preference
             const savedDistortion = localStorage.getItem('showDistortion');
             if (savedDistortion === 'true') {
@@ -3091,23 +2669,6 @@
             } else {
                 content.style.display = 'none';
                 icon.textContent = '▶';
-            }
-        }
-
-        function toggleQuickLoadPosition() {
-            const dropZones = document.querySelector('.drop-zones');
-            const toggleBtn = document.getElementById('positionToggle');
-            
-            if (dropZones.classList.contains('quick-load-left')) {
-                // Move to right
-                dropZones.classList.remove('quick-load-left');
-                toggleBtn.textContent = 'Move Quick Load Left';
-                localStorage.setItem('quickLoadPosition', 'right');
-            } else {
-                // Move to left
-                dropZones.classList.add('quick-load-left');
-                toggleBtn.textContent = 'Move Quick Load Right';
-                localStorage.setItem('quickLoadPosition', 'left');
             }
         }
 
