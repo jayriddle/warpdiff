@@ -2247,8 +2247,11 @@
                     const nw = media.naturalWidth || media.videoWidth || 0;
                     const nh = media.naturalHeight || media.videoHeight || 0;
                     if (!nw || !nh) return;
-                    const cw = mediaContainer.offsetWidth;
-                    const ch = mediaContainer.offsetHeight;
+                    // Use layer.offsetWidth/Height — the true grid cell dimensions.
+                    // mediaContainer is position:absolute so its offsetHeight may not
+                    // reflect the grid row height correctly.
+                    const cw = layer.offsetWidth;
+                    const ch = layer.offsetHeight;
                     if (!cw || !ch) { anySkipped = true; return; }
                     // Contain-fit rendered height: height if fitted into this cell
                     const fitH = Math.min(ch, cw * nh / nw);
