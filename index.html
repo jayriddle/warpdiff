@@ -2022,6 +2022,10 @@
                     }
                 });
 
+                // Restore default asset labels (may have been changed to IMAGE/VIDEO A/B in 2-asset mode)
+                document.querySelector('#layerEditA .asset-name').textContent = 'EDIT A';
+                document.querySelector('#layerEditB .asset-name').textContent = 'EDIT B';
+
                 // Reset file input
                 document.getElementById('multiFileInput').value = '';
             }
@@ -2557,20 +2561,24 @@
             const verticalBtn = document.getElementById('verticalViewBtn');
             const tripartiteBtn = document.getElementById('tripartiteViewBtn');
             const splitFitBtn = document.getElementById('splitFitToggle');
-            const allThree = Object.values(mediaData).filter(m => m !== null).length === 3;
+            const loadedCount = Object.values(mediaData).filter(m => m !== null).length;
+            const allThree = loadedCount === 3;
+            // 2-asset mode has auto-picked layout; hide H/V buttons so user can't manually cycle
+            const twoAssetAuto = loadedCount === 2 && !mediaData.original;
+            const hideHV = allThree || twoAssetAuto;
 
             if (activeMode === 'overlay') {
-                // In overlay mode: hide overlay btn, show fit/split options appropriate to asset count
+                // In overlay mode: hide overlay btn, show split options appropriate to asset count
                 overlayBtn.style.display = 'none';
-                horizontalBtn.style.display = allThree ? 'none' : 'inline-block';
-                verticalBtn.style.display = allThree ? 'none' : 'inline-block';
+                horizontalBtn.style.display = hideHV ? 'none' : 'inline-block';
+                verticalBtn.style.display = hideHV ? 'none' : 'inline-block';
                 tripartiteBtn.style.display = allThree ? 'inline-block' : 'none';
                 splitFitBtn.style.display = 'none';
             } else {
                 // In split mode: show overlay btn + mode-appropriate split buttons + fit toggle
                 overlayBtn.style.display = 'inline-block';
-                horizontalBtn.style.display = allThree ? 'none' : 'inline-block';
-                verticalBtn.style.display = allThree ? 'none' : 'inline-block';
+                horizontalBtn.style.display = hideHV ? 'none' : 'inline-block';
+                verticalBtn.style.display = hideHV ? 'none' : 'inline-block';
                 tripartiteBtn.style.display = allThree ? 'inline-block' : 'none';
                 splitFitBtn.style.display = 'inline-block';
 
@@ -2641,8 +2649,22 @@
                     switchToAsset(2); // Start with Edit B
                 }
 
-                // Default to tripartite when 3 assets loaded, otherwise horizontal
-                setViewMode(loadedCount === 3 ? 'tripartite' : 'horizontal');
+                // 2-asset mode: relabel assets and auto-pick layout by dominant dimension.
+                // 3-asset mode: always tripartite.
+                if (loadedCount === 2 && !mediaData.original) {
+                    // Relabel: IMAGE A/B or VIDEO A/B (no "EDIT" label when there's no original)
+                    const mediaType = (mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video')
+                        ? 'VIDEO' : 'IMAGE';
+                    document.querySelector('#layerEditA .asset-name').textContent = mediaType + ' A';
+                    document.querySelector('#layerEditB .asset-name').textContent = mediaType + ' B';
+
+                    // Auto-pick layout: landscape → vertical stack, portrait → side-by-side
+                    const sample = mediaData.editA || mediaData.editB;
+                    const isLandscape = (sample.w || 1) >= (sample.h || 1);
+                    setViewMode(isLandscape ? 'vertical' : 'horizontal');
+                } else {
+                    setViewMode(loadedCount === 3 ? 'tripartite' : 'horizontal');
+                }
 
                 // Show video controls if any videos
                 console.log('Checking for video controls, hasVideos =', hasVideos);
@@ -3010,11 +3032,9 @@
                         setViewMode('overlay');
                     }
                 } else {
-                    // 2-asset cycle: overlay -> horizontal -> vertical -> overlay
+                    // 2-asset: toggle overlay <-> the auto-picked split layout
                     if (!isSideBySide) {
-                        setViewMode('horizontal');
-                    } else if (layoutMode === 'horizontal') {
-                        setViewMode('vertical');
+                        setViewMode(layoutMode); // return to auto-picked horizontal or vertical
                     } else {
                         setViewMode('overlay');
                     }
