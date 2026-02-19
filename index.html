@@ -580,15 +580,9 @@
             color: #ffffff;
         }
 
-        /* Active asset indicator - show and highlight in overlay mode only */
+        /* Active asset indicator - show in overlay mode only (active asset shown in header asset strip) */
         body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar {
             display: flex;
-            border: 2px solid #007bff;
-            background: rgba(0, 123, 255, 0.2);
-        }
-
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar .asset-name {
-            color: #007bff;
         }
 
         /* Active audio indicator for split views - shows which audio is playing */
@@ -2413,6 +2407,7 @@
                     }
 
                     if (infoBar) {
+                        infoBar.style.position = ''; // clear fixed positioning from overlay mode
                         const ibH = infoBar.offsetHeight || 28;
                         infoBar.style.left = tx + 'px';
                         infoBar.style.width = tw + 'px';
@@ -2461,6 +2456,7 @@
 
                 // Position the info bar flush above the asset, matching its width and x-position.
                 if (infoBar) {
+                    infoBar.style.position = ''; // clear fixed positioning from overlay mode
                     const ibH = infoBar.offsetHeight || 28;
                     infoBar.style.left = Math.round(offsetX) + 'px';
                     infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
@@ -2508,6 +2504,7 @@
 
                     // Clear inline styles set by positionLabelsToMedia() so CSS takes over in overlay mode
                     document.querySelectorAll('.video-wrapper').forEach(vw => {
+                        vw.style.position = ''; // clear fixed positioning set by applyZoom()
                         vw.style.width = '';
                         vw.style.height = '';
                         vw.style.top = '';
@@ -2610,6 +2607,7 @@
                 // Clear any inline styles set by positionLabelsToMedia() so CSS takes over.
                 // Done AFTER the body class change so the layout is already live.
                 document.querySelectorAll('.video-wrapper').forEach(vw => {
+                    vw.style.position = ''; // clear fixed positioning set by applyZoom()
                     vw.style.width = '';
                     vw.style.height = '';
                     vw.style.top = '';
