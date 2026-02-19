@@ -3225,8 +3225,10 @@
                 e.preventDefault();
                 toggleMute();
             } else if (e.key === 'o' || e.key === 'O') {
-                // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2)
+                // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2).
+                // If in inspect mode, exit it first so layout state is clean.
                 e.preventDefault();
+                if (isFullscreen) toggleFullscreen();
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
                 if (isSideBySide) {
                     setViewMode('overlay');
@@ -3236,8 +3238,10 @@
                     setViewMode(layoutMode);
                 }
             } else if (e.key === 's' || e.key === 'S') {
-                // S key cycles through view modes depending on asset count
+                // S key cycles through view modes depending on asset count.
+                // If in inspect mode, exit it first so layout state is clean.
                 e.preventDefault();
+                if (isFullscreen) toggleFullscreen();
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
                 if (allThreeLoaded) {
                     // 3-asset cycle: overlay <-> tripartite
