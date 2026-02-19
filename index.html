@@ -1837,23 +1837,33 @@
         function applyZoom() {
             if (isSideBySide) return; // zoom/pan only applies in overlay mode
 
-            // Compute fitZoom based on the largest native asset dimensions and current viewport
+            // Compute fitZoom so the smallest asset's longest side fills the viewport.
+            // This means the lowest-res asset displays at its native pixel ratio (1:1),
+            // while higher-res assets scale down to match the same footprint.
             {
-                let maxNativeW = 0, maxNativeH = 0;
+                let minLongest = Infinity;
+                let refW = 0, refH = 0; // native dims of the lowest-res asset
                 ['original', 'editA', 'editB'].forEach(slot => {
                     if (mediaData[slot]) {
                         const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
                         const media = layer && layer.querySelector('img, video');
                         if (media) {
-                            maxNativeW = Math.max(maxNativeW, media.naturalWidth || media.videoWidth || 0);
-                            maxNativeH = Math.max(maxNativeH, media.naturalHeight || media.videoHeight || 0);
+                            const nw = media.naturalWidth || media.videoWidth || 0;
+                            const nh = media.naturalHeight || media.videoHeight || 0;
+                            const longest = Math.max(nw, nh);
+                            if (longest > 0 && longest < minLongest) {
+                                minLongest = longest;
+                                refW = nw;
+                                refH = nh;
+                            }
                         }
                     }
                 });
                 const viewW = window.innerWidth;
                 const viewH = window.innerHeight - HEADER_OVERLAP;
-                if (maxNativeW > 0 && maxNativeH > 0) {
-                    fitZoom = Math.min(viewW / maxNativeW, viewH / maxNativeH);
+                if (refW > 0 && refH > 0) {
+                    // Fit the lowest-res asset's bounding box to the viewport
+                    fitZoom = Math.min(viewW / refW, viewH / refH);
                 }
             }
 
