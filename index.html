@@ -888,21 +888,26 @@
         }
 
         .zoom-indicator {
-            position: absolute;
-            top: 55px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            color: rgb(160, 160, 160);
-            z-index: 10;
-            display: none;
+            display: none; /* removed — split-zoom-indicator on the image is sufficient */
         }
 
-        body.fullscreen .zoom-indicator {
-            display: block;
+        .inspect-mode-badge {
+            display: none;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #f0a500;
+            background: rgba(240, 165, 0, 0.15);
+            border: 1px solid rgba(240, 165, 0, 0.4);
+            border-radius: 4px;
+            padding: 3px 8px;
+            margin-left: auto;
+            align-self: center;
+        }
+
+        body.fullscreen .inspect-mode-badge {
+            display: flex;
+            align-items: center;
         }
 
         .instructions {
@@ -994,6 +999,7 @@
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
             </div>
+            <div id="inspectModeBadge" class="inspect-mode-badge">INSPECT</div>
         </div>
 
         <div class="comparison-view" id="comparisonView">
@@ -2013,9 +2019,8 @@
                 });
             }
             
-            // Show 'Fit' when at the fit-to-viewport baseline, otherwise format the level.
-            const atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
-            const zoomText = atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
+            // Always show the numeric zoom ratio (rendered pixels ÷ native pixels).
+            const zoomText = zoomLevel.toFixed(2) + '×';
             document.getElementById('zoomIndicator').textContent = zoomText;
             // In inspect mode, sync per-asset corner badges to the same zoom value.
             // Outside inspect, positionLabelsToMedia() keeps them accurate.
@@ -3059,8 +3064,7 @@
             
             // Update UI
             document.getElementById('muteBtn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
-            const _atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
-            document.getElementById('zoomIndicator').textContent = _atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
+            document.getElementById('zoomIndicator').textContent = zoomLevel.toFixed(2) + '×';
             
             console.log('State restored');
         }
