@@ -1939,16 +1939,22 @@
             });
             
             if (isFullscreen) {
-                // In overlay inspect mode, clear the video-wrapper's JS-set inline
-                // top/left/width/height so CSS flex-centering on media-container takes over.
-                // Also clear info bar inline styles so CSS display:none applies cleanly.
+                const scaledW = Math.round(maxWidth * zoomLevel);
+                const scaledH = Math.round(maxHeight * zoomLevel);
+
+                // Size every video-wrapper to the scaled canvas dimensions.
+                // In overlay mode: CSS makes wrapper position:static and media-container a
+                //   flex centering container, so clearing top/left lets flex center it.
+                // In split modes: wrapper is absolute-positioned inside each cell; sizing
+                //   it to scaledW×scaledH makes all cells render at identical zoom.
+                // Clear info bar inline styles so CSS display:none applies in overlay mode.
+                document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                    vw.style.top = isSideBySide ? vw.style.top : '';
+                    vw.style.left = isSideBySide ? vw.style.left : '';
+                    vw.style.width = scaledW + 'px';
+                    vw.style.height = scaledH + 'px';
+                });
                 if (!isSideBySide) {
-                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
-                        vw.style.top = '';
-                        vw.style.left = '';
-                        vw.style.width = '';
-                        vw.style.height = '';
-                    });
                     document.querySelectorAll('.overlay-layer .asset-info-bar').forEach(bar => {
                         bar.style.top = '';
                         bar.style.left = '';
@@ -1959,15 +1965,11 @@
                     });
                 }
 
-                // Apply zoom scaling to all images based on largest dimensions.
-                // CSS (body.fullscreen:not(.side-by-side)...) makes media-container a flex
-                // centering container and video-wrapper position:static, so the scaled media
-                // is centered automatically once the wrapper's inline size is cleared.
+                // img/video fills its wrapper 100%×100% — wrapper is sized above.
                 document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
                     media.style.imageRendering = 'pixelated';
-                    // All assets display at zoom level × the largest asset's size
-                    media.style.width = (maxWidth * zoomLevel) + 'px';
-                    media.style.height = (maxHeight * zoomLevel) + 'px';
+                    media.style.width = '100%';
+                    media.style.height = '100%';
                     media.style.maxWidth = 'none';
                     media.style.maxHeight = 'none';
                     media.style.objectFit = 'contain';
