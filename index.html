@@ -1887,7 +1887,7 @@
             });
         });
 
-        function toggleFullscreen() {
+        function toggleFullscreen(entryZoom = null) {
             saveState(); // Save state before toggling
             isFullscreen = !isFullscreen;
             
@@ -1929,7 +1929,9 @@
                     ? Math.min(viewW / maxNativeW, viewH / maxNativeH)
                     : 1;
 
-                zoomLevel = fitZoom;
+                zoomLevel = (entryZoom !== null)
+                    ? Math.min(Math.max(entryZoom, ZOOM_MIN), ZOOM_MAX)
+                    : fitZoom;
                 panOffsetX = 0;
                 panOffsetY = 0;
                 applyZoom();
@@ -3333,7 +3335,14 @@
                 // Auto-enter inspect only from overlay (not from split modes).
                 e.preventDefault();
                 if (!isFullscreen && !isSideBySide) {
-                    toggleFullscreen();
+                    // Pass current overlay rendering zoom so inspect entry has no jump.
+                    const activeLayer = document.querySelector('.overlay-layer.active');
+                    const vw = activeLayer && activeLayer.querySelector('.video-wrapper');
+                    const media = activeLayer && activeLayer.querySelector('img, video');
+                    const nw = media && (media.naturalWidth || media.videoWidth);
+                    const currentW = vw && parseFloat(vw.style.width);
+                    const entryZoom = (nw && currentW) ? currentW / nw : null;
+                    toggleFullscreen(entryZoom);
                 }
                 zoomIn();
             } else if (e.key === '-' || e.key === '_') {
@@ -3341,7 +3350,13 @@
                 // Auto-enter inspect only from overlay (not from split modes).
                 e.preventDefault();
                 if (!isFullscreen && !isSideBySide) {
-                    toggleFullscreen();
+                    const activeLayer = document.querySelector('.overlay-layer.active');
+                    const vw = activeLayer && activeLayer.querySelector('.video-wrapper');
+                    const media = activeLayer && activeLayer.querySelector('img, video');
+                    const nw = media && (media.naturalWidth || media.videoWidth);
+                    const currentW = vw && parseFloat(vw.style.width);
+                    const entryZoom = (nw && currentW) ? currentW / nw : null;
+                    toggleFullscreen(entryZoom);
                 }
                 zoomOut();
             } else if (e.key === '0') {
