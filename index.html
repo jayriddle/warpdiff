@@ -2593,17 +2593,27 @@
                     zoomIndicator.textContent = actualZoom.toFixed(2) + '×';
                 }
 
-                // Position the info bar above the video in all non-tripartite modes.
-                // In overlay mode, offsetY is always >= INFO_BAR_H so there's always room.
-                // In split modes, clamp to 0 so it never goes above the container boundary.
+                // Position the info bar.
+                // Overlay mode: pin full-width at the top of the container so it never
+                // shifts between assets of different widths.
+                // Split modes: align with the image left edge and match image width.
                 if (infoBar) {
                     const ibH = infoBar.offsetHeight || 28;
-                    infoBar.style.left = Math.round(offsetX) + 'px';
-                    infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
-                    infoBar.style.bottom = '';
-                    infoBar.style.right = '';
-                    infoBar.style.width = Math.round(renderedW) + 'px';
-                    infoBar.style.height = '';
+                    if (isOverlay) {
+                        infoBar.style.left = '0';
+                        infoBar.style.top = '0';
+                        infoBar.style.width = '100%';
+                        infoBar.style.right = '';
+                        infoBar.style.bottom = '';
+                        infoBar.style.height = '';
+                    } else {
+                        infoBar.style.left = Math.round(offsetX) + 'px';
+                        infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
+                        infoBar.style.bottom = '';
+                        infoBar.style.right = '';
+                        infoBar.style.width = Math.round(renderedW) + 'px';
+                        infoBar.style.height = '';
+                    }
                 }
             });
 
