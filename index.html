@@ -856,20 +856,9 @@
             transition: none;
         }
 
-        /* Inspect + overlay mode: center the scaled media via flex on media-container.
-           video-wrapper goes static so it flows and is centered by the flex parent.
-           Info bar is hidden — it can't be meaningfully positioned while panning/zooming. */
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .media-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .video-wrapper {
-            position: static;
-        }
-
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer .asset-info-bar {
+        /* Inspect mode: hide info bar in overlay and tripartite (not in true split modes
+           where each wrapper is anchored in its own cell). */
+        body.fullscreen:not(.side-by-side):not(.vertical-stack) .overlay-layer .asset-info-bar {
             display: none !important;
         }
 
@@ -1942,26 +1931,33 @@
                 const scaledW = Math.round(maxWidth * zoomLevel);
                 const scaledH = Math.round(maxHeight * zoomLevel);
 
-                // Size every video-wrapper to the scaled canvas dimensions.
-                // In overlay mode: CSS makes wrapper position:static and media-container a
-                //   flex centering container, so clearing top/left lets flex center it.
-                // In split modes: wrapper is absolute-positioned inside each cell; sizing
-                //   it to scaledW×scaledH makes all cells render at identical zoom.
-                // Clear info bar inline styles so CSS display:none applies in overlay mode.
-                document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
-                    vw.style.top = isSideBySide ? vw.style.top : '';
-                    vw.style.left = isSideBySide ? vw.style.left : '';
-                    vw.style.width = scaledW + 'px';
-                    vw.style.height = scaledH + 'px';
-                });
-                if (!isSideBySide) {
+                // True split modes (side-by-side, vertical-stack): each wrapper is
+                // absolute-positioned inside its own cell — preserve top/left, just resize.
+                // Overlay and tripartite: center the wrapper in the full viewport using
+                // explicit math. isSideBySide is true for tripartite too so we can't use
+                // it as the guard — check body classes directly.
+                const isTrueSplit = document.body.classList.contains('side-by-side') ||
+                                    document.body.classList.contains('vertical-stack');
+
+                if (isTrueSplit) {
+                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                        vw.style.width = scaledW + 'px';
+                        vw.style.height = scaledH + 'px';
+                    });
+                } else {
+                    // Center wrapper in viewport. When zoomed beyond viewport bounds,
+                    // clamp to 0 so pan handles scrolling.
+                    const centerTop = Math.max(0, Math.round((window.innerHeight - scaledH) / 2));
+                    const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
+                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                        vw.style.top = centerTop + 'px';
+                        vw.style.left = centerLeft + 'px';
+                        vw.style.width = scaledW + 'px';
+                        vw.style.height = scaledH + 'px';
+                    });
+                    // Clear info bar inline styles so CSS display:none !important applies
                     document.querySelectorAll('.overlay-layer .asset-info-bar').forEach(bar => {
-                        bar.style.top = '';
-                        bar.style.left = '';
-                        bar.style.width = '';
-                        bar.style.height = '';
-                        bar.style.bottom = '';
-                        bar.style.right = '';
+                        bar.style.cssText = '';
                     });
                 }
 
