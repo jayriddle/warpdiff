@@ -1137,7 +1137,7 @@
 
         function handleMultipleFiles(files) {
             // Filter for images and videos only
-            const mediaFiles = files.filter(f => 
+            const mediaFiles = files.filter(f =>
                 f.type.startsWith('image/') || f.type.startsWith('video/')
             );
 
@@ -1145,6 +1145,11 @@
                 alert(`Please select 2 or 3 media files.\nYou selected ${mediaFiles.length} media file(s).\n\n2 files = Edit A vs Edit B (no original)\n3 files = Original vs Edit A vs Edit B`);
                 return;
             }
+
+            // Always start from a clean slate so stale state from a previous load
+            // (e.g., a mediaData.original left over from a prior 3-file session) never
+            // bleeds into the new load. This mirrors resetAll() but without the dialog.
+            clearAllMedia();
 
             // Sort by lastModified timestamp (oldest to newest)
             const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
@@ -1983,62 +1988,68 @@
             document.getElementById('overlayContainer').classList.remove('panning');
         }
 
+        // Clear all loaded media and reset state — called both by resetAll() and at the
+        // start of handleMultipleFiles() so a fresh load always starts from a clean state.
+        function clearAllMedia() {
+            mediaData.original = null;
+            mediaData.editA = null;
+            mediaData.editB = null;
+            currentAssetIndex = 0;
+            isFullscreen = false;
+            hasVideos = false;
+
+            document.body.classList.remove('fullscreen');
+            document.body.classList.remove('side-by-side');
+            document.body.classList.remove('vertical-stack');
+            document.body.classList.remove('tripartite');
+            document.body.classList.remove('two-asset');
+            isSideBySide = false;
+            layoutMode = 'horizontal';
+
+            // Restore all layers to visible for next load
+            document.querySelectorAll('.overlay-layer').forEach(layer => {
+                layer.style.display = '';
+            });
+            document.getElementById('comparisonView').classList.remove('active');
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('videoControls').classList.remove('active');
+
+            // Clear layers
+            ['Original', 'EditA', 'EditB'].forEach(slot => {
+                const layer = document.getElementById(`layer${slot}`);
+                // Remove media container
+                const mediaContainer = layer.querySelector('.media-container');
+                if (mediaContainer) {
+                    mediaContainer.remove();
+                }
+                layer.classList.remove('active');
+
+                // Reset info bar text
+                const infoBar = layer.querySelector('.asset-info-bar');
+                if (infoBar) {
+                    infoBar.querySelector('.asset-resolution').textContent = '-';
+                    infoBar.querySelector('.asset-aspect').textContent = '-';
+                    infoBar.querySelector('.asset-duration').textContent = '-';
+                }
+
+                // Reset zoom indicator
+                const zoomIndicator = layer.querySelector('.split-zoom-indicator');
+                if (zoomIndicator) {
+                    zoomIndicator.textContent = '1.0×';
+                }
+            });
+
+            // Restore default asset labels (may have been changed to IMAGE/VIDEO A/B in 2-asset mode)
+            document.querySelector('#layerEditA .asset-name').textContent = 'EDIT A';
+            document.querySelector('#layerEditB .asset-name').textContent = 'EDIT B';
+
+            // Reset file input
+            document.getElementById('multiFileInput').value = '';
+        }
+
         function resetAll() {
             if (confirm('Reset all assets and start over?')) {
-                mediaData.original = null;
-                mediaData.editA = null;
-                mediaData.editB = null;
-                currentAssetIndex = 0;
-                isFullscreen = false;
-                hasVideos = false;
-
-                document.body.classList.remove('fullscreen');
-                document.body.classList.remove('side-by-side');
-                document.body.classList.remove('vertical-stack');
-                document.body.classList.remove('tripartite');
-                document.body.classList.remove('two-asset');
-                isSideBySide = false;
-                layoutMode = 'horizontal';
-
-                // Restore all layers to visible for next load
-                document.querySelectorAll('.overlay-layer').forEach(layer => {
-                    layer.style.display = '';
-                });
-                document.getElementById('comparisonView').classList.remove('active');
-                document.getElementById('resetBtn').style.display = 'none';
-                document.getElementById('videoControls').classList.remove('active');
-
-                // Clear layers
-                ['Original', 'EditA', 'EditB'].forEach(slot => {
-                    const layer = document.getElementById(`layer${slot}`);
-                    // Remove media container
-                    const mediaContainer = layer.querySelector('.media-container');
-                    if (mediaContainer) {
-                        mediaContainer.remove();
-                    }
-                    layer.classList.remove('active');
-
-                    // Reset info bar text
-                    const infoBar = layer.querySelector('.asset-info-bar');
-                    if (infoBar) {
-                        infoBar.querySelector('.asset-resolution').textContent = '-';
-                        infoBar.querySelector('.asset-aspect').textContent = '-';
-                        infoBar.querySelector('.asset-duration').textContent = '-';
-                    }
-
-                    // Reset zoom indicator
-                    const zoomIndicator = layer.querySelector('.split-zoom-indicator');
-                    if (zoomIndicator) {
-                        zoomIndicator.textContent = '1.0×';
-                    }
-                });
-
-                // Restore default asset labels (may have been changed to IMAGE/VIDEO A/B in 2-asset mode)
-                document.querySelector('#layerEditA .asset-name').textContent = 'EDIT A';
-                document.querySelector('#layerEditB .asset-name').textContent = 'EDIT B';
-
-                // Reset file input
-                document.getElementById('multiFileInput').value = '';
+                clearAllMedia();
             }
         }
 
@@ -2421,18 +2432,30 @@
                     zoomIndicator.textContent = actualZoom.toFixed(2) + '×';
                 }
 
-                // Position the info bar: left of the image in vertical mode, above in all others.
+                // Position the info bar: left of the image in vertical mode (if there's room),
+                // otherwise overlay at top-left inside the image. Above in all other modes.
                 if (infoBar) {
                     if (isVertical) {
-                        // Fixed 120px wide bar to the left of the image, JS-positioned synchronously
+                        // Fixed 120px wide bar to the left of the image, JS-positioned synchronously.
+                        // If offsetX is too small (landscape filling full width), overlay inside instead.
                         const ibW = 120;
                         const gap = 6;
-                        infoBar.style.left = Math.round(offsetX - ibW - gap) + 'px';
-                        infoBar.style.top = Math.round(offsetY) + 'px';
-                        infoBar.style.bottom = '';
-                        infoBar.style.right = '';
-                        infoBar.style.width = ibW + 'px';
-                        infoBar.style.height = Math.round(renderedH) + 'px';
+                        if (offsetX >= ibW + gap) {
+                            infoBar.style.left = Math.round(offsetX - ibW - gap) + 'px';
+                            infoBar.style.top = Math.round(offsetY) + 'px';
+                            infoBar.style.bottom = '';
+                            infoBar.style.right = '';
+                            infoBar.style.width = ibW + 'px';
+                            infoBar.style.height = Math.round(renderedH) + 'px';
+                        } else {
+                            // No room to the left — overlay at top-left corner of the image
+                            infoBar.style.left = Math.round(offsetX) + 'px';
+                            infoBar.style.top = Math.round(offsetY) + 'px';
+                            infoBar.style.bottom = '';
+                            infoBar.style.right = '';
+                            infoBar.style.width = ibW + 'px';
+                            infoBar.style.height = '';
+                        }
                     } else {
                         // Above the image: position bar so its bottom edge aligns with the image top.
                         // Clamp to 0 so it never goes above the container boundary.
