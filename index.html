@@ -2403,62 +2403,16 @@
             const isTripartite = document.body.classList.contains('tripartite');
             const isOverlay = !isSideBySide && !isVertical;
 
-            // In overlay mode, normalize assets to display at the same screen footprint:
-            //   Portrait (w < h): normalize to the same contain-fit WIDTH
-            //   Landscape (w >= h): normalize to the same contain-fit HEIGHT
-            // Reference = smallest value in that dimension across loaded slots of that orientation.
-            // All others scale down to match, so stepping through assets feels like the same image size.
-            const normalizeScales = {}; // slot → multiplier (≤ 1) to apply to contain-fit renderedW/H
+            // In overlay mode all assets use the same fixed anchor point so that stepping
+            // through assets never causes a positional shift.  Each asset is contain-fitted
+            // into (containerW × availH) independently, then centered at the midpoint of
+            // that area.  No cross-asset normalisation is applied — sizes may vary slightly
+            // but the center never moves.
+            // normalizeScales is kept as a no-op map (all 1) so the per-slot application
+            // block below still runs its centering formula uniformly.
+            const normalizeScales = {};
             if (isOverlay) {
-                // Pass 1: compute each slot's contain-fit rendered width and height.
-                // Reserve INFO_BAR_H pixels at the top so the info bar always has room
-                // to float above the image without overlapping it.
-                const fitDims = {}; // slot → { fw, fh, portrait }
-                slots.forEach(slot => {
-                    if (!mediaData[slot]) return;
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
-                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
-                    if (!media) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
-                    if (!nw || !nh) return;
-                    const cw = mediaContainer.offsetWidth;
-                    const ch = mediaContainer.offsetHeight;
-                    if (!cw || !ch) { anySkipped = true; return; }
-                    const aspect = nw / nh;
-                    // Subtract INFO_BAR_H from available height so the image never fills
-                    // flush to the top — the bar can always sit above it.
-                    const availH = ch - INFO_BAR_H;
-                    const containerAspect = cw / availH;
-                    let fw, fh;
-                    if (containerAspect > aspect) { fh = availH; fw = fh * aspect; }
-                    else { fw = cw; fh = fw / aspect; }
-                    fitDims[slot] = { fw, fh };
-                });
-
-                // Pass 2: shared bounding box — smallest contain-fit width AND height across
-                // all assets. Scaling every asset to fit within this box (preserving aspect
-                // ratio) guarantees that all assets share the same center point on screen,
-                // so stepping through assets never causes a positional shift.
-                let sharedW = Infinity, sharedH = Infinity;
-                slots.forEach(slot => {
-                    const d = fitDims[slot];
-                    if (!d) return;
-                    sharedW = Math.min(sharedW, d.fw);
-                    sharedH = Math.min(sharedH, d.fh);
-                });
-
-                // Pass 3: scale each slot to fit within the shared bounding box.
-                // Use the more-constraining dimension so the asset never overflows the box.
-                slots.forEach(slot => {
-                    const d = fitDims[slot];
-                    if (!d) { normalizeScales[slot] = 1; return; }
-                    const scaleW = sharedW < Infinity ? sharedW / d.fw : 1;
-                    const scaleH = sharedH < Infinity ? sharedH / d.fh : 1;
-                    normalizeScales[slot] = Math.min(scaleW, scaleH);
-                });
+                slots.forEach(slot => { normalizeScales[slot] = 1; });
             }
 
             // In tripartite mode, compute a shared rendered dimension so all three assets
