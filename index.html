@@ -2502,8 +2502,7 @@
                 const containerH = mediaContainer.offsetHeight;
                 if (containerW === 0 || containerH === 0) { anySkipped = true; return; }
 
-                // INFO_BAR_H px are reserved at the top of the overlay container.
-                const fitH = isOverlay ? containerH - INFO_BAR_H : containerH;
+                const fitH = containerH;
 
                 let renderedW, renderedH, offsetX, offsetY;
                 if (isOverlay && overlayRefLong > 0) {
@@ -2524,7 +2523,7 @@
                     // point identical for all assets regardless of their individual heights.
                     const refPx = Math.round(overlayRefLong * clampScale);
                     const boxLeft = Math.round((containerW - refPx) / 2);
-                    const boxTop  = INFO_BAR_H + Math.round((fitH - refPx) / 2);
+                    const boxTop  = Math.round((fitH - refPx) / 2);
                     offsetX = boxLeft + Math.round((refPx - renderedW) / 2);
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
@@ -2630,27 +2629,15 @@
                     zoomIndicator.textContent = actualZoom.toFixed(2) + '×';
                 }
 
-                // Position the info bar.
-                // Overlay mode: pin full-width at the top of the container so it never
-                // shifts between assets of different widths.
-                // Split modes: align with the image left edge and match image width.
+                // Position the info bar flush above the asset, matching its width and x-position.
                 if (infoBar) {
                     const ibH = infoBar.offsetHeight || 28;
-                    if (isOverlay) {
-                        infoBar.style.left = '0';
-                        infoBar.style.top = '0';
-                        infoBar.style.width = '100%';
-                        infoBar.style.right = '';
-                        infoBar.style.bottom = '';
-                        infoBar.style.height = '';
-                    } else {
-                        infoBar.style.left = Math.round(offsetX) + 'px';
-                        infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
-                        infoBar.style.bottom = '';
-                        infoBar.style.right = '';
-                        infoBar.style.width = Math.round(renderedW) + 'px';
-                        infoBar.style.height = '';
-                    }
+                    infoBar.style.left = Math.round(offsetX) + 'px';
+                    infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
+                    infoBar.style.bottom = '';
+                    infoBar.style.right = '';
+                    infoBar.style.width = Math.round(renderedW) + 'px';
+                    infoBar.style.height = '';
                 }
             });
 
