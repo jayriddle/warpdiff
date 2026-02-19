@@ -482,6 +482,13 @@
             height: 100% !important;
         }
 
+        /* In all split modes the video-wrapper is JS-sized to exact rendered bounds.
+           The media element must fill it 100%. Override the general overlay-layer rule
+           (width:auto; height:auto) which has equal specificity but appears later. */
+        body.side-by-side .overlay-layer img,
+        body.side-by-side .overlay-layer video,
+        body.vertical-stack .overlay-layer img,
+        body.vertical-stack .overlay-layer video,
         body.tripartite .overlay-layer img,
         body.tripartite .overlay-layer video {
             width: 100% !important;
