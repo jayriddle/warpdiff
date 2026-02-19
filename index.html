@@ -580,9 +580,15 @@
             color: #ffffff;
         }
 
-        /* Active asset indicator - show in overlay mode only (active asset shown in header asset strip) */
+        /* Active asset indicator - brighter info bar in overlay mode */
         body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar {
             display: flex;
+            background: rgba(60, 60, 60, 0.95);
+            color: #e0e0e0;
+        }
+
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar .asset-name {
+            color: #ffffff;
         }
 
         /* Active audio indicator for split views - shows which audio is playing */
