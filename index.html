@@ -1845,12 +1845,13 @@
         function applyZoom() {
             if (isSideBySide) return; // zoom/pan only applies in overlay mode
 
-            // Compute fitZoom so the smallest asset's longest side fills the viewport.
-            // This means the lowest-res asset displays at its native pixel ratio (1:1),
-            // while higher-res assets scale down to match the same footprint.
+            // Compute fitZoom and overlayMinLongest so all assets share the same
+            // rendered footprint — sized by the lowest-res asset's longest side.
+            // Higher-res assets scale DOWN to match; the lowest-res asset renders at 1:1.
+            let overlayMinLongest = 0;
             {
                 let minLongest = Infinity;
-                let refW = 0, refH = 0; // native dims of the lowest-res asset
+                let refW = 0, refH = 0;
                 ['original', 'editA', 'editB'].forEach(slot => {
                     if (mediaData[slot]) {
                         const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
@@ -1867,16 +1868,17 @@
                         }
                     }
                 });
+                overlayMinLongest = minLongest === Infinity ? 0 : minLongest;
                 const viewW = window.innerWidth;
                 const viewH = window.innerHeight - HEADER_OVERLAP;
                 if (refW > 0 && refH > 0) {
-                    // Fit the lowest-res asset's bounding box to the viewport
                     fitZoom = Math.min(viewW / refW, viewH / refH);
                 }
             }
 
-            // Position each asset wrapper using its own native dimensions × zoomLevel.
-            // All layers share the same viewport center anchor so they stack identically.
+            // Position each asset wrapper. Each asset is scaled so its longest side
+            // equals overlayMinLongest × zoomLevel — giving all assets the same
+            // physical footprint on screen regardless of their native resolution.
             const availH = window.innerHeight - HEADER_OVERLAP;
             ['original', 'editA', 'editB'].forEach(slot => {
                 if (!mediaData[slot]) return;
@@ -1891,8 +1893,11 @@
                 const nh = media.naturalHeight || media.videoHeight || 0;
                 if (!nw || !nh) return;
 
-                const scaledW = Math.round(nw * zoomLevel);
-                const scaledH = Math.round(nh * zoomLevel);
+                // Scale this asset so its longest side = overlayMinLongest × zoomLevel
+                const longest = Math.max(nw, nh);
+                const perAssetScale = overlayMinLongest > 0 ? (overlayMinLongest / longest) * zoomLevel : zoomLevel;
+                const scaledW = Math.round(nw * perAssetScale);
+                const scaledH = Math.round(nh * perAssetScale);
                 const centerTop = HEADER_OVERLAP + Math.max(0, Math.round((availH - scaledH) / 2));
                 const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
 
