@@ -1051,7 +1051,7 @@
                 </div>
 
                 <div class="pan-hint">
-                    Click and drag to pan
+                    Click and drag to pan &nbsp;·&nbsp; Esc to exit
                 </div>
 
                 <div class="video-controls" id="videoControls">
@@ -2134,6 +2134,41 @@
             currentAssetIndex = 0;
             isFullscreen = false;
             hasVideos = false;
+            zoomLevel = 1;
+            fitZoom = 1;
+            panOffsetX = 0;
+            panOffsetY = 0;
+            isPanning = false;
+
+            // Stop video progress loop — will be restarted if new load includes videos
+            stopProgressUpdateLoop();
+
+            // Reset audio mute state and button UI for all slots
+            ['original', 'editA', 'editB'].forEach(slot => {
+                audioMuteStates[slot] = false;
+                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                const btn = document.getElementById(`audio${slotName}`);
+                if (btn) {
+                    btn.classList.remove('muted');
+                    const icon = btn.querySelector('.audio-mute-icon');
+                    if (icon) icon.textContent = '🔊';
+                }
+            });
+            currentAudioSource = 'original';
+
+            // Discard undo/redo history — stale states from the previous session
+            // are meaningless after a fresh load
+            undoStack = [];
+            redoStack = [];
+
+            // Reset global mute toggle and button label
+            isMuted = false;
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) muteBtn.textContent = '🔊';
+
+            // Reset timecode display mode and stale fps cache
+            timecodeMode = 'time';
+            videoFrameRates = {};
 
             document.body.classList.remove('fullscreen');
             document.body.classList.remove('side-by-side');
@@ -2149,6 +2184,11 @@
             });
             document.getElementById('comparisonView').classList.remove('active');
             document.getElementById('resetBtn').style.display = 'none';
+            // Hide all view mode buttons — they'll be re-shown when assets load
+            ['overlayViewBtn', 'horizontalViewBtn', 'verticalViewBtn', 'tripartiteViewBtn'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
             document.getElementById('videoControls').classList.remove('active');
 
             // Clear layers
@@ -3192,20 +3232,26 @@
             } else if (e.key === 'i' || e.key === 'I') {
                 e.preventDefault();
                 toggleFullscreen();
-            } else if (e.key === 'f' || e.key === 'F' || e.key === 'Escape') {
+            } else if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 toggleFullscreen();
-            } else if (e.key === '+' || e.key === '=') {
-                // Both + and = (no shift needed) zoom in
+            } else if (e.key === 'Escape') {
+                // Escape always exits inspect — never enters it.
                 e.preventDefault();
-                if (!isFullscreen) {
+                if (isFullscreen) toggleFullscreen();
+            } else if (e.key === '+' || e.key === '=') {
+                // Both + and = (no shift needed) zoom in.
+                // Auto-enter inspect only from overlay (not from split modes).
+                e.preventDefault();
+                if (!isFullscreen && !isSideBySide) {
                     toggleFullscreen();
                 }
                 zoomIn();
             } else if (e.key === '-' || e.key === '_') {
-                // Both - and _ zoom out
+                // Both - and _ zoom out.
+                // Auto-enter inspect only from overlay (not from split modes).
                 e.preventDefault();
-                if (!isFullscreen) {
+                if (!isFullscreen && !isSideBySide) {
                     toggleFullscreen();
                 }
                 zoomOut();
@@ -3225,8 +3271,10 @@
                 e.preventDefault();
                 toggleMute();
             } else if (e.key === 'o' || e.key === 'O') {
-                // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2)
+                // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2).
+                // If in inspect mode, exit it first so layout state is clean.
                 e.preventDefault();
+                if (isFullscreen) toggleFullscreen();
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
                 if (isSideBySide) {
                     setViewMode('overlay');
@@ -3236,8 +3284,10 @@
                     setViewMode(layoutMode);
                 }
             } else if (e.key === 's' || e.key === 'S') {
-                // S key cycles through view modes depending on asset count
+                // S key cycles through view modes depending on asset count.
+                // If in inspect mode, exit it first so layout state is clean.
                 e.preventDefault();
+                if (isFullscreen) toggleFullscreen();
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
                 if (allThreeLoaded) {
                     // 3-asset cycle: overlay <-> tripartite
@@ -3294,8 +3344,9 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Toggle overlay / split</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>S</kbd></span><span class="shortcut-desc">Cycle split mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>I</kbd></span><span class="shortcut-desc">Inspect mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>I</kbd></span><span class="shortcut-desc">Enter / exit inspect</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>Esc</kbd></span><span class="shortcut-desc">Exit inspect</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom (enters inspect)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>0</kbd></span><span class="shortcut-desc">Reset to fit</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Load files</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
