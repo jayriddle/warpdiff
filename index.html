@@ -2161,6 +2161,15 @@
             undoStack = [];
             redoStack = [];
 
+            // Reset global mute toggle and button label
+            isMuted = false;
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) muteBtn.textContent = '🔊';
+
+            // Reset timecode display mode and stale fps cache
+            timecodeMode = 'time';
+            videoFrameRates = {};
+
             document.body.classList.remove('fullscreen');
             document.body.classList.remove('side-by-side');
             document.body.classList.remove('vertical-stack');
