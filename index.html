@@ -1105,9 +1105,11 @@
         let redoStack = [];
         const MAX_UNDO_STATES = 20;
         
-        // New zoom levels
-        const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
-        let currentZoomIndex = 2; // Start at 1.0 (index 2)
+        // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
+        // √2 ≈ 1.414 gives a classic "one stop" doubling every two steps.
+        const ZOOM_STEP = Math.SQRT2;
+        const ZOOM_MIN = 0.05;  // 5% — effectively a hard floor
+        const ZOOM_MAX = 32;    // 3200% — hard ceiling
         let fitZoom = 1; // Fit-to-viewport zoom, computed when entering inspect mode
 
         // Debounced positionLabelsToMedia — collapses rapid per-asset load events into one call
@@ -1876,7 +1878,6 @@
                     : 1;
 
                 zoomLevel = fitZoom;
-                currentZoomIndex = -1; // sentinel: at fit zoom, not a discrete zoomLevels entry
                 panOffsetX = 0;
                 panOffsetY = 0;
                 applyZoom();
@@ -1908,7 +1909,6 @@
                 panOffsetX = 0;
                 panOffsetY = 0;
                 zoomLevel = 1;
-                currentZoomIndex = 2; // Sync to 1.0× in zoomLevels array
 
                 // Remove pan handlers
                 const container = document.getElementById('overlayContainer');
@@ -1976,59 +1976,41 @@
                 });
             }
             
-            // Update zoom indicator ('Fit' at baseline, otherwise discrete level value)
-            const zoomText = (currentZoomIndex === -1) ? 'Fit' : zoomLevel.toFixed(1) + '×';
+            // Show 'Fit' when at the fit-to-viewport baseline, otherwise format the level.
+            const atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
+            const zoomText = atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
             document.getElementById('zoomIndicator').textContent = zoomText;
         }
 
         function zoomIn() {
             if (!isFullscreen) return;
-            if (currentZoomIndex === -1) {
-                // At fit zoom: snap to first discrete level strictly above fitZoom
-                currentZoomIndex = zoomLevels.findIndex(z => z > fitZoom);
-                if (currentZoomIndex === -1) currentZoomIndex = zoomLevels.length - 1;
-            } else {
-                currentZoomIndex = Math.min(currentZoomIndex + 1, zoomLevels.length - 1);
-            }
-            zoomLevel = zoomLevels[currentZoomIndex];
+            zoomLevel = Math.min(zoomLevel * ZOOM_STEP, ZOOM_MAX);
             applyZoom();
 
             // Reapply pan offset to active image
             const activeLayer = document.querySelector('.overlay-layer.active');
             if (activeLayer) {
                 const img = activeLayer.querySelector('img, video');
-                if (img) {
-                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
-                }
+                if (img) img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
             }
         }
 
         function zoomOut() {
             if (!isFullscreen) return;
-            if (currentZoomIndex === -1) {
-                // At fit zoom: snap to last discrete level strictly below fitZoom
-                const below = zoomLevels.filter(z => z < fitZoom);
-                currentZoomIndex = below.length > 0 ? zoomLevels.indexOf(below[below.length - 1]) : 0;
-            } else {
-                currentZoomIndex = Math.max(currentZoomIndex - 1, 0);
-            }
-            zoomLevel = zoomLevels[currentZoomIndex];
+            zoomLevel = Math.max(zoomLevel / ZOOM_STEP, ZOOM_MIN);
             applyZoom();
 
             // Reapply pan offset to active image
             const activeLayer = document.querySelector('.overlay-layer.active');
             if (activeLayer) {
                 const img = activeLayer.querySelector('img, video');
-                if (img) {
-                    img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
-                }
+                if (img) img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
             }
         }
 
         function resetFitZoom() {
             if (!isFullscreen) return;
             zoomLevel = fitZoom;
-            currentZoomIndex = -1;
             panOffsetX = 0;
             panOffsetY = 0;
             applyZoom();
@@ -2903,7 +2885,6 @@
                 isSideBySide: isSideBySide,
                 layoutMode: layoutMode,
                 zoomLevel: zoomLevel,
-                currentZoomIndex: currentZoomIndex,
                 fitZoom: fitZoom,
                 panOffsetX: panOffsetX,
                 panOffsetY: panOffsetY,
@@ -2972,7 +2953,6 @@
             // Restore basic state
             currentAssetIndex = state.currentAssetIndex;
             zoomLevel = state.zoomLevel;
-            currentZoomIndex = (state.currentZoomIndex !== undefined) ? state.currentZoomIndex : 2;
             fitZoom = (state.fitZoom !== undefined) ? state.fitZoom : 1;
             panOffsetX = state.panOffsetX;
             panOffsetY = state.panOffsetY;
@@ -3030,7 +3010,8 @@
             
             // Update UI
             document.getElementById('muteBtn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
-            document.getElementById('zoomIndicator').textContent = (currentZoomIndex === -1) ? 'Fit' : zoomLevel.toFixed(1) + '×';
+            const _atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
+            document.getElementById('zoomIndicator').textContent = _atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
             
             console.log('State restored');
         }
