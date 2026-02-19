@@ -2014,6 +2014,13 @@
             const atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
             const zoomText = atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
             document.getElementById('zoomIndicator').textContent = zoomText;
+            // In inspect mode, sync per-asset corner badges to the same zoom value.
+            // Outside inspect, positionLabelsToMedia() keeps them accurate.
+            if (isFullscreen) {
+                document.querySelectorAll('.overlay-layer .split-zoom-indicator').forEach(ind => {
+                    ind.textContent = zoomText;
+                });
+            }
         }
 
         function zoomIn() {
