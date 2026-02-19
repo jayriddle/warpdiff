@@ -1882,6 +1882,13 @@
                     media.style.transform = '';
                     media.style.objectFit = '';
                 });
+
+                // Restore video-wrapper position so positionLabelsToMedia() works correctly
+                document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                    vw.style.position = '';
+                });
+                // Re-run label positioning so overlay mode info bar is placed correctly
+                requestAnimationFrame(() => positionLabelsToMedia());
                 
                 // Reset pan state and zoom
                 panOffsetX = 0;
@@ -1918,6 +1925,19 @@
             });
             
             if (isFullscreen) {
+                // In inspect mode the video-wrapper's JS-positioned top/left/width/height
+                // (set by positionLabelsToMedia) would pin the image off-center.
+                // Clear those so the overlay-layer's flexbox centering takes over.
+                if (!isSideBySide) {
+                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                        vw.style.top = '';
+                        vw.style.left = '';
+                        vw.style.width = '';
+                        vw.style.height = '';
+                        vw.style.position = 'static';
+                    });
+                }
+
                 // Apply zoom scaling to all images based on largest dimensions
                 document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
                     media.style.imageRendering = 'pixelated';
