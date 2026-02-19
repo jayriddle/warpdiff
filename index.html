@@ -1051,7 +1051,7 @@
                 </div>
 
                 <div class="pan-hint">
-                    Click and drag to pan
+                    Click and drag to pan &nbsp;·&nbsp; Esc to exit
                 </div>
 
                 <div class="video-controls" id="videoControls">
@@ -3192,20 +3192,26 @@
             } else if (e.key === 'i' || e.key === 'I') {
                 e.preventDefault();
                 toggleFullscreen();
-            } else if (e.key === 'f' || e.key === 'F' || e.key === 'Escape') {
+            } else if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 toggleFullscreen();
-            } else if (e.key === '+' || e.key === '=') {
-                // Both + and = (no shift needed) zoom in
+            } else if (e.key === 'Escape') {
+                // Escape always exits inspect — never enters it.
                 e.preventDefault();
-                if (!isFullscreen) {
+                if (isFullscreen) toggleFullscreen();
+            } else if (e.key === '+' || e.key === '=') {
+                // Both + and = (no shift needed) zoom in.
+                // Auto-enter inspect only from overlay (not from split modes).
+                e.preventDefault();
+                if (!isFullscreen && !isSideBySide) {
                     toggleFullscreen();
                 }
                 zoomIn();
             } else if (e.key === '-' || e.key === '_') {
-                // Both - and _ zoom out
+                // Both - and _ zoom out.
+                // Auto-enter inspect only from overlay (not from split modes).
                 e.preventDefault();
-                if (!isFullscreen) {
+                if (!isFullscreen && !isSideBySide) {
                     toggleFullscreen();
                 }
                 zoomOut();
@@ -3298,8 +3304,9 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Toggle overlay / split</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>S</kbd></span><span class="shortcut-desc">Cycle split mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>I</kbd></span><span class="shortcut-desc">Inspect mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>I</kbd></span><span class="shortcut-desc">Enter / exit inspect</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>Esc</kbd></span><span class="shortcut-desc">Exit inspect</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom (enters inspect)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>0</kbd></span><span class="shortcut-desc">Reset to fit</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Load files</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
