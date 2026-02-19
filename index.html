@@ -856,20 +856,17 @@
             transition: none;
         }
 
-        /* Inspect + overlay mode: center the scaled media via flex on media-container.
-           video-wrapper goes static so it flows and is centered by the flex parent.
-           Info bar is hidden — it can't be meaningfully positioned while panning/zooming. */
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .media-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        /* Inspect mode: hide non-active layers regardless of which mode we came from.
+           Tripartite normally forces all layers to opacity:1, so we need !important here. */
+        body.fullscreen .overlay-layer:not(.active) {
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .video-wrapper {
-            position: static;
-        }
 
-        body.fullscreen:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer .asset-info-bar {
+        /* Inspect mode: hide info bar in overlay and tripartite (not in true split modes
+           where each wrapper is anchored in its own cell). */
+        body.fullscreen:not(.side-by-side):not(.vertical-stack) .overlay-layer .asset-info-bar {
             display: none !important;
         }
 
@@ -1854,6 +1851,19 @@
             if (isFullscreen) {
                 document.body.classList.add('fullscreen');
 
+                // In split modes (tripartite, side-by-side, vertical-stack) all layers are
+                // marked active so they all display. Inspect mode shows one at a time, so
+                // reduce to just the currently selected asset. We'll restore on exit.
+                if (isSideBySide) {
+                    const assetKey = assetOrder[currentAssetIndex];
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        layer.classList.remove('active');
+                    });
+                    const layerName = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+                    const targetLayer = document.getElementById(`layer${layerName}`);
+                    if (targetLayer) targetLayer.classList.add('active');
+                }
+
                 // Find largest native dimensions across all loaded assets
                 let maxNativeW = 0, maxNativeH = 0;
                 ['original', 'editA', 'editB'].forEach(slot => {
@@ -1884,6 +1894,22 @@
                 setupPanHandlers();
             } else {
                 document.body.classList.remove('fullscreen');
+
+                // Restore split-mode active state: in tripartite/side-by-side/vertical-stack
+                // all layers with media should be active again.
+                if (isSideBySide) {
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        if (layer.querySelector('img, video')) {
+                            layer.classList.add('active');
+                        }
+                    });
+                }
+
+                // Reset wrapper position back to absolute (was set to fixed in inspect mode)
+                document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                    vw.style.position = '';
+                });
+
                 // Reset to normal scaling
                 document.querySelectorAll('.overlay-layer img, .overlay-layer video').forEach(media => {
                     media.style.imageRendering = '';
@@ -1942,26 +1968,34 @@
                 const scaledW = Math.round(maxWidth * zoomLevel);
                 const scaledH = Math.round(maxHeight * zoomLevel);
 
-                // Size every video-wrapper to the scaled canvas dimensions.
-                // In overlay mode: CSS makes wrapper position:static and media-container a
-                //   flex centering container, so clearing top/left lets flex center it.
-                // In split modes: wrapper is absolute-positioned inside each cell; sizing
-                //   it to scaledW×scaledH makes all cells render at identical zoom.
-                // Clear info bar inline styles so CSS display:none applies in overlay mode.
-                document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
-                    vw.style.top = isSideBySide ? vw.style.top : '';
-                    vw.style.left = isSideBySide ? vw.style.left : '';
-                    vw.style.width = scaledW + 'px';
-                    vw.style.height = scaledH + 'px';
-                });
-                if (!isSideBySide) {
+                // True split modes (side-by-side, vertical-stack): each wrapper is
+                // absolute-positioned inside its own cell — preserve top/left, just resize.
+                // Overlay and tripartite: center the wrapper in the full viewport using
+                // explicit math. isSideBySide is true for tripartite too so we can't use
+                // it as the guard — check body classes directly.
+                const isTrueSplit = document.body.classList.contains('side-by-side') ||
+                                    document.body.classList.contains('vertical-stack');
+
+                if (isTrueSplit) {
+                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                        vw.style.width = scaledW + 'px';
+                        vw.style.height = scaledH + 'px';
+                    });
+                } else {
+                    // Center wrapper in viewport using position:fixed so it escapes any
+                    // parent clipping (tripartite grid cells have overflow:hidden).
+                    const centerTop = Math.max(0, Math.round((window.innerHeight - scaledH) / 2));
+                    const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
+                    document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
+                        vw.style.position = 'fixed';
+                        vw.style.top = centerTop + 'px';
+                        vw.style.left = centerLeft + 'px';
+                        vw.style.width = scaledW + 'px';
+                        vw.style.height = scaledH + 'px';
+                    });
+                    // Clear info bar inline styles so CSS display:none !important applies
                     document.querySelectorAll('.overlay-layer .asset-info-bar').forEach(bar => {
-                        bar.style.top = '';
-                        bar.style.left = '';
-                        bar.style.width = '';
-                        bar.style.height = '';
-                        bar.style.bottom = '';
-                        bar.style.right = '';
+                        bar.style.cssText = '';
                     });
                 }
 
@@ -2246,6 +2280,11 @@
         //   - Overlay/Horizontal: above the video-wrapper (top edge)
         //   - Vertical: to the left of the video-wrapper
         function positionLabelsToMedia(retriesLeft = 5) {
+            // In inspect mode, applyZoom() owns all wrapper positions. Skip so we don't
+            // clobber the centered top/left values it computes (debounce timer can fire
+            // after toggleFullscreen sets up centering).
+            if (isFullscreen) return;
+
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = ['original', 'editA', 'editB'];
             const isVertical = document.body.classList.contains('vertical-stack');
@@ -3077,6 +3116,16 @@
                 }
                 if (mediaData[assetOrder[nextIndex]]) {
                     switchToAsset(nextIndex);
+                    // In inspect mode from a split layout, switchToAsset won't hide other
+                    // layers (isSideBySide=true). Force exactly one active layer, then
+                    // re-center after the CSS layout update commits.
+                    if (isFullscreen && isSideBySide) {
+                        const assetKey = assetOrder[nextIndex];
+                        document.querySelectorAll('.overlay-layer').forEach(l => l.classList.remove('active'));
+                        const ln = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+                        document.getElementById(`layer${ln}`)?.classList.add('active');
+                        requestAnimationFrame(() => applyZoom());
+                    }
                 }
             } else if (e.key === 'ArrowRight') {
                 e.preventDefault();
@@ -3089,6 +3138,16 @@
                 }
                 if (mediaData[assetOrder[nextIndex]]) {
                     switchToAsset(nextIndex);
+                    // In inspect mode from a split layout, switchToAsset won't hide other
+                    // layers (isSideBySide=true). Force exactly one active layer, then
+                    // re-center after the CSS layout update commits.
+                    if (isFullscreen && isSideBySide) {
+                        const assetKey = assetOrder[nextIndex];
+                        document.querySelectorAll('.overlay-layer').forEach(l => l.classList.remove('active'));
+                        const ln = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
+                        document.getElementById(`layer${ln}`)?.classList.add('active');
+                        requestAnimationFrame(() => applyZoom());
+                    }
                 }
             } else if (e.key === 'i' || e.key === 'I') {
                 e.preventDefault();
