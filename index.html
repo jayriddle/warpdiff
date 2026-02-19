@@ -871,38 +871,46 @@
         }
 
         .pan-hint {
-            position: absolute;
-            bottom: 60px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 8px 16px;
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 7px 18px;
             border-radius: 6px;
             font-size: 12px;
-            color: #999;
-            z-index: 10;
-            display: none;
+            color: #aaa;
+            z-index: 200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
         }
 
-        body.fullscreen .pan-hint {
-            display: block;
+        .pan-hint.visible {
+            opacity: 1;
         }
 
         .zoom-indicator {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            color: rgb(160, 160, 160);
-            z-index: 10;
-            display: none;
+            display: none; /* removed — split-zoom-indicator on the image is sufficient */
         }
 
-        body.fullscreen .zoom-indicator {
-            display: block;
+        .inspect-mode-badge {
+            display: none;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: #f0a500;
+            background: rgba(240, 165, 0, 0.15);
+            border: 1px solid rgba(240, 165, 0, 0.4);
+            border-radius: 4px;
+            padding: 3px 8px;
+            margin-left: auto;
+            align-self: center;
+        }
+
+        body.fullscreen .inspect-mode-badge {
+            display: flex;
+            align-items: center;
         }
 
         .instructions {
@@ -994,6 +1002,7 @@
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
             </div>
+            <div id="inspectModeBadge" class="inspect-mode-badge">INSPECT</div>
         </div>
 
         <div class="comparison-view" id="comparisonView">
@@ -1892,6 +1901,7 @@
                 panOffsetY = 0;
                 applyZoom();
                 setupPanHandlers();
+                showPanHint();
             } else {
                 document.body.classList.remove('fullscreen');
 
@@ -1982,9 +1992,12 @@
                         vw.style.height = scaledH + 'px';
                     });
                 } else {
-                    // Center wrapper in viewport using position:fixed so it escapes any
-                    // parent clipping (tripartite grid cells have overflow:hidden).
-                    const centerTop = Math.max(0, Math.round((window.innerHeight - scaledH) / 2));
+                    // Center wrapper in the area below the header using position:fixed so
+                    // it escapes any parent clipping (tripartite grid cells have overflow:hidden).
+                    // HEADER_OVERLAP matches the value used when computing fitZoom.
+                    const HEADER_OVERLAP = 50;
+                    const availH = window.innerHeight - HEADER_OVERLAP;
+                    const centerTop = HEADER_OVERLAP + Math.max(0, Math.round((availH - scaledH) / 2));
                     const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
                     document.querySelectorAll('.overlay-layer .video-wrapper').forEach(vw => {
                         vw.style.position = 'fixed';
@@ -2010,10 +2023,16 @@
                 });
             }
             
-            // Show 'Fit' when at the fit-to-viewport baseline, otherwise format the level.
-            const atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
-            const zoomText = atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
+            // Always show the numeric zoom ratio (rendered pixels ÷ native pixels).
+            const zoomText = zoomLevel.toFixed(2) + '×';
             document.getElementById('zoomIndicator').textContent = zoomText;
+            // In inspect mode, sync per-asset corner badges to the same zoom value.
+            // Outside inspect, positionLabelsToMedia() keeps them accurate.
+            if (isFullscreen) {
+                document.querySelectorAll('.overlay-layer .split-zoom-indicator').forEach(ind => {
+                    ind.textContent = zoomText;
+                });
+            }
         }
 
         function zoomIn() {
@@ -2040,6 +2059,18 @@
                 const img = activeLayer.querySelector('img, video');
                 if (img) img.style.transform = `translate(${panOffsetX}px, ${panOffsetY}px)`;
             }
+        }
+
+        let panHintTimer = null;
+        function showPanHint() {
+            const hint = document.querySelector('.pan-hint');
+            if (!hint) return;
+            // Clear any running timer and reset
+            clearTimeout(panHintTimer);
+            hint.classList.add('visible');
+            panHintTimer = setTimeout(() => {
+                hint.classList.remove('visible');
+            }, 2500);
         }
 
         function resetFitZoom() {
@@ -3049,8 +3080,7 @@
             
             // Update UI
             document.getElementById('muteBtn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
-            const _atFit = isFullscreen && Math.abs(zoomLevel - fitZoom) < 0.001;
-            document.getElementById('zoomIndicator').textContent = _atFit ? 'Fit' : zoomLevel.toFixed(2) + '×';
+            document.getElementById('zoomIndicator').textContent = zoomLevel.toFixed(2) + '×';
             
             console.log('State restored');
         }
