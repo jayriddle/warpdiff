@@ -2513,12 +2513,19 @@
                     const scale = overlayRefLong / longestSide;
                     const baseW = Math.round(naturalWidth * scale);
                     const baseH = Math.round(naturalHeight * scale);
-                    // Clamp to viewport in case even the reference asset is larger than the screen
-                    const clampScale = Math.min(1, containerW / baseW, fitH / baseH);
+                    // Clamp to viewport in case even the reference asset is larger than the screen.
+                    // Apply the same clampScale to the reference box too so the anchor is stable.
+                    const clampScale = Math.min(1, containerW / overlayRefLong, fitH / overlayRefLong);
                     renderedW = Math.round(baseW * clampScale);
                     renderedH = Math.round(baseH * clampScale);
-                    offsetX = Math.round((containerW - renderedW) / 2);
-                    offsetY = INFO_BAR_H + Math.round((fitH - renderedH) / 2);
+                    // Anchor: center the overlayRefLong × overlayRefLong reference box, then
+                    // place each asset centered within that fixed box. This keeps the anchor
+                    // point identical for all assets regardless of their individual heights.
+                    const refPx = Math.round(overlayRefLong * clampScale);
+                    const boxLeft = Math.round((containerW - refPx) / 2);
+                    const boxTop  = INFO_BAR_H + Math.round((fitH - refPx) / 2);
+                    offsetX = boxLeft + Math.round((refPx - renderedW) / 2);
+                    offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
                     // Split modes: contain-fit to fill the available area
                     const mediaAspect = naturalWidth / naturalHeight;
