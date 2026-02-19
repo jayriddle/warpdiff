@@ -1098,6 +1098,7 @@
         let hasVideos = false;
         let isMuted = false;
         let isPanning = false;
+        let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
         let panStartX = 0;
         let panStartY = 0;
         let panOffsetX = 0;
@@ -1174,6 +1175,12 @@
             // (e.g., a mediaData.original left over from a prior 3-file session) never
             // bleeds into the new load. This mirrors resetAll() but without the dialog.
             clearAllMedia();
+
+            // Tell checkAllLoaded() how many files to wait for before activating the view.
+            // Without this, it fires at loadedCount=2 during a 3-file load and calls
+            // setViewMode('horizontal'), which hides the empty third layer — causing a
+            // black screen when tripartite mode is set a moment later.
+            expectedFileCount = mediaFiles.length;
 
             // Sort by lastModified timestamp (oldest to newest)
             const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
@@ -2137,6 +2144,7 @@
             mediaData.editA = null;
             mediaData.editB = null;
             currentAssetIndex = 0;
+            expectedFileCount = 0;
             isFullscreen = false;
             hasVideos = false;
             zoomLevel = 1;
@@ -2737,11 +2745,19 @@
 
                 // Show/hide layers based on whether they have media loaded.
                 // Empty layers must be hidden so they don't take up space in the layout.
+                // Exception: tripartite uses a CSS grid — all 3 cells must remain in the DOM
+                // and visible, or the grid collapses and renders black.
                 const loadedSlotCount = Object.values(mediaData).filter(m => m !== null).length;
-                document.querySelectorAll('.overlay-layer').forEach(layer => {
-                    const hasMedia = layer.querySelector('img, video');
-                    layer.style.display = hasMedia ? '' : 'none';
-                });
+                if (mode !== 'tripartite') {
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        const hasMedia = layer.querySelector('img, video');
+                        layer.style.display = hasMedia ? '' : 'none';
+                    });
+                } else {
+                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        layer.style.display = '';
+                    });
+                }
                 // two-asset class drives /2 height in vertical-stack instead of /3
                 if (loadedSlotCount === 2) {
                     document.body.classList.add('two-asset');
@@ -2826,6 +2842,15 @@
             console.log('Loaded count:', loadedCount);
             console.log('hasVideos:', hasVideos);
             
+            // Wait until all expected files are loaded before activating the view.
+            // Firing early (e.g. at loadedCount=2 during a 3-file load) causes
+            // setViewMode('horizontal') to hide the not-yet-loaded third layer,
+            // resulting in a black screen when tripartite mode is set moments later.
+            if (loadedCount < expectedFileCount) {
+                console.log(`Waiting for all files: ${loadedCount}/${expectedFileCount} loaded`);
+                return;
+            }
+
             // Need at least 2 files loaded (Edit A and Edit B minimum)
             if (loadedCount >= 2) {
                 console.log('2+ files loaded, activating comparison view');
