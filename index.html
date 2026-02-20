@@ -142,7 +142,7 @@
         .video-progress-container {
             flex: 1;
             height: 8px;
-            background: rgba(160, 160, 160, 0.3);
+            background: rgba(160, 160, 160, 0.4);
             cursor: pointer;
             border-radius: 4px;
             overflow: hidden;
@@ -217,7 +217,7 @@
             height: 4px;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(160, 160, 160, 0.3);
+            background: rgba(160, 160, 160, 0.4);
             outline: none;
             border-radius: 2px;
         }
@@ -878,7 +878,7 @@
             display: flex;
             align-items: center;
             gap: 0;
-            margin-left: -2px; /* eat the strip's flex gap so band butts against OVERLAY pill */
+            margin-left: -6px; /* underlap OVERLAY pill's 4px border-radius so tint fills flush to its edge */
             opacity: 0;
         }
         .asset-group.visible {
@@ -912,7 +912,7 @@
 
         /* Asset sub-items: dim tint, no gap, square left edge so they connect to OVERLAY pill */
         .asset-btn {
-            background: rgba(160, 160, 160, 0.3);
+            background: rgba(160, 160, 160, 0.4);
             transition: background 0.15s, color 0.15s;
             border-radius: 0;
             color: #777;
@@ -930,7 +930,7 @@
 
         /* Asset separators (·) share the dim tint so the band reads as one continuous strip */
         .strip-sep.asset-sep {
-            background: rgba(160, 160, 160, 0.3);
+            background: rgba(160, 160, 160, 0.4);
             color: #555;
             padding: 4px 1px;
             margin: 0;
@@ -938,7 +938,7 @@
 
         /* Active asset: slightly lighter text; underline is a separate sliding element */
         .asset-btn.active {
-            background: rgba(160, 160, 160, 0.3);
+            background: rgba(160, 160, 160, 0.4);
             color: #ccc;
         }
 
