@@ -873,9 +873,24 @@
             color: #fff;
         }
 
-        .mode-btn.active, .asset-btn.active {
+        .mode-btn.active {
             background: rgb(160, 160, 160);
             color: #000;
+        }
+
+        /* Asset sub-items: dim tint shows they belong to OVERLAY but are subordinate */
+        .asset-btn {
+            background: rgba(160, 160, 160, 0.15);
+            transition: background 0.15s, color 0.15s, border-bottom-color 0.15s;
+        }
+
+        /* Active asset: underline in OVERLAY's active color instead of filled pill */
+        .asset-btn.active {
+            background: rgba(160, 160, 160, 0.15);
+            color: #ccc;
+            border-bottom: 2px solid rgb(160, 160, 160);
+            border-radius: 4px 4px 0 0;
+            padding-bottom: 2px;
         }
 
         .strip-sep {
