@@ -564,6 +564,15 @@
             display: block; /* Always show in all modes */
         }
 
+        @keyframes zoomLimitFlash {
+            0%   { color: rgb(160, 160, 160); background: rgba(0, 0, 0, 0.85); }
+            30%  { color: #fff;               background: rgba(200, 80, 50, 0.92); }
+            100% { color: rgb(160, 160, 160); background: rgba(0, 0, 0, 0.85); }
+        }
+        .split-zoom-indicator.at-limit {
+            animation: zoomLimitFlash 0.4s ease-out forwards;
+        }
+
         /* Asset info bar styling */
         .asset-info-bar {
             display: none; /* Hidden by default in overlay; shown in split modes and active overlay layer */
@@ -2197,10 +2206,24 @@
             });
         }
 
+        function flashZoomLimitBadges() {
+            document.querySelectorAll('.split-zoom-indicator').forEach(el => {
+                el.classList.remove('at-limit');
+                // Force reflow so removing+re-adding the class restarts the animation
+                void el.offsetWidth;
+                el.classList.add('at-limit');
+                el.addEventListener('animationend', () => el.classList.remove('at-limit'), { once: true });
+            });
+        }
+
         function zoomIn() {
             if (isSplitMode) {
                 // Cap at 1.0: fit-to-viewport is the maximum for split modes.
                 // Going larger causes clipping with no pan to recover, so we stop at fit.
+                if (splitStepZoom >= 1.0) {
+                    flashZoomLimitBadges();
+                    return;
+                }
                 splitStepZoom = Math.min(splitStepZoom * ZOOM_STEP, 1.0);
                 positionLabelsToMedia();
                 return;
