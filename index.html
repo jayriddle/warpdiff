@@ -2941,8 +2941,14 @@
                 el = el.offsetParent;
             }
 
-            underline.style.left = left + 'px';
-            underline.style.width = activeBtn.offsetWidth + 'px';
+            // Size the underline to the text content, not the full padded button width,
+            // then offset it to sit centered under the text (skipping the 8px padding).
+            const paddingLeft = parseFloat(getComputedStyle(activeBtn).paddingLeft);
+            const paddingRight = parseFloat(getComputedStyle(activeBtn).paddingRight);
+            const textWidth = activeBtn.offsetWidth - paddingLeft - paddingRight;
+
+            underline.style.left = (left + paddingLeft) + 'px';
+            underline.style.width = textWidth + 'px';
             underline.classList.add('visible');
         }
 
