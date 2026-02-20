@@ -2748,10 +2748,10 @@
             strip.style.display = 'flex';
             strip.innerHTML = '';
 
-            // 3-asset → OVERLAY + 3-UP; 2-asset → OVERLAY + COMPARE
+            // Split mode first, OVERLAY last: 3-UP / OVERLAY or COMPARE / OVERLAY
             const modes = loadedCount === 3
-                ? [['overlay', 'OVERLAY'], ['tripartite', '3-UP']]
-                : [['overlay', 'OVERLAY'], ['compare', 'COMPARE']];
+                ? [['tripartite', '3-UP'], ['overlay', 'OVERLAY']]
+                : [['compare', 'COMPARE'], ['overlay', 'OVERLAY']];
 
             // Normalise activeMode: horizontal/vertical both map to 'compare' for highlighting
             const normalised = (activeMode === 'horizontal' || activeMode === 'vertical') ? 'compare' : activeMode;
@@ -2772,36 +2772,34 @@
                 };
                 strip.appendChild(btn);
             });
-        }
 
-        // Rebuilds the asset strip in the header. Shown in overlay mode only.
-        function updateAssetStrip() {
-            const strip = document.getElementById('assetStrip');
-            if (isSideBySide) { strip.style.display = 'none'; return; }
-
-            const loaded = assetOrder.filter(slot => mediaData[slot]);
-            if (loaded.length === 0) { strip.style.display = 'none'; return; }
-
-            strip.style.display = 'flex';
-            strip.innerHTML = '';
-
-            loaded.forEach((slot, i) => {
-                if (i > 0) {
+            // When overlay is active, append asset buttons inline immediately after OVERLAY
+            // so they read as sub-navigation belonging to it
+            if (normalised === 'overlay') {
+                const loaded = assetOrder.filter(slot => mediaData[slot]);
+                loaded.forEach((slot) => {
                     const sep = document.createElement('span');
                     sep.className = 'strip-sep';
                     sep.textContent = '·';
                     strip.appendChild(sep);
-                }
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                const nameEl = document.querySelector(`#layer${slotName} .asset-name`);
-                const label = nameEl ? nameEl.textContent : slotName;
-                const btn = document.createElement('button');
-                const isActive = assetOrder.indexOf(slot) === currentAssetIndex;
-                btn.className = 'asset-btn' + (isActive ? ' active' : '');
-                btn.textContent = label;
-                btn.onclick = () => switchToAsset(assetOrder.indexOf(slot));
-                strip.appendChild(btn);
-            });
+
+                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                    const nameEl = document.querySelector(`#layer${slotName} .asset-name`);
+                    const label = nameEl ? nameEl.textContent : slotName;
+                    const btn = document.createElement('button');
+                    const isActive = assetOrder.indexOf(slot) === currentAssetIndex;
+                    btn.className = 'asset-btn' + (isActive ? ' active' : '');
+                    btn.textContent = label;
+                    btn.onclick = () => switchToAsset(assetOrder.indexOf(slot));
+                    strip.appendChild(btn);
+                });
+            }
+        }
+
+        // Asset buttons are now inlined into the mode strip when overlay is active.
+        // This function is kept as a no-op so existing call sites don't break.
+        function updateAssetStrip() {
+            document.getElementById('assetStrip').style.display = 'none';
         }
 
         // Update checkAllLoaded to show view mode buttons
