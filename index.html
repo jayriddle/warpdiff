@@ -2712,7 +2712,17 @@
                     const clampScale = Math.min(1, containerW / baseW, fitH / baseH);
                     renderedW = Math.round(baseW * clampScale);
                     renderedH = Math.round(baseH * clampScale);
-                    offsetX = (containerW - renderedW) / 2;
+                    // Align to inner edge: first slot right-aligns, last slot left-aligns,
+                    // so images sit flush at the centre divider with padding on outer edges.
+                    const loadedSlots = slots.filter(s => mediaData[s]);
+                    const slotIdx = loadedSlots.indexOf(slot);
+                    if (loadedSlots.length > 1 && slotIdx === 0) {
+                        offsetX = containerW - renderedW;
+                    } else if (loadedSlots.length > 1 && slotIdx === loadedSlots.length - 1) {
+                        offsetX = 0;
+                    } else {
+                        offsetX = (containerW - renderedW) / 2;
+                    }
                     offsetY = ibReserve + (fitH - renderedH) / 2;
                 } else {
                     // Vertical-stack / tripartite / fallback: contain-fit per cell.
