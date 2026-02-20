@@ -916,9 +916,18 @@
         <div class="header">
             <div style="position: relative;">
                 <span style="font-size: 16px; font-weight: 600;">WarpDiff</span>
-                <button class="quick-start-btn" onclick="toggleQuickStart()">Quick Start</button>
-                
-                <!-- Quick Start Popup -->
+                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 2–3 files to compare (or press L)">
+                    Load
+                    <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
+                </button>
+                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <button class="position-toggle" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
+                    Reset
+                    <div class="help-tooltip">Clear all assets and start over</div>
+                </button>
+                <button class="quick-start-btn" onclick="toggleQuickStart()">Help</button>
+
+                <!-- Help Popup -->
                 <div class="quick-start-popup" id="quickStartPopup">
                     <button class="quick-start-close" onclick="toggleQuickStart()">Close</button>
                     <h2 style="margin-top: 0; color: rgb(160, 160, 160);">Quick Start Guide</h2>
@@ -940,19 +949,6 @@
                         <em>Tip: Files are automatically sorted by modification time. Arrow keys skip empty slots.</em>
                     </p>
                 </div>
-            </div>
-            <div>
-                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 2–3 files to compare (or press L)">
-                    Load
-                    <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
-                </button>
-                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
-            </div>
-            <div>
-                <button class="position-toggle" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
-                    Reset All
-                    <div class="help-tooltip">Clear all assets and start over</div>
-                </button>
             </div>
             <!-- Mode strip: OVERLAY / 3-UP / COMPARE — tappable, active one highlighted -->
             <div id="modeStrip" style="display:none;"></div>
