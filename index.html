@@ -388,6 +388,7 @@
         /* video-wrapper: JS sets top/left/width/height to exact rendered media bounds in all modes */
         .video-wrapper {
             position: absolute;
+            will-change: transform; /* promote to GPU compositor layer — cheap to reposition */
         }
 
         /* Media fills the wrapper exactly — object-fit:contain handled by JS sizing the wrapper */
@@ -1156,6 +1157,14 @@
         const INFO_BAR_H = 30;     // px reserved for the asset info bar in overlay mode
         let fitZoom = 1; // Fit-to-viewport zoom, computed when entering inspect mode
 
+        // Cached header element — queried once, reused by applyZoom / positionLabelsToMedia
+        // instead of a live querySelector on every call.
+        let _headerEl = null;
+        function getHeaderEl() {
+            if (!_headerEl || !_headerEl.isConnected) _headerEl = document.querySelector('.header');
+            return _headerEl;
+        }
+
         // Debounced positionLabelsToMedia — collapses rapid per-asset load events into one call
         // so normalization always runs after all loaded slots have reported their dimensions.
         let _positionDebounceTimer = null;
@@ -1455,32 +1464,36 @@
 
         // Global progress update loop (shared across all videos)
         let globalAnimationId = null;
+
+        // Cache the primary video reference so the rAF loop avoids querySelector every frame.
+        // Updated by setupVideoListeners (on load) and switchToAsset (on asset change).
+        let primaryVideoRef = null;
+
         function startProgressUpdateLoop() {
             // Only start if not already running
             if (globalAnimationId !== null) return;
 
             function updateLoop() {
-                // Find the video that should drive the progress bar
-                let primaryVideo = null;
-
-                if (!isSideBySide) {
-                    // In overlay mode, use the active layer's video
-                    const activeLayer = document.querySelector('.overlay-layer.active');
-                    if (activeLayer) {
-                        primaryVideo = activeLayer.querySelector('video');
+                // Use the cached primary video ref; fall back to a live query only if stale
+                let primaryVideo = primaryVideoRef;
+                if (!primaryVideo || primaryVideo.isConnected === false) {
+                    // Stale ref — re-query once and re-cache
+                    if (!isSideBySide) {
+                        const activeLayer = document.querySelector('.overlay-layer.active');
+                        primaryVideo = activeLayer ? activeLayer.querySelector('video') : null;
+                    } else {
+                        primaryVideo = document.querySelector('.overlay-layer video');
                     }
-                } else {
-                    // In split view, use the first video
-                    primaryVideo = document.querySelector('.overlay-layer video');
+                    primaryVideoRef = primaryVideo;
                 }
 
-                // Update progress if we have a primary video and it's playing
                 if (primaryVideo && !primaryVideo.paused) {
                     updateVideoProgress(primaryVideo);
+                    globalAnimationId = requestAnimationFrame(updateLoop);
+                } else {
+                    // Nothing is playing — stop the loop; it restarts on the next play event
+                    globalAnimationId = null;
                 }
-
-                // Always continue the loop
-                globalAnimationId = requestAnimationFrame(updateLoop);
             }
 
             updateLoop();
@@ -1872,6 +1885,7 @@
             const activeLayer = document.getElementById(`layer${layerName}`);
             const video = activeLayer.querySelector('video');
             if (video) {
+                primaryVideoRef = video; // keep rAF loop ref fresh
                 updateVideoProgress(video);
             }
 
@@ -1997,7 +2011,7 @@
 
             // Measure actual header height for info bar clamping (HEADER_OVERLAP is used
             // for layout math but may not match the rendered header exactly)
-            const headerEl = document.querySelector('.header');
+            const headerEl = getHeaderEl();
             const headerH = headerEl ? headerEl.offsetHeight : HEADER_OVERLAP;
 
             // Compute fitZoom and refW/refH using the asset whose longest side is smallest.
@@ -2089,7 +2103,7 @@
                 // Store base (un-panned) coords so handlePanMove() can update cheaply.
                 const infoBar = layer.querySelector('.asset-info-bar');
                 if (infoBar) {
-                    const ibH = infoBar.offsetHeight || 28;
+                    const ibH = infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28);
                     infoBar.dataset.centerTop = centerTop;
                     infoBar.dataset.centerLeft = centerLeft;
                     infoBar.dataset.scaledW = scaledW;
@@ -2162,7 +2176,8 @@
             const centerLeft = parseFloat(vw.dataset.centerLeft || 0);
             const scaledW    = parseFloat(vw.dataset.scaledW    || 0);
             const scaledH    = parseFloat(vw.dataset.scaledH    || 0);
-            const headerH    = parseFloat(document.querySelector('.header')?.offsetHeight || HEADER_OVERLAP);
+            const headerEl2  = getHeaderEl();
+            const headerH    = parseFloat(headerEl2 ? headerEl2.offsetHeight : HEADER_OVERLAP);
             const viewW = window.innerWidth;
             const viewH = window.innerHeight;
             const slackX = viewW * 0.25;
@@ -2212,7 +2227,7 @@
                 // Move info bar in lockstep
                 const infoBar = activeLayer.querySelector('.asset-info-bar');
                 if (infoBar) {
-                    const ibH = infoBar.offsetHeight || 28;
+                    const ibH = infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28);
                     const barCenterTop = parseFloat(infoBar.dataset.centerTop || HEADER_OVERLAP);
                     const barCenterLeft = parseFloat(infoBar.dataset.centerLeft || 0);
                     const barW = parseFloat(infoBar.dataset.scaledW || infoBar.offsetWidth);
@@ -2453,8 +2468,8 @@
             });
         }
         
-        // Update zoom indicators when window resizes
-        window.addEventListener('resize', updateSplitViewZoomIndicators);
+        // Zoom indicators are updated inside positionLabelsToMedia (split) / applyZoom (overlay),
+        // both of which are debounced on resize below — no separate listener needed.
 
         // Positions the video-wrapper and info bar to exactly match the rendered media bounds.
         // Works in all modes: overlay, horizontal split, and vertical split.
@@ -2718,7 +2733,9 @@
                 // Position the info bar flush above the asset, matching its width and x-position.
                 if (infoBar) {
                     infoBar.style.position = ''; // clear fixed positioning from overlay mode
-                    const ibH = infoBar.offsetHeight || 28;
+                    // Use cached height to avoid a layout read after wrapper writes (reflow).
+                    // Cache is set on first measurement and stays valid (bar height is fixed).
+                    const ibH = infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28);
                     infoBar.style.left = Math.round(offsetX) + 'px';
                     infoBar.style.top = Math.round(Math.max(0, offsetY - ibH)) + 'px';
                     infoBar.style.bottom = '';
@@ -2731,7 +2748,7 @@
             // Vertical-stack 100%-cap: shrink each layer to its video height so there's no
             // dead space around each video, then center the whole group in the viewport.
             if (isVertical && splitZoomLevel === 1 && Object.keys(slotRenderedH).length > 0) {
-                const headerEl = document.querySelector('.header');
+                const headerEl = getHeaderEl();
                 const headerH = headerEl ? headerEl.offsetHeight : 39;
                 const availH = window.innerHeight - headerH;
                 const SEP = 10; // matches margin-bottom: 10px on .overlay-layer
@@ -2770,12 +2787,20 @@
             }
         }
 
+        // Debounced applyZoom for resize events — avoids running the full reposition
+        // pipeline on every pixel of a window drag (fires 100+ times/sec).
+        let _applyZoomResizeTimer = null;
+        function applyZoomDebounced() {
+            clearTimeout(_applyZoomResizeTimer);
+            _applyZoomResizeTimer = setTimeout(applyZoom, 60);
+        }
+
         // Call positioning on resize
         window.addEventListener('resize', () => {
             if (isSideBySide) {
                 positionLabelsToMediaDebounced(); // debounced: expensive 3-pass layout
             } else {
-                applyZoom(); // overlay mode: refit/reposition using zoom level
+                applyZoomDebounced(); // debounced: avoid per-pixel reflow during window drag
             }
         });
 
