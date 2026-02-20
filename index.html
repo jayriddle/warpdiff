@@ -566,7 +566,7 @@
 
         @keyframes zoomLimitFlash {
             0%   { color: rgb(160, 160, 160); background: rgba(0, 0, 0, 0.85); }
-            30%  { color: #fff;               background: rgba(200, 80, 50, 0.92); }
+            30%  { color: #fff;               background: rgba(200, 150, 20, 0.92); }
             100% { color: rgb(160, 160, 160); background: rgba(0, 0, 0, 0.85); }
         }
         .split-zoom-indicator.at-limit {
@@ -1227,6 +1227,7 @@
         let zoomLevel = 1; // Default 1x zoom (actual size/fit)
         let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
         let splitStepZoom = 1.0; // multiplicative zoom for split modes (1.0 = no extra zoom)
+        let _tripartiteZoomWasCapped = false; // set by tripartite pre-pass; read by '1' key handler
         let timecodeMode = 'time'; // 'time' or 'frames'
         let videoFrameRates = {}; // Store framerate for each video
         // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
@@ -2646,6 +2647,33 @@
                     tripartiteEffectiveZoom *= splitStepZoom;
                 }
 
+                // Clamp tripartiteEffectiveZoom so no asset overflows its cell.
+                // This prevents the '1' key from blowing assets off-screen when native
+                // pixel dimensions exceed the cell size. Record whether clamping occurred
+                // so the '1' key handler can flash the badges to signal the limit.
+                {
+                    let maxAllowed = Infinity;
+                    slots.forEach(slot => {
+                        const d = tripartiteLayout[slot];
+                        if (!d) return;
+                        if (widthConstrained) {
+                            if (minW > 0) maxAllowed = Math.min(maxAllowed, d.cw / minW);
+                            const projH = minW > 0 ? minW * d.nh / d.nw : 0;
+                            if (projH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / projH);
+                        } else {
+                            if (minH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / minH);
+                            const projW = minH > 0 ? minH * d.nw / d.nh : 0;
+                            if (projW > 0) maxAllowed = Math.min(maxAllowed, d.cw / projW);
+                        }
+                    });
+                    if (maxAllowed < Infinity) {
+                        _tripartiteZoomWasCapped = tripartiteEffectiveZoom > maxAllowed - 0.001;
+                        tripartiteEffectiveZoom = Math.min(tripartiteEffectiveZoom, maxAllowed);
+                    } else {
+                        _tripartiteZoomWasCapped = false;
+                    }
+                }
+
                 // Apply shared dimension: same width (portrait) or same height (landscape).
                 // Then apply the effective zoom so +/- and 1 keys scale all three assets together.
                 slots.forEach(slot => {
@@ -3598,6 +3626,12 @@
                     splitStepZoom = 1.0;
                     document.body.classList.toggle('zoom-100', splitZoomLevel === 1);
                     positionLabelsToMedia();
+                    // In tripartite mode, if the 100%-anchor size was clamped to fit (assets
+                    // are already at or below native pixels at the fit zoom level), flash the
+                    // zoom badges to signal that nothing visually changed.
+                    if (splitZoomLevel === 1 && document.body.classList.contains('tripartite') && _tripartiteZoomWasCapped) {
+                        flashZoomLimitBadges();
+                    }
                 }
             } else if (e.key === ' ') {
                 // Spacebar toggles play/pause for videos
