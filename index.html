@@ -1138,6 +1138,7 @@
         let panOffsetY = 0;
 
         let zoomLevel = 1; // Default 1x zoom (actual size/fit)
+        let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
         let timecodeMode = 'time'; // 'time' or 'frames'
         let videoFrameRates = {}; // Store framerate for each video
         let splitViewFitMode = 'contain'; // 'contain' (fit, no crop - default) or 'cover' (fill, crop)
@@ -2180,6 +2181,7 @@
             expectedFileCount = 0;
             hasVideos = false;
             zoomLevel = 1;
+            splitZoomLevel = null;
             fitZoom = 1;
             panOffsetX = 0;
             panOffsetY = 0;
@@ -2530,20 +2532,21 @@
                     offsetX = boxLeft + Math.round((refPx - renderedW) / 2);
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
-                    // Split modes: contain-fit to fill the available area
+                    // Split modes: contain-fit, optionally capped at 100% actual pixels
                     const mediaAspect = naturalWidth / naturalHeight;
                     const containerAspect = containerW / fitH;
+                    let fitScale;
                     if (containerAspect > mediaAspect) {
-                        renderedH = fitH;
-                        renderedW = renderedH * mediaAspect;
-                        offsetX = (containerW - renderedW) / 2;
-                        offsetY = 0;
+                        fitScale = fitH / naturalHeight;
                     } else {
-                        renderedW = containerW;
-                        renderedH = renderedW / mediaAspect;
-                        offsetX = 0;
-                        offsetY = (containerH - renderedH) / 2;
+                        fitScale = containerW / naturalWidth;
                     }
+                    // Cap at 1.0 if 100% mode active (no upscaling past actual pixels)
+                    const scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
+                    renderedW = naturalWidth * scale;
+                    renderedH = naturalHeight * scale;
+                    offsetX = (containerW - renderedW) / 2;
+                    offsetY = (containerH - renderedH) / 2;
                 }
 
                 // In tripartite mode: use the shared zoom dimensions computed in the pre-pass.
@@ -2665,7 +2668,7 @@
 
         function setViewMode(mode) {
             saveState(); // Save state before changing view
-            
+
             // Update view mode
             if (mode === 'overlay') {
                 // Return to overlay mode
@@ -2674,7 +2677,9 @@
                     document.body.classList.remove('vertical-stack');
                     document.body.classList.remove('tripartite');
                     document.body.classList.remove('two-asset');
+                    document.body.classList.remove('zoom-100');
                     isSideBySide = false;
+                    splitZoomLevel = null;
 
                     // Restore all layers to visible so overlay mode can show them
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
@@ -2722,7 +2727,10 @@
                     requestAnimationFrame(() => requestAnimationFrame(() => resetFitZoom()));
                 }
             } else {
-                // Enable split view
+                // Enable split view — reset any compare-mode 100% cap
+                splitZoomLevel = null;
+                document.body.classList.remove('zoom-100');
+
                 if (!isSideBySide) {
                     isSideBySide = true;
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
@@ -3319,10 +3327,16 @@
                 // Snap to 100% actual pixels
                 e.preventDefault();
                 if (!isSideBySide) {
+                    // Overlay: snap to 100% actual pixels, reset pan
                     zoomLevel = 1;
                     panOffsetX = 0;
                     panOffsetY = 0;
                     applyZoom();
+                } else {
+                    // Compare: toggle between fit-to-panel and 100%-capped (no upscaling)
+                    splitZoomLevel = splitZoomLevel === 1 ? null : 1;
+                    document.body.classList.toggle('zoom-100', splitZoomLevel === 1);
+                    positionLabelsToMedia();
                 }
             } else if (e.key === ' ') {
                 // Spacebar toggles play/pause for videos
