@@ -2595,46 +2595,6 @@
             // Track rendered heights so the vertical-stack group-centering pass can use them.
             const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
 
-            // Horizontal compare pre-pass: compute a shared rendered height so both images
-            // appear at the same height side-by-side.
-            //
-            // For each image, the tallest it can render without overflowing its cell is:
-            //   maxH = min(ch, cw * nh/nw)   (height-fill, clamped by cell width)
-            // The shared height is min(maxH) across slots. Each image then scales to
-            // sharedH / nh, guaranteeing equal heights with no cell overflow.
-            let horizontalSharedH = null;
-            if (!isVertical && !isTripartite && !isOverlay) {
-                slots.forEach(slot => {
-                    if (!mediaData[slot]) return;
-                    const layer = getLayer(slot);
-                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
-                    if (!media || !mediaContainer) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
-                    if (!nw || !nh) return;
-                    const cw = mediaContainer.offsetWidth;
-                    const ch = mediaContainer.offsetHeight;
-                    if (!cw || !ch) return;
-                    const maxH = Math.min(ch, cw * nh / nw);
-                    if (horizontalSharedH === null || maxH < horizontalSharedH) {
-                        horizontalSharedH = maxH;
-                    }
-                });
-                if (splitZoomLevel === 1 && horizontalSharedH !== null) {
-                    // In 100% mode, also cap so no image exceeds its natural pixel height
-                    // (i.e. no upscaling). Re-derive the per-slot cap and take the minimum.
-                    slots.forEach(slot => {
-                        if (!mediaData[slot]) return;
-                        const layer = getLayer(slot);
-                        const media = layer ? layer.querySelector('img, video') : null;
-                        if (!media) return;
-                        const nh = media.naturalHeight || media.videoHeight || 0;
-                        if (nh) horizontalSharedH = Math.min(horizontalSharedH, nh);
-                    });
-                }
-            }
-
             // Vertical-stack pre-pass: compute the minimum contain-fit scale across all loaded
             // slots so every video renders at the same scale (same rendered width for same
             // natural width). Without this each cell fits independently to its own height,
@@ -2720,13 +2680,10 @@
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
                     // Split modes: contain-fit, optionally capped at 100% actual pixels.
-                    // Vertical-stack uses a shared scale; horizontal compare uses a shared
-                    // rendered height so both images appear at the same height side-by-side.
+                    // Vertical-stack uses a shared scale so all assets render at the same zoom.
                     let scale;
                     if (isVertical && verticalSharedScale !== null) {
                         scale = verticalSharedScale;
-                    } else if (!isVertical && !isTripartite && !isOverlay && horizontalSharedH !== null) {
-                        scale = horizontalSharedH / naturalHeight;
                     } else {
                         const mediaAspect = naturalWidth / naturalHeight;
                         const containerAspect = containerW / fitH;
