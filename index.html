@@ -2712,14 +2712,14 @@
                     const clampScale = Math.min(1, containerW / baseW, fitH / baseH);
                     renderedW = Math.round(baseW * clampScale);
                     renderedH = Math.round(baseH * clampScale);
-                    // Align to inner edge: first slot right-aligns, last slot left-aligns,
-                    // so images sit flush at the centre divider with padding on outer edges.
+                    // Align to inner edge with a small gap: first slot right-aligns with 8px
+                    // inset, last slot left-aligns with 8px inset — 16px total between images.
                     const loadedSlots = slots.filter(s => mediaData[s]);
                     const slotIdx = loadedSlots.indexOf(slot);
                     if (loadedSlots.length > 1 && slotIdx === 0) {
-                        offsetX = containerW - renderedW;
+                        offsetX = containerW - renderedW - 8;
                     } else if (loadedSlots.length > 1 && slotIdx === loadedSlots.length - 1) {
-                        offsetX = 0;
+                        offsetX = 8;
                     } else {
                         offsetX = (containerW - renderedW) / 2;
                     }
