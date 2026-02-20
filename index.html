@@ -2633,6 +2633,40 @@
             // Track rendered heights so the vertical-stack group-centering pass can use them.
             const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
 
+            // Vertical-stack pre-pass: compute the minimum contain-fit scale across all loaded
+            // slots so every video renders at the same scale (same rendered width for same
+            // natural width). Without this each cell fits independently to its own height,
+            // and tiny height differences (e.g. 400 vs 416px video) produce different scales.
+            let verticalSharedScale = null;
+            if (isVertical) {
+                slots.forEach(slot => {
+                    if (!mediaData[slot]) return;
+                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                    const layer = document.getElementById(`layer${slotName}`);
+                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
+                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                    const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
+                    if (!media || !mediaContainer) return;
+                    const nw = media.naturalWidth || media.videoWidth || 0;
+                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    if (!nw || !nh) return;
+                    const cw = mediaContainer.offsetWidth;
+                    const ch = mediaContainer.offsetHeight;
+                    if (!cw || !ch) return;
+                    const ibH = infoBar
+                        ? (infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28))
+                        : 0;
+                    const availH = ch - ibH;
+                    const fitScale = (cw / nw) < (availH / nh) ? cw / nw : availH / nh;
+                    if (verticalSharedScale === null || fitScale < verticalSharedScale) {
+                        verticalSharedScale = fitScale;
+                    }
+                });
+                if (splitZoomLevel === 1 && verticalSharedScale !== null) {
+                    verticalSharedScale = Math.min(verticalSharedScale, 1);
+                }
+            }
+
             slots.forEach(slot => {
                 if (!mediaData[slot]) return;
 
@@ -2685,17 +2719,24 @@
                     offsetX = boxLeft + Math.round((refPx - renderedW) / 2);
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
-                    // Split modes: contain-fit, optionally capped at 100% actual pixels
-                    const mediaAspect = naturalWidth / naturalHeight;
-                    const containerAspect = containerW / fitH;
-                    let fitScale;
-                    if (containerAspect > mediaAspect) {
-                        fitScale = fitH / naturalHeight;
+                    // Split modes: contain-fit, optionally capped at 100% actual pixels.
+                    // Vertical-stack uses a shared scale (pre-pass above) so all videos
+                    // render at the same zoom regardless of per-cell height differences.
+                    let scale;
+                    if (isVertical && verticalSharedScale !== null) {
+                        scale = verticalSharedScale;
                     } else {
-                        fitScale = containerW / naturalWidth;
+                        const mediaAspect = naturalWidth / naturalHeight;
+                        const containerAspect = containerW / fitH;
+                        let fitScale;
+                        if (containerAspect > mediaAspect) {
+                            fitScale = fitH / naturalHeight;
+                        } else {
+                            fitScale = containerW / naturalWidth;
+                        }
+                        // Cap at 1.0 if 100% mode active (no upscaling past actual pixels)
+                        scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
                     }
-                    // Cap at 1.0 if 100% mode active (no upscaling past actual pixels)
-                    const scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
                     renderedW = naturalWidth * scale;
                     renderedH = naturalHeight * scale;
                     offsetX = (containerW - renderedW) / 2;
