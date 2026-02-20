@@ -2952,12 +2952,15 @@
             });
 
             // Vertical-stack 100%-cap: shrink each layer to info-bar + video height so there's
-            // no dead space, then center the whole group in the viewport.
-            if (isVertical && splitZoomLevel === 1 && Object.keys(slotRenderedH).length > 0) {
+            // Group-centering pass for vertical-stack: shrink each layer to its content height
+            // and vertically center the whole group in the viewport. This runs whenever zoom
+            // is active (splitStepZoom !== 1 or splitZoomLevel === 1) so that zoomed-in assets
+            // stay together as a unit rather than each cell centering independently.
+            if (isVertical && Object.keys(slotRenderedH).length > 0 &&
+                    (splitZoomLevel === 1 || splitStepZoom !== 1.0)) {
                 const headerEl = getHeaderEl();
                 const headerH = headerEl ? headerEl.offsetHeight : 39;
                 const availH = window.innerHeight - headerH;
-                // margin-bottom is now 0; no separator between cells
                 const loadedSlots = slots.filter(s => slotRenderedH[s] !== undefined);
 
                 // Compute total height: each cell = ibReserve + renderedVideoH
@@ -2969,7 +2972,7 @@
                     const ibH = ib ? (ib._cachedH || (ib._cachedH = ib.offsetHeight || 28)) : 0;
                     totalH += ibH + slotRenderedH[slot];
                 });
-                const topPad = Math.max(0, Math.round((availH - totalH) / 2));
+                const topPad = Math.round((availH - totalH) / 2); // can be negative when zoomed in
 
                 // Apply per-slot: shrink layer to ibReserve + video height; video stays at ibReserve
                 loadedSlots.forEach(slot => {
@@ -2986,7 +2989,7 @@
                     if (ib) ib.style.top = '0px';
                 });
 
-                // Shift the first layer down to center the group
+                // Shift the first layer down (or up, if negative) to center the group
                 const firstSlot = loadedSlots[0];
                 const firstLayer = getLayer(firstSlot);
                 if (firstLayer) firstLayer.style.marginTop = topPad + 'px';
