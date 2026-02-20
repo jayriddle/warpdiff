@@ -1894,6 +1894,11 @@
             let pendingScrubPct = null; // latest scrub position waiting for next rAF
             let scrubRafId = null;      // rAF handle for pending seek
 
+            // Cached scrub targets — populated at mousedown, zero DOM queries during drag
+            let _scrubVideo = null;       // primary (active) video element
+            let _scrubAllVideos = null;   // all video elements (for sync)
+            let _scrubContainerRect = null; // progress bar bounding rect (stable during drag)
+
             // Seek a single video, preferring fastSeek() for keyframe-level speed.
             function seekVideo(v, time) {
                 if (v.fastSeek) {
@@ -1911,19 +1916,22 @@
                 const pct = pendingScrubPct;
                 pendingScrubPct = null;
 
-                const activeLayer = document.querySelector('.overlay-layer.active');
-                if (!activeLayer) return;
-                const video = activeLayer.querySelector('video');
+                const video = _scrubVideo;
                 if (!video || isNaN(video.duration)) return;
 
                 // Update the progress bar immediately from mouse position (no seek lag)
-                document.getElementById('videoProgressBar').style.width = (pct * 100) + '%';
+                getProgressEls();
+                if (_elProgressBar) _elProgressBar.style.width = (pct * 100) + '%';
 
                 // Seek all videos to the proportional position
                 seekVideo(video, pct * video.duration);
-                document.querySelectorAll('.overlay-layer video').forEach(v => {
-                    if (v !== video) seekVideo(v, pct * v.duration);
-                });
+                const all = _scrubAllVideos;
+                if (all) {
+                    for (let i = 0; i < all.length; i++) {
+                        const v = all[i];
+                        if (v !== video) seekVideo(v, pct * v.duration);
+                    }
+                }
 
                 // Update timecode display from the seek target, not video.currentTime
                 // (currentTime lags until the seek completes)
@@ -1931,12 +1939,13 @@
             }
 
             function scrubToPosition(e) {
-                const rect = progressContainer.getBoundingClientRect();
+                const rect = _scrubContainerRect;
                 const clickX = e.clientX - rect.left;
                 pendingScrubPct = Math.max(0, Math.min(1, clickX / rect.width));
 
                 // Immediately update progress bar so it tracks the cursor without waiting
-                document.getElementById('videoProgressBar').style.width = (pendingScrubPct * 100) + '%';
+                getProgressEls();
+                if (_elProgressBar) _elProgressBar.style.width = (pendingScrubPct * 100) + '%';
 
                 // Schedule one seek per animation frame — rapid mousemoves collapse into one seek
                 if (scrubRafId === null) {
@@ -1947,15 +1956,17 @@
             progressContainer.addEventListener('mousedown', function(e) {
                 isDragging = true;
 
-                // Pause video during scrubbing for smooth experience
+                // Cache all scrub targets once at drag-start — zero DOM queries during drag
                 const activeLayer = document.querySelector('.overlay-layer.active');
-                if (activeLayer) {
-                    const video = activeLayer.querySelector('video');
-                    if (video) {
-                        wasPlaying = !video.paused;
-                        if (wasPlaying) {
-                            pauseAllVideos();
-                        }
+                _scrubVideo = activeLayer ? activeLayer.querySelector('video') : null;
+                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer video'));
+                _scrubContainerRect = progressContainer.getBoundingClientRect();
+
+                // Pause video during scrubbing for smooth experience
+                if (_scrubVideo) {
+                    wasPlaying = !_scrubVideo.paused;
+                    if (wasPlaying) {
+                        pauseAllVideos();
                     }
                 }
 
@@ -1977,6 +1988,11 @@
                         scrubRafId = null;
                         flushScrub();
                     }
+
+                    // Clear cached scrub targets
+                    _scrubVideo = null;
+                    _scrubAllVideos = null;
+                    _scrubContainerRect = null;
 
                     // Resume playback if it was playing before
                     if (wasPlaying) {
