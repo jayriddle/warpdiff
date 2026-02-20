@@ -2717,8 +2717,14 @@
                         layer.classList.remove('active-audio');
                     });
                     switchToAsset(currentAssetIndex);
-                    // Two rAFs ensure CSS class changes reflow before applyZoom reads viewport
-                    requestAnimationFrame(() => requestAnimationFrame(() => applyZoom()));
+                    // Two rAFs ensure CSS class changes reflow before applyZoom reads viewport.
+                    // After applyZoom computes fitZoom, snap zoomLevel to it so assets fit the
+                    // viewport instead of rendering at 1:1 (especially important for portrait assets).
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        applyZoom();           // computes fitZoom from asset dimensions
+                        zoomLevel = fitZoom;   // snap to fit — same as pressing 0
+                        applyZoom();           // re-render at the correct fit zoom
+                    }));
                 }
             } else {
                 // Enable split view
