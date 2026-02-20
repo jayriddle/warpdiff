@@ -1951,8 +1951,8 @@
                 if (infoBar) {
                     const ibH = infoBar.offsetHeight || 28;
                     infoBar.style.position = 'fixed';
-                    infoBar.style.left = centerLeft + 'px';
-                    infoBar.style.top = Math.max(0, centerTop - ibH) + 'px';
+                    infoBar.style.left = centerLeft + panOffsetX + 'px';
+                    infoBar.style.top = Math.max(HEADER_OVERLAP, centerTop + panOffsetY - ibH) + 'px';
                     infoBar.style.width = scaledW + 'px';
                     infoBar.style.right = '';
                     infoBar.style.bottom = '';
@@ -2034,6 +2034,7 @@
         function handlePanEnd(e) {
             isPanning = false;
             document.getElementById('overlayContainer').classList.remove('panning');
+            applyZoom(); // re-anchor info bars to the settled pan position
         }
 
         // Clear all loaded media and reset state — called both by resetAll() and at the
