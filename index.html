@@ -2642,36 +2642,64 @@
             // Track rendered heights so the vertical-stack group-centering pass can use them.
             const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
 
-            // Vertical-stack pre-pass: compute the minimum contain-fit scale across all loaded
-            // slots so every video renders at the same scale (same rendered width for same
-            // natural width). Without this each cell fits independently to its own height,
-            // and tiny height differences (e.g. 400 vs 416px video) produce different scales.
+            // Vertical-stack pre-pass: anchor on the smallest longest-side across all loaded
+            // assets, then find the largest shared scale factor that fits every asset's
+            // longest-side-normalised dimensions within its cell.
+            // Anchoring on the longest side (same as horizontal compareRefLong) ensures both
+            // landscape and portrait assets render at the same dominant dimension on screen,
+            // so different-resolution videos appear at the same physical size.
+            let verticalRefLong = 0;
             let verticalSharedScale = null;
             if (isVertical) {
+                // Step 1: find the smallest longest-side across all loaded assets.
+                let minLong = Infinity;
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
                     const layer = getLayer(slot);
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
-                    const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
                     if (!media || !mediaContainer) return;
                     const nw = media.naturalWidth || media.videoWidth || 0;
                     const nh = media.naturalHeight || media.videoHeight || 0;
                     if (!nw || !nh) return;
-                    const cw = mediaContainer.offsetWidth;
-                    const ch = mediaContainer.offsetHeight;
-                    if (!cw || !ch) return;
-                    const ibH = infoBar
-                        ? (infoBar._cachedH = infoBar.offsetHeight || 28)
-                        : 0;
-                    const availH = ch - ibH;
-                    const fitScale = (cw / nw) < (availH / nh) ? cw / nw : availH / nh;
-                    if (verticalSharedScale === null || fitScale < verticalSharedScale) {
-                        verticalSharedScale = fitScale;
-                    }
+                    const longest = Math.max(nw, nh);
+                    if (longest < minLong) minLong = longest;
                 });
-                if (splitZoomLevel === 1 && verticalSharedScale !== null) {
-                    verticalSharedScale = Math.min(verticalSharedScale, 1);
+                verticalRefLong = minLong === Infinity ? 0 : minLong;
+
+                // Step 2: find the largest scale such that every asset's normalised dimensions
+                // fit within its cell. The per-slot rendering then uses:
+                //   renderedW = nw × (verticalRefLong / longest) × verticalSharedScale
+                //   renderedH = nh × (verticalRefLong / longest) × verticalSharedScale
+                if (verticalRefLong > 0) {
+                    slots.forEach(slot => {
+                        if (!mediaData[slot]) return;
+                        const layer = getLayer(slot);
+                        const mediaContainer = layer ? layer.querySelector('.media-container') : null;
+                        const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                        const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
+                        if (!media || !mediaContainer) return;
+                        const nw = media.naturalWidth || media.videoWidth || 0;
+                        const nh = media.naturalHeight || media.videoHeight || 0;
+                        if (!nw || !nh) return;
+                        const cw = mediaContainer.offsetWidth;
+                        const ch = mediaContainer.offsetHeight;
+                        if (!cw || !ch) return;
+                        const ibH = infoBar
+                            ? (infoBar._cachedH = infoBar.offsetHeight || 28)
+                            : 0;
+                        const availH = ch - ibH;
+                        const longest = Math.max(nw, nh);
+                        const baseW = nw * (verticalRefLong / longest);
+                        const baseH = nh * (verticalRefLong / longest);
+                        const fitScale = Math.min(cw / baseW, availH / baseH);
+                        if (verticalSharedScale === null || fitScale < verticalSharedScale) {
+                            verticalSharedScale = fitScale;
+                        }
+                    });
+                    if (splitZoomLevel === 1 && verticalSharedScale !== null) {
+                        verticalSharedScale = Math.min(verticalSharedScale, 1);
+                    }
                 }
             }
 
@@ -2750,10 +2778,16 @@
                     offsetY = ibReserve + (fitH - renderedH) / 2;
                 } else {
                     // Vertical-stack / tripartite / fallback: contain-fit per cell.
-                    let scale;
-                    if (isVertical && verticalSharedScale !== null) {
-                        scale = verticalSharedScale;
+                    if (isVertical && verticalSharedScale !== null && verticalRefLong > 0) {
+                        // Longest-side normalisation: scale each asset so its longest side
+                        // matches verticalRefLong, then apply the shared fit scale so every
+                        // asset occupies the same physical screen size regardless of resolution.
+                        const longest = Math.max(naturalWidth, naturalHeight);
+                        const normScale = verticalRefLong / longest;
+                        renderedW = naturalWidth  * normScale * verticalSharedScale;
+                        renderedH = naturalHeight * normScale * verticalSharedScale;
                     } else {
+                        let scale;
                         const mediaAspect = naturalWidth / naturalHeight;
                         const containerAspect = containerW / fitH;
                         let fitScale;
@@ -2764,9 +2798,9 @@
                         }
                         // Cap at 1.0 if 100% mode active (no upscaling past actual pixels)
                         scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
+                        renderedW = naturalWidth * scale;
+                        renderedH = naturalHeight * scale;
                     }
-                    renderedW = naturalWidth * scale;
-                    renderedH = naturalHeight * scale;
                     offsetX = (containerW - renderedW) / 2;
                     // Center within the video area (below the reserved info-bar strip)
                     offsetY = ibReserve + (fitH - renderedH) / 2;
