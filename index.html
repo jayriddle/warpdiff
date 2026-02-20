@@ -2595,11 +2595,14 @@
             // Track rendered heights so the vertical-stack group-centering pass can use them.
             const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
 
-            // Horizontal compare pre-pass: compute the minimum contain-fit scale across all
-            // loaded slots so both images render at the same scale. Without this, each cell
-            // fits independently and images with different aspect ratios appear at different
-            // sizes, creating a large gap between the inner edges.
-            let horizontalSharedScale = null;
+            // Horizontal compare pre-pass: compute a shared rendered height so both images
+            // appear at the same height side-by-side.
+            //
+            // For each image, the tallest it can render without overflowing its cell is:
+            //   maxH = min(ch, cw * nh/nw)   (height-fill, clamped by cell width)
+            // The shared height is min(maxH) across slots. Each image then scales to
+            // sharedH / nh, guaranteeing equal heights with no cell overflow.
+            let horizontalSharedH = null;
             if (!isVertical && !isTripartite && !isOverlay) {
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
@@ -2613,13 +2616,22 @@
                     const cw = mediaContainer.offsetWidth;
                     const ch = mediaContainer.offsetHeight;
                     if (!cw || !ch) return;
-                    const fitScale = (cw / nw) < (ch / nh) ? cw / nw : ch / nh;
-                    if (horizontalSharedScale === null || fitScale < horizontalSharedScale) {
-                        horizontalSharedScale = fitScale;
+                    const maxH = Math.min(ch, cw * nh / nw);
+                    if (horizontalSharedH === null || maxH < horizontalSharedH) {
+                        horizontalSharedH = maxH;
                     }
                 });
-                if (splitZoomLevel === 1 && horizontalSharedScale !== null) {
-                    horizontalSharedScale = Math.min(horizontalSharedScale, 1);
+                if (splitZoomLevel === 1 && horizontalSharedH !== null) {
+                    // In 100% mode, also cap so no image exceeds its natural pixel height
+                    // (i.e. no upscaling). Re-derive the per-slot cap and take the minimum.
+                    slots.forEach(slot => {
+                        if (!mediaData[slot]) return;
+                        const layer = getLayer(slot);
+                        const media = layer ? layer.querySelector('img, video') : null;
+                        if (!media) return;
+                        const nh = media.naturalHeight || media.videoHeight || 0;
+                        if (nh) horizontalSharedH = Math.min(horizontalSharedH, nh);
+                    });
                 }
             }
 
@@ -2708,13 +2720,13 @@
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
                     // Split modes: contain-fit, optionally capped at 100% actual pixels.
-                    // Horizontal/vertical-stack use a shared scale (pre-pass above) so all
-                    // assets render at the same zoom regardless of per-cell size differences.
+                    // Vertical-stack uses a shared scale; horizontal compare uses a shared
+                    // rendered height so both images appear at the same height side-by-side.
                     let scale;
                     if (isVertical && verticalSharedScale !== null) {
                         scale = verticalSharedScale;
-                    } else if (!isVertical && !isTripartite && !isOverlay && horizontalSharedScale !== null) {
-                        scale = horizontalSharedScale;
+                    } else if (!isVertical && !isTripartite && !isOverlay && horizontalSharedH !== null) {
+                        scale = horizontalSharedH / naturalHeight;
                     } else {
                         const mediaAspect = naturalWidth / naturalHeight;
                         const containerAspect = containerW / fitH;
