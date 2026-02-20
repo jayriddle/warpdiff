@@ -163,13 +163,6 @@
             color: #fff;
         }
 
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            border: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
         .audio-source-selector button.active {
             background: rgb(160, 160, 160);
             color: #000;
@@ -995,6 +988,30 @@
             margin-top: 8px;
             font-size: 11px;
         }
+
+        /* Load toast — brief confirmation shown after files are assigned to slots */
+        .load-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.92);
+            color: #ccc;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-size: 12px;
+            z-index: 300;
+            pointer-events: none;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .load-toast.warning {
+            color: #f5c542;
+        }
+        .load-toast.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -1127,6 +1144,32 @@
         };
 
         const assetOrder = ['original', 'editA', 'editB'];
+
+        // Returns the overlay-layer element for a given slot key ('original', 'editA', 'editB').
+        // Centralises the slot→DOM-id mapping so it doesn't have to be computed ad-hoc everywhere.
+        const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB' };
+        function getLayer(slot) { return document.getElementById(SLOT_LAYER_ID[slot]); }
+
+        // Brief non-intrusive toast shown after file load. Auto-dismisses after `duration` ms.
+        // Pass isWarning=true to tint the text amber (timestamp-collision advisory).
+        let _toastTimer = null;
+        function showLoadToast(message, isWarning = false, duration = 4000) {
+            let toast = document.querySelector('.load-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.className = 'load-toast';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.classList.toggle('warning', isWarning);
+            // Force reflow so re-triggering the transition works when called in quick succession
+            toast.classList.remove('visible');
+            void toast.offsetWidth;
+            toast.classList.add('visible');
+            clearTimeout(_toastTimer);
+            _toastTimer = setTimeout(() => toast.classList.remove('visible'), duration);
+        }
+
         let currentAssetIndex = 0;
         // isFullscreen removed — zoom/pan always available in overlay; browser fullscreen via F key
         let hasVideos = false;
@@ -1142,19 +1185,11 @@
         let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
         let timecodeMode = 'time'; // 'time' or 'frames'
         let videoFrameRates = {}; // Store framerate for each video
-        let splitViewFitMode = 'contain'; // 'contain' (fit, no crop - default) or 'cover' (fill, crop)
-        // Undo/Redo state management
-        let undoStack = [];
-        let redoStack = [];
-        const MAX_UNDO_STATES = 20;
-        
         // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
         // √2 ≈ 1.414 gives a classic "one stop" doubling every two steps.
         const ZOOM_STEP = Math.SQRT2;
         const ZOOM_MIN = 0.05;  // 5% — effectively a hard floor
         const ZOOM_MAX = 32;    // 3200% — hard ceiling
-        const HEADER_OVERLAP = 50; // px reserved for the header bar in inspect mode
-        const INFO_BAR_H = 30;     // px reserved for the asset info bar in overlay mode
         let fitZoom = 1; // Fit-to-viewport zoom, computed when entering inspect mode
 
         // Cached header element — queried once, reused by applyZoom / positionLabelsToMedia
@@ -1209,13 +1244,6 @@
             e.stopPropagation();
         }
 
-        function handleFileLoad(slot, event) {
-            const file = event.target.files[0];
-            if (file) {
-                loadFile(slot, file);
-            }
-        }
-
         function handleMultiFileLoad(event) {
             const files = Array.from(event.target.files);
             handleMultipleFiles(files);
@@ -1246,28 +1274,39 @@
             // Sort by lastModified timestamp (oldest to newest)
             const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
 
+            // Check if any two files have near-identical timestamps (within 2 s).
+            // This can happen when files are batch-exported and timestamps are equalised.
+            // In that case the sort order is arbitrary, so we warn the user.
+            const TIMESTAMP_THRESHOLD_MS = 2000;
+            let hasTimestampCollision = false;
+            for (let i = 0; i < sortedFiles.length - 1; i++) {
+                if (sortedFiles[i + 1].lastModified - sortedFiles[i].lastModified < TIMESTAMP_THRESHOLD_MS) {
+                    hasTimestampCollision = true;
+                    break;
+                }
+            }
+
             if (sortedFiles.length === 3) {
                 // 3 files: oldest -> original, middle -> editA, newest -> editB
                 loadFile('original', sortedFiles[0]);
                 loadFile('editA', sortedFiles[1]);
                 loadFile('editB', sortedFiles[2]);
-
-                setTimeout(() => {
-                    const msg = `✓ Auto-loaded 3 files by save time:\n` +
-                               `  ORIGINAL: ${sortedFiles[0].name}\n` +
-                               `  EDIT A: ${sortedFiles[1].name}\n` +
-                               `  EDIT B: ${sortedFiles[2].name}`;
-                }, 500);
+                if (hasTimestampCollision) {
+                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
+                } else {
+                    const n = f => f.name.length > 22 ? f.name.slice(0, 20) + '…' : f.name;
+                    showLoadToast(`Original: ${n(sortedFiles[0])}  ·  A: ${n(sortedFiles[1])}  ·  B: ${n(sortedFiles[2])}`);
+                }
             } else {
                 // 2 files: oldest -> editA, newest -> editB (no original)
                 loadFile('editA', sortedFiles[0]);
                 loadFile('editB', sortedFiles[1]);
-
-                setTimeout(() => {
-                    const msg = `✓ Auto-loaded 2 files (no original):\n` +
-                               `  EDIT A: ${sortedFiles[0].name}\n` +
-                               `  EDIT B: ${sortedFiles[1].name}`;
-                }, 500);
+                if (hasTimestampCollision) {
+                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
+                } else {
+                    const n = f => f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
+                    showLoadToast(`A: ${n(sortedFiles[0])}  ·  B: ${n(sortedFiles[1])}`);
+                }
             }
         }
 
@@ -1281,11 +1320,13 @@
                 mediaData[slot] = {
                     type: isVideo ? 'video' : 'image',
                     src: dataUrl,
-                    name: file.name
+                    name: file.name,
+                    size: file.size,
+                    lastModified: file.lastModified
                 };
 
                 // Load into overlay layer
-                const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                const layer = getLayer(slot);
 
                 // Remove old media container but preserve info bars and zoom indicators at layer level
                 const oldContainer = layer.querySelector('.media-container');
@@ -1307,7 +1348,6 @@
                         if (mediaData[slot]) { mediaData[slot].w = video.videoWidth; mediaData[slot].h = video.videoHeight; }
                         updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
                         updateDurationDisplay(slot, video.duration);
-
 
                         // Setup video handlers
                         setupVideoHandlers(video, slot);
@@ -1445,8 +1485,7 @@
         }
 
         function updateAssetInfoBar(slot, data) {
-            const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-            const layer = document.getElementById(`layer${slotName}`);
+            const layer = getLayer(slot);
             if (!layer) return;
 
             const infoBar = layer.querySelector('.asset-info-bar');
@@ -1487,7 +1526,7 @@
                 let primaryVideo = primaryVideoRef;
                 if (!primaryVideo || primaryVideo.isConnected === false) {
                     // Stale ref — re-query once and re-cache
-                    if (!isSideBySide) {
+                    if (!isSplitMode) {
                         const activeLayer = document.querySelector('.overlay-layer.active');
                         primaryVideo = activeLayer ? activeLayer.querySelector('video') : null;
                     } else {
@@ -1596,18 +1635,11 @@
         }
 
         function applyAudioMuteImmediate(source) {
-            const slotName = source.charAt(0).toUpperCase() + source.slice(1);
-            const layer = document.getElementById(`layer${slotName}`);
-            
-            if (layer) {
-                const video = layer.querySelector('video');
-                if (video) {
-                    const shouldBeMuted = audioMuteStates[source];
-                    video.muted = shouldBeMuted;
-                } else {
-                }
-            } else {
-            }
+            const layer = getLayer(source);
+            if (!layer) return;
+            const video = layer.querySelector('video');
+            if (!video) return;
+            video.muted = audioMuteStates[source];
         }
 
         function selectAudioSource(source) {
@@ -1621,7 +1653,7 @@
             // Mute all videos except the selected source and update button icons
             ['original', 'editA', 'editB'].forEach(slot => {
                 const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                const layer = document.getElementById(`layer${slotName}`);
+                const layer = getLayer(slot);
                 const button = document.getElementById(`audio${slotName}`);
                 const icon = button ? button.querySelector('.audio-mute-icon') : null;
 
@@ -1662,9 +1694,9 @@
             // Volume label removed in compact redesign
         }
 
-        // updateVideoProgressFromTime: same as updateVideoProgress but uses an explicit
-        // time value instead of video.currentTime. Used during scrubbing so the timecode
-        // display matches the seek target instantly, without waiting for the seek to land.
+        // Single source of truth for timecode + duration display. Called directly during
+        // scrubbing (with the seek target as currentTime) so the display tracks the cursor
+        // instantly without waiting for the seek to land; also called by updateVideoProgress.
         function updateVideoProgressFromTime(video, currentTime) {
             const duration = video.duration;
             if (isNaN(duration) || duration === 0) return;
@@ -1676,6 +1708,7 @@
                 _elTimecode.textContent = `Frame ${currentFrame}`;
                 _elDuration.textContent = `${totalFrames}`;
             } else {
+                // Time mode: "0:15:22" and "2:35:18" (min:sec:frame)
                 const currentMinutes = Math.floor(currentTime / 60);
                 const currentSeconds = Math.floor(currentTime % 60);
                 const currentFrames = Math.floor((currentTime % 1) * fps);
@@ -1690,7 +1723,6 @@
         }
 
         function updateVideoProgress(video) {
-            const currentTime = video.currentTime;
             const duration = video.duration;
             getProgressEls(); // ensure cache is warm (no-op after first call)
 
@@ -1702,33 +1734,8 @@
                 return;
             }
 
-            const progress = (currentTime / duration) * 100;
-
-            // Update progress bar
-            _elProgressBar.style.width = progress + '%';
-
-            // Get framerate (assume 30fps if not detected)
-            const fps = videoFrameRates[video.src] || 30;
-
-            if (timecodeMode === 'frames') {
-                // Frame mode: "Frame 462" and "3720"
-                const currentFrame = Math.floor(currentTime * fps);
-                const totalFrames = Math.floor(duration * fps);
-                _elTimecode.textContent = `Frame ${currentFrame}`;
-                _elDuration.textContent = `${totalFrames}`;
-            } else {
-                // Time mode: "0:15:22" and "2:35:18" (min:sec:frame)
-                const currentMinutes = Math.floor(currentTime / 60);
-                const currentSeconds = Math.floor(currentTime % 60);
-                const currentFrames = Math.floor((currentTime % 1) * fps);
-
-                const totalMinutes = Math.floor(duration / 60);
-                const totalSeconds = Math.floor(duration % 60);
-                const totalFrames = Math.floor((duration % 1) * fps);
-
-                _elTimecode.textContent = `${currentMinutes}:${currentSeconds.toString().padStart(2, '0')}:${currentFrames.toString().padStart(2, '0')}`;
-                _elDuration.textContent = `${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}:${totalFrames.toString().padStart(2, '0')}`;
-            }
+            _elProgressBar.style.width = (video.currentTime / duration) * 100 + '%';
+            updateVideoProgressFromTime(video, video.currentTime);
         }
 
         function toggleTimecodeMode() {
@@ -1772,60 +1779,31 @@
                 'editA': 'Edit A',
                 'editB': 'Edit B'
             };
-            
-            // Get aspect ratios for all assets
-            const aspectRatios = {};
-            slots.forEach(slot => {
-                if (mediaData[slot]) {
-                    const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
-                    const media = layer.querySelector('img, video');
-                    if (media) {
-                        const w = media.naturalWidth || media.videoWidth || 0;
-                        const h = media.naturalHeight || media.videoHeight || 0;
-                        aspectRatios[slot] = { 
-                            width: w, 
-                            height: h, 
-                            ratio: w / h,
-                            formatted: `${w}×${h}`
-                        };
-                    }
-                }
-            });
-            
-            // Compare all pairs for identical content
+
+            // Compare all pairs for identical content.
+            // Use name + size + lastModified rather than comparing full data URLs —
+            // data URLs can be 50-200 MB for video and block the main thread.
             for (let i = 0; i < slots.length; i++) {
                 for (let j = i + 1; j < slots.length; j++) {
                     const slot1 = slots[i];
                     const slot2 = slots[j];
-                    
-                    if (mediaData[slot1] && mediaData[slot2]) {
-                        // Compare data URLs (includes entire file content)
-                        if (mediaData[slot1].src === mediaData[slot2].src) {
-                            identicalPairs.push(`${labels[slot1]} = ${labels[slot2]}`);
-                        }
-                        
-                        // Aspect ratio mismatch check (muted for now — will revisit)
-                        // if (aspectRatios[slot1] && aspectRatios[slot2]) {
-                        //     const ratio1 = aspectRatios[slot1].ratio;
-                        //     const ratio2 = aspectRatios[slot2].ratio;
-                        //     const difference = Math.abs(ratio1 - ratio2) / ratio1 * 100;
-                        //     if (difference > 0.5) {
-                        //         distortionWarnings.push(
-                        //             `${labels[slot1]} (${aspectRatios[slot1].formatted}) vs ${labels[slot2]} (${aspectRatios[slot2].formatted}) - ${difference.toFixed(1)}% aspect ratio difference`
-                        //         );
-                        //     }
-                        // }
+                    const d1 = mediaData[slot1];
+                    const d2 = mediaData[slot2];
+                    if (d1 && d2 &&
+                        d1.name === d2.name &&
+                        d1.size === d2.size &&
+                        d1.lastModified === d2.lastModified) {
+                        identicalPairs.push(`${labels[slot1]} = ${labels[slot2]}`);
                     }
                 }
             }
-            
+
             // Build combined warning message
             const warnings = [];
             if (identicalPairs.length > 0) {
                 warnings.push(`Identical: ${identicalPairs.join(', ')}`);
             }
 
-            
             // Show warning if any issues found
             const warningEl = document.getElementById('identicalWarning');
             if (warnings.length > 0) {
@@ -1840,11 +1818,6 @@
         }
 
         function switchToAsset(index) {
-            // Save state before switching
-            if (document.getElementById('comparisonView').classList.contains('active')) {
-                saveState();
-            }
-            
             // Skip empty slots
             const assetKey = assetOrder[index];
             if (!mediaData[assetKey]) {
@@ -1861,11 +1834,10 @@
             // Always switch audio to the selected video
             selectAudioSource(assetKey);
             
-            const layerName = assetKey.charAt(0).toUpperCase() + assetKey.slice(1);
-            const activeLayer = document.getElementById(`layer${layerName}`);
+            const activeLayer = getLayer(assetKey);
 
             // Hide all layers (only in overlay mode)
-            if (!isSideBySide) {
+            if (!isSplitMode) {
                 document.querySelectorAll('.overlay-layer').forEach(layer => {
                     layer.classList.remove('active');
                 });
@@ -1935,7 +1907,7 @@
                 // would compete for the decoder and slow down the one you're watching.
                 // Compare/split modes: seek all videos in real time for sync preview.
                 seekVideo(video, pct * video.duration);
-                if (isSideBySide) {
+                if (isSplitMode) {
                     const all = _scrubAllVideos;
                     if (all) {
                         for (let i = 0; i < all.length; i++) {
@@ -2029,7 +2001,7 @@
 
                     // In overlay mode, hidden videos weren't seeked during drag —
                     // sync them now to the final position before resuming playback.
-                    if (!isSideBySide && _scrubVideo && _scrubAllVideos) {
+                    if (!isSplitMode && _scrubVideo && _scrubAllVideos) {
                         const finalPct = _scrubVideo.duration
                             ? _scrubVideo.currentTime / _scrubVideo.duration
                             : 0;
@@ -2054,7 +2026,7 @@
 
         // Browser fullscreen change handler — recalculates layout when chrome disappears/reappears.
         document.addEventListener('fullscreenchange', () => {
-            if (isSideBySide) {
+            if (isSplitMode) {
                 requestAnimationFrame(() => positionLabelsToMedia());
             } else {
                 applyZoom();
@@ -2062,12 +2034,10 @@
         });
 
         function applyZoom() {
-            if (isSideBySide) return; // zoom/pan only applies in overlay mode
+            if (isSplitMode) return; // zoom/pan only applies in overlay mode
 
-            // Measure actual header height for info bar clamping (HEADER_OVERLAP is used
-            // for layout math but may not match the rendered header exactly)
             const headerEl = getHeaderEl();
-            const headerH = headerEl ? headerEl.offsetHeight : HEADER_OVERLAP;
+            const headerH = headerEl ? headerEl.offsetHeight : 50;
 
             // Compute a shared scale anchored to the narrowest asset's width.
             // Every asset is rendered so its width = minNW * sharedScale, giving identical
@@ -2077,7 +2047,7 @@
             {
                 ['original', 'editA', 'editB'].forEach(slot => {
                     if (mediaData[slot]) {
-                        const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                        const layer = getLayer(slot);
                         const media = layer && layer.querySelector('img, video');
                         if (media) {
                             const nw = media.naturalWidth || media.videoWidth || 0;
@@ -2096,7 +2066,7 @@
                     let maxRenderedH = 0;
                     ['original', 'editA', 'editB'].forEach(slot => {
                         if (mediaData[slot]) {
-                            const layer = document.getElementById(`layer${slot.charAt(0).toUpperCase() + slot.slice(1)}`);
+                            const layer = getLayer(slot);
                             const media = layer && layer.querySelector('img, video');
                             if (media) {
                                 const nw = media.naturalWidth || media.videoWidth || 0;
@@ -2118,8 +2088,7 @@
             const availH = window.innerHeight - headerH;
             ['original', 'editA', 'editB'].forEach(slot => {
                 if (!mediaData[slot]) return;
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                const layer = document.getElementById(`layer${slotName}`);
+                const layer = getLayer(slot);
                 if (!layer) return;
                 const media = layer.querySelector('img, video');
                 const vw = layer.querySelector('.video-wrapper');
@@ -2194,13 +2163,13 @@
         }
 
         function zoomIn() {
-            if (isSideBySide) return; // zoom only in overlay mode
+            if (isSplitMode) return; // zoom only in overlay mode
             zoomLevel = Math.min(zoomLevel * ZOOM_STEP, ZOOM_MAX);
             applyZoom();
         }
 
         function zoomOut() {
-            if (isSideBySide) return; // zoom only in overlay mode
+            if (isSplitMode) return; // zoom only in overlay mode
             zoomLevel = Math.max(zoomLevel / ZOOM_STEP, ZOOM_MIN);
             applyZoom();
         }
@@ -2218,7 +2187,7 @@
         }
 
         function resetFitZoom() {
-            if (isSideBySide) return;
+            if (isSplitMode) return;
             zoomLevel = fitZoom;
             panOffsetX = 0;
             panOffsetY = 0;
@@ -2248,7 +2217,7 @@
             const scaledW    = parseFloat(vw.dataset.scaledW    || 0);
             const scaledH    = parseFloat(vw.dataset.scaledH    || 0);
             const headerEl2  = getHeaderEl();
-            const headerH    = parseFloat(headerEl2 ? headerEl2.offsetHeight : HEADER_OVERLAP);
+            const headerH    = parseFloat(headerEl2 ? headerEl2.offsetHeight : 50);
             const viewW = window.innerWidth;
             const viewH = window.innerHeight;
             const slackX = viewW * 0.25;
@@ -2302,10 +2271,10 @@
             const infoBar = _panInfoBar;
             if (infoBar) {
                 const ibH = infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28);
-                const barCenterTop  = parseFloat(infoBar.dataset.centerTop  || HEADER_OVERLAP);
+                const barCenterTop  = parseFloat(infoBar.dataset.centerTop  || 50);
                 const barCenterLeft = parseFloat(infoBar.dataset.centerLeft || 0);
                 const barW          = parseFloat(infoBar.dataset.scaledW    || infoBar.offsetWidth);
-                const barHeaderH    = parseFloat(infoBar.dataset.headerH    || HEADER_OVERLAP);
+                const barHeaderH    = parseFloat(infoBar.dataset.headerH    || 50);
                 const pannedTop  = barCenterTop  + panOffsetY;
                 const pannedLeft = barCenterLeft + panOffsetX;
                 const clampedLeft = Math.max(0, pannedLeft);
@@ -2354,11 +2323,6 @@
             });
             currentAudioSource = 'original';
 
-            // Discard undo/redo history — stale states from the previous session
-            // are meaningless after a fresh load
-            undoStack = [];
-            redoStack = [];
-
             // Reset global mute toggle and button label
             isMuted = false;
             const muteBtn = document.getElementById('muteBtn');
@@ -2373,7 +2337,7 @@
             document.body.classList.remove('vertical-stack');
             document.body.classList.remove('tripartite');
             document.body.classList.remove('two-asset');
-            isSideBySide = false;
+            isSplitMode = false;
             viewActivating = false;
             layoutMode = 'horizontal';
 
@@ -2469,55 +2433,24 @@
             });
         }
 
-        let isSideBySide = false;
+        let isSplitMode = false;
         let viewActivating = false;    // true while checkAllLoaded() activation is in progress for current load batch
         let layoutMode = 'horizontal'; // 'horizontal' or 'vertical'
         
-        function toggleSideBySide() {
-            saveState(); // Save state before toggling
-            isSideBySide = !isSideBySide;
-            const btn = document.getElementById('sideBySideBtn');
-            
-            if (isSideBySide) {
-                if (layoutMode === 'vertical') {
-                    document.body.classList.add('vertical-stack');
-                } else {
-                    document.body.classList.add('side-by-side');
-                }
-                btn.textContent = 'Overlay';
-                // Show all loaded layers
-                document.querySelectorAll('.overlay-layer').forEach(layer => {
-                    const hasMedia = layer.querySelector('img, video');
-                    if (hasMedia) {
-                        layer.classList.add('active');
-                    }
-                });
-            } else {
-                document.body.classList.remove('side-by-side');
-                document.body.classList.remove('vertical-stack');
-                btn.textContent = 'Split View';
-                // Return to single active layer
-                document.querySelectorAll('.overlay-layer').forEach(layer => {
-                    layer.classList.remove('active');
-                });
-                switchToAsset(currentAssetIndex);
-            }
-        }
-
         function updateSplitViewZoomIndicators() {
             // Only update in split view modes
-            if (!isSideBySide && !document.body.classList.contains('vertical-stack')) {
+            if (!isSplitMode && !document.body.classList.contains('vertical-stack')) {
                 return;
             }
             
             ['original', 'editA', 'editB'].forEach(slot => {
                 if (!mediaData[slot]) return;
-                
+
                 const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                const layer = document.getElementById(`layer${slotName}`);
+                const layer = getLayer(slot);
                 const media = layer.querySelector('img, video');
                 const indicator = document.getElementById(`zoom${slotName}`);
-                
+
                 if (!media || !indicator) return;
                 
                 // Get native dimensions
@@ -2556,20 +2489,19 @@
         function positionLabelsToMedia(retriesLeft = 5) {
             // In overlay mode, applyZoom() owns all wrapper positions.
             // positionLabelsToMedia only handles split modes (side-by-side, vertical-stack, tripartite).
-            if (!isSideBySide) return;
+            if (!isSplitMode) return;
 
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = ['original', 'editA', 'editB'];
             const isVertical = document.body.classList.contains('vertical-stack');
             const isTripartite = document.body.classList.contains('tripartite');
-            const isOverlay = !isSideBySide && !isVertical;
+            const isOverlay = !isSplitMode && !isVertical;
 
             // In vertical-stack 100%-cap mode we shrink each layer to its video height and
             // center the group. Clear those overrides first so offsetHeight reads CSS values.
             if (isVertical) {
                 slots.forEach(slot => {
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     if (layer) { layer.style.height = ''; layer.style.marginTop = ''; }
                 });
                 const container = document.querySelector('.overlay-container');
@@ -2586,8 +2518,7 @@
                 let widthConstrained = false; // true = portrait assets → share width; false → share height
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                     if (!media) return;
@@ -2635,8 +2566,7 @@
                 let minLong = Infinity;
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     const media = layer ? layer.querySelector('img, video') : null;
                     if (!media) return;
                     const nw = media.naturalWidth || media.videoWidth || 0;
@@ -2659,8 +2589,7 @@
             if (isVertical) {
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                     const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
@@ -2688,8 +2617,7 @@
             slots.forEach(slot => {
                 if (!mediaData[slot]) return;
 
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                const layer = document.getElementById(`layer${slotName}`);
+                const layer = getLayer(slot);
                 const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                 const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                 const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
@@ -2878,8 +2806,7 @@
                 // Compute total height: each cell = ibReserve + renderedVideoH
                 let totalH = 0;
                 loadedSlots.forEach(slot => {
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const ib = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
                     const ibH = ib ? (ib._cachedH || (ib._cachedH = ib.offsetHeight || 28)) : 0;
@@ -2889,8 +2816,7 @@
 
                 // Apply per-slot: shrink layer to ibReserve + video height; video stays at ibReserve
                 loadedSlots.forEach(slot => {
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const layer = document.getElementById(`layer${slotName}`);
+                    const layer = getLayer(slot);
                     if (!layer) return;
                     const mediaContainer = layer.querySelector('.media-container');
                     const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
@@ -2905,7 +2831,7 @@
 
                 // Shift the first layer down to center the group
                 const firstSlot = loadedSlots[0];
-                const firstLayer = document.getElementById(`layer${firstSlot.charAt(0).toUpperCase() + firstSlot.slice(1)}`);
+                const firstLayer = getLayer(firstSlot);
                 if (firstLayer) firstLayer.style.marginTop = topPad + 'px';
             }
 
@@ -2927,7 +2853,7 @@
 
         // Call positioning on resize
         window.addEventListener('resize', () => {
-            if (isSideBySide) {
+            if (isSplitMode) {
                 positionLabelsToMediaDebounced(); // debounced: expensive 3-pass layout
             } else {
                 applyZoomDebounced(); // debounced: avoid per-pixel reflow during window drag
@@ -2935,18 +2861,16 @@
         });
 
         function setViewMode(mode) {
-            saveState(); // Save state before changing view
-
             // Update view mode
             if (mode === 'overlay') {
                 // Return to overlay mode
-                if (isSideBySide) {
+                if (isSplitMode) {
                     document.body.classList.remove('side-by-side');
                     document.body.classList.remove('vertical-stack');
                     document.body.classList.remove('tripartite');
                     document.body.classList.remove('two-asset');
                     document.body.classList.remove('zoom-100');
-                    isSideBySide = false;
+                    isSplitMode = false;
                     splitZoomLevel = null;
 
                     // Restore all layers to visible so overlay mode can show them
@@ -2967,7 +2891,7 @@
                     ['original', 'editA', 'editB'].forEach(slot => {
                         audioMuteStates[slot] = false;
                         const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                        const layer = document.getElementById(`layer${slotName}`);
+                        const layer = getLayer(slot);
                         if (layer) {
                             const video = layer.querySelector('video');
                             if (video) {
@@ -2999,8 +2923,8 @@
                 splitZoomLevel = null;
                 document.body.classList.remove('zoom-100');
 
-                if (!isSideBySide) {
-                    isSideBySide = true;
+                if (!isSplitMode) {
+                    isSplitMode = true;
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
                         const hasMedia = layer.querySelector('img, video');
                         if (hasMedia) {
@@ -3096,7 +3020,7 @@
             }
 
             // Update mode and asset strips in header
-            updateModeStrip(isSideBySide ? layoutMode : 'overlay');
+            updateModeStrip(isSplitMode ? layoutMode : 'overlay');
             updateAssetStrip();
         }
 
@@ -3154,9 +3078,9 @@
                     sep.textContent = '·';
                     assetGroup.appendChild(sep);
 
-                    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    const nameEl = document.querySelector(`#layer${slotName} .asset-name`);
-                    const label = nameEl ? nameEl.textContent : slotName;
+                    const layerEl = getLayer(slot);
+                    const nameEl = layerEl ? layerEl.querySelector('.asset-name') : null;
+                    const label = nameEl ? nameEl.textContent : slot;
                     const btn = document.createElement('button');
                     const isActive = assetOrder.indexOf(slot) === currentAssetIndex;
                     const posClass = (i === 0 ? ' first-asset' : '') + (i === loaded.length - 1 ? ' last-asset' : '');
@@ -3342,145 +3266,12 @@
 
                 // Show video controls if any videos
                 if (hasVideos) {
-                    const videoControls = document.getElementById('videoControls');
-                    videoControls.classList.add('active');
-                } else {
+                    document.getElementById('videoControls').classList.add('active');
                 }
-                
-            } else {
             }
-        }
-
-        function captureState() {
-            const state = {
-                currentAssetIndex: currentAssetIndex,
-                isSideBySide: isSideBySide,
-                layoutMode: layoutMode,
-                zoomLevel: zoomLevel,
-                fitZoom: fitZoom,
-                panOffsetX: panOffsetX,
-                panOffsetY: panOffsetY,
-
-                timecodeMode: timecodeMode,
-                isMuted: isMuted,
-                layerOrder: Array.from(document.querySelectorAll('.overlay-layer')).map(l => l.id),
-                videoStates: {}
-            };
-            
-            // Capture video playback states
-            document.querySelectorAll('.overlay-layer video').forEach(video => {
-                const layer = video.closest('.overlay-layer');
-                state.videoStates[layer.id] = {
-                    currentTime: video.currentTime,
-                    paused: video.paused,
-                    volume: video.volume
-                };
-            });
-            
-            return state;
-        }
-
-        function saveState() {
-            const state = captureState();
-            undoStack.push(state);
-            
-            // Limit stack size
-            if (undoStack.length > MAX_UNDO_STATES) {
-                undoStack.shift();
-            }
-            
-            // Clear redo stack when new action is taken
-            redoStack = [];
-        }
-
-        function undo() {
-            if (undoStack.length === 0) {
-                return;
-            }
-            
-            // Save current state to redo stack
-            redoStack.push(captureState());
-            
-            // Restore previous state
-            const state = undoStack.pop();
-            restoreState(state);
-        }
-
-        function redo() {
-            if (redoStack.length === 0) {
-                return;
-            }
-            
-            // Save current state to undo stack
-            undoStack.push(captureState());
-            
-            // Restore next state
-            const state = redoStack.pop();
-            restoreState(state);
-        }
-
-        function restoreState(state) {
-            // Restore basic state
-            currentAssetIndex = state.currentAssetIndex;
-            zoomLevel = state.zoomLevel;
-            fitZoom = (state.fitZoom !== undefined) ? state.fitZoom : 1;
-            panOffsetX = state.panOffsetX;
-            panOffsetY = state.panOffsetY;
-
-            timecodeMode = state.timecodeMode;
-            isMuted = state.isMuted;
-            
-            // Restore split view
-            if (state.isSideBySide !== isSideBySide) {
-                toggleSideBySide();
-            }
-            
-            // Restore layout mode
-            if (state.layoutMode !== layoutMode) {
-                setViewMode(state.layoutMode);
-            }
-            
-            // Restore layer order
-            const container = document.getElementById('overlayContainer');
-            const layoutControls = document.getElementById('layoutControls');
-            state.layerOrder.forEach(layerId => {
-                const layer = document.getElementById(layerId);
-                if (layer) {
-                    container.appendChild(layer);
-                }
-            });
-            // Keep layout controls at top
-            container.insertBefore(layoutControls, container.firstChild);
-            
-            // Restore video states
-            Object.keys(state.videoStates).forEach(layerId => {
-                const layer = document.getElementById(layerId);
-                if (layer) {
-                    const video = layer.querySelector('video');
-                    const videoState = state.videoStates[layerId];
-                    if (video && videoState) {
-                        video.currentTime = videoState.currentTime;
-                        video.volume = videoState.volume;
-                        if (videoState.paused) {
-                            video.pause();
-                        } else {
-                            video.play();
-                        }
-                    }
-                }
-            });
-            
-            // Restore current asset view
-            switchToAsset(state.currentAssetIndex);
-            
-            // Update UI
-            document.getElementById('muteBtn').textContent = isMuted ? '🔇 Unmute' : '🔊 Mute';
-            document.getElementById('zoomIndicator').textContent = zoomLevel.toFixed(2) + '×';
-            
         }
 
         function toggleMute() {
-            saveState(); // Save state before muting
             isMuted = !isMuted;
             const btn = document.getElementById('muteBtn');
 
@@ -3493,22 +3284,6 @@
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => {
-            // Undo/Redo - works globally
-            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-            const modifier = isMac ? e.metaKey : e.ctrlKey;
-            
-            if (modifier && e.key === 'z' && e.shiftKey) {
-                // Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (PC) - Redo
-                e.preventDefault();
-                redo();
-                return;
-            } else if (modifier && e.key === 'z') {
-                // Cmd+Z (Mac) or Ctrl+Z (PC) - Undo
-                e.preventDefault();
-                undo();
-                return;
-            }
-            
             // L key opens file picker — works at any time
             if (e.key === 'l' || e.key === 'L') {
                 e.preventDefault();
@@ -3533,7 +3308,7 @@
                 // Move to previous non-empty slot
                 let nextIndex = (currentAssetIndex - 1 + assetOrder.length) % assetOrder.length;
                 let attempts = 0;
-                while (!mediaData[assetOrder[nextIndex]] && attempts < 3) {
+                while (!mediaData[assetOrder[nextIndex]] && attempts < assetOrder.length) {
                     nextIndex = (nextIndex - 1 + assetOrder.length) % assetOrder.length;
                     attempts++;
                 }
@@ -3545,7 +3320,7 @@
                 // Move to next non-empty slot
                 let nextIndex = (currentAssetIndex + 1) % assetOrder.length;
                 let attempts = 0;
-                while (!mediaData[assetOrder[nextIndex]] && attempts < 3) {
+                while (!mediaData[assetOrder[nextIndex]] && attempts < assetOrder.length) {
                     nextIndex = (nextIndex + 1) % assetOrder.length;
                     attempts++;
                 }
@@ -3574,7 +3349,7 @@
             } else if (e.key === '1') {
                 // Snap to 100% actual pixels
                 e.preventDefault();
-                if (!isSideBySide) {
+                if (!isSplitMode) {
                     // Overlay: snap to 100% actual pixels, reset pan
                     zoomLevel = 1;
                     panOffsetX = 0;
@@ -3602,7 +3377,7 @@
                 // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2).
                 e.preventDefault();
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
-                if (isSideBySide) {
+                if (isSplitMode) {
                     setViewMode('overlay');
                 } else if (allThreeLoaded) {
                     setViewMode('tripartite');
@@ -3615,14 +3390,14 @@
                 const allThreeLoaded = Object.values(mediaData).filter(m => m !== null).length === 3;
                 if (allThreeLoaded) {
                     // 3-asset cycle: overlay <-> tripartite
-                    if (!isSideBySide) {
+                    if (!isSplitMode) {
                         setViewMode('tripartite');
                     } else {
                         setViewMode('overlay');
                     }
                 } else {
                     // 2-asset: toggle overlay <-> the auto-picked split layout
-                    if (!isSideBySide) {
+                    if (!isSplitMode) {
                         setViewMode(layoutMode); // return to auto-picked horizontal or vertical
                     } else {
                         setViewMode('overlay');
