@@ -1851,6 +1851,11 @@
         function applyZoom() {
             if (isSideBySide) return; // zoom/pan only applies in overlay mode
 
+            // Measure actual header height for info bar clamping (HEADER_OVERLAP is used
+            // for layout math but may not match the rendered header exactly)
+            const headerEl = document.querySelector('.header');
+            const headerH = headerEl ? headerEl.offsetHeight : HEADER_OVERLAP;
+
             // Compute fitZoom and overlayMinLongest so all assets share the same
             // rendered footprint — sized by the lowest-res asset's longest side.
             // Higher-res assets scale DOWN to match; the lowest-res asset renders at 1:1.
@@ -1943,10 +1948,11 @@
                     infoBar.dataset.centerTop = centerTop;
                     infoBar.dataset.centerLeft = centerLeft;
                     infoBar.dataset.scaledW = scaledW;
+                    infoBar.dataset.headerH = headerH;
                     const clampedLeft = Math.max(0, pannedLeft);
                     infoBar.style.position = 'fixed';
                     infoBar.style.left = clampedLeft + 'px';
-                    infoBar.style.top = Math.max(HEADER_OVERLAP, pannedTop - ibH) + 'px';
+                    infoBar.style.top = Math.max(headerH, pannedTop - ibH) + 'px';
                     infoBar.style.width = Math.min(scaledW, window.innerWidth - clampedLeft) + 'px';
                     infoBar.style.right = '';
                     infoBar.style.bottom = '';
@@ -2033,10 +2039,11 @@
                     const barCenterTop = parseFloat(infoBar.dataset.centerTop || HEADER_OVERLAP);
                     const barCenterLeft = parseFloat(infoBar.dataset.centerLeft || 0);
                     const barW = parseFloat(infoBar.dataset.scaledW || infoBar.offsetWidth);
+                    const barHeaderH = parseFloat(infoBar.dataset.headerH || HEADER_OVERLAP);
                     const pannedTop = barCenterTop + panOffsetY;
                     const pannedLeft = barCenterLeft + panOffsetX;
                     const clampedLeft = Math.max(0, pannedLeft);
-                    infoBar.style.top = Math.max(HEADER_OVERLAP, pannedTop - ibH) + 'px';
+                    infoBar.style.top = Math.max(barHeaderH, pannedTop - ibH) + 'px';
                     infoBar.style.left = clampedLeft + 'px';
                     infoBar.style.width = Math.min(barW, window.innerWidth - clampedLeft) + 'px';
                 }
