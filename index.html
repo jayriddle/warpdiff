@@ -1217,6 +1217,7 @@
 
         let zoomLevel = 1; // Default 1x zoom (actual size/fit)
         let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
+        let splitStepZoom = 1.0; // multiplicative zoom for split modes (1.0 = no extra zoom)
         let timecodeMode = 'time'; // 'time' or 'frames'
         let videoFrameRates = {}; // Store framerate for each video
         // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
@@ -2197,13 +2198,21 @@
         }
 
         function zoomIn() {
-            if (isSplitMode) return; // zoom only in overlay mode
+            if (isSplitMode) {
+                splitStepZoom = Math.min(splitStepZoom * ZOOM_STEP, ZOOM_MAX);
+                positionLabelsToMedia();
+                return;
+            }
             zoomLevel = Math.min(zoomLevel * ZOOM_STEP, ZOOM_MAX);
             applyZoom();
         }
 
         function zoomOut() {
-            if (isSplitMode) return; // zoom only in overlay mode
+            if (isSplitMode) {
+                splitStepZoom = Math.max(splitStepZoom / ZOOM_STEP, ZOOM_MIN);
+                positionLabelsToMedia();
+                return;
+            }
             zoomLevel = Math.max(zoomLevel / ZOOM_STEP, ZOOM_MIN);
             applyZoom();
         }
@@ -2221,7 +2230,11 @@
         }
 
         function resetFitZoom() {
-            if (isSplitMode) return;
+            if (isSplitMode) {
+                splitStepZoom = 1.0;
+                positionLabelsToMedia();
+                return;
+            }
             zoomLevel = fitZoom;
             panOffsetX = 0;
             panOffsetY = 0;
@@ -2336,6 +2349,7 @@
             hasVideos = false;
             zoomLevel = 1;
             splitZoomLevel = null;
+            splitStepZoom = 1.0;
             fitZoom = 1;
             panOffsetX = 0;
             panOffsetY = 0;
@@ -2579,19 +2593,48 @@
                     minW = Math.min(minW, fitW);
                     minH = Math.min(minH, fitH);
                 });
-                // Apply shared dimension: same width (portrait) or same height (landscape)
+                // Determine the effective zoom multiplier for tripartite rendering.
+                // splitZoomLevel===1 means "smallest-resolution asset at 100% native pixels,
+                // others scaled down to match its physical size" — compute the multiplier
+                // that achieves this using a longest-side anchor, then apply splitStepZoom on top.
+                let tripartiteEffectiveZoom = splitStepZoom;
+                if (splitZoomLevel === 1) {
+                    // Find the smallest longest-side (= smallest-resolution asset's reference dim).
+                    let tripartiteRefLong = Infinity;
+                    slots.forEach(slot => {
+                        const d = tripartiteLayout[slot];
+                        if (!d) return;
+                        const longest = Math.max(d.nw, d.nh);
+                        if (longest < tripartiteRefLong) tripartiteRefLong = longest;
+                    });
+                    // The base size (at splitStepZoom=1) for the shared-dim anchor is minW or minH.
+                    // We want the smallest-resolution asset to render at tripartiteRefLong native px.
+                    // For landscape (share height): base = minH; target = tripartiteRefLong px of height
+                    //   → multiplier = tripartiteRefLong / minH (but clamp to fit)
+                    // For portrait (share width): target = tripartiteRefLong px of width
+                    //   → multiplier = tripartiteRefLong / minW
+                    if (widthConstrained && minW < Infinity) {
+                        tripartiteEffectiveZoom = tripartiteRefLong / minW;
+                    } else if (!widthConstrained && minH < Infinity) {
+                        tripartiteEffectiveZoom = tripartiteRefLong / minH;
+                    }
+                    tripartiteEffectiveZoom *= splitStepZoom;
+                }
+
+                // Apply shared dimension: same width (portrait) or same height (landscape).
+                // Then apply the effective zoom so +/- and 1 keys scale all three assets together.
                 slots.forEach(slot => {
                     const d = tripartiteLayout[slot];
                     if (!d) return;
                     if (widthConstrained) {
-                        // Portrait: share width, height follows aspect ratio, clamped to cell height
-                        d.rw = minW;
-                        d.rh = Math.min(d.ch, Math.round(minW * d.nh / d.nw));
+                        // Portrait: share width, height follows aspect ratio
+                        d.rw = Math.round(minW * tripartiteEffectiveZoom);
+                        d.rh = Math.round(minW * tripartiteEffectiveZoom * d.nh / d.nw);
                         d.sharedZoom = d.rw / d.nw;
                     } else {
-                        // Landscape: share height, width follows aspect ratio, clamped to cell width
-                        d.rh = minH;
-                        d.rw = Math.min(d.cw, Math.round(minH * d.nw / d.nh));
+                        // Landscape: share height, width follows aspect ratio
+                        d.rh = Math.round(minH * tripartiteEffectiveZoom);
+                        d.rw = Math.round(minH * tripartiteEffectiveZoom * d.nw / d.nh);
                         d.sharedZoom = d.rh / d.nh;
                     }
                 });
@@ -2754,27 +2797,30 @@
                     offsetX = boxLeft + Math.round((refPx - renderedW) / 2);
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else if (!isVertical && !isTripartite && compareRefLong > 0) {
-                    // Horizontal compare: scale each asset so its longest side = compareRefLong.
+                    // Horizontal compare: scale each asset so its longest side = compareRefLong,
+                    // then apply splitStepZoom so +/- keys scale the whole group.
                     // Anchoring on the longest side gives the same dominant dimension on screen
                     // for both landscape (same width) and portrait (same height) pairs.
                     const longestSide = Math.max(naturalWidth, naturalHeight);
                     const refScale = compareRefLong / longestSide;
                     const baseW = naturalWidth * refScale;
                     const baseH = naturalHeight * refScale;
-                    const clampScale = Math.min(1, containerW / baseW, fitH / baseH);
-                    renderedW = Math.round(baseW * clampScale);
-                    renderedH = Math.round(baseH * clampScale);
-                    // Align to inner edge with a small gap: first slot right-aligns with 8px
-                    // inset, last slot left-aligns with 8px inset — 16px total between images.
+                    // Clamp to fit-to-viewport at base zoom (splitStepZoom=1); splitStepZoom
+                    // can then push past the cell boundary (same as overlay zoom going past fit).
+                    const clampScale = Math.min(containerW / baseW, fitH / baseH);
+                    renderedW = Math.round(baseW * clampScale * splitStepZoom);
+                    renderedH = Math.round(baseH * clampScale * splitStepZoom);
+                    // Keep the whole group centered around the screen midpoint.
+                    // At zoom > 1, images spill past their 50% cells — centering on the
+                    // full viewport width ensures symmetric overflow on both sides.
                     const loadedSlots = slots.filter(s => mediaData[s]);
                     const slotIdx = loadedSlots.indexOf(slot);
-                    if (loadedSlots.length > 1 && slotIdx === 0) {
-                        offsetX = containerW - renderedW - 8;
-                    } else if (loadedSlots.length > 1 && slotIdx === loadedSlots.length - 1) {
-                        offsetX = 8;
-                    } else {
-                        offsetX = (containerW - renderedW) / 2;
-                    }
+                    const nSlots = loadedSlots.length;
+                    const gap = 16;
+                    const groupW = renderedW * nSlots + gap * (nSlots - 1);
+                    const groupLeft = Math.round((window.innerWidth - groupW) / 2);
+                    // offsetX is relative to each cell's own origin (cell i starts at i * containerW)
+                    offsetX = groupLeft + slotIdx * (renderedW + gap) - slotIdx * containerW;
                     offsetY = ibReserve + (fitH - renderedH) / 2;
                 } else {
                     // Vertical-stack / tripartite / fallback: contain-fit per cell.
@@ -2784,8 +2830,8 @@
                         // asset occupies the same physical screen size regardless of resolution.
                         const longest = Math.max(naturalWidth, naturalHeight);
                         const normScale = verticalRefLong / longest;
-                        renderedW = naturalWidth  * normScale * verticalSharedScale;
-                        renderedH = naturalHeight * normScale * verticalSharedScale;
+                        renderedW = naturalWidth  * normScale * verticalSharedScale * splitStepZoom;
+                        renderedH = naturalHeight * normScale * verticalSharedScale * splitStepZoom;
                     } else {
                         let scale;
                         const mediaAspect = naturalWidth / naturalHeight;
@@ -2798,8 +2844,8 @@
                         }
                         // Cap at 1.0 if 100% mode active (no upscaling past actual pixels)
                         scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
-                        renderedW = naturalWidth * scale;
-                        renderedH = naturalHeight * scale;
+                        renderedW = naturalWidth  * scale * splitStepZoom;
+                        renderedH = naturalHeight * scale * splitStepZoom;
                     }
                     offsetX = (containerW - renderedW) / 2;
                     // Center within the video area (below the reserved info-bar strip)
@@ -2996,6 +3042,7 @@
                     document.body.classList.remove('zoom-100');
                     isSplitMode = false;
                     splitZoomLevel = null;
+                    splitStepZoom = 1.0;
 
                     // Restore all layers to visible so overlay mode can show them
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
@@ -3054,6 +3101,7 @@
             } else {
                 // Enable split view — reset any compare-mode 100% cap
                 splitZoomLevel = null;
+                splitStepZoom = 1.0;
                 document.body.classList.remove('zoom-100');
 
                 if (!isSplitMode) {
@@ -3516,8 +3564,10 @@
                     panOffsetY = 0;
                     applyZoom();
                 } else {
-                    // Compare: toggle between fit-to-panel and 100%-capped (no upscaling)
+                    // Split modes: toggle between fit-to-panel and 100%-anchor (smallest asset at native pixels).
+                    // Reset any step zoom so the 100%-anchor size is the clean baseline.
                     splitZoomLevel = splitZoomLevel === 1 ? null : 1;
+                    splitStepZoom = 1.0;
                     document.body.classList.toggle('zoom-100', splitZoomLevel === 1);
                     positionLabelsToMedia();
                 }
