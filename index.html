@@ -52,6 +52,8 @@
             cursor: pointer;
             font-size: 10px;
             margin-left: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .position-toggle:hover {
@@ -284,9 +286,11 @@
             border: none;
             border-radius: 3px;
             cursor: pointer;
-            font-size: 11px;
+            font-size: 10px;
             margin-left: 15px;
             position: relative;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .quick-start-btn:hover {
@@ -936,7 +940,7 @@
                 <div class="quick-start-popup" id="quickStartPopup">
                     <button class="quick-start-close" onclick="toggleQuickStart()">✕</button>
                     <p style="margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #888; text-transform: uppercase;">Help</p>
-                    <ol style="margin: 0; padding-left: 18px; font-size: 12px; color: #bbb; line-height: 1.7;">
+                    <ol style="margin: 0; padding-left: 18px; font-size: 13px; color: #bbb; line-height: 1.7;">
                         <li>Save files from the tool in order: Original, A, B</li>
                         <li>Select 2–3 files and drag anywhere, or press <kbd>L</kbd>
                             <ul style="margin: 3px 0 3px; color: #777; list-style: disc; padding-left: 16px;">
@@ -1626,13 +1630,23 @@
 
         function toggleQuickStart() {
             const popup = document.getElementById('quickStartPopup');
-            
+
             if (popup.classList.contains('show')) {
                 popup.classList.remove('show');
             } else {
                 popup.classList.add('show');
             }
         }
+
+        // Dismiss Help popup when clicking outside it
+        document.addEventListener('mousedown', function(e) {
+            const popup = document.getElementById('quickStartPopup');
+            const btn = document.querySelector('.quick-start-btn');
+            if (popup && popup.classList.contains('show') &&
+                !popup.contains(e.target) && !(btn && btn.contains(e.target))) {
+                popup.classList.remove('show');
+            }
+        });
 
         function checkForIdenticalAssets() {
             const identicalPairs = [];
