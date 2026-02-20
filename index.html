@@ -2595,6 +2595,34 @@
             // Track rendered heights so the vertical-stack group-centering pass can use them.
             const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
 
+            // Horizontal compare pre-pass: compute the minimum contain-fit scale across all
+            // loaded slots so both images render at the same scale. Without this, each cell
+            // fits independently and images with different aspect ratios appear at different
+            // sizes, creating a large gap between the inner edges.
+            let horizontalSharedScale = null;
+            if (!isVertical && !isTripartite && !isOverlay) {
+                slots.forEach(slot => {
+                    if (!mediaData[slot]) return;
+                    const layer = getLayer(slot);
+                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
+                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                    if (!media || !mediaContainer) return;
+                    const nw = media.naturalWidth || media.videoWidth || 0;
+                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    if (!nw || !nh) return;
+                    const cw = mediaContainer.offsetWidth;
+                    const ch = mediaContainer.offsetHeight;
+                    if (!cw || !ch) return;
+                    const fitScale = (cw / nw) < (ch / nh) ? cw / nw : ch / nh;
+                    if (horizontalSharedScale === null || fitScale < horizontalSharedScale) {
+                        horizontalSharedScale = fitScale;
+                    }
+                });
+                if (splitZoomLevel === 1 && horizontalSharedScale !== null) {
+                    horizontalSharedScale = Math.min(horizontalSharedScale, 1);
+                }
+            }
+
             // Vertical-stack pre-pass: compute the minimum contain-fit scale across all loaded
             // slots so every video renders at the same scale (same rendered width for same
             // natural width). Without this each cell fits independently to its own height,
@@ -2680,11 +2708,13 @@
                     offsetY = boxTop  + Math.round((refPx - renderedH) / 2);
                 } else {
                     // Split modes: contain-fit, optionally capped at 100% actual pixels.
-                    // Vertical-stack uses a shared scale (pre-pass above) so all videos
-                    // render at the same zoom regardless of per-cell height differences.
+                    // Horizontal/vertical-stack use a shared scale (pre-pass above) so all
+                    // assets render at the same zoom regardless of per-cell size differences.
                     let scale;
                     if (isVertical && verticalSharedScale !== null) {
                         scale = verticalSharedScale;
+                    } else if (!isVertical && !isTripartite && !isOverlay && horizontalSharedScale !== null) {
+                        scale = horizontalSharedScale;
                     } else {
                         const mediaAspect = naturalWidth / naturalHeight;
                         const containerAspect = containerW / fitH;
