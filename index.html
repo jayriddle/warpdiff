@@ -2017,6 +2017,7 @@
         }
 
         function handlePanStart(e) {
+            if (zoomLevel <= fitZoom) return; // no pan when full image is visible
             e.preventDefault(); // Prevent browser's default drag behavior
             isPanning = true;
             panStartX = e.clientX - panOffsetX;
