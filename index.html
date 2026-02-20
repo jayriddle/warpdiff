@@ -2770,10 +2770,11 @@
                     } else {
                         ty = 0; // flush top
                     }
-                    // Original: flush right; A/B: flush left
+                    // Original: flush right with 8px gap; A/B: flush left with 8px gap.
+                    // 16px total between the centre column edges, matching compare mode.
                     const tx = slot === 'original'
-                        ? Math.round(td.cw - td.rw)
-                        : 0;
+                        ? Math.round(td.cw - td.rw) - 8
+                        : 8;
 
                     videoWrapper.style.opacity = '0';
                     videoWrapper.style.width = tw + 'px';
