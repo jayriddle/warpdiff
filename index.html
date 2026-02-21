@@ -399,15 +399,17 @@
         }
 
         /* In overlay mode, only show info bar and zoom for the active layer */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer:not(.active) .asset-info-bar,
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer:not(.active) .split-zoom-indicator {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .asset-info-bar,
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .split-zoom-indicator {
             display: none;
         }
 
         /* Info bars always visible in split modes */
         body.side-by-side .asset-info-bar,
         body.vertical-stack .asset-info-bar,
-        body.tripartite .asset-info-bar {
+        body.tripartite .asset-info-bar,
+        body.tripartite-columns .asset-info-bar,
+        body.tripartite-rows .asset-info-bar {
             display: flex;
         }
 
@@ -423,7 +425,11 @@
         body.vertical-stack .overlay-layer.active,
         body.vertical-stack .overlay-layer:not(.active),
         body.tripartite .overlay-layer.active,
-        body.tripartite .overlay-layer:not(.active) {
+        body.tripartite .overlay-layer:not(.active),
+        body.tripartite-columns .overlay-layer.active,
+        body.tripartite-columns .overlay-layer:not(.active),
+        body.tripartite-rows .overlay-layer.active,
+        body.tripartite-rows .overlay-layer:not(.active) {
             opacity: 1;
             pointer-events: auto;
         }
@@ -475,7 +481,37 @@
             justify-items: stretch;
         }
 
-        body.tripartite .overlay-layer {
+        /* Equal-layout tripartite: 3 columns (portrait) or 3 rows (landscape) */
+        body.tripartite-columns .overlay-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr;
+            column-gap: 12px;
+            height: calc(100vh - 50px);
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+        body.tripartite-columns #layerOriginal { grid-column: 1; grid-row: 1; }
+        body.tripartite-columns #layerEditA   { grid-column: 2; grid-row: 1; }
+        body.tripartite-columns #layerEditB   { grid-column: 3; grid-row: 1; }
+
+        body.tripartite-rows .overlay-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            height: calc(100vh - 50px);
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+        body.tripartite-rows #layerOriginal { grid-column: 1; grid-row: 1; }
+        body.tripartite-rows #layerEditA   { grid-column: 1; grid-row: 2; }
+        body.tripartite-rows #layerEditB   { grid-column: 1; grid-row: 3; }
+
+        body.tripartite .overlay-layer,
+        body.tripartite-columns .overlay-layer,
+        body.tripartite-rows .overlay-layer {
             position: relative !important;
             width: 100% !important;
             height: 100% !important;
@@ -485,7 +521,9 @@
             overflow: hidden;
         }
 
-        body.tripartite .media-container {
+        body.tripartite .media-container,
+        body.tripartite-columns .media-container,
+        body.tripartite-rows .media-container {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
@@ -501,7 +539,11 @@
         body.vertical-stack .overlay-layer img,
         body.vertical-stack .overlay-layer video,
         body.tripartite .overlay-layer img,
-        body.tripartite .overlay-layer video {
+        body.tripartite .overlay-layer video,
+        body.tripartite-columns .overlay-layer img,
+        body.tripartite-columns .overlay-layer video,
+        body.tripartite-rows .overlay-layer img,
+        body.tripartite-rows .overlay-layer video {
             width: 100% !important;
             height: 100% !important;
             max-width: none !important;
@@ -524,16 +566,22 @@
             grid-row: 2;
         }
 
-        body.tripartite .asset-info-bar {
+        body.tripartite .asset-info-bar,
+        body.tripartite-columns .asset-info-bar,
+        body.tripartite-rows .asset-info-bar {
             display: flex;
         }
 
-        body.tripartite .overlay-layer.active-audio .asset-info-bar {
+        body.tripartite .overlay-layer.active-audio .asset-info-bar,
+        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar,
+        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar {
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
-        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name {
+        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name,
+        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar .asset-name,
+        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
@@ -543,7 +591,11 @@
         body.vertical-stack.fit-cover .video-wrapper img,
         body.vertical-stack.fit-cover .video-wrapper video,
         body.tripartite.fit-cover .video-wrapper img,
-        body.tripartite.fit-cover .video-wrapper video {
+        body.tripartite.fit-cover .video-wrapper video,
+        body.tripartite-columns.fit-cover .video-wrapper img,
+        body.tripartite-columns.fit-cover .video-wrapper video,
+        body.tripartite-rows.fit-cover .video-wrapper img,
+        body.tripartite-rows.fit-cover .video-wrapper video {
             object-fit: cover;
         }
 
@@ -610,27 +662,31 @@
         }
 
         /* Active asset indicator - brighter info bar in overlay mode */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer.active .asset-info-bar {
             display: flex;
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer.active .asset-info-bar .asset-name {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer.active .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
         /* Active audio indicator for split views - shows which audio is playing */
         body.side-by-side .overlay-layer.active-audio .asset-info-bar,
         body.vertical-stack .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite .overlay-layer.active-audio .asset-info-bar {
+        body.tripartite .overlay-layer.active-audio .asset-info-bar,
+        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar,
+        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar {
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
         body.side-by-side .overlay-layer.active-audio .asset-info-bar .asset-name,
         body.vertical-stack .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name {
+        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name,
+        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar .asset-name,
+        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
@@ -652,7 +708,7 @@
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, 0.5);
-            z-index: 199;
+            z-index: 1999;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.15s ease;
@@ -673,7 +729,7 @@
             background: #1a1a1a;
             border: 1px solid #333;
             border-radius: 8px;
-            z-index: 200;
+            z-index: 2000;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -785,7 +841,9 @@
         /* In split/stack views, position controls at bottom of viewport */
         body.side-by-side .video-controls,
         body.vertical-stack .video-controls,
-        body.tripartite .video-controls {
+        body.tripartite .video-controls,
+        body.tripartite-columns .video-controls,
+        body.tripartite-rows .video-controls {
             position: fixed;
             bottom: 40px;
             left: 50%;
@@ -847,16 +905,16 @@
         }
 
         /* Overlay mode: pan cursor always active (zoom/pan available without mode gate) */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-container {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-container {
             cursor: grab;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-container.panning {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-container.panning {
             cursor: grabbing;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer img,
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite) .overlay-layer video {
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer img,
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer video {
             position: relative;
             transition: none;
         }
@@ -1197,6 +1255,9 @@
     <script>
         const APP_VERSION = '1';
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+
+        // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
+        let tripartiteLayout3Col = localStorage.getItem('tripartiteLayout3Col') === 'true';
 
         const mediaData = {
             original: null,
@@ -2429,6 +2490,8 @@
             document.body.classList.remove('side-by-side');
             document.body.classList.remove('vertical-stack');
             document.body.classList.remove('tripartite');
+            document.body.classList.remove('tripartite-columns');
+            document.body.classList.remove('tripartite-rows');
             document.body.classList.remove('two-asset');
             isSplitMode = false;
             viewActivating = false;
@@ -2587,7 +2650,11 @@
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = ['original', 'editA', 'editB'];
             const isVertical = document.body.classList.contains('vertical-stack');
-            const isTripartite = document.body.classList.contains('tripartite');
+            const isTripartite = document.body.classList.contains('tripartite') ||
+                                 document.body.classList.contains('tripartite-columns') ||
+                                 document.body.classList.contains('tripartite-rows');
+            const isEqualLayout = document.body.classList.contains('tripartite-columns') ||
+                                  document.body.classList.contains('tripartite-rows');
             const isOverlay = !isSplitMode && !isVertical;
 
             // In vertical-stack 100%-cap mode we shrink each layer to its video height and
@@ -2608,7 +2675,13 @@
             const tripartiteLayout = {}; // slot → { rw, rh, cw, ch, sharedZoom }
             if (isTripartite) {
                 let minW = Infinity, minH = Infinity;
-                let widthConstrained = false; // true = portrait assets → share width; false → share height
+                // For equal layouts the shared dimension is determined by the grid axis:
+                //   tripartite-rows (stacked): cells share full width → anchor on width
+                //   tripartite-columns (side by side): cells share full height → anchor on height
+                // For the L-shaped layout, keep the old behaviour: portrait assets share width.
+                let widthConstrained = isEqualLayout
+                    ? document.body.classList.contains('tripartite-rows')
+                    : false;
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
                     const layer = getLayer(slot);
@@ -2624,12 +2697,14 @@
                     const cw = layer.offsetWidth;
                     const ch = layer.offsetHeight;
                     if (!cw || !ch) { anySkipped = true; return; }
-                    // Mirror overlay mode: portrait = nw < nh → width is the shared dimension
-                    if (nw < nh) widthConstrained = true;
+                    // L-shaped layout only: portrait = nw < nh → width is the shared dimension
+                    if (!isEqualLayout && nw < nh) widthConstrained = true;
                     // EditB is flush-top; reserve space for its info bar so the image
                     // is sized to fit below the bar rather than behind it.
                     const ibEl = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
-                    const ibH = (slot === 'editB' && ibEl) ? (ibEl.offsetHeight || 28) : 0;
+                    // Equal layouts: every slot has a visible info bar so reserve its height for all slots.
+                    // L-shaped (tripartite): only editB is flush-top; original/editA float their bar above.
+                    const ibH = ibEl ? (isEqualLayout ? (ibEl.offsetHeight || 28) : (slot === 'editB' ? (ibEl.offsetHeight || 28) : 0)) : 0;
                     const availH = ch - ibH;
                     // Contain-fit rendered size within available cell height
                     const fitW = Math.min(cw, Math.floor(availH * nw / nh));
@@ -2934,23 +3009,31 @@
                     const td = tripartiteLayout[slot];
                     const tw = Math.round(td.rw);
                     const th = Math.round(td.rh);
-                    // Original: vertically centered in its full-height cell.
-                    // EditA: bottom-aligned in its cell (image sits at the A/B boundary).
-                    // EditB: top-aligned in its cell (image sits at the A/B boundary).
-                    // This places A and B adjacent at their shared edge, matching Original's midpoint.
-                    let ty;
-                    if (slot === 'original') {
-                        ty = Math.round((td.ch - td.rh) / 2);
-                    } else if (slot === 'editA') {
-                        ty = Math.round(td.ch - td.rh); // flush bottom
+                    let ty, tx;
+                    if (isEqualLayout) {
+                        // Equal layout (tripartite-columns / tripartite-rows):
+                        // reserve info-bar height at top, center video in remaining space.
+                        tx = Math.round((td.cw - td.rw) / 2);
+                        ty = td.ibH + Math.round(((td.ch - td.ibH) - td.rh) / 2);
                     } else {
-                        ty = td.ibH || 0; // flush top, below the info bar
+                        // L-shaped layout (tripartite):
+                        // Original: vertically centered in its full-height cell.
+                        // EditA: bottom-aligned in its cell (image sits at the A/B boundary).
+                        // EditB: top-aligned in its cell (image sits at the A/B boundary).
+                        // This places A and B adjacent at their shared edge, matching Original's midpoint.
+                        if (slot === 'original') {
+                            ty = Math.round((td.ch - td.rh) / 2);
+                        } else if (slot === 'editA') {
+                            ty = Math.round(td.ch - td.rh); // flush bottom
+                        } else {
+                            ty = td.ibH || 0; // flush top, below the info bar
+                        }
+                        // Original: flush right with 8px gap; A/B: flush left with 8px gap.
+                        // 16px total between the centre column edges, matching compare mode.
+                        tx = slot === 'original'
+                            ? Math.round(td.cw - td.rw) - 8
+                            : 8;
                     }
-                    // Original: flush right with 8px gap; A/B: flush left with 8px gap.
-                    // 16px total between the centre column edges, matching compare mode.
-                    const tx = slot === 'original'
-                        ? Math.round(td.cw - td.rw) - 8
-                        : 8;
 
                     videoWrapper.style.position = '';
                     videoWrapper.style.width = tw + 'px';
@@ -2972,9 +3055,9 @@
                         infoBar.style.width = tw + 'px';
                         infoBar.style.height = '';
                         infoBar.style.right = '';
-                        // Place bar above the video-wrapper for all slots, clamped to 0.
-                        infoBar.style.top = Math.round(Math.max(0, ty - ibH)) + 'px';
                         infoBar.style.bottom = '';
+                        // Bar sits flush above the video in all tripartite layouts.
+                        infoBar.style.top = Math.round(Math.max(0, ty - ibH)) + 'px';
                     }
                     return; // skip the standard positioning below
                 }
@@ -3021,11 +3104,9 @@
                 }
             });
 
-            // Vertical-stack 100%-cap: shrink each layer to info-bar + video height so there's
             // Group-centering pass for vertical-stack: shrink each layer to its content height
-            // and vertically center the whole group in the viewport. This runs whenever zoom
-            // is active (splitStepZoom !== 1 or splitZoomLevel === 1) so that zoomed-in assets
-            // stay together as a unit rather than each cell centering independently.
+            // (info-bar + video) and vertically center the whole group in the viewport.
+            // Runs whenever zoom is active so zoomed assets stay together as a unit.
             if (isVertical && Object.keys(slotRenderedH).length > 0 &&
                     (splitZoomLevel === 1 || splitStepZoom !== 1.0)) {
                 const headerEl = getHeaderEl();
@@ -3033,7 +3114,7 @@
                 const availH = window.innerHeight - headerH;
                 const loadedSlots = slots.filter(s => slotRenderedH[s] !== undefined);
 
-                // Compute total height: each cell = ibReserve + renderedVideoH
+                // Compute total height: each cell = ibH + renderedVideoH
                 let totalH = 0;
                 loadedSlots.forEach(slot => {
                     const layer = getLayer(slot);
@@ -3111,6 +3192,8 @@
                     document.body.classList.remove('side-by-side');
                     document.body.classList.remove('vertical-stack');
                     document.body.classList.remove('tripartite');
+                    document.body.classList.remove('tripartite-columns');
+                    document.body.classList.remove('tripartite-rows');
                     document.body.classList.remove('two-asset');
                     document.body.classList.remove('zoom-100');
                     isSplitMode = false;
@@ -3200,19 +3283,35 @@
                     if (targetMode === 'vertical') {
                         document.body.classList.remove('side-by-side');
                         document.body.classList.remove('tripartite');
+                        document.body.classList.remove('tripartite-columns');
+                        document.body.classList.remove('tripartite-rows');
                         document.body.classList.add('vertical-stack');
                     } else if (targetMode === 'tripartite') {
                         document.body.classList.remove('side-by-side');
                         document.body.classList.remove('vertical-stack');
-                        document.body.classList.add('tripartite');
+                        document.body.classList.remove('tripartite');
+                        document.body.classList.remove('tripartite-columns');
+                        document.body.classList.remove('tripartite-rows');
+                        if (tripartiteLayout3Col) {
+                            const sample = Object.values(mediaData).find(m => m && m.w && m.h);
+                            const isLandscape = sample ? sample.w >= sample.h : false;
+                            document.body.classList.add(isLandscape ? 'tripartite-rows' : 'tripartite-columns');
+                        } else {
+                            document.body.classList.add('tripartite');
+                        }
                     } else {
                         document.body.classList.remove('vertical-stack');
                         document.body.classList.remove('tripartite');
+                        document.body.classList.remove('tripartite-columns');
+                        document.body.classList.remove('tripartite-rows');
                         document.body.classList.add('side-by-side');
                     }
 
                     // Tripartite keeps all 3 cells visible so the CSS grid doesn't collapse.
-                    if (targetMode !== 'tripartite') {
+                    const isAnyTripartite = document.body.classList.contains('tripartite') ||
+                                           document.body.classList.contains('tripartite-columns') ||
+                                           document.body.classList.contains('tripartite-rows');
+                    if (!isAnyTripartite) {
                         document.querySelectorAll('.overlay-layer').forEach(layer => {
                             layer.style.display = layer.querySelector('img, video') ? '' : 'none';
                         });
@@ -3503,8 +3602,13 @@
                     switchToAsset(2); // Start with Edit B
                 }
 
-                // 2-asset mode: relabel assets and auto-pick layout by dominant dimension.
-                // 3-asset mode: always tripartite.
+                // Auto-pick layout based on aspect ratio of loaded assets.
+                // Use the first slot that has decoded dimensions (w/h set by img.onload /
+                // loadedmetadata). Slots without w/h are skipped — they were created by
+                // reader.onload before the image decoded, so dimensions aren't ready yet.
+                const sample = Object.values(mediaData).find(m => m && m.w && m.h);
+                const isLandscape = sample ? sample.w >= sample.h : false;
+
                 if (loadedCount === 2 && !mediaData.original) {
                     // Relabel: IMAGE A/B or VIDEO A/B (no "EDIT" label when there's no original)
                     const mediaType = (mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video')
@@ -3512,12 +3616,19 @@
                     document.querySelector('#layerEditA .asset-name').textContent = mediaType + ' A';
                     document.querySelector('#layerEditB .asset-name').textContent = mediaType + ' B';
 
-                    // Auto-pick layout: landscape → vertical stack, portrait → side-by-side
-                    const sample = mediaData.editA || mediaData.editB;
-                    const isLandscape = (sample.w || 1) >= (sample.h || 1);
+                    // Landscape → vertical stack, portrait → side-by-side
                     setViewMode(isLandscape ? 'vertical' : 'horizontal');
+                } else if (loadedCount === 3) {
+                    // Respect the user's stored equal-vs-L-shaped preference (written by '3' key).
+                    // If no preference has ever been stored, default to equal layout.
+                    // The rows-vs-columns sub-choice is always auto-picked by aspect ratio inside setViewMode.
+                    if (localStorage.getItem('tripartiteLayout3Col') === null) {
+                        tripartiteLayout3Col = true; // first-ever use: default to equal
+                    }
+                    // else: tripartiteLayout3Col already holds the restored preference from startup
+                    setViewMode('tripartite');
                 } else {
-                    setViewMode(loadedCount === 3 ? 'tripartite' : 'horizontal');
+                    setViewMode('horizontal');
                 }
 
                 // Show video controls if any videos
@@ -3620,9 +3731,23 @@
                     positionLabelsToMedia();
                     // In tripartite mode, if the 100%-anchor size was clamped to fit (assets
                     // are already at or below native pixels at the fit zoom level), notify the user.
-                    if (splitZoomLevel === 1 && document.body.classList.contains('tripartite') && _tripartiteZoomWasCapped) {
+                    const isAnyTripartiteNow = document.body.classList.contains('tripartite') ||
+                                               document.body.classList.contains('tripartite-columns') ||
+                                               document.body.classList.contains('tripartite-rows');
+                    if (splitZoomLevel === 1 && isAnyTripartiteNow && _tripartiteZoomWasCapped) {
                         showToast('Already at fit size');
                     }
+                }
+            } else if (e.key === '3') {
+                // Toggle between L-shaped and equal-layout 3-UP
+                e.preventDefault();
+                const isAnyTripartiteNow = document.body.classList.contains('tripartite') ||
+                                           document.body.classList.contains('tripartite-columns') ||
+                                           document.body.classList.contains('tripartite-rows');
+                if (isSplitMode && isAnyTripartiteNow) {
+                    tripartiteLayout3Col = !tripartiteLayout3Col;
+                    localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
+                    setViewMode('tripartite');
                 }
             } else if (e.key === ' ') {
                 // Spacebar toggles play/pause for videos
@@ -3706,6 +3831,7 @@
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Toggle overlay mode</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>C</kbd></span><span class="shortcut-desc">Toggle compare mode</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>3</kbd></span><span class="shortcut-desc">Toggle 3-UP layout</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>F</kbd></span><span class="shortcut-desc">Browser fullscreen</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
