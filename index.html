@@ -311,6 +311,13 @@
             display: block;
         }
 
+        .feedback-link {
+            font-size: 12px;
+            color: #888;
+            text-decoration: none;
+        }
+        .feedback-link:hover { color: #ccc; }
+
         .quick-start-overlay {
             display: none;
         }
@@ -703,8 +710,9 @@
             height: auto;
         }
 
-        /* Keyboard shortcuts slide-in panel */
-        .shortcuts-backdrop {
+        /* Keyboard shortcuts and manual panels */
+        .shortcuts-backdrop,
+        .manual-backdrop {
             position: fixed;
             inset: 0;
             background: rgba(0, 0, 0, 0.3);
@@ -714,12 +722,14 @@
             transition: opacity 0.15s ease;
         }
 
-        .shortcuts-backdrop.open {
+        .shortcuts-backdrop.open,
+        .manual-backdrop.open {
             opacity: 1;
             pointer-events: auto;
         }
 
-        .shortcuts-panel {
+        .shortcuts-panel,
+        .manual-panel {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -739,11 +749,67 @@
             transition: opacity 0.15s ease, transform 0.15s ease;
         }
 
-        .shortcuts-panel.open {
+        .shortcuts-panel.open,
+        .manual-panel.open {
             opacity: 1;
             pointer-events: auto;
             transform: translate(-50%, -50%) scale(1);
         }
+
+        .manual-panel { width: 520px; }
+
+        .manual-content {
+            padding: 14px 18px;
+            overflow-y: auto;
+            flex: 1;
+            font-size: 13px;
+            color: #ccc;
+            line-height: 1.6;
+        }
+        .manual-content h2 {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
+            margin: 16px 0 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        .manual-content h2:first-child { margin-top: 4px; }
+        .manual-content p { margin: 0 0 8px; color: #aaa; }
+        .manual-content ul, .manual-content ol {
+            margin: 0 0 8px;
+            padding-left: 18px;
+            color: #aaa;
+        }
+        .manual-content li { margin-bottom: 3px; }
+        .manual-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0 10px;
+            font-size: 12px;
+        }
+        .manual-content th {
+            text-align: left;
+            padding: 4px 8px;
+            color: #888;
+            border-bottom: 1px solid #2a2a2a;
+            font-weight: 600;
+        }
+        .manual-content td {
+            padding: 4px 8px;
+            color: #aaa;
+            border-bottom: 1px solid #222;
+        }
+        .manual-content kbd {
+            background: #333;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #bbb;
+            border: 1px solid #444;
+        }
+        .manual-content strong { color: #ddd; }
 
         .shortcuts-panel-header {
             display: flex;
@@ -1144,6 +1210,7 @@
                     Reset
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
+                <button class="quick-start-btn" onclick="toggleManualPanel()">Manual</button>
                 <button class="quick-start-btn" onclick="toggleQuickStart()">Help</button>
 
                 <!-- Help Popup -->
@@ -1164,6 +1231,10 @@
                         <li>Press <kbd>Space</kbd> to play/pause videos</li>
                         <li>Press <kbd>K</kbd> for all hotkeys</li>
                     </ol>
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #333;">
+                        <a href="https://forms.gle/oob2qL4feRGcBFfZ9"
+                           target="_blank" class="feedback-link">Submit bugs and feedback</a>
+                    </div>
                 </div>
             </div>
             <!-- Mode strip: OVERLAY / 3-UP / COMPARE — tappable, active one highlighted -->
@@ -3806,6 +3877,11 @@
             document.getElementById('shortcutsBackdrop').classList.toggle('open');
         }
 
+        function toggleManualPanel() {
+            document.getElementById('manualPanel').classList.toggle('open');
+            document.getElementById('manualBackdrop').classList.toggle('open');
+        }
+
         function toggleInstructions() {
             const content = document.getElementById('instructionsContent');
             const icon = document.getElementById('toggleIcon');
@@ -3820,6 +3896,110 @@
         }
 
     </script>
+
+    <div class="manual-backdrop" id="manualBackdrop" onclick="toggleManualPanel()"></div>
+    <div class="manual-panel" id="manualPanel">
+        <div class="shortcuts-panel-header">
+            <span>Manual</span>
+            <button onclick="toggleManualPanel()">✕</button>
+        </div>
+        <div class="manual-content">
+            <h2>Loading Files</h2>
+            <p>WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side or stacked.</p>
+            <p><strong>Three ways to load files:</strong></p>
+            <ul>
+                <li>Press <kbd>L</kbd></li>
+                <li>Click the <strong>Load</strong> button in the header</li>
+                <li>Drag and drop files onto the window</li>
+            </ul>
+            <p><strong>File requirements:</strong></p>
+            <ul>
+                <li>2 or 3 files (images or videos)</li>
+                <li>2 files → assigned to <strong>Edit A</strong> and <strong>Edit B</strong></li>
+                <li>3 files → assigned to <strong>Original</strong>, <strong>Edit A</strong>, and <strong>Edit B</strong></li>
+                <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
+            </ul>
+            <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
+            <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
+            <p><strong>Reset:</strong> Click the <strong>Reset</strong> button (visible after loading) to clear all files and start over.</p>
+
+            <h2>View Modes</h2>
+            <p><strong>Overlay</strong> — The default mode. One asset is visible at a time, layered on top of the others. Use arrow keys or the asset buttons in the header to switch between assets.</p>
+            <p><strong>Compare (2 files)</strong> — Both assets displayed side-by-side with a gap between them. Assets are scaled so their shorter sides match. The layout can be switched between <strong>Horizontal</strong> (left/right) and <strong>Vertical</strong> (top/bottom). The app auto-picks the best layout on first load.</p>
+            <p><strong>3-UP (3 files)</strong> — All three assets in a grid. Press <kbd>3</kbd> to toggle between L-shaped (Original large left, A/B stacked right) and equal-size layouts (side-by-side columns or stacked rows).</p>
+
+            <h2>Switching Modes</h2>
+            <table>
+                <tr><th>Action</th><th>Result</th></tr>
+                <tr><td>Click <strong>OVERLAY / COMPARE / 3-UP</strong> in header</td><td>Switch to that mode</td></tr>
+                <tr><td>Press <kbd>O</kbd></td><td>Toggle Overlay ↔ Compare/3-UP</td></tr>
+                <tr><td>Press <kbd>C</kbd></td><td>Toggle Compare/3-UP ↔ Overlay</td></tr>
+            </table>
+
+            <h2>Zoom &amp; Pan</h2>
+            <p>Zoom and pan are available in <strong>Overlay mode only</strong>.</p>
+            <table>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+                <tr><td><kbd>+</kbd></td><td>Zoom in</td></tr>
+                <tr><td><kbd>−</kbd></td><td>Zoom out</td></tr>
+                <tr><td><kbd>0</kbd></td><td>Zoom to fit</td></tr>
+                <tr><td><kbd>1</kbd></td><td>Zoom to 100% (actual pixels)</td></tr>
+                <tr><td>Click and drag</td><td>Pan (when zoomed in)</td></tr>
+            </table>
+            <p>Zoom range: 5%–3200%. Each step multiplies/divides by √2 (~1.41×). In split modes, pressing <kbd>1</kbd> toggles between fit-to-panel and 100% cap.</p>
+
+            <h2>Video Playback</h2>
+            <p>Video controls appear at the bottom when videos are loaded. All videos play, pause, and seek in sync.</p>
+            <table>
+                <tr><th>Control</th><th>Description</th></tr>
+                <tr><td>Progress bar</td><td>Click to seek; drag to scrub</td></tr>
+                <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count</td></tr>
+                <tr><td>Speaker icon</td><td>Mute/unmute the active audio source</td></tr>
+                <tr><td>Volume slider</td><td>Adjust volume</td></tr>
+                <tr><td><kbd>O</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear</td></tr>
+            </table>
+            <p><strong>Keyboard shortcuts:</strong></p>
+            <table>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+                <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+                <tr><td><kbd>R</kbd></td><td>Restart from beginning</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Mute / Unmute</td></tr>
+            </table>
+            <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
+
+            <h2>Keyboard Shortcuts Reference</h2>
+            <table>
+                <tr><th>Key</th><th>Action</th></tr>
+                <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
+                <tr><td><kbd>← →</kbd></td><td>Switch asset (Overlay mode)</td></tr>
+                <tr><td><kbd>O</kbd></td><td>Toggle Overlay mode</td></tr>
+                <tr><td><kbd>C</kbd></td><td>Toggle Compare / 3-UP mode</td></tr>
+                <tr><td><kbd>3</kbd></td><td>Toggle 3-UP layout (L-shaped ↔ equal)</td></tr>
+                <tr><td><kbd>F</kbd></td><td>Fullscreen</td></tr>
+                <tr><td><kbd>+</kbd></td><td>Zoom in</td></tr>
+                <tr><td><kbd>−</kbd></td><td>Zoom out</td></tr>
+                <tr><td><kbd>0</kbd></td><td>Zoom to fit</td></tr>
+                <tr><td><kbd>1</kbd></td><td>Zoom to 100% / toggle 100% cap</td></tr>
+                <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+                <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
+                <tr><td><kbd>K</kbd></td><td>Toggle shortcuts panel</td></tr>
+            </table>
+
+            <h2>Info Bar</h2>
+            <p>Each asset displays an info bar showing: slot name, resolution (e.g. <code>1920×1080</code>), aspect ratio (e.g. <code>16:9</code>), and duration for videos or <code>—</code> for images.</p>
+            <p>In split modes, the info bar of the asset whose audio is currently playing is highlighted.</p>
+
+            <h2>Limitations</h2>
+            <ul>
+                <li><strong>2 or 3 files only</strong> — loading 1 or 4+ files is not supported</li>
+                <li><strong>Images and videos only</strong> — other file types are ignored</li>
+                <li><strong>Pan available in Overlay mode only</strong></li>
+                <li><strong>Audio:</strong> one track at a time; others are automatically muted</li>
+                <li><strong>Frame counter</strong> assumes 30 fps</li>
+            </ul>
+        </div>
+    </div>
 
     <div class="shortcuts-backdrop" id="shortcutsBackdrop"></div>
     <div class="shortcuts-panel" id="shortcutsPanel">
