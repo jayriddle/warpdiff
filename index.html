@@ -2168,82 +2168,51 @@
             const progressContainer = document.getElementById('videoProgressContainer');
             let isDragging = false;
             let wasPlaying = false;
-            let pendingScrubPct = null; // latest scrub position waiting for next rAF
-            let scrubRafId = null;      // rAF handle for pending seek
 
             // Cached scrub targets — populated at mousedown, zero DOM queries during drag
-            let _scrubVideo = null;       // primary (active) video element
-            let _scrubAllVideos = null;   // all video elements (for sync)
-            let _scrubContainerRect = null; // progress bar bounding rect (stable during drag)
+            let _scrubVideo = null;
+            let _scrubAllVideos = null;
+            let _scrubContainerRect = null;
 
-            // Seek a single video, preferring fastSeek() for keyframe-level speed.
-            function seekVideo(v, time) {
-                if (v.fastSeek) {
-                    v.fastSeek(time);
-                } else {
-                    v.currentTime = time;
-                }
-            }
+            // Seek all videos to the position under the cursor and update the UI.
+            // Direct synchronous currentTime assignment — no rAF needed; browsers
+            // coalesce rapid seeks internally, and this eliminates races with the
+            // startProgressUpdateLoop rAF which would otherwise override the bar.
+            function scrubToPosition(e) {
+                const rect = _scrubContainerRect;
+                const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
 
-            // Flush the pending scrub: seek video(s) and update the UI.
-            // rAF throttles this to one seek per frame — no additional in-flight
-            // gating needed (browsers handle rapid currentTime assignment gracefully).
-            // In overlay mode only the active (visible) video is seeked during drag;
-            // hidden videos are synced on mouseup so they don't compete for the decoder.
-            function flushScrub() {
-                scrubRafId = null;
-                if (pendingScrubPct === null) return;
-                const pct = pendingScrubPct;
-                pendingScrubPct = null;
+                // Update bar immediately so it tracks the cursor
+                getProgressEls();
+                if (_elProgressBar) _elProgressBar.style.width = (pct * 100) + '%';
 
                 const video = _scrubVideo;
                 if (!video || isNaN(video.duration)) return;
 
-                // Update the progress bar immediately from mouse position (no seek lag)
-                getProgressEls();
-                if (_elProgressBar) _elProgressBar.style.width = (pct * 100) + '%';
-
-                // Overlay mode: only seek the visible video during drag — hidden videos
-                // would compete for the decoder and slow down the one you're watching.
-                // Compare/split modes: seek all videos in real time for sync preview.
-                seekVideo(video, pct * video.duration);
-                if (isSplitMode) {
-                    const all = _scrubAllVideos;
-                    if (all) {
-                        for (let i = 0; i < all.length; i++) {
-                            const v = all[i];
-                            if (v !== video) seekVideo(v, pct * v.duration);
-                        }
+                const t = pct * video.duration;
+                video.currentTime = t;
+                if (_scrubAllVideos) {
+                    for (let i = 0; i < _scrubAllVideos.length; i++) {
+                        const v = _scrubAllVideos[i];
+                        if (v !== video && !isNaN(v.duration)) v.currentTime = pct * v.duration;
                     }
                 }
 
-                // Update timecode display from the seek target, not video.currentTime
-                // (currentTime lags until the seek completes)
-                updateVideoProgressFromTime(video, pct * video.duration);
-            }
-
-            function scrubToPosition(e) {
-                const rect = _scrubContainerRect;
-                const clickX = e.clientX - rect.left;
-                pendingScrubPct = Math.max(0, Math.min(1, clickX / rect.width));
-
-                // Immediately update progress bar so it tracks the cursor without waiting
-                getProgressEls();
-                if (_elProgressBar) _elProgressBar.style.width = (pendingScrubPct * 100) + '%';
-
-                // Schedule one flush per animation frame — rapid mousemoves collapse into one seek
-                if (scrubRafId === null) {
-                    scrubRafId = requestAnimationFrame(flushScrub);
-                }
+                // Update timecode from seek target (currentTime lags until decode completes)
+                updateVideoProgressFromTime(video, t);
             }
 
             progressContainer.addEventListener('mousedown', function(e) {
                 isDragging = true;
 
-                // Cache all scrub targets once at drag-start — zero DOM queries during drag
+                // Cancel any pending progress-loop frame so it can't override the bar during drag
+                if (globalAnimationId !== null) {
+                    cancelAnimationFrame(globalAnimationId);
+                    globalAnimationId = null;
+                }
+
                 const activeLayer = document.querySelector('.overlay-layer.active');
                 _scrubVideo = activeLayer ? activeLayer.querySelector('video') : null;
-                // Fallback: first available video (handles split mode or edge cases)
                 if (!_scrubVideo) {
                     const vids = getAllVideos();
                     if (vids.length > 0) _scrubVideo = vids[0];
@@ -2251,54 +2220,28 @@
                 _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer video'));
                 _scrubContainerRect = progressContainer.getBoundingClientRect();
 
-                // Pause video during scrubbing for smooth experience; remember state to restore after
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
-                    if (wasPlaying) {
-                        pauseAllVideos();
-                    }
+                    if (wasPlaying) pauseAllVideos();
                 }
 
                 scrubToPosition(e);
             });
 
             document.addEventListener('mousemove', function(e) {
-                if (isDragging) {
-                    scrubToPosition(e);
-                }
+                if (isDragging) scrubToPosition(e);
             });
 
             document.addEventListener('mouseup', function(e) {
                 if (isDragging) {
                     isDragging = false;
-                    // Flush any pending scrub so the final position is applied
-                    if (scrubRafId !== null) {
-                        cancelAnimationFrame(scrubRafId);
-                        scrubRafId = null;
-                        flushScrub();
-                    }
+                    if (_scrubContainerRect) scrubToPosition(e); // apply final cursor position
 
-                    // In overlay mode, hidden videos weren't seeked during drag —
-                    // sync them now to the final position before resuming playback.
-                    if (!isSplitMode && _scrubVideo && _scrubAllVideos) {
-                        const finalPct = _scrubVideo.duration
-                            ? _scrubVideo.currentTime / _scrubVideo.duration
-                            : 0;
-                        for (let i = 0; i < _scrubAllVideos.length; i++) {
-                            const v = _scrubAllVideos[i];
-                            if (v !== _scrubVideo) seekVideo(v, finalPct * v.duration);
-                        }
-                    }
-
-                    // Clear cached scrub targets
                     _scrubVideo = null;
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
-                    // Restore play/pause state from before the drag
-                    if (wasPlaying) {
-                        playAllVideos();
-                    }
+                    if (wasPlaying) playAllVideos();
                 }
             });
         });
