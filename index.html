@@ -1819,6 +1819,7 @@
             video._samplingFps = true;
             const prevMuted = video.muted;
             video.muted = true;
+            video.style.opacity = '0'; // hide video during sampling
 
             function onFrame(now, metadata) {
                 timestamps.push(metadata.mediaTime);
@@ -1836,6 +1837,7 @@
                     video.pause();
                     video.currentTime = 0;
                     video.muted = prevMuted;
+                    video.style.opacity = ''; // restore visibility
                     finalize(snapped);
                 }
             }
@@ -1845,6 +1847,7 @@
             }).catch(() => {
                 video._samplingFps = false;
                 video.muted = prevMuted;
+                video.style.opacity = ''; // restore on failure too
                 finalize(30);
             });
         }
