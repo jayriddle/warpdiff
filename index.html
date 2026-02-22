@@ -312,9 +312,12 @@
         }
 
         .feedback-link {
-            font-size: 12px;
+            font-size: 11px;
             color: #888;
             text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
         }
         .feedback-link:hover { color: #ccc; }
 
@@ -803,7 +806,7 @@
         }
         .manual-content th:first-child,
         .manual-content td:first-child {
-            width: 180px;
+            width: 150px;
         }
         .manual-content kbd {
             background: #333;
@@ -1235,7 +1238,7 @@
                         <li>Press <kbd>Space</kbd> to play/pause videos</li>
                         <li>Press <kbd>K</kbd> for all hotkeys</li>
                     </ol>
-                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #333; display: flex; flex-direction: column; gap: 6px;">
                         <a class="feedback-link" onclick="toggleQuickStart(); toggleManualPanel();" style="cursor: pointer;">Manual</a>
                         <a href="https://forms.gle/oob2qL4feRGcBFfZ9"
                            target="_blank" class="feedback-link">Submit bugs and feedback</a>
