@@ -1794,25 +1794,31 @@
             // Enable native looping
             video.loop = true;
             
-            // Detect framerate by sampling frames via requestVideoFrameCallback
-            // Falls back to 30fps if API unavailable or sampling fails
-            if (typeof video.requestVideoFrameCallback === 'function') {
+            // Detect framerate by seeking frame-by-frame via requestVideoFrameCallback.
+            // Never calls play() so sync handlers and progress loop are never triggered.
+            // Falls back to 30fps if API unavailable or duration too short to sample.
+            if (typeof video.requestVideoFrameCallback === 'function' && video.duration > 1) {
                 const SAMPLE_COUNT = 10;
+                // Estimate ~1/30s per step to step through frames; we'll refine from actual mediaTime
+                const stepSize = 1 / 30;
+                let stepIndex = 0;
                 const timestamps = [];
-                let wasPlaying = false;
-                video._samplingFps = false; // flag to suppress sync during sampling
+                const startTime = video.currentTime;
 
                 function onFrame(now, metadata) {
                     timestamps.push(metadata.mediaTime);
-                    if (timestamps.length < SAMPLE_COUNT + 1) {
+                    if (stepIndex < SAMPLE_COUNT) {
+                        stepIndex++;
+                        // Nudge currentTime forward by one estimated frame to decode next frame
+                        video.currentTime = startTime + stepIndex * stepSize;
                         video.requestVideoFrameCallback(onFrame);
                     } else {
-                        // Compute average interval between frames
+                        // Compute average interval between decoded frames
                         let totalInterval = 0;
                         for (let i = 1; i < timestamps.length; i++) {
                             totalInterval += timestamps[i] - timestamps[i - 1];
                         }
-                        const avgInterval = totalInterval / SAMPLE_COUNT;
+                        const avgInterval = totalInterval / (timestamps.length - 1);
                         const rawFps = 1 / avgInterval;
 
                         // Snap to nearest standard frame rate
@@ -1822,41 +1828,23 @@
                         );
                         videoFrameRates[video.src] = snapped;
 
-                        // Update info bar now that fps is known
+                        // Rewind to frame 0 and update info bar
+                        video.currentTime = 0;
                         updateAssetInfoBar(slot, { fps: `${snapped} fps` });
                         updateDurationDisplay(slot, video.duration, snapped);
-
-                        // Restore state and pause if we started playback only for sampling
-                        video._samplingFps = false;
-                        if (!wasPlaying) {
-                            video.pause();
-                            video.currentTime = 0; // rewind so user sees frame 0
-                        }
-                        // Restore mute to match the app's actual mute state
-                        video.muted = audioMuteStates[slot] !== false;
                     }
                 }
 
-                // setupVideoHandlers is called from inside loadedmetadata, so
-                // metadata is already available — start sampling immediately
-                wasPlaying = !video.paused;
-                if (video.paused) {
-                    video._samplingFps = true;
-                    video.muted = true;
-                    video.playbackRate = 1;
-                    video.play().catch(() => { video._samplingFps = false; });
-                }
+                // Register first callback — fires on next decoded frame (no play() needed)
                 video.requestVideoFrameCallback(onFrame);
             } else {
-                // Fallback: assume 30fps (metadata already available at this point)
+                // Fallback: assume 30fps
                 videoFrameRates[video.src] = 30;
                 updateAssetInfoBar(slot, { fps: '30 fps' });
                 updateDurationDisplay(slot, video.duration, 30);
             }
             
             video.addEventListener('play', function() {
-                // Suppress sync during fps sampling
-                if (video._samplingFps) return;
                 // Sync all videos when any video plays
                 document.querySelectorAll('video').forEach(v => {
                     if (v !== video) {
@@ -1872,8 +1860,6 @@
             });
 
             video.addEventListener('pause', function() {
-                // Suppress sync during fps sampling
-                if (video._samplingFps) return;
                 // Sync pause to all other videos
                 document.querySelectorAll('video').forEach(v => {
                     if (v !== video && !v.paused) {
