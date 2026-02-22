@@ -1833,7 +1833,11 @@
             video._samplingFps = true;
             const prevMuted = video.muted;
             video.muted = true;
-            video.style.opacity = '0'; // hide video during sampling
+            // Hide the entire media-container (not just the video element) so the
+            // black background behind the video doesn't show through during sampling
+            const layer = getLayer(slot);
+            const mc = layer ? layer.querySelector('.media-container') : null;
+            if (mc) mc.style.opacity = '0';
 
             function onFrame(now, metadata) {
                 timestamps.push(metadata.mediaTime);
@@ -1851,7 +1855,7 @@
                     video.pause();
                     video.currentTime = 0;
                     video.muted = prevMuted;
-                    video.style.opacity = ''; // restore visibility
+                    if (mc) mc.style.opacity = ''; // restore visibility
                     finalize(snapped);
                 }
             }
@@ -1861,7 +1865,7 @@
             }).catch(() => {
                 video._samplingFps = false;
                 video.muted = prevMuted;
-                video.style.opacity = ''; // restore on failure too
+                if (mc) mc.style.opacity = ''; // restore on failure too
                 finalize(30);
             });
         }
@@ -3731,6 +3735,20 @@
             // setViewMode('horizontal') to hide the not-yet-loaded third layer,
             // resulting in a black screen when tripartite mode is set moments later.
             if (loadedCount < expectedFileCount) {
+                return;
+            }
+
+            // Wait until all loaded video slots have non-zero videoWidth — the browser
+            // may not have painted dimensions yet even though loadedmetadata has fired.
+            // Defer with rAF until ready rather than laying out against zero dimensions.
+            const allDimensionsReady = ['original', 'editA', 'editB'].every(s => {
+                if (!mediaData[s] || mediaData[s].type !== 'video') return true;
+                const layer = getLayer(s);
+                const v = layer ? layer.querySelector('video') : null;
+                return v && v.videoWidth > 0;
+            });
+            if (!allDimensionsReady) {
+                requestAnimationFrame(checkAllLoaded);
                 return;
             }
 
