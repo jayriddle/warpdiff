@@ -1435,9 +1435,8 @@
 
         // Cached pan targets: set in handlePanStart, reused every mousemove in
         // handlePanMove and clampPanOffsets without re-querying the DOM.
-        let _panVw        = null; // active .video-wrapper during pan
-        let _panInfoBar   = null; // active .asset-info-bar during pan
-        let _panLayer     = null; // active .overlay-layer during pan
+        let _panVw    = null; // active .video-wrapper during pan
+        let _panLayer = null; // active .overlay-layer during pan
 
         // Debounced positionLabelsToMedia — collapses rapid per-asset load events into one call
         // so normalization always runs after all loaded slots have reported their dimensions.
@@ -2362,28 +2361,6 @@
                 const badge = vw.querySelector('.split-zoom-indicator');
                 if (badge) badge.textContent = perAssetScale.toFixed(2) + '×';
 
-                // Position info bar flush above the wrapper.
-                // Store base (un-panned) coords so handlePanMove() can update cheaply.
-                const infoBar = layer.querySelector('.asset-info-bar');
-                if (infoBar) {
-                    // Always read live offsetHeight here (not cached) — the bar height can
-                    // change on first render (font load, initial layout) and a stale cache
-                    // causes the bar to separate from the video's top edge.
-                    const ibH = infoBar.offsetHeight || 28;
-                    infoBar._cachedH = ibH; // update cache for handlePanMove hot path
-                    infoBar.dataset.centerTop = centerTop;
-                    infoBar.dataset.centerLeft = centerLeft;
-                    infoBar.dataset.scaledW = scaledW;
-                    infoBar.dataset.headerH = headerH;
-                    const clampedLeft = Math.max(0, pannedLeft);
-                    infoBar.style.position = 'fixed';
-                    infoBar.style.left = clampedLeft + 'px';
-                    infoBar.style.top = Math.max(headerH, pannedTop - ibH) + 'px';
-                    infoBar.style.width = Math.min(scaledW, window.innerWidth - clampedLeft) + 'px';
-                    infoBar.style.right = '';
-                    infoBar.style.bottom = '';
-                    infoBar.style.height = '';
-                }
             });
         }
 
@@ -2487,11 +2464,10 @@
             panStartX = e.clientX - panOffsetX;
             panStartY = e.clientY - panOffsetY;
             document.getElementById('overlayContainer').classList.add('panning');
-            // Cache the active layer's vw and infoBar so handlePanMove/clampPanOffsets
+            // Cache the active layer's vw so handlePanMove/clampPanOffsets
             // never query the DOM during the hot mousemove path.
-            _panLayer   = document.querySelector('.overlay-layer.active');
-            _panVw      = _panLayer ? _panLayer.querySelector('.video-wrapper') : null;
-            _panInfoBar = _panLayer ? _panLayer.querySelector('.asset-info-bar') : null;
+            _panLayer = document.querySelector('.overlay-layer.active');
+            _panVw    = _panLayer ? _panLayer.querySelector('.video-wrapper') : null;
         }
 
         function handlePanMove(e) {
@@ -2502,7 +2478,8 @@
             panOffsetY = e.clientY - panStartY;
             clampPanOffsets();
 
-            // Move the wrapper using cached refs set in handlePanStart — no DOM queries
+            // Move the wrapper using cached refs set in handlePanStart — no DOM queries.
+            // The info bar is a CSS child (bottom:100%) so it moves with the wrapper for free.
             const vw = _panVw;
             if (vw) {
                 const centerTop  = parseFloat(vw.dataset.centerTop  || 0);
@@ -2510,28 +2487,13 @@
                 vw.style.top  = (centerTop  + panOffsetY) + 'px';
                 vw.style.left = (centerLeft + panOffsetX) + 'px';
             }
-            // Move info bar in lockstep
-            const infoBar = _panInfoBar;
-            if (infoBar) {
-                const ibH = infoBar._cachedH || (infoBar._cachedH = infoBar.offsetHeight || 28);
-                const barCenterTop  = parseFloat(infoBar.dataset.centerTop  || 50);
-                const barCenterLeft = parseFloat(infoBar.dataset.centerLeft || 0);
-                const barW          = parseFloat(infoBar.dataset.scaledW    || infoBar.offsetWidth);
-                const barHeaderH    = parseFloat(infoBar.dataset.headerH    || 50);
-                const pannedTop  = barCenterTop  + panOffsetY;
-                const pannedLeft = barCenterLeft + panOffsetX;
-                const clampedLeft = Math.max(0, pannedLeft);
-                infoBar.style.top   = Math.max(barHeaderH, pannedTop - ibH) + 'px';
-                infoBar.style.left  = clampedLeft + 'px';
-                infoBar.style.width = Math.min(barW, window.innerWidth - clampedLeft) + 'px';
-            }
         }
 
         function handlePanEnd(e) {
             isPanning = false;
-            _panVw = null; _panInfoBar = null; _panLayer = null; // release cached refs
+            _panVw = null; _panLayer = null; // release cached refs
             document.getElementById('overlayContainer').classList.remove('panning');
-            applyZoom(); // re-anchor info bars to the settled pan position
+            applyZoom(); // re-anchor wrapper to the settled pan position
         }
 
         // Clear all loaded media and reset state — called both by resetAll() and at the
