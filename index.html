@@ -787,6 +787,7 @@
             border-collapse: collapse;
             margin: 6px 0 10px;
             font-size: 12px;
+            table-layout: fixed;
         }
         .manual-content th {
             text-align: left;
@@ -799,6 +800,10 @@
             padding: 4px 8px;
             color: #aaa;
             border-bottom: 1px solid #222;
+        }
+        .manual-content th:first-child,
+        .manual-content td:first-child {
+            width: 180px;
         }
         .manual-content kbd {
             background: #333;
@@ -1210,13 +1215,12 @@
                     Reset
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
-                <button class="quick-start-btn" onclick="toggleManualPanel()">Manual</button>
                 <button class="quick-start-btn" onclick="toggleQuickStart()">Help</button>
 
                 <!-- Help Popup -->
                 <div class="quick-start-popup" id="quickStartPopup">
                     <button class="quick-start-close" onclick="toggleQuickStart()">✕</button>
-                    <p style="margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #aaa; text-transform: uppercase;">Help</p>
+                    <p style="margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #aaa; text-transform: uppercase;">Quick Start</p>
                     <ol style="margin: 0; padding-left: 18px; font-size: 13px; color: #ccc; line-height: 1.7;">
                         <li>Export your files in order: Original, A, B</li>
                         <li>Select 2–3 files and drop onto this window, or press <kbd>L</kbd>
@@ -1231,7 +1235,8 @@
                         <li>Press <kbd>Space</kbd> to play/pause videos</li>
                         <li>Press <kbd>K</kbd> for all hotkeys</li>
                     </ol>
-                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #333;">
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #333; display: flex; justify-content: space-between; align-items: center;">
+                        <a class="feedback-link" onclick="toggleQuickStart(); toggleManualPanel();" style="cursor: pointer;">Manual</a>
                         <a href="https://forms.gle/oob2qL4feRGcBFfZ9"
                            target="_blank" class="feedback-link">Submit bugs and feedback</a>
                     </div>
