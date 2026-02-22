@@ -938,6 +938,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 12px;
             font-weight: 600;
+            font-variant-numeric: tabular-nums;
             color: rgb(160, 160, 160);
             cursor: pointer;
             user-select: none;
@@ -2273,9 +2274,7 @@
                 // Pause video during scrubbing for smooth experience
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
-                    if (wasPlaying) {
-                        pauseAllVideos();
-                    }
+                    pauseAllVideos();
                 }
 
                 scrubToPosition(e);
@@ -2320,10 +2319,8 @@
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
-                    // Resume playback if it was playing before
-                    if (wasPlaying) {
-                        playAllVideos();
-                    }
+                    // Resume playback after scrubbing
+                    playAllVideos();
                 }
             });
         });
