@@ -1790,61 +1790,77 @@
             }
         }
 
+        // Serial fps detection queue — samples one video at a time to prevent
+        // play/pause sync from triggering on other videos during sampling.
+        const fpsDetectionQueue = [];
+
+        function drainFpsQueue() {
+            if (fpsDetectionQueue.length === 0) return;
+            const { video, slot } = fpsDetectionQueue[0];
+
+            const SAMPLE_COUNT = 10;
+            const standardRates = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
+
+            function finalize(snapped) {
+                videoFrameRates[video.src] = snapped;
+                updateAssetInfoBar(slot, { fps: `${snapped} fps` });
+                updateDurationDisplay(slot, video.duration, snapped);
+                fpsDetectionQueue.shift();
+                drainFpsQueue(); // process next in queue
+            }
+
+            if (typeof video.requestVideoFrameCallback !== 'function' || video.duration <= 1) {
+                finalize(30);
+                return;
+            }
+
+            const timestamps = [];
+            // Suppress sync handlers during sampling playback
+            video._samplingFps = true;
+            const prevMuted = video.muted;
+            video.muted = true;
+
+            function onFrame(now, metadata) {
+                timestamps.push(metadata.mediaTime);
+                if (timestamps.length <= SAMPLE_COUNT) {
+                    video.requestVideoFrameCallback(onFrame);
+                } else {
+                    // Done sampling — compute fps
+                    let total = 0;
+                    for (let i = 1; i < timestamps.length; i++) total += timestamps[i] - timestamps[i - 1];
+                    const rawFps = 1 / (total / SAMPLE_COUNT);
+                    const snapped = standardRates.reduce((a, b) =>
+                        Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a);
+
+                    video._samplingFps = false;
+                    video.pause();
+                    video.currentTime = 0;
+                    video.muted = prevMuted;
+                    finalize(snapped);
+                }
+            }
+
+            video.play().then(() => {
+                video.requestVideoFrameCallback(onFrame);
+            }).catch(() => {
+                video._samplingFps = false;
+                video.muted = prevMuted;
+                finalize(30);
+            });
+        }
+
         function setupVideoHandlers(video, slot) {
             // Enable native looping
             video.loop = true;
-            
-            // Detect framerate by seeking frame-by-frame via requestVideoFrameCallback.
-            // Never calls play() so sync handlers and progress loop are never triggered.
-            // Falls back to 30fps if API unavailable or duration too short to sample.
-            if (typeof video.requestVideoFrameCallback === 'function' && video.duration > 1) {
-                const SAMPLE_COUNT = 10;
-                // Estimate ~1/30s per step to step through frames; we'll refine from actual mediaTime
-                const stepSize = 1 / 30;
-                let stepIndex = 0;
-                const timestamps = [];
-                const startTime = video.currentTime;
 
-                function onFrame(now, metadata) {
-                    timestamps.push(metadata.mediaTime);
-                    if (stepIndex < SAMPLE_COUNT) {
-                        stepIndex++;
-                        // Nudge currentTime forward by one estimated frame to decode next frame
-                        video.currentTime = startTime + stepIndex * stepSize;
-                        video.requestVideoFrameCallback(onFrame);
-                    } else {
-                        // Compute average interval between decoded frames
-                        let totalInterval = 0;
-                        for (let i = 1; i < timestamps.length; i++) {
-                            totalInterval += timestamps[i] - timestamps[i - 1];
-                        }
-                        const avgInterval = totalInterval / (timestamps.length - 1);
-                        const rawFps = 1 / avgInterval;
-
-                        // Snap to nearest standard frame rate
-                        const standardRates = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
-                        const snapped = standardRates.reduce((a, b) =>
-                            Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a
-                        );
-                        videoFrameRates[video.src] = snapped;
-
-                        // Rewind to frame 0 and update info bar
-                        video.currentTime = 0;
-                        updateAssetInfoBar(slot, { fps: `${snapped} fps` });
-                        updateDurationDisplay(slot, video.duration, snapped);
-                    }
-                }
-
-                // Register first callback — fires on next decoded frame (no play() needed)
-                video.requestVideoFrameCallback(onFrame);
-            } else {
-                // Fallback: assume 30fps
-                videoFrameRates[video.src] = 30;
-                updateAssetInfoBar(slot, { fps: '30 fps' });
-                updateDurationDisplay(slot, video.duration, 30);
-            }
+            // Queue fps sampling so only one video samples at a time,
+            // preventing play/pause sync from interfering across videos.
+            fpsDetectionQueue.push({ video, slot });
+            if (fpsDetectionQueue.length === 1) drainFpsQueue();
             
             video.addEventListener('play', function() {
+                // Suppress sync during fps sampling
+                if (video._samplingFps) return;
                 // Sync all videos when any video plays
                 document.querySelectorAll('video').forEach(v => {
                     if (v !== video) {
@@ -1860,6 +1876,8 @@
             });
 
             video.addEventListener('pause', function() {
+                // Suppress sync during fps sampling
+                if (video._samplingFps) return;
                 // Sync pause to all other videos
                 document.querySelectorAll('video').forEach(v => {
                     if (v !== video && !v.paused) {
