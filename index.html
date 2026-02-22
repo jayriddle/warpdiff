@@ -2271,10 +2271,12 @@
                     _scrubVideo.addEventListener('seeked', onScrubSeeked);
                 }
 
-                // Pause video during scrubbing for smooth experience
+                // Pause video during scrubbing for smooth experience; remember state to restore after
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
-                    pauseAllVideos();
+                    if (wasPlaying) {
+                        pauseAllVideos();
+                    }
                 }
 
                 scrubToPosition(e);
@@ -2319,8 +2321,10 @@
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
-                    // Resume playback after scrubbing
-                    playAllVideos();
+                    // Restore play/pause state from before the drag
+                    if (wasPlaying) {
+                        playAllVideos();
+                    }
                 }
             });
         });
