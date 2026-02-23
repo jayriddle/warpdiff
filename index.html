@@ -37,7 +37,7 @@
             justify-content: space-between;
             align-items: center;
             position: relative;
-            z-index: 10;
+            z-index: 100;
         }
 
         .header h1 {
@@ -2304,8 +2304,8 @@
                 const perAssetScale = minNW > 0 ? (minNW / nw) * zoomLevel : zoomLevel;
                 const scaledW = Math.round(nw * perAssetScale);
                 const scaledH = Math.round(nh * perAssetScale);
-                // Top-align: info bar flush against header, extra space goes to bottom.
-                const centerTop = headerH + infoBarH;
+                // Vertically center media in the available space below the header.
+                const centerTop = headerH + infoBarH + Math.max(0, Math.round((availH - scaledH) / 2));
                 const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
 
                 // Pan is applied to the wrapper position directly (not as a media transform)
@@ -2358,6 +2358,12 @@
                 return;
             }
             zoomLevel = Math.max(zoomLevel / ZOOM_STEP, ZOOM_MIN);
+            // Reset pan when zooming back to fit — prevents stale offsets
+            // from leaving the image stuck off-center.
+            if (zoomLevel <= fitZoom) {
+                panOffsetX = 0;
+                panOffsetY = 0;
+            }
             applyZoom();
         }
 
