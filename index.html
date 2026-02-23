@@ -411,6 +411,12 @@
             width: 100%;
         }
 
+        /* In overlay mode the video-wrapper is position:fixed; give it z-index above the
+           header (z-index:10) so the info bar (bottom:100%) isn't hidden behind it. */
+        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .video-wrapper {
+            z-index: 11;
+        }
+
         /* In overlay mode, only show info bar and zoom for the active layer */
         body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .asset-info-bar,
         body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .split-zoom-indicator {
@@ -2282,7 +2288,9 @@
                 if (minNW === Infinity) minNW = 0;
                 // fitZoom: scale so the narrowest (reference) asset fits the viewport
                 const viewW = window.innerWidth;
-                const viewH = window.innerHeight - headerH;
+                const sampleBarFit = document.querySelector('.video-wrapper > .asset-info-bar');
+                const infoBarHFit = sampleBarFit ? sampleBarFit.offsetHeight : 0;
+                const viewH = window.innerHeight - headerH - infoBarHFit;
                 if (minNW > 0) {
                     // fitZoom = scale that makes the narrowest asset's width fill the viewport.
                     // Height is also clamped: find the tallest rendered height across all assets
@@ -2309,7 +2317,11 @@
 
             // Position each asset wrapper. Every asset is scaled so its rendered width equals
             // minNW * sharedScale — same-width assets appear identically wide on screen.
-            const availH = window.innerHeight - headerH;
+            // Reserve space for the info bar above the media so it sits below the header.
+            // Measure from the active layer's info bar (they're all the same height).
+            const sampleBar = document.querySelector('.video-wrapper > .asset-info-bar');
+            const infoBarH = sampleBar ? sampleBar.offsetHeight : 0;
+            const availH = window.innerHeight - headerH - infoBarH;
             ['original', 'editA', 'editB'].forEach(slot => {
                 if (!mediaData[slot]) return;
                 const layer = getLayer(slot);
@@ -2328,7 +2340,7 @@
                 const perAssetScale = minNW > 0 ? (minNW / nw) * zoomLevel : zoomLevel;
                 const scaledW = Math.round(nw * perAssetScale);
                 const scaledH = Math.round(nh * perAssetScale);
-                const centerTop = headerH + Math.max(0, Math.round((availH - scaledH) / 2));
+                const centerTop = headerH + infoBarH + Math.max(0, Math.round((availH - scaledH) / 2));
                 const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
 
                 // Pan is applied to the wrapper position directly (not as a media transform)
@@ -3852,6 +3864,16 @@
                 icon.textContent = '▶';
             }
         }
+
+        // Expose read-only test API for Playwright (avoids brittle eval of let-scoped vars)
+        window.__testAPI = {
+            get zoomLevel() { return zoomLevel; },
+            get fitZoom() { return fitZoom; },
+            get currentAssetIndex() { return currentAssetIndex; },
+            get isSplitMode() { return isSplitMode; },
+            get panOffsetX() { return panOffsetX; },
+            get panOffsetY() { return panOffsetY; },
+        };
 
     </script>
 

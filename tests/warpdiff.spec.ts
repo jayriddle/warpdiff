@@ -6,8 +6,8 @@ import fs from 'fs';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Generate a PNG (given width × height) with pixel data. */
-function makeSizedPng(width: number, height: number): Buffer {
+/** Generate a PNG (given width × height) with varied pixel data based on seed. */
+function makeSizedPng(width: number, height: number, seed = 0): Buffer {
   const crc32 = (buf: Buffer): number => {
     let c = 0xffffffff;
     for (let i = 0; i < buf.length; i++) {
@@ -34,21 +34,19 @@ function makeSizedPng(width: number, height: number): Buffer {
   ihdrData[8] = 8;  // bit depth
   ihdrData[9] = 6;  // RGBA
 
-  // Build raw scanlines: filter byte 0 + width×4 bytes per row
   const rowSize = 1 + width * 4;
   const rawData = Buffer.alloc(rowSize * height, 0);
   for (let y = 0; y < height; y++) {
     rawData[y * rowSize] = 0; // filter = None
     for (let x = 0; x < width; x++) {
       const offset = y * rowSize + 1 + x * 4;
-      rawData[offset] = (x * 37 + y * 59) & 0xff;
-      rawData[offset + 1] = (x * 73 + y * 97) & 0xff;
-      rawData[offset + 2] = (x * 113 + y * 29) & 0xff;
+      rawData[offset] = (x * 37 + y * 59 + seed * 71) & 0xff;
+      rawData[offset + 1] = (x * 73 + y * 97 + seed * 113) & 0xff;
+      rawData[offset + 2] = (x * 113 + y * 29 + seed * 37) & 0xff;
       rawData[offset + 3] = 255;
     }
   }
 
-  // Compress with deflate stored blocks (max 65535 bytes per block)
   const zlibChunks: Buffer[] = [Buffer.from([0x78, 0x01])];
   const maxBlock = 65535;
   const totalLen = rawData.length;
@@ -62,7 +60,6 @@ function makeSizedPng(width: number, height: number): Buffer {
     header.writeUInt16LE(~blockLen & 0xffff, 3);
     zlibChunks.push(header, rawData.subarray(i, i + blockLen));
   }
-  // Adler-32
   let s1 = 1, s2 = 0;
   for (let i = 0; i < rawData.length; i++) {
     s1 = (s1 + rawData[i]) % 65521;
@@ -85,87 +82,69 @@ function makeSizedPng(width: number, height: number): Buffer {
 
 const fixturesDir = path.join(__dirname, 'fixtures');
 
-// Write test images to disk before all tests
 function ensureFixtures() {
   if (!fs.existsSync(fixturesDir)) fs.mkdirSync(fixturesDir, { recursive: true });
 
   const images = [
-    { name: 'red.png', buf: makeSizedPng(200, 150) },
-    { name: 'green.png', buf: makeSizedPng(200, 150) },
-    { name: 'blue.png', buf: makeSizedPng(200, 150) },
-    { name: 'fourth.png', buf: makeSizedPng(100, 100) },
+    { name: 'red.png', buf: makeSizedPng(200, 150, 1) },
+    { name: 'green.png', buf: makeSizedPng(200, 150, 2) },
+    { name: 'blue.png', buf: makeSizedPng(200, 150, 3) },
+    { name: 'fourth.png', buf: makeSizedPng(100, 100, 4) },
+    { name: 'tall.png', buf: makeSizedPng(150, 300, 5) },
   ];
 
   for (const { name, buf } of images) {
-    const p = path.join(fixturesDir, name);
-    if (!fs.existsSync(p)) fs.writeFileSync(p, buf);
+    // Always regenerate so changes to makeSizedPng are picked up
+    fs.writeFileSync(path.join(fixturesDir, name), buf);
   }
 
-  // A plain text file to test rejection of non-media
-  const txtPath = path.join(fixturesDir, 'readme.txt');
-  if (!fs.existsSync(txtPath)) fs.writeFileSync(txtPath, 'not an image');
+  fs.writeFileSync(path.join(fixturesDir, 'readme.txt'), 'not an image');
 }
-
-ensureFixtures();
 
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+/** Access an app variable via the test API exposed on window. */
+async function getVar(page: Page, name: string): Promise<any> {
+  return page.evaluate((n) => (window as any).__testAPI[n], name);
+}
 
 /** Load N fixture images by setting files on the hidden input. */
 async function loadImages(page: Page, fileNames: string[]) {
   const filePaths = fileNames.map(f => path.join(fixturesDir, f));
   const fileInput = page.locator('#multiFileInput');
   await fileInput.setInputFiles(filePaths);
-  // Wait for the comparison view to become active
-  await page.locator('#comparisonView.active').waitFor({ timeout: 5000 });
+  await page.locator('#comparisonView').waitFor({ state: 'visible', timeout: 5000 });
 }
 
-/** Wait for a rAF-deferred class change on body. */
-async function waitForBodyClass(page: Page, hasClass: string, present: boolean, timeout = 3000) {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    const has = await page.evaluate(
-      (cls) => document.body.classList.contains(cls),
-      hasClass
-    );
-    if (has === present) return;
-    await page.waitForTimeout(50);
-  }
-  throw new Error(`Timed out waiting for body class "${hasClass}" to be ${present ? 'present' : 'absent'}`);
+/** Load images and switch to overlay mode, waiting for zoom init. */
+async function loadAndEnterOverlay(page: Page, fileNames: string[]) {
+  await loadImages(page, fileNames);
+  await page.keyboard.press('o');
+  // Wait for double-rAF resetFitZoom to complete (zoomLevel === fitZoom)
+  await page.waitForFunction(
+    () => {
+      const api = (window as any).__testAPI;
+      return typeof api.zoomLevel === 'number' && api.zoomLevel === api.fitZoom;
+    },
+    {},
+    { timeout: 3000 }
+  );
 }
 
-/** Check if body is in any split mode. */
+/** Check if app is in any split mode via the test API. */
 async function isSplitMode(page: Page): Promise<boolean> {
-  return page.evaluate(() =>
-    document.body.classList.contains('side-by-side') ||
-    document.body.classList.contains('vertical-stack') ||
-    document.body.classList.contains('tripartite') ||
-    document.body.classList.contains('tripartite-columns') ||
-    document.body.classList.contains('tripartite-rows')
-  );
-}
-
-/** Check if body is in a 2-asset split mode. */
-async function isTwoAssetSplit(page: Page): Promise<boolean> {
-  return page.evaluate(() =>
-    document.body.classList.contains('side-by-side') ||
-    document.body.classList.contains('vertical-stack')
-  );
-}
-
-/**
- * Access a top-level `let` variable from the page's script.
- * page.evaluate(() => varName) doesn't work for `let` vars (they're not on window).
- * Using eval() string form accesses the global lexical scope.
- */
-async function getVar(page: Page, name: string): Promise<any> {
-  return page.evaluate(`(${name})`);
+  return getVar(page, 'isSplitMode');
 }
 
 // ===========================================================================
 // Tests
 // ===========================================================================
+
+test.beforeAll(() => {
+  ensureFixtures();
+});
 
 test.describe('Page Load & Initial State', () => {
   test('title is WarpDiff', async ({ page }) => {
@@ -182,17 +161,17 @@ test.describe('Page Load & Initial State', () => {
 
   test('comparison view is hidden initially', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);
+    await expect(page.locator('#comparisonView')).not.toBeVisible();
   });
 
   test('video controls are hidden initially', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#videoControls')).not.toHaveClass(/active/);
+    await expect(page.locator('#videoControls')).not.toBeVisible();
   });
 
   test('quick start popup is hidden initially', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#quickStartPopup')).not.toHaveClass(/show/);
+    await expect(page.locator('#quickStartPopup')).not.toBeVisible();
   });
 });
 
@@ -201,28 +180,23 @@ test.describe('File Loading', () => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']);
 
-    await expect(page.locator('#comparisonView')).toHaveClass(/active/);
-    expect(await isTwoAssetSplit(page)).toBe(true);
+    await expect(page.locator('#comparisonView')).toBeVisible();
+    expect(await isSplitMode(page)).toBe(true);
   });
 
   test('loading 3 images activates 3-UP (tripartite) mode', async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png', 'blue.png']);
 
-    // tripartite layout is applied via rAF — wait for it
-    await page.waitForFunction(() =>
-      document.body.classList.contains('tripartite') ||
-      document.body.classList.contains('tripartite-columns') ||
-      document.body.classList.contains('tripartite-rows')
-    , {}, { timeout: 3000 });
+    await page.waitForFunction(
+      () => (window as any).__testAPI.isSplitMode === true,
+      {}, { timeout: 3000 }
+    );
   });
 
   test('rejects single file with alert', async ({ page }) => {
     await page.goto('/');
-    // Register dialog handler BEFORE triggering the file input (alert blocks)
     const dialogPromise = page.waitForEvent('dialog');
-    // Use setInputFiles without awaiting — the alert() blocks the change handler,
-    // which blocks Playwright's setInputFiles resolution. We race with the dialog.
     const fileInput = page.locator('#multiFileInput');
     const setFilesPromise = fileInput.setInputFiles(path.join(fixturesDir, 'red.png'));
     const dialog = await dialogPromise;
@@ -266,49 +240,42 @@ test.describe('View Mode Switching', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']);
-    // Split mode class is applied via rAF — wait for it
-    await page.waitForFunction(() =>
-      document.body.classList.contains('side-by-side') ||
-      document.body.classList.contains('vertical-stack')
-    , {}, { timeout: 3000 });
+    await page.waitForFunction(
+      () => (window as any).__testAPI.isSplitMode === true,
+      {}, { timeout: 3000 }
+    );
   });
 
   test('starts in split mode after loading 2 images', async ({ page }) => {
-    expect(await isTwoAssetSplit(page)).toBe(true);
+    expect(await isSplitMode(page)).toBe(true);
   });
 
   test('O key toggles to overlay mode and back', async ({ page }) => {
-    // Initially in split mode, press O → overlay
     await page.keyboard.press('o');
-    // setViewMode('overlay') removes classes synchronously
-    await page.waitForFunction(() =>
-      !document.body.classList.contains('side-by-side') &&
-      !document.body.classList.contains('vertical-stack')
-    , {}, { timeout: 3000 });
+    await page.waitForFunction(
+      () => (window as any).__testAPI.isSplitMode === false,
+      {}, { timeout: 3000 }
+    );
     expect(await isSplitMode(page)).toBe(false);
 
-    // Press O again → back to split (applied via rAF, need to wait)
     await page.keyboard.press('o');
-    // Wait for rAF to apply the class
-    await page.waitForFunction(() =>
-      document.body.classList.contains('side-by-side') ||
-      document.body.classList.contains('vertical-stack')
-    , {}, { timeout: 3000 });
-    expect(await isTwoAssetSplit(page)).toBe(true);
+    await page.waitForFunction(
+      () => (window as any).__testAPI.isSplitMode === true,
+      {}, { timeout: 3000 }
+    );
+    expect(await isSplitMode(page)).toBe(true);
   });
 
   test('C key toggles between split and overlay', async ({ page }) => {
-    // Initially in split mode, press C → overlay
     await page.keyboard.press('c');
     expect(await isSplitMode(page)).toBe(false);
 
-    // Press C again → back to split (rAF deferred)
     await page.keyboard.press('c');
-    await page.waitForFunction(() =>
-      document.body.classList.contains('side-by-side') ||
-      document.body.classList.contains('vertical-stack')
-    , {}, { timeout: 3000 });
-    expect(await isTwoAssetSplit(page)).toBe(true);
+    await page.waitForFunction(
+      () => (window as any).__testAPI.isSplitMode === true,
+      {}, { timeout: 3000 }
+    );
+    expect(await isSplitMode(page)).toBe(true);
   });
 
   test('mode strip buttons reflect current mode', async ({ page }) => {
@@ -347,11 +314,7 @@ test.describe('Keyboard Shortcuts', () => {
 
   test('+/- zoom in/out in overlay mode', async ({ page }) => {
     await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']);
-    // Switch to overlay mode
-    await page.keyboard.press('o');
-    // Wait for overlay zoom to initialise (resetFitZoom runs in double-rAF)
-    await page.waitForTimeout(200);
+    await loadAndEnterOverlay(page, ['red.png', 'green.png']);
 
     const initial = await getVar(page, 'zoomLevel');
     expect(typeof initial).toBe('number');
@@ -367,26 +330,22 @@ test.describe('Keyboard Shortcuts', () => {
 
   test('0 key resets zoom to fit', async ({ page }) => {
     await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']);
-    await page.keyboard.press('o');
-    await page.waitForTimeout(200);
+    await loadAndEnterOverlay(page, ['red.png', 'green.png']);
 
     // Zoom in first
     await page.keyboard.press('+');
     await page.keyboard.press('+');
     const zoomed = await getVar(page, 'zoomLevel');
 
-    // Reset — resetFitZoom uses double rAF internally
+    // resetFitZoom sets zoomLevel = fitZoom synchronously when pressing 0
     await page.keyboard.press('0');
-    await page.waitForTimeout(200);
     const fit = await getVar(page, 'zoomLevel');
     expect(fit).toBeLessThanOrEqual(zoomed);
   });
 
   test('arrow keys switch assets in overlay mode', async ({ page }) => {
     await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']);
-    await page.keyboard.press('o');
+    await loadAndEnterOverlay(page, ['red.png', 'green.png']);
 
     const initial = await getVar(page, 'currentAssetIndex');
     expect(typeof initial).toBe('number');
@@ -404,10 +363,7 @@ test.describe('Keyboard Shortcuts', () => {
 test.describe('Zoom & Pan (Overlay Mode)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']);
-    await page.keyboard.press('o');
-    // Wait for overlay zoom init (double rAF in resetFitZoom)
-    await page.waitForTimeout(200);
+    await loadAndEnterOverlay(page, ['red.png', 'green.png']);
   });
 
   test('zoom in increases zoom level', async ({ page }) => {
@@ -433,18 +389,29 @@ test.describe('Zoom & Pan (Overlay Mode)', () => {
   });
 
   test('0 key resets to fit zoom', async ({ page }) => {
-    // Zoom in beyond fit level
     await page.keyboard.press('+');
     await page.keyboard.press('+');
     await page.keyboard.press('+');
     const zoomed = await getVar(page, 'zoomLevel');
 
-    // Reset to fit — resetFitZoom uses double rAF
+    // resetFitZoom sets zoomLevel = fitZoom synchronously
     await page.keyboard.press('0');
-    await page.waitForTimeout(200);
     const fit = await getVar(page, 'zoomLevel');
-    // Fit zoom should be less than the zoomed-in level
     expect(fit).toBeLessThan(zoomed);
+  });
+
+  test('zoom does not exceed maximum', async ({ page }) => {
+    // Spam zoom in — should clamp at ZOOM_MAX (32)
+    for (let i = 0; i < 50; i++) await page.keyboard.press('+');
+    const zoom = await getVar(page, 'zoomLevel');
+    expect(zoom).toBeLessThanOrEqual(32);
+  });
+
+  test('zoom does not go below minimum', async ({ page }) => {
+    // Spam zoom out — should clamp at ZOOM_MIN (0.05)
+    for (let i = 0; i < 50; i++) await page.keyboard.press('-');
+    const zoom = await getVar(page, 'zoomLevel');
+    expect(zoom).toBeGreaterThanOrEqual(0.05);
   });
 });
 
@@ -452,13 +419,13 @@ test.describe('UI Elements', () => {
   test('help popup toggles on button click', async ({ page }) => {
     await page.goto('/');
     const popup = page.locator('#quickStartPopup');
-    await expect(popup).not.toHaveClass(/show/);
+    await expect(popup).not.toBeVisible();
 
     await page.locator('.quick-start-btn').click();
-    await expect(popup).toHaveClass(/show/);
+    await expect(popup).toBeVisible();
 
     await page.locator('.quick-start-close').click();
-    await expect(popup).not.toHaveClass(/show/);
+    await expect(popup).not.toBeVisible();
   });
 
   test('shortcuts panel toggles on K press', async ({ page }) => {
@@ -492,10 +459,19 @@ test.describe('UI Elements', () => {
     await loadImages(page, ['red.png', 'green.png']);
     await expect(resetBtn).toBeVisible();
 
-    page.on('dialog', d => d.accept());
-    await resetBtn.click();
+    // Use waitForEvent pattern (not page.on) for proper dialog handling.
+    // confirm() blocks the click, so don't await click before dialog.
+    const dialogPromise = page.waitForEvent('dialog');
+    const clickPromise = resetBtn.click();
+    const dialog = await dialogPromise;
+    expect(dialog.message()).toContain('Reset');
+    await dialog.accept();
+    await clickPromise;
 
-    await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);
+    await expect(page.locator('#comparisonView')).not.toBeVisible();
+    // Verify internal state is also reset
+    expect(await getVar(page, 'panOffsetX')).toBe(0);
+    expect(await getVar(page, 'panOffsetY')).toBe(0);
   });
 });
 
@@ -504,9 +480,6 @@ test.describe('Asset Info Bars', () => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']);
 
-    // In split mode, resolution elements exist for loaded assets.
-    // Some layers may be display:none (e.g. layerOriginal with 2 files),
-    // so check that at least 1 resolution element has text content.
     const resolutions = page.locator('.asset-resolution');
     const count = await resolutions.count();
     let withText = 0;
