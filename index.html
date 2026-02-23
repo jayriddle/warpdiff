@@ -3035,7 +3035,9 @@
                     const baseH = naturalHeight * refScale;
                     // Clamp to fit-to-viewport at base zoom (splitStepZoom=1); splitStepZoom
                     // can then push past the cell boundary (same as overlay zoom going past fit).
-                    const clampScale = Math.min(containerW / baseW, fitH / baseH);
+                    // When splitZoomLevel===1, also cap so assets don't exceed native pixel size.
+                    let clampScale = Math.min(containerW / baseW, fitH / baseH);
+                    if (splitZoomLevel === 1) clampScale = Math.min(clampScale, 1 / refScale);
                     renderedW = Math.round(baseW * clampScale * splitStepZoom);
                     renderedH = Math.round(baseH * clampScale * splitStepZoom);
                     // Keep the whole group centered around the screen midpoint.
@@ -3808,13 +3810,13 @@
                     applyZoom();
                 } else {
                     // Split modes: toggle between fit-to-panel and 100%-anchor (smallest asset at native pixels).
-                    // Reset any step zoom so the 100%-anchor size is the clean baseline.
                     splitZoomLevel = splitZoomLevel === 1 ? null : 1;
+                    // Reset step zoom so the baseline is clean.
                     splitStepZoom = 1.0;
                     document.body.classList.toggle('zoom-100', splitZoomLevel === 1);
                     positionLabelsToMedia();
-                    // In tripartite mode, if the 100%-anchor size was clamped to fit (assets
-                    // are already at or below native pixels at the fit zoom level), notify the user.
+                    // If the 100%-anchor size was clamped to fit (assets are already at or
+                    // below native pixels at the fit zoom level), notify the user.
                     const isAnyTripartiteNow = isTripartiteMode();
                     if (splitZoomLevel === 1 && isAnyTripartiteNow && _tripartiteZoomWasCapped) {
                         showToast('Already at fit size');
