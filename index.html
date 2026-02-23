@@ -621,6 +621,7 @@
             font-size: 11px;
             color: #a0a0a0;
             border-radius: 3px 3px 0 0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 rgba(255, 255, 255, 0.12), inset -1px 0 0 rgba(255, 255, 255, 0.12);
             pointer-events: none;
             white-space: nowrap;
             overflow: hidden;
@@ -2758,19 +2759,35 @@
                 // so the '1' key handler can flash the badges to signal the limit.
                 {
                     let maxAllowed = Infinity;
-                    slots.forEach(slot => {
-                        const d = tripartiteLayout[slot];
-                        if (!d) return;
-                        if (widthConstrained) {
+                    const isRows = document.body.classList.contains('tripartite-rows');
+                    if (isRows && widthConstrained) {
+                        // For tripartite-rows, clamp so the total group height fits the
+                        // combined container height. Per-cell clamping would leave each
+                        // image tiny with large gaps; group clamping lets them tile tightly.
+                        let totalProjH = 0, totalAvailH = 0;
+                        slots.forEach(slot => {
+                            const d = tripartiteLayout[slot];
+                            if (!d) return;
+                            if (minW > 0) totalProjH += minW * d.nh / d.nw;
+                            totalAvailH += d.ch - d.ibH;
                             if (minW > 0) maxAllowed = Math.min(maxAllowed, d.cw / minW);
-                            const projH = minW > 0 ? minW * d.nh / d.nw : 0;
-                            if (projH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / projH);
-                        } else {
-                            if (minH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / minH);
-                            const projW = minH > 0 ? minH * d.nw / d.nh : 0;
-                            if (projW > 0) maxAllowed = Math.min(maxAllowed, d.cw / projW);
-                        }
-                    });
+                        });
+                        if (totalProjH > 0) maxAllowed = Math.min(maxAllowed, totalAvailH / totalProjH);
+                    } else {
+                        slots.forEach(slot => {
+                            const d = tripartiteLayout[slot];
+                            if (!d) return;
+                            if (widthConstrained) {
+                                if (minW > 0) maxAllowed = Math.min(maxAllowed, d.cw / minW);
+                                const projH = minW > 0 ? minW * d.nh / d.nw : 0;
+                                if (projH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / projH);
+                            } else {
+                                if (minH > 0) maxAllowed = Math.min(maxAllowed, (d.ch - d.ibH) / minH);
+                                const projW = minH > 0 ? minH * d.nw / d.nh : 0;
+                                if (projW > 0) maxAllowed = Math.min(maxAllowed, d.cw / projW);
+                            }
+                        });
+                    }
                     if (maxAllowed < Infinity) {
                         _tripartiteZoomWasCapped = tripartiteEffectiveZoom > maxAllowed - 0.001;
                         tripartiteEffectiveZoom = Math.min(tripartiteEffectiveZoom, maxAllowed);
@@ -2801,7 +2818,7 @@
                 // the group in the viewport, so gaps don't grow between images when zooming out.
                 if (isEqualLayout) {
                     const isColumns = document.body.classList.contains('tripartite-columns');
-                    const gap = 12; // px between images in the group
+                    const gap = isColumns ? 12 : 0; // columns: 12px horizontal gap; rows: info bars provide separation
                     const loadedSlots = slots.filter(s => tripartiteLayout[s]);
                     if (isColumns && loadedSlots.length > 0) {
                         // Total rendered width of all images + gaps between them
@@ -3597,6 +3614,14 @@
                 const sample = Object.values(mediaData).find(m => m && m.w && m.h);
                 const isLandscape = sample ? sample.w >= sample.h : false;
 
+                // Prepare layers for staggered fade-in.
+                // Set opacity:0 before setViewMode so layers are invisible from the start.
+                const loadedLayers = assetOrder
+                    .filter(s => mediaData[s])
+                    .map(s => getLayer(s))
+                    .filter(Boolean);
+                loadedLayers.forEach(layer => { layer.style.opacity = '0'; });
+
                 if (loadedCount === 2 && !mediaData.original) {
                     // Relabel: IMAGE A/B or VIDEO A/B (no "EDIT" label when there's no original)
                     const mediaType = (mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video')
@@ -3618,6 +3643,24 @@
                 } else {
                     setViewMode('horizontal');
                 }
+
+                // Stagger fade-in after layout is committed.
+                // Double-rAF ensures opacity:0 is painted before adding the transition.
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    loadedLayers.forEach(layer => {
+                        layer.style.transition = 'opacity 0.2s ease';
+                    });
+                    loadedLayers.forEach((layer, i) => {
+                        setTimeout(() => { layer.style.opacity = '1'; }, i * 60);
+                    });
+                    // Clean up inline styles after the last transition completes
+                    setTimeout(() => {
+                        loadedLayers.forEach(layer => {
+                            layer.style.opacity = '';
+                            layer.style.transition = '';
+                        });
+                    }, loadedLayers.length * 60 + 250);
+                }));
 
                 // Show video controls if any videos
                 if (hasVideos) {
