@@ -413,22 +413,18 @@
 
         /* In overlay mode the video-wrapper is position:fixed; give it z-index above the
            header (z-index:10) so the info bar (bottom:100%) isn't hidden behind it. */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .video-wrapper {
+        body:not(.split-mode) .video-wrapper {
             z-index: 11;
         }
 
         /* In overlay mode, only show info bar and zoom for the active layer */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .asset-info-bar,
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer:not(.active) .split-zoom-indicator {
+        body:not(.split-mode) .overlay-layer:not(.active) .asset-info-bar,
+        body:not(.split-mode) .overlay-layer:not(.active) .split-zoom-indicator {
             display: none;
         }
 
         /* Info bars always visible in split modes */
-        body.side-by-side .asset-info-bar,
-        body.vertical-stack .asset-info-bar,
-        body.tripartite .asset-info-bar,
-        body.tripartite-columns .asset-info-bar,
-        body.tripartite-rows .asset-info-bar {
+        body.split-mode .asset-info-bar {
             display: flex;
         }
 
@@ -439,16 +435,7 @@
             vertical-align: top;
         }
 
-        body.side-by-side .overlay-layer.active,
-        body.side-by-side .overlay-layer:not(.active),
-        body.vertical-stack .overlay-layer.active,
-        body.vertical-stack .overlay-layer:not(.active),
-        body.tripartite .overlay-layer.active,
-        body.tripartite .overlay-layer:not(.active),
-        body.tripartite-columns .overlay-layer.active,
-        body.tripartite-columns .overlay-layer:not(.active),
-        body.tripartite-rows .overlay-layer.active,
-        body.tripartite-rows .overlay-layer:not(.active) {
+        body.split-mode .overlay-layer {
             opacity: 1;
             pointer-events: auto;
         }
@@ -552,16 +539,8 @@
         /* In all split modes the video-wrapper is JS-sized to exact rendered bounds.
            The media element must fill it 100%. Override the general overlay-layer rule
            (width:auto; height:auto) which has equal specificity but appears later. */
-        body.side-by-side .overlay-layer img,
-        body.side-by-side .overlay-layer video,
-        body.vertical-stack .overlay-layer img,
-        body.vertical-stack .overlay-layer video,
-        body.tripartite .overlay-layer img,
-        body.tripartite .overlay-layer video,
-        body.tripartite-columns .overlay-layer img,
-        body.tripartite-columns .overlay-layer video,
-        body.tripartite-rows .overlay-layer img,
-        body.tripartite-rows .overlay-layer video {
+        body.split-mode .overlay-layer img,
+        body.split-mode .overlay-layer video {
             width: 100% !important;
             height: 100% !important;
             max-width: none !important;
@@ -584,36 +563,9 @@
             grid-row: 2;
         }
 
-        body.tripartite .asset-info-bar,
-        body.tripartite-columns .asset-info-bar,
-        body.tripartite-rows .asset-info-bar {
-            display: flex;
-        }
-
-        body.tripartite .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar {
-            background: rgba(60, 60, 60, 0.95);
-            color: #e0e0e0;
-        }
-
-        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar .asset-name {
-            color: #ffffff;
-        }
-
         /* fit-cover toggles */
-        body.side-by-side.fit-cover .video-wrapper img,
-        body.side-by-side.fit-cover .video-wrapper video,
-        body.vertical-stack.fit-cover .video-wrapper img,
-        body.vertical-stack.fit-cover .video-wrapper video,
-        body.tripartite.fit-cover .video-wrapper img,
-        body.tripartite.fit-cover .video-wrapper video,
-        body.tripartite-columns.fit-cover .video-wrapper img,
-        body.tripartite-columns.fit-cover .video-wrapper video,
-        body.tripartite-rows.fit-cover .video-wrapper img,
-        body.tripartite-rows.fit-cover .video-wrapper video {
+        body.split-mode.fit-cover .video-wrapper img,
+        body.split-mode.fit-cover .video-wrapper video {
             object-fit: cover;
         }
 
@@ -680,31 +632,23 @@
         }
 
         /* Active asset indicator - brighter info bar in overlay mode */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer.active .asset-info-bar {
+        body:not(.split-mode) .overlay-layer.active .asset-info-bar {
             display: flex;
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer.active .asset-info-bar .asset-name {
+        body:not(.split-mode) .overlay-layer.active .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
         /* Active audio indicator for split views - shows which audio is playing */
-        body.side-by-side .overlay-layer.active-audio .asset-info-bar,
-        body.vertical-stack .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar,
-        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar {
+        body.split-mode .overlay-layer.active-audio .asset-info-bar {
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
-        body.side-by-side .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.vertical-stack .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite-columns .overlay-layer.active-audio .asset-info-bar .asset-name,
-        body.tripartite-rows .overlay-layer.active-audio .asset-info-bar .asset-name {
+        body.split-mode .overlay-layer.active-audio .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
@@ -922,11 +866,7 @@
         }
 
         /* In split/stack views, position controls at bottom of viewport */
-        body.side-by-side .video-controls,
-        body.vertical-stack .video-controls,
-        body.tripartite .video-controls,
-        body.tripartite-columns .video-controls,
-        body.tripartite-rows .video-controls {
+        body.split-mode .video-controls {
             bottom: 40px;
         }
 
@@ -984,16 +924,16 @@
         }
 
         /* Overlay mode: pan cursor always active (zoom/pan available without mode gate) */
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-container {
+        body:not(.split-mode) .overlay-container {
             cursor: grab;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-container.panning {
+        body:not(.split-mode) .overlay-container.panning {
             cursor: grabbing;
         }
 
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer img,
-        body:not(.side-by-side):not(.vertical-stack):not(.tripartite):not(.tripartite-columns):not(.tripartite-rows) .overlay-layer video {
+        body:not(.split-mode) .overlay-layer img,
+        body:not(.split-mode) .overlay-layer video {
             position: relative;
             transition: none;
         }
@@ -1359,6 +1299,20 @@
         const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB' };
         function getLayer(slot) { return document.getElementById(SLOT_LAYER_ID[slot]); }
 
+        // Returns { w, h } for an <img> or <video> element's native dimensions.
+        function mediaDims(el) {
+            if (!el) return { w: 0, h: 0 };
+            return { w: el.naturalWidth || el.videoWidth || 0, h: el.naturalHeight || el.videoHeight || 0 };
+        }
+
+        function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
+
+        function isTripartiteMode() {
+            return document.body.classList.contains('tripartite') ||
+                   document.body.classList.contains('tripartite-columns') ||
+                   document.body.classList.contains('tripartite-rows');
+        }
+
         // Brief non-intrusive toast shown after file load. Auto-dismisses after `duration` ms.
         // Pass isWarning=true to tint the text amber (timestamp-collision advisory).
         let _toastTimer = null;
@@ -1633,7 +1587,7 @@
                 if (!zoomIndicator) {
                     zoomIndicator = document.createElement('div');
                     zoomIndicator.className = 'split-zoom-indicator';
-                    zoomIndicator.id = `zoom${slot.charAt(0).toUpperCase() + slot.slice(1)}`;
+                    zoomIndicator.id = `zoom${capitalize(slot)}`;
                     zoomIndicator.textContent = '1.0×';
                 }
 
@@ -1915,7 +1869,7 @@
             applyAudioMuteImmediate(source);
             
             // Update button appearance
-            const slotName = source.charAt(0).toUpperCase() + source.slice(1);
+            const slotName = capitalize(source);
             const button = document.getElementById(`audio${slotName}`);
             if (!button) {
                 return;
@@ -1958,8 +1912,8 @@
             document.getElementById('audioEditB').classList.toggle('active', source === 'editB');
 
             // Mute all videos except the selected source and update button icons
-            ['original', 'editA', 'editB'].forEach(slot => {
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+            assetOrder.forEach(slot => {
+                const slotName = capitalize(slot);
                 const layer = getLayer(slot);
                 const button = document.getElementById(`audio${slotName}`);
                 const icon = button ? button.querySelector('.audio-mute-icon') : null;
@@ -2080,7 +2034,7 @@
         function checkForIdenticalAssets() {
             const identicalPairs = [];
 
-            const slots = ['original', 'editA', 'editB'];
+            const slots = assetOrder;
             const labels = {
                 'original': 'Original',
                 'editA': 'Edit A',
@@ -2270,12 +2224,12 @@
             const prevFitZoom = fitZoom;
             let minNW = Infinity;
             {
-                ['original', 'editA', 'editB'].forEach(slot => {
+                assetOrder.forEach(slot => {
                     if (mediaData[slot]) {
                         const layer = getLayer(slot);
                         const media = layer && layer.querySelector('img, video');
                         if (media) {
-                            const nw = media.naturalWidth || media.videoWidth || 0;
+                            const { w: nw } = mediaDims(media);
                             if (nw > 0 && nw < minNW) minNW = nw;
                         }
                     }
@@ -2291,13 +2245,12 @@
                     // Height is also clamped: find the tallest rendered height across all assets
                     // at width-fit scale and ensure that fits vertically too.
                     let maxRenderedH = 0;
-                    ['original', 'editA', 'editB'].forEach(slot => {
+                    assetOrder.forEach(slot => {
                         if (mediaData[slot]) {
                             const layer = getLayer(slot);
                             const media = layer && layer.querySelector('img, video');
                             if (media) {
-                                const nw = media.naturalWidth || media.videoWidth || 0;
-                                const nh = media.naturalHeight || media.videoHeight || 0;
+                                const { w: nw, h: nh } = mediaDims(media);
                                 if (nw > 0 && nh > 0) {
                                     // rendered height at width-fit scale = nh * (minNW/nw)
                                     const rh = nh * (minNW / nw);
@@ -2322,7 +2275,7 @@
             const sampleBar = document.querySelector('.overlay-layer.active .video-wrapper > .asset-info-bar');
             const infoBarH = sampleBar ? sampleBar.offsetHeight : 0;
             const availH = window.innerHeight - headerH - infoBarH;
-            ['original', 'editA', 'editB'].forEach(slot => {
+            assetOrder.forEach(slot => {
                 if (!mediaData[slot]) return;
                 const layer = getLayer(slot);
                 if (!layer) return;
@@ -2330,8 +2283,7 @@
                 const vw = layer.querySelector('.video-wrapper');
                 if (!media || !vw) return;
 
-                const nw = media.naturalWidth || media.videoWidth || 0;
-                const nh = media.naturalHeight || media.videoHeight || 0;
+                const { w: nw, h: nh } = mediaDims(media);
                 if (!nw || !nh) return;
 
                 // Scale this asset so its rendered width matches the narrowest asset's width.
@@ -2526,9 +2478,9 @@
             stopProgressUpdateLoop();
 
             // Reset audio mute state and button UI for all slots
-            ['original', 'editA', 'editB'].forEach(slot => {
+            assetOrder.forEach(slot => {
                 audioMuteStates[slot] = false;
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                const slotName = capitalize(slot);
                 const btn = document.getElementById(`audio${slotName}`);
                 if (btn) {
                     btn.classList.remove('muted');
@@ -2663,20 +2615,17 @@
                 return;
             }
             
-            ['original', 'editA', 'editB'].forEach(slot => {
+            assetOrder.forEach(slot => {
                 if (!mediaData[slot]) return;
 
-                const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                const slotName = capitalize(slot);
                 const layer = getLayer(slot);
                 const media = layer.querySelector('img, video');
                 const indicator = document.getElementById(`zoom${slotName}`);
 
                 if (!media || !indicator) return;
                 
-                // Get native dimensions
-                const nativeWidth = media.naturalWidth || media.videoWidth || 0;
-                const nativeHeight = media.naturalHeight || media.videoHeight || 0;
-                
+                const { w: nativeWidth, h: nativeHeight } = mediaDims(media);
                 if (nativeWidth === 0 || nativeHeight === 0) return;
                 
                 // Get displayed dimensions
@@ -2712,11 +2661,9 @@
             if (!isSplitMode) return;
 
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
-            const slots = ['original', 'editA', 'editB'];
+            const slots = assetOrder;
             const isVertical = document.body.classList.contains('vertical-stack');
-            const isTripartite = document.body.classList.contains('tripartite') ||
-                                 document.body.classList.contains('tripartite-columns') ||
-                                 document.body.classList.contains('tripartite-rows');
+            const isTripartite = isTripartiteMode();
             const isEqualLayout = document.body.classList.contains('tripartite-columns') ||
                                   document.body.classList.contains('tripartite-rows');
             const isOverlay = !isSplitMode && !isVertical;
@@ -2752,8 +2699,7 @@
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                     if (!media) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
                     // Use layer.offsetWidth/Height — the true grid cell dimensions.
                     // mediaContainer is position:absolute so its offsetHeight may not
@@ -2864,8 +2810,7 @@
                     const layer = getLayer(slot);
                     const media = layer ? layer.querySelector('img, video') : null;
                     if (!media) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
                     const longest = Math.max(nw, nh);
                     if (longest < minLong) minLong = longest;
@@ -2884,8 +2829,7 @@
                     const layer = getLayer(slot);
                     const media = layer ? layer.querySelector('img, video') : null;
                     if (!media) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
                     const longest = Math.max(nw, nh);
                     if (longest < minLong) minLong = longest;
@@ -2913,8 +2857,7 @@
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
                     const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                     if (!media || !mediaContainer) return;
-                    const nw = media.naturalWidth || media.videoWidth || 0;
-                    const nh = media.naturalHeight || media.videoHeight || 0;
+                    const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
                     const longest = Math.max(nw, nh);
                     if (longest < minLong) minLong = longest;
@@ -2933,8 +2876,7 @@
                         const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
                         const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
                         if (!media || !mediaContainer) return;
-                        const nw = media.naturalWidth || media.videoWidth || 0;
-                        const nh = media.naturalHeight || media.videoHeight || 0;
+                        const { w: nw, h: nh } = mediaDims(media);
                         if (!nw || !nh) return;
                         const cw = mediaContainer.offsetWidth;
                         const ch = mediaContainer.offsetHeight;
@@ -2968,9 +2910,7 @@
 
                 if (!media || !videoWrapper || !mediaContainer) return;
 
-                // Get natural dimensions
-                const naturalWidth = media.naturalWidth || media.videoWidth || 0;
-                const naturalHeight = media.naturalHeight || media.videoHeight || 0;
+                const { w: naturalWidth, h: naturalHeight } = mediaDims(media);
                 if (naturalWidth === 0 || naturalHeight === 0) return;
 
                 // Get the container bounds
@@ -3215,18 +3155,14 @@
             }
         });
 
+        const splitModeClasses = ['side-by-side', 'vertical-stack', 'tripartite', 'tripartite-columns', 'tripartite-rows', 'split-mode', 'two-asset', 'zoom-100'];
+
         function setViewMode(mode) {
             // Update view mode
             if (mode === 'overlay') {
                 // Return to overlay mode
                 if (isSplitMode) {
-                    document.body.classList.remove('side-by-side');
-                    document.body.classList.remove('vertical-stack');
-                    document.body.classList.remove('tripartite');
-                    document.body.classList.remove('tripartite-columns');
-                    document.body.classList.remove('tripartite-rows');
-                    document.body.classList.remove('two-asset');
-                    document.body.classList.remove('zoom-100');
+                    document.body.classList.remove(...splitModeClasses);
                     isSplitMode = false;
                     splitZoomLevel = null;
                     splitStepZoom = 1.0;
@@ -3245,9 +3181,9 @@
                         vw.style.left = '';
                     });
                     // Reset audio mute states and button icons when leaving split view
-                    ['original', 'editA', 'editB'].forEach(slot => {
+                    assetOrder.forEach(slot => {
                         audioMuteStates[slot] = false;
-                        const slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                        const slotName = capitalize(slot);
                         const layer = getLayer(slot);
                         if (layer) {
                             const video = layer.querySelector('video');
@@ -3292,7 +3228,8 @@
                 // video-wrapper inline styles (position/top/left/width/height) set by
                 // applyZoom() — no prior clear needed, which would create a blank frame.
                 const applyLayout = () => {
-                    document.body.classList.remove('zoom-100');
+                    document.body.classList.remove(...splitModeClasses);
+                    document.body.classList.add('split-mode');
 
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
                         const hasMedia = layer.querySelector('img, video');
@@ -3302,17 +3239,8 @@
                     });
 
                     if (targetMode === 'vertical') {
-                        document.body.classList.remove('side-by-side');
-                        document.body.classList.remove('tripartite');
-                        document.body.classList.remove('tripartite-columns');
-                        document.body.classList.remove('tripartite-rows');
                         document.body.classList.add('vertical-stack');
                     } else if (targetMode === 'tripartite') {
-                        document.body.classList.remove('side-by-side');
-                        document.body.classList.remove('vertical-stack');
-                        document.body.classList.remove('tripartite');
-                        document.body.classList.remove('tripartite-columns');
-                        document.body.classList.remove('tripartite-rows');
                         if (tripartiteLayout3Col) {
                             const sample = Object.values(mediaData).find(m => m && m.w && m.h);
                             const isLandscape = sample ? sample.w >= sample.h : false;
@@ -3321,17 +3249,11 @@
                             document.body.classList.add('tripartite');
                         }
                     } else {
-                        document.body.classList.remove('vertical-stack');
-                        document.body.classList.remove('tripartite');
-                        document.body.classList.remove('tripartite-columns');
-                        document.body.classList.remove('tripartite-rows');
                         document.body.classList.add('side-by-side');
                     }
 
                     // Tripartite keeps all 3 cells visible so the CSS grid doesn't collapse.
-                    const isAnyTripartite = document.body.classList.contains('tripartite') ||
-                                           document.body.classList.contains('tripartite-columns') ||
-                                           document.body.classList.contains('tripartite-rows');
+                    const isAnyTripartite = isTripartiteMode();
                     if (!isAnyTripartite) {
                         document.querySelectorAll('.overlay-layer').forEach(layer => {
                             layer.style.display = layer.querySelector('img, video') ? '' : 'none';
@@ -3564,7 +3486,7 @@
             // Wait until all loaded video slots have non-zero videoWidth — the browser
             // may not have painted dimensions yet even though loadedmetadata has fired.
             // Defer with rAF until ready rather than laying out against zero dimensions.
-            const allDimensionsReady = ['original', 'editA', 'editB'].every(s => {
+            const allDimensionsReady = assetOrder.every(s => {
                 if (!mediaData[s] || mediaData[s].type !== 'video') return true;
                 const layer = getLayer(s);
                 const v = layer ? layer.querySelector('video') : null;
@@ -3766,9 +3688,7 @@
                     positionLabelsToMedia();
                     // In tripartite mode, if the 100%-anchor size was clamped to fit (assets
                     // are already at or below native pixels at the fit zoom level), notify the user.
-                    const isAnyTripartiteNow = document.body.classList.contains('tripartite') ||
-                                               document.body.classList.contains('tripartite-columns') ||
-                                               document.body.classList.contains('tripartite-rows');
+                    const isAnyTripartiteNow = isTripartiteMode();
                     if (splitZoomLevel === 1 && isAnyTripartiteNow && _tripartiteZoomWasCapped) {
                         showToast('Already at fit size');
                     }
@@ -3776,9 +3696,7 @@
             } else if (e.key === '3') {
                 // Toggle between L-shaped and equal-layout 3-UP
                 e.preventDefault();
-                const isAnyTripartiteNow = document.body.classList.contains('tripartite') ||
-                                           document.body.classList.contains('tripartite-columns') ||
-                                           document.body.classList.contains('tripartite-rows');
+                const isAnyTripartiteNow = isTripartiteMode();
                 if (isSplitMode && isAnyTripartiteNow) {
                     tripartiteLayout3Col = !tripartiteLayout3Col;
                     localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
