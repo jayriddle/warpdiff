@@ -3876,6 +3876,12 @@
         document.addEventListener('DOMContentLoaded', function() {
             setupDragAndDrop();
             setupPanHandlers(); // pan always available in overlay mode
+
+            // Show help popup automatically on first visit
+            if (!localStorage.getItem('hasVisitedBefore')) {
+                localStorage.setItem('hasVisitedBefore', 'true');
+                document.getElementById('quickStartPopup').classList.add('show');
+            }
         });
 
         function toggleShortcutsPanel() {
