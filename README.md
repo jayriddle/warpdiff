@@ -1,6 +1,6 @@
 # *Warp*Diff
 
-A browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side, stacked, or in overlay mode.
+A browser-based visual comparison tool for reviewing 2–3 versions of images or videos. No setup, no install — just click to start.
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
@@ -8,21 +8,35 @@ A browser-based visual comparison tool for reviewing 2–3 versions of images or
 
 ## Features
 
-- **Overlay** — flip between versions on top of each other
-- **Compare** — side-by-side or vertically stacked
-- **3-Up** — Original + two edits in a split-screen grid
-- Zoom and pan in overlay mode; proportional zoom in split modes
-- Video support with sync'd playback across all slots
-- Auto-sorts files oldest → newest by timestamp
+**View modes**
+- **Overlay** (`O`) — flip between assets with arrow keys, same position/zoom
+- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout
+- **3-Up** (`3`) — original on the left, two edits stacked on the right — more space-efficient for larger previews
+
+**Zoom loupe** (`Z`)
+- Pixel-level inspection without changing your view
+- `+`/`-` magnification (2×–32×), `[`/`]` resize
+- `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
+
+**Video**
+- Synced playback across all assets
+- Frame-step with `,` and `.`
+- Per-source audio switching (O/A/B) with individual mute
+- `W` for waveform with dB color coding + spectrogram
+
+**Keyboard-first**
+- Every action has a hotkey — press `K` to see them all, `Esc` to dismiss
+- Zoom, pan, and navigate without touching the mouse
+- Preferences (loupe, volume, spectrogram settings) persist across sessions
 
 ## Usage
 
 1. Open the [live app](https://jayriddle.github.io/warpdiff/)
 2. Press **L** (or click **Load**) and select 2–3 image or video files
-3. Use **Overlay / Compare / 3-Up** buttons to switch views
+3. Use **Overlay / Grid / 3-Up** buttons to switch views
 4. Press **K** to see all keyboard shortcuts
 
-See [MANUAL.md](MANUAL.md) for full documentation.
+Files auto-sort oldest → newest by timestamp. See [MANUAL.md](MANUAL.md) for full documentation.
 
 ## Bugs & Feature Requests
 

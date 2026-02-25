@@ -1,6 +1,6 @@
 # WarpDiff User Manual
 
-WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side or stacked on top of each other.
+WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side, stacked, or in overlay mode.
 
 ---
 
@@ -30,13 +30,16 @@ WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions 
 ### Overlay
 The default mode. One asset is visible at a time, layered on top of the others. Use the arrow keys or the asset buttons in the header to switch between assets.
 
-### Compare (2 files)
-Both assets displayed side-by-side with a 16px gap between them. Assets are scaled so their shorter sides match — meaning a crop or zoom of another image will appear smaller, keeping the subject at the same physical size on screen.
+### Grid (2 files)
+Both assets displayed side-by-side with a gap between them. Assets are scaled so their shorter sides match — meaning a crop or zoom of another image will appear smaller, keeping the subject at the same physical size on screen.
 
 The layout can be switched between **Horizontal** (left/right) and **Vertical** (top/bottom) using the buttons that appear below the media. The app auto-picks the best layout on first load based on the images' aspect ratios.
 
+### Grid (3 files)
+All three assets displayed in a row or column, auto-picked by aspect ratio.
+
 ### 3-UP (3 files)
-All three assets displayed in a grid: Original on the left, Edit A top-right, Edit B bottom-right. All three are scaled to the same logical size. A 16px gap separates the left and right columns.
+Original on the left, Edit A top-right, Edit B bottom-right. More space-efficient than Grid — assets appear larger in the same viewport. Press **3** to toggle between Grid and 1+2 layouts.
 
 ---
 
@@ -44,9 +47,9 @@ All three assets displayed in a grid: Original on the left, Edit A top-right, Ed
 
 | Action | Result |
 |--------|--------|
-| Click **OVERLAY** / **COMPARE** / **3-UP** in header | Switch to that mode |
-| Press **O** | Toggle Overlay ↔ Compare/3-UP |
-| Press **C** | Toggle Compare/3-UP ↔ Overlay |
+| Click **OVERLAY** / **GRID** / **3-UP** in header | Switch to that mode |
+| Press **O** | Toggle Overlay ↔ Grid/3-UP |
+| Press **G** | Toggle Grid/3-UP ↔ Overlay |
 
 ---
 
@@ -64,9 +67,26 @@ Zoom and pan are available in **Overlay mode only**.
 
 Zoom range: 5% – 3200%. Each step multiplies/divides by √2 (~1.41×).
 
-In **split modes** (Compare, 3-UP), pressing **1** toggles between fit-to-panel and 100% mode (no upscaling — images smaller than their cell render at actual size).
+In **split modes** (Grid, 3-UP), pressing **1** toggles between fit-to-panel and 100% mode (no upscaling — images smaller than their cell render at actual size).
 
 A zoom indicator appears at the bottom-right corner of each asset showing the current scale (e.g. `1.5×`).
+
+---
+
+## Zoom Loupe
+
+Press **Z** to toggle a circular zoom loupe that follows your cursor, showing magnified native pixels without changing the overall zoom level. Works in all view modes.
+
+| Shortcut | Action |
+|----------|--------|
+| **Z** | Toggle zoom loupe |
+| **+** / **−** | Adjust magnification (2×–32×, when loupe is active) |
+| **[** / **]** | Resize loupe (100–400px) |
+| **Shift+Z** | Toggle linked zoom |
+
+**Linked zoom:** In Grid and 3-Up modes, enabling linked zoom (**Shift+Z**) shows corresponding loupes on all other visible assets at the same relative position — hover over one asset to compare the exact same spot across all versions.
+
+The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.
 
 ---
 
@@ -88,10 +108,29 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | Shortcut | Action |
 |----------|--------|
 | **Space** | Play / Pause |
+| **,** | Step back one frame |
+| **.** | Step forward one frame |
 | **R** | Restart from beginning |
 | **M** | Mute / Unmute |
 
 **Audio source selector:** Only one audio track plays at a time. Click O, A, or B to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
+
+---
+
+## Audio Visualization
+
+Press **W** to toggle the waveform and spectrogram panel below the video controls.
+
+**Waveform** uses dB color coding:
+- **Green** — normal levels (below -6dB)
+- **Yellow** — caution (-6dB to -1dB)
+- **Red** — hot/clipping (above -1dB)
+
+Mono tracks display a single waveform with a MONO indicator. Stereo tracks show L and R channels.
+
+**Spectrogram** shows frequency content over time:
+- **Shift+W** toggles between linear and log frequency scale
+- **Shift+C** cycles through color palettes (Viridis, Magma, Inferno, Plasma)
 
 ---
 
@@ -100,18 +139,37 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | Key | Action |
 |-----|--------|
 | **L** | Load files |
+| **Z** | Toggle zoom loupe |
+| **Shift+Z** | Toggle linked zoom (Grid/3-Up) |
+| **[ ]** | Resize zoom loupe |
 | **← →** | Switch asset (Overlay mode) |
 | **O** | Toggle Overlay mode |
-| **C** | Toggle Compare / 3-UP mode |
+| **G** | Toggle Grid / 3-UP mode |
+| **3** | Toggle 3-UP layout (Grid ↔ 1+2) |
 | **F** | Fullscreen |
-| **+** | Zoom in |
-| **−** | Zoom out |
+| **+** / **−** | Zoom in/out (or loupe magnification when active) |
 | **0** | Zoom to fit |
 | **1** | Zoom to 100% / toggle 100% cap |
 | **Space** | Play / Pause |
+| **,** / **.** | Frame step back / forward |
 | **R** | Restart |
 | **M** | Mute |
+| **W** | Toggle waveform / spectrogram |
+| **Shift+W** | Toggle linear / log frequency |
+| **Shift+C** | Cycle spectrogram color palette |
 | **K** | Toggle shortcuts panel |
+| **Esc** | Dismiss loupe / close panel |
+
+---
+
+## Preferences
+
+The following settings are saved to your browser and persist across sessions and page reloads:
+
+- Zoom loupe size and magnification level
+- Linked zoom on/off
+- Volume level
+- Spectrogram scale (linear/log) and color palette
 
 ---
 
