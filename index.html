@@ -255,22 +255,7 @@
             transition: all 0.2s;
         }
 
-        .video-controls {
-            position: absolute;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: none;
-            gap: 10px;
-            z-index: 10;
-            flex-direction: column;
-            align-items: center;
-            min-width: 300px;
-        }
-
-        .video-controls.active {
-            display: flex;
-        }
+        /* video-controls styles are defined in the main layout section below */
 
 
 
@@ -355,7 +340,8 @@
 
         .overlay-container {
             width: 100%;
-            height: 100%;
+            flex: 1;
+            min-height: 0;
             padding: 2px;
             box-sizing: border-box;
             position: relative;
@@ -443,7 +429,7 @@
 
         /* Horizontal split: layer height */
         body.side-by-side .overlay-layer {
-            height: calc(100vh - 39px);
+            height: 100%;
         }
 
         body.side-by-side .overlay-container {
@@ -459,7 +445,7 @@
         body.vertical-stack .overlay-layer {
             position: relative !important;
             width: 100%;
-            height: calc((100vh - 39px) / 3);
+            height: calc(100% / 3);
             display: block;
             margin-bottom: 0;
             overflow: hidden;
@@ -467,7 +453,7 @@
 
         /* 2-asset vertical: divide by 2 not 3 */
         body.vertical-stack.two-asset .overlay-layer {
-            height: calc((100vh - 39px) / 2);
+            height: calc(100% / 2);
         }
 
         body.vertical-stack .overlay-container {
@@ -482,7 +468,7 @@
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             row-gap: 2px;
-            height: calc(100vh - 39px);
+            height: 100%;
             overflow: hidden;
             align-items: stretch;
             justify-items: stretch;
@@ -494,7 +480,7 @@
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr;
             column-gap: 16px;
-            height: calc(100vh - 39px);
+            height: 100%;
             overflow: hidden;
             align-items: stretch;
             justify-items: stretch;
@@ -507,7 +493,7 @@
             display: grid;
             grid-template-columns: 1fr;
             grid-template-rows: 1fr 1fr 1fr;
-            height: calc(100vh - 39px);
+            height: 100%;
             overflow: hidden;
             align-items: stretch;
             justify-items: stretch;
@@ -849,26 +835,15 @@
         }
 
         .video-controls {
-            position: fixed;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.55);
+            background: rgba(0, 0, 0, 0.85);
             padding: 8px 16px;
-            border-radius: 6px;
             z-index: 100;
             display: none;
-            min-width: 600px;
-            max-width: 90vw;
+            flex-shrink: 0;
         }
 
         .video-controls.active {
             display: block;
-        }
-
-        /* In split/stack views, position controls at bottom of viewport */
-        body.split-mode .video-controls {
-            bottom: 40px;
         }
 
         .spectrogram-panel {
@@ -903,9 +878,9 @@
             color: #888;
             font-family: monospace;
             white-space: nowrap;
-            width: 28px;
-            min-width: 28px;
-            max-width: 28px;
+            width: 30px;
+            min-width: 30px;
+            max-width: 30px;
         }
 
         .audio-viz-canvas-wrap {
@@ -921,7 +896,7 @@
         }
 
         .waveform-row {
-            height: 48px;
+            height: 80px;
         }
 
         .waveform-row .audio-viz-canvas-wrap {
@@ -974,7 +949,10 @@
         .spectrogram-toggles {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            justify-content: space-between;
+            width: 36px;
+            min-width: 36px;
+            max-width: 36px;
         }
 
         .video-controls-row {
@@ -1383,59 +1361,59 @@
                 </div>
                 <div class="toast" id="toast"></div>
 
-                <div class="video-controls" id="videoControls">
-                    <div class="spectrogram-panel" id="spectrogramPanel">
-                        <div class="audio-viz-row waveform-row">
-                            <div class="audio-viz-label" id="waveformLabels"><span>L</span><span>R</span></div>
-                            <div class="audio-viz-canvas-wrap">
-                                <canvas id="panelWaveformCanvas"></canvas>
-                                <div class="spectrogram-cursor" id="waveformCursor"></div>
-                            </div>
-                            <div class="audio-viz-right"></div>
-                        </div>
-                        <div class="audio-viz-row spectrogram-row">
-                            <div class="audio-viz-label" id="spectrogramLabels">
-                                <span>20k</span>
-                                <span>10k</span>
-                                <span>5k</span>
-                                <span>1k</span>
-                                <span>100</span>
-                            </div>
-                            <div class="audio-viz-canvas-wrap">
-                                <canvas id="spectrogramCanvas"></canvas>
-                                <div class="spectrogram-cursor" id="spectrogramCursor"></div>
-                            </div>
-                            <div class="spectrogram-toggles">
-                                <div class="spectrogram-scale-toggle" id="spectrogramPaletteToggle" onclick="cycleSpectrogramPalette()" title="Cycle color palette (Shift+C)">VIRIDIS</div>
-                                <div class="spectrogram-scale-toggle" id="spectrogramScaleToggle" onclick="toggleSpectrogramScale()" title="Toggle linear/log frequency scale (Shift+W)">LIN</div>
-                            </div>
-                        </div>
+            </div>
+        </div>
+        <div class="video-controls" id="videoControls">
+            <div class="spectrogram-panel" id="spectrogramPanel">
+                <div class="audio-viz-row waveform-row">
+                    <div class="audio-viz-label" id="waveformLabels"><span>L</span><span>R</span></div>
+                    <div class="audio-viz-canvas-wrap">
+                        <canvas id="panelWaveformCanvas"></canvas>
+                        <div class="spectrogram-cursor" id="waveformCursor"></div>
                     </div>
-                    <div class="video-controls-row">
-                        <span class="video-timecode" id="videoTimecode" onclick="toggleTimecodeMode()" title="Click to toggle time/frame display">0:00:00</span>
-                        <div class="video-progress-container" id="videoProgressContainer">
-                            <div class="video-progress-bar" id="videoProgressBar"></div>
-                        </div>
-                        <span class="video-duration" id="videoDuration">0:00:00</span>
-                        <div class="volume-control">
-                            <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute">🔊</span>
-                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
-                        </div>
-                        <div class="audio-source-selector" id="audioSourceSelector">
-                            <button onclick="selectAudioSource('original')" id="audioOriginal" class="active" title="Click to select audio source">
-                                <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('original')">🔊</span>
-                                O
-                            </button>
-                            <button onclick="selectAudioSource('editA')" id="audioEditA" title="Click to select audio source">
-                                <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editA')">🔊</span>
-                                A
-                            </button>
-                            <button onclick="selectAudioSource('editB')" id="audioEditB" title="Click to select audio source">
-                                <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editB')">🔊</span>
-                                B
-                            </button>
-                        </div>
+                    <div class="audio-viz-right"></div>
+                </div>
+                <div class="audio-viz-row spectrogram-row">
+                    <div class="audio-viz-label" id="spectrogramLabels">
+                        <span>20k</span>
+                        <span>10k</span>
+                        <span>5k</span>
+                        <span>1k</span>
+                        <span>100</span>
                     </div>
+                    <div class="audio-viz-canvas-wrap">
+                        <canvas id="spectrogramCanvas"></canvas>
+                        <div class="spectrogram-cursor" id="spectrogramCursor"></div>
+                    </div>
+                    <div class="spectrogram-toggles">
+                        <div class="spectrogram-scale-toggle" id="spectrogramPaletteToggle" onclick="cycleSpectrogramPalette()" title="Cycle color palette (Shift+C)">VIRIDIS</div>
+                        <div class="spectrogram-scale-toggle" id="spectrogramScaleToggle" onclick="toggleSpectrogramScale()" title="Toggle linear/log frequency scale (Shift+W)">LIN</div>
+                    </div>
+                </div>
+            </div>
+            <div class="video-controls-row">
+                <span class="video-timecode" id="videoTimecode" onclick="toggleTimecodeMode()" title="Click to toggle time/frame display">0:00:00</span>
+                <div class="video-progress-container" id="videoProgressContainer">
+                    <div class="video-progress-bar" id="videoProgressBar"></div>
+                </div>
+                <span class="video-duration" id="videoDuration">0:00:00</span>
+                <div class="volume-control">
+                    <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute">🔊</span>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                </div>
+                <div class="audio-source-selector" id="audioSourceSelector">
+                    <button onclick="selectAudioSource('original')" id="audioOriginal" class="active" title="Click to select audio source">
+                        <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('original')">🔊</span>
+                        O
+                    </button>
+                    <button onclick="selectAudioSource('editA')" id="audioEditA" title="Click to select audio source">
+                        <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editA')">🔊</span>
+                        A
+                    </button>
+                    <button onclick="selectAudioSource('editB')" id="audioEditB" title="Click to select audio source">
+                        <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editB')">🔊</span>
+                        B
+                    </button>
                 </div>
             </div>
         </div>
@@ -1730,6 +1708,7 @@
             return _headerEl;
         }
 
+
         // Cached progress-bar UI elements — queried once at startup, reused by
         // updateVideoProgress() which runs inside the rAF loop at 60fps.
         let _elProgressBar = null;
@@ -1985,18 +1964,95 @@
             return { L, R, sampleRate: sr, duration: audioBuffer.duration };
         }
 
+        // dB thresholds for waveform color coding
+        // amplitude = 10^(dB/20): -1dB ≈ 0.891, -6dB ≈ 0.501, -12dB ≈ 0.251
+        const WAVEFORM_DB_CLIP = 0.99;    // clipping (red)
+        const WAVEFORM_DB_1  = 0.891;     // -1 dB — hot zone (red)
+        const WAVEFORM_DB_6  = 0.501;     // -6 dB — caution (yellow)
+        const WAVEFORM_DB_12 = 0.251;     // -12 dB — normal/green boundary
+
+
+        // dB zone boundaries sorted from highest to lowest amplitude
+        const WAVEFORM_ZONES = [
+            { threshold: WAVEFORM_DB_CLIP, color: 'rgba(255, 50, 50, 0.9)' },   // clipping
+            { threshold: WAVEFORM_DB_1,    color: 'rgba(255, 80, 60, 0.85)' },   // > -1dB
+            { threshold: WAVEFORM_DB_6,    color: 'rgba(255, 200, 60, 0.8)' },   // -6 to -1dB
+            { threshold: 0,               color: null },                          // below -6dB: use default
+        ];
+
         function drawWaveformChannel(ctx, data, w, topY, halfH, color, clipColor) {
             const numBuckets = data.length / 2;
             const bucketW = w / numBuckets;
             const midY = topY + halfH;
+            const bw = Math.max(bucketW, 1);
             for (let i = 0; i < numBuckets; i++) {
                 const min = data[i * 2];
                 const max = data[i * 2 + 1];
-                const isClipping = max >= 0.99 || min <= -0.99;
-                ctx.fillStyle = isClipping ? clipColor : color;
-                const top = midY - max * halfH;
-                const bottom = midY - min * halfH;
-                ctx.fillRect(i * bucketW, top, Math.max(bucketW, 1), bottom - top);
+                const absMax = Math.max(Math.abs(max), Math.abs(min));
+                const x = i * bucketW;
+
+                // Draw the base (default color) for the full extent
+                ctx.fillStyle = color;
+                const fullTop = midY - max * halfH;
+                const fullBot = midY - min * halfH;
+                ctx.fillRect(x, fullTop, bw, fullBot - fullTop);
+
+                // Overdraw colored zones from lowest threshold up (so higher zones paint on top)
+                for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
+                    const zone = WAVEFORM_ZONES[z];
+                    if (absMax < zone.threshold) continue;
+                    const t = zone.threshold;
+                    // Draw the zone band: from threshold to peak, on both positive and negative sides
+                    if (max > t) {
+                        const zoneTop = midY - max * halfH;
+                        const zoneBot = midY - t * halfH;
+                        ctx.fillStyle = zone.color;
+                        ctx.fillRect(x, zoneTop, bw, zoneBot - zoneTop);
+                    }
+                    if (min < -t) {
+                        const zoneTop = midY + t * halfH;
+                        const zoneBot = midY - min * halfH;
+                        ctx.fillStyle = zone.color;
+                        ctx.fillRect(x, zoneTop, bw, zoneBot - zoneTop);
+                    }
+                }
+            }
+        }
+
+        const WAVEFORM_DB_LEVELS = [
+            { db: -1,  amp: WAVEFORM_DB_1 },
+            { db: -6,  amp: WAVEFORM_DB_6 },
+            { db: -12, amp: WAVEFORM_DB_12 },
+            { db: -24, amp: 0.063 },
+        ];
+
+        function drawWaveformDbGrid(ctx, w, topY, halfH) {
+            const midY = topY + halfH;
+            for (const { amp } of WAVEFORM_DB_LEVELS) {
+                const yOff = amp * halfH;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 0.5;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(0, midY - yOff);
+                ctx.lineTo(w, midY - yOff);
+                ctx.moveTo(0, midY + yOff);
+                ctx.lineTo(w, midY + yOff);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function updateWaveformLabels(slot) {
+            const labels = document.getElementById('waveformLabels');
+            if (!labels) return;
+            labels.style.position = ''; // clear any stale inline style
+            const data = waveformData[slot];
+            const isStereo = data && data.R;
+            if (isStereo) {
+                labels.innerHTML = '<span style="color:#50c850">L</span><span style="color:#50c850">R</span>';
+            } else {
+                labels.innerHTML = '<span>&nbsp;</span><span style="color:#888">MONO</span><span>&nbsp;</span>';
             }
         }
 
@@ -2019,31 +2075,24 @@
 
             if (data.R) {
                 const halfH = h / 2;
-                drawWaveformChannel(ctx, data.L, w, 0, halfH, 'rgba(100, 180, 255, 0.8)', 'rgba(255, 80, 80, 0.7)');
-                drawWaveformChannel(ctx, data.R, w, halfH, halfH, 'rgba(255, 160, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformChannel(ctx, data.L, w, 0, halfH, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformChannel(ctx, data.R, w, halfH, halfH, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformDbGrid(ctx, w, 0, halfH);
+                drawWaveformDbGrid(ctx, w, halfH, halfH);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.beginPath();
                 ctx.moveTo(0, halfH);
                 ctx.lineTo(w, halfH);
                 ctx.stroke();
             } else {
-                drawWaveformChannel(ctx, data.L, w, 0, h / 2, 'rgba(100, 180, 255, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformChannel(ctx, data.L, w, 0, h / 2, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformDbGrid(ctx, w, 0, h / 2);
             }
         }
 
         function drawWaveform(slot) {
             drawWaveformToCanvas(document.getElementById('panelWaveformCanvas'), slot);
-
-            // Update waveform labels for mono vs stereo
-            const labels = document.getElementById('waveformLabels');
-            if (labels) {
-                const data = waveformData[slot];
-                if (data && data.R) {
-                    labels.innerHTML = '<span style="color:#6ab4ff">L</span><span style="color:#ffa050">R</span>';
-                } else {
-                    labels.innerHTML = '<span>&nbsp;</span><span>&nbsp;</span>';
-                }
-            }
+            updateWaveformLabels(slot);
         }
 
         function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH, sampleRate) {
@@ -2191,6 +2240,15 @@
                 // Redraw after slide transition completes and canvases have dimensions
                 setTimeout(() => {
                     updateAudioVisForSlot(slot);
+                    // Re-layout: controls changed size
+                    if (isSplitMode) positionLabelsToMedia();
+                    else applyZoom();
+                }, 350);
+            } else {
+                // Panel closing — re-layout after transition to reclaim space
+                setTimeout(() => {
+                    if (isSplitMode) positionLabelsToMedia();
+                    else applyZoom();
                 }, 350);
             }
         }
@@ -2981,6 +3039,8 @@
 
             const headerEl = getHeaderEl();
             const headerH = headerEl ? headerEl.offsetHeight : 50;
+            const controlsEl = document.getElementById('videoControls');
+            const controlsH = (controlsEl && controlsEl.classList.contains('active')) ? controlsEl.offsetHeight : 0;
 
             // Compute a shared scale anchored to the narrowest asset's width.
             // Every asset is rendered so its width = minNW * sharedScale, giving identical
@@ -3004,7 +3064,7 @@
                 const viewW = window.innerWidth;
                 const sampleBarFit = document.querySelector('.overlay-layer.active .video-wrapper > .asset-info-bar');
                 const infoBarHFit = sampleBarFit && sampleBarFit.offsetHeight > 0 ? sampleBarFit.offsetHeight : 22;
-                const viewH = window.innerHeight - headerH - infoBarHFit - 1;
+                const viewH = window.innerHeight - headerH - infoBarHFit - 1 - controlsH;
                 if (minNW > 0) {
                     // fitZoom = scale that makes the narrowest asset's width fill the viewport.
                     // Height is also clamped: find the tallest rendered height across all assets
@@ -3039,7 +3099,7 @@
             // Measure from the active layer's info bar (non-active ones are display:none → offsetHeight 0).
             const sampleBar = document.querySelector('.overlay-layer.active .video-wrapper > .asset-info-bar');
             const infoBarH = sampleBar && sampleBar.offsetHeight > 0 ? sampleBar.offsetHeight : 22;
-            const availH = window.innerHeight - headerH - infoBarH - 1;
+            const availH = window.innerHeight - headerH - infoBarH - 1 - controlsH;
             assetOrder.forEach(slot => {
                 if (!mediaData[slot]) return;
                 const layer = getLayer(slot);
@@ -3948,7 +4008,9 @@
             if (isVertical && Object.keys(slotRenderedH).length > 0) {
                 const headerEl = getHeaderEl();
                 const headerH = headerEl ? headerEl.offsetHeight : 39;
-                const availH = window.innerHeight - headerH;
+                const controlsEl = document.getElementById('videoControls');
+                const controlsH = (controlsEl && controlsEl.classList.contains('active')) ? controlsEl.offsetHeight : 0;
+                const availH = window.innerHeight - headerH - controlsH;
                 const loadedSlots = slots.filter(s => slotRenderedH[s] !== undefined);
 
                 // Compute total content height and total info bar height
@@ -4001,13 +4063,7 @@
                 const firstLayer = getLayer(firstSlot);
                 if (firstLayer) firstLayer.style.marginTop = topPad + 'px';
 
-                // Position video controls below the video group
-                const controls = document.querySelector('.video-controls');
-                if (controls) {
-                    const groupBottom = topPad + scaledTotalH + headerH;
-                    const bottomGap = window.innerHeight - groupBottom;
-                    controls.style.bottom = Math.max(8, Math.round(bottomGap / 2)) + 'px';
-                }
+                // Controls are in document flow — no positioning needed
             }
 
             // If any loaded slot had a zero-dimension container (layout not yet committed),
@@ -4152,6 +4208,7 @@
                         zi.style.bottom = '';
                         zi.style.right = '';
                     });
+
                 };
 
                 // Tripartite: grid cell sizes only stabilise after a layout pass,
