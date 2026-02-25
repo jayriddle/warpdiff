@@ -1584,6 +1584,10 @@
         function updateMagnifier(e) {
             _lastMouseEvent = e;
             if (!magnifierEnabled) return;
+            if (isPanning) {
+                document.getElementById('pixelMagnifier').classList.remove('active');
+                return;
+            }
             const mag = document.getElementById('pixelMagnifier');
             const wrapper = findWrapperUnderCursor(e.clientX, e.clientY);
             if (!wrapper) { mag.classList.remove('active'); return; }
