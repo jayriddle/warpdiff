@@ -1065,6 +1065,29 @@
             opacity: 1;
         }
 
+        /* When magnifier is active, use crosshair cursor over media */
+        body.magnifier-active .overlay-container,
+        body.magnifier-active .overlay-container.panning,
+        body.magnifier-active .video-wrapper {
+            cursor: crosshair !important;
+        }
+
+        /* Pixel magnifier / loupe */
+        .pixel-magnifier {
+            position: fixed;
+            width: 200px; height: 200px;
+            z-index: 301;
+            pointer-events: none;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            background: #000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            display: none;
+            overflow: hidden;
+        }
+        .pixel-magnifier.active { display: block; }
+        .pixel-magnifier canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+
         .zoom-indicator {
             display: none; /* removed — split-zoom-indicator on the image is sufficient */
         }
@@ -1342,6 +1365,10 @@
                     </div>
                 </div>
                 
+                <div class="pixel-magnifier" id="pixelMagnifier">
+                    <canvas id="magnifierCanvas" width="200" height="200"></canvas>
+                </div>
+
                 <div class="identical-warning" id="identicalWarning">
                     ⚠️ Identical Assets Detected
                 </div>
@@ -1523,6 +1550,132 @@
             _zoomToastTimer = setTimeout(() => el.classList.remove('visible'), duration);
         }
 
+        // ── Pixel Magnifier / Loupe ──────────────────────────────────────
+        const MAGNIFIER_SIZE = 200;
+        let magnifierZoom = 8;
+        const MAGNIFIER_ZOOM_MIN = 2;
+        const MAGNIFIER_ZOOM_MAX = 32;
+        const MAGNIFIER_OFFSET = 10;
+        let _lastMouseEvent = null; // cached for magnifier refresh on layer switch
+
+        function toggleMagnifier() {
+            magnifierEnabled = !magnifierEnabled;
+            const el = document.getElementById('pixelMagnifier');
+            if (magnifierEnabled) {
+                el.classList.add('active');
+                document.body.classList.add('magnifier-active');
+                showToast('Magnifier ON');
+            } else {
+                el.classList.remove('active');
+                document.body.classList.remove('magnifier-active');
+                showToast('Magnifier OFF');
+            }
+        }
+
+        function findWrapperUnderCursor(x, y) {
+            const wrappers = document.querySelectorAll('.video-wrapper');
+            for (const w of wrappers) {
+                const r = w.getBoundingClientRect();
+                if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return w;
+            }
+            return null;
+        }
+
+        function updateMagnifier(e) {
+            _lastMouseEvent = e;
+            if (!magnifierEnabled) return;
+            const mag = document.getElementById('pixelMagnifier');
+            const wrapper = findWrapperUnderCursor(e.clientX, e.clientY);
+            if (!wrapper) { mag.classList.remove('active'); return; }
+
+            // In overlay mode, multiple wrappers overlap; use the active layer's media & wrapper
+            let media, targetWrapper;
+            if (!isSplitMode) {
+                const activeLayer = document.querySelector('.overlay-layer.active');
+                if (!activeLayer) { mag.classList.remove('active'); return; }
+                targetWrapper = activeLayer.querySelector('.video-wrapper');
+                media = targetWrapper ? targetWrapper.querySelector('img, video') : null;
+            } else {
+                targetWrapper = wrapper;
+                media = wrapper.querySelector('img, video');
+            }
+            if (!media) { mag.classList.remove('active'); return; }
+
+            const natW = media.naturalWidth || media.videoWidth;
+            const natH = media.naturalHeight || media.videoHeight;
+            if (!natW || !natH) { mag.classList.remove('active'); return; }
+
+            mag.classList.add('active');
+
+            // Map cursor to native pixel coords
+            const rect = targetWrapper.getBoundingClientRect();
+            const relX = (e.clientX - rect.left) / rect.width;
+            const relY = (e.clientY - rect.top) / rect.height;
+            const nativeX = relX * natW;
+            const nativeY = relY * natH;
+
+            // Source region in native pixels (centered on cursor position).
+            // Magnification is relative to the fit-to-viewport ("normalized") size
+            // in overlay mode, and relative to current screen rendering in split mode.
+            const screenScale = rect.width / natW; // current screen px per native px
+            let effectiveScale;
+            if (!isSplitMode) {
+                // Normalize to fit-to-viewport: cancel out the current zoomLevel
+                effectiveScale = screenScale * fitZoom / zoomLevel;
+            } else {
+                effectiveScale = screenScale;
+            }
+            const srcW = MAGNIFIER_SIZE / (magnifierZoom * effectiveScale);
+            const srcX = nativeX - srcW / 2;
+            const srcY = nativeY - srcW / 2;
+
+            // Draw magnified region
+            const canvas = document.getElementById('magnifierCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(media, srcX, srcY, srcW, srcW, 0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+
+            // Draw crosshair at center
+            const cx = MAGNIFIER_SIZE / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, MAGNIFIER_SIZE);
+            ctx.moveTo(0, cx); ctx.lineTo(MAGNIFIER_SIZE, cx);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, MAGNIFIER_SIZE);
+            ctx.moveTo(0, cx); ctx.lineTo(MAGNIFIER_SIZE, cx);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw magnification label in bottom-right corner
+            const label = magnifierZoom + '×';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(MAGNIFIER_SIZE - ctx.measureText(label).width - 8, MAGNIFIER_SIZE - 16, ctx.measureText(label).width + 6, 14);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText(label, MAGNIFIER_SIZE - 4, MAGNIFIER_SIZE - 3);
+
+            // Position magnifier near cursor, flipping at edges
+            let left = e.clientX + MAGNIFIER_OFFSET;
+            let top = e.clientY + MAGNIFIER_OFFSET;
+            const totalSize = MAGNIFIER_SIZE + 4; // include border
+            if (left + totalSize > window.innerWidth) left = e.clientX - MAGNIFIER_OFFSET - totalSize;
+            if (top + totalSize > window.innerHeight) top = e.clientY - MAGNIFIER_OFFSET - totalSize;
+            if (left < 0) left = MAGNIFIER_OFFSET;
+            if (top < 0) top = MAGNIFIER_OFFSET;
+            mag.style.left = left + 'px';
+            mag.style.top = top + 'px';
+        }
+
+        document.addEventListener('mousemove', updateMagnifier);
+
         let currentAssetIndex = 0;
         // isFullscreen removed — zoom/pan always available in overlay; browser fullscreen via F key
         let hasVideos = false;
@@ -1547,6 +1700,7 @@
         let waveformData = {};         // { slot: Float32Array } — downsampled amplitude
         let spectrogramData = {};      // { slot: { data: Uint8Array[], sampleRate, duration } }
         let audioVizVisible = false;   // W key toggle
+        let magnifierEnabled = false;   // M key toggle (pixel magnifier)
         let spectrogramLogScale = false; // linear vs log frequency axis
         let audioFileBuffers = {};     // { slot: ArrayBuffer } — raw file data for decoding
         // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
@@ -2712,6 +2866,9 @@
 
             // Refresh active highlight and slide the underline to the new asset button
             refreshAssetButtons();
+
+            // Refresh magnifier so it shows the newly active layer's pixels
+            if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
         }
 
         // Setup video scrubbing with drag support
@@ -3103,6 +3260,10 @@
             spectrogramData = {};
             audioFileBuffers = {};
             audioVizVisible = false;
+            magnifierEnabled = false;
+            magnifierZoom = 8;
+            document.getElementById('pixelMagnifier').classList.remove('active');
+            document.body.classList.remove('magnifier-active');
             spectrogramLogScale = false;
             currentPaletteIndex = 0;
             spectrogramPalette = spectrogramPalettes.viridis;
@@ -4393,13 +4554,23 @@
                     document.exitFullscreen();
                 }
             } else if (e.key === '+' || e.key === '=') {
-                // Zoom in (overlay mode only — always available, no mode gate)
                 e.preventDefault();
-                zoomIn();
+                if (magnifierEnabled) {
+                    magnifierZoom = Math.min(magnifierZoom * 2, MAGNIFIER_ZOOM_MAX);
+                    showToast('Magnifier ' + magnifierZoom + '×');
+                    if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
+                } else {
+                    zoomIn();
+                }
             } else if (e.key === '-' || e.key === '_') {
-                // Zoom out (overlay mode only)
                 e.preventDefault();
-                zoomOut();
+                if (magnifierEnabled) {
+                    magnifierZoom = Math.max(magnifierZoom / 2, MAGNIFIER_ZOOM_MIN);
+                    showToast('Magnifier ' + magnifierZoom + '×');
+                    if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
+                } else {
+                    zoomOut();
+                }
             } else if (e.key === '0') {
                 e.preventDefault();
                 resetFitZoom();
@@ -4456,9 +4627,9 @@
                 e.preventDefault();
                 if (hasVideos) toggleAudioViz();
             } else if (e.key === 'm' || e.key === 'M') {
-                // M key toggles mute
+                // M key toggles pixel magnifier
                 e.preventDefault();
-                toggleMute();
+                toggleMagnifier();
             } else if (e.key === 'o' || e.key === 'O') {
                 // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2).
                 e.preventDefault();
@@ -4637,7 +4808,7 @@
                 <tr><td><kbd>1</kbd></td><td>Zoom to 100% / toggle 100% cap</td></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
-                <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Toggle pixel magnifier</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
                 <tr><td><kbd>W</kbd></td><td>Toggle waveform / spectrogram</td></tr>
@@ -4687,7 +4858,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧C</kbd></span><span class="shortcut-desc">Cycle color palette</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Pixel magnifier</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
         </div>
