@@ -1534,7 +1534,7 @@
         const magnifierSize_MIN = 100;
         const magnifierSize_MAX = 400;
         const magnifierSize_STEP = 50;
-        let magnifierZoom = 8;
+        let magnifierZoom = 4;
         const MAGNIFIER_ZOOM_MIN = 2;
         const MAGNIFIER_ZOOM_MAX = 32;
         let _lastMouseEvent = null; // cached for magnifier refresh on layer switch
@@ -1550,18 +1550,24 @@
             if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
         }
 
+        let _magnifierHintShown = false;
         function toggleMagnifier() {
             magnifierEnabled = !magnifierEnabled;
             const el = document.getElementById('pixelMagnifier');
             if (magnifierEnabled) {
                 document.body.classList.add('magnifier-active');
-                showToast('Magnifier ON');
+                if (!_magnifierHintShown) {
+                    _magnifierHintShown = true;
+                    showToast('Zoom ON — +/− level · [ ] resize');
+                } else {
+                    showToast('Zoom ON');
+                }
                 // Don't show until cursor is over media — updateMagnifier will add 'active'
                 if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
             } else {
                 el.classList.remove('active');
                 document.body.classList.remove('magnifier-active');
-                showToast('Magnifier OFF');
+                showToast('Zoom OFF');
             }
         }
 
@@ -3334,7 +3340,7 @@
             audioFileBuffers = {};
             audioVizVisible = false;
             magnifierEnabled = false;
-            magnifierZoom = 8;
+            magnifierZoom = 4;
             magnifierSize = 200;
             document.getElementById('pixelMagnifier').classList.remove('active');
             document.body.classList.remove('magnifier-active');
@@ -4632,7 +4638,7 @@
                 e.preventDefault();
                 if (magnifierEnabled) {
                     magnifierZoom = Math.min(magnifierZoom * 2, MAGNIFIER_ZOOM_MAX);
-                    showToast('Magnifier ' + magnifierZoom + '×');
+                    showToast('Zoom ' + magnifierZoom + '×');
                     if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
                 } else {
                     zoomIn();
@@ -4641,7 +4647,7 @@
                 e.preventDefault();
                 if (magnifierEnabled) {
                     magnifierZoom = Math.max(magnifierZoom / 2, MAGNIFIER_ZOOM_MIN);
-                    showToast('Magnifier ' + magnifierZoom + '×');
+                    showToast('Zoom ' + magnifierZoom + '×');
                     if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
                 } else {
                     zoomOut();
@@ -4701,8 +4707,8 @@
                 // W key toggles audio visualization (spectrogram)
                 e.preventDefault();
                 if (hasVideos) toggleAudioViz();
-            } else if (e.key === 'g' || e.key === 'G') {
-                // G key toggles magnifying glass
+            } else if (e.key === 'z' || e.key === 'Z') {
+                // Z key toggles zoom/magnifier (industry standard)
                 e.preventDefault();
                 toggleMagnifier();
             } else if (e.key === '[') {
@@ -4882,8 +4888,8 @@
             <table>
                 <tr><th>Key</th><th>Action</th></tr>
                 <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
-                <tr><td><kbd>G</kbd></td><td>Toggle magnifying glass</td></tr>
-                <tr><td><kbd>[ ]</kbd></td><td>Resize magnifying glass</td></tr>
+                <tr><td><kbd>Z</kbd></td><td>Toggle zoom loupe</td></tr>
+                <tr><td><kbd>[ ]</kbd></td><td>Resize zoom loupe</td></tr>
                 <tr><td><kbd>← →</kbd></td><td>Switch asset (Overlay mode)</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Toggle Overlay mode</td></tr>
                 <tr><td><kbd>C</kbd></td><td>Toggle Compare / 3-UP mode</td></tr>
@@ -4928,13 +4934,14 @@
         </div>
         <div class="shortcuts-list">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Load files</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>G</kbd></span><span class="shortcut-desc">Magnifying glass</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>[</kbd> <kbd>]</kbd></span><span class="shortcut-desc">Resize magnifier</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>Z</kbd></span><span class="shortcut-desc">Zoom loupe</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>[</kbd> <kbd>]</kbd></span><span class="shortcut-desc">Resize loupe</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>−</kbd></span><span class="shortcut-desc">Loupe zoom level (when active)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>←</kbd> <kbd>→</kbd></span><span class="shortcut-desc">Switch asset</span></div>
             <hr class="shortcut-divider">
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Toggle overlay mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>C</kbd></span><span class="shortcut-desc">Toggle compare mode</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>3</kbd></span><span class="shortcut-desc">3-up: Grid / 1+2</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Overlay mode</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>C</kbd></span><span class="shortcut-desc">Compare mode</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>3</kbd></span><span class="shortcut-desc">3-Up: Grid / 1+2</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>F</kbd></span><span class="shortcut-desc">Browser fullscreen</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
@@ -4943,11 +4950,11 @@
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>Space</kbd></span><span class="shortcut-desc">Play / Pause</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>,</kbd> <kbd>.</kbd></span><span class="shortcut-desc">Frame back / forward</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>W</kbd></span><span class="shortcut-desc">Audio waveform / spectrogram</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧C</kbd></span><span class="shortcut-desc">Cycle color palette</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
         </div>
