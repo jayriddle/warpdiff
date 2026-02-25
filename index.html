@@ -2229,6 +2229,19 @@
             }
         }
 
+        // Run re-layout continuously for durationMs using rAF.
+        // Used when a panel slides open/closed so media resizes smoothly.
+        let _relayoutEndTime = 0;
+        function animateRelayout(durationMs) {
+            _relayoutEndTime = performance.now() + durationMs;
+            function tick() {
+                if (isSplitMode) positionLabelsToMedia();
+                else applyZoom();
+                if (performance.now() < _relayoutEndTime) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
         function toggleAudioViz() {
             audioVizVisible = !audioVizVisible;
             const panel = document.getElementById('spectrogramPanel');
@@ -2243,20 +2256,11 @@
                     }
                 }
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
-                // Redraw after slide transition completes and canvases have dimensions
-                setTimeout(() => {
-                    updateAudioVisForSlot(slot);
-                    // Re-layout: controls changed size
-                    if (isSplitMode) positionLabelsToMedia();
-                    else applyZoom();
-                }, 350);
-            } else {
-                // Panel closing — re-layout after transition to reclaim space
-                setTimeout(() => {
-                    if (isSplitMode) positionLabelsToMedia();
-                    else applyZoom();
-                }, 350);
+                // Redraw once canvases have dimensions (after first frame)
+                requestAnimationFrame(() => updateAudioVisForSlot(slot));
             }
+            // Continuously re-layout during the CSS transition so media resizes smoothly
+            animateRelayout(350);
         }
 
         function toggleSpectrogramScale() {
@@ -4040,6 +4044,18 @@
                 let fillScale = 1;
                 if (splitStepZoom === 1.0 && splitZoomLevel !== 1 && totalH < availH && totalVideoH > 0) {
                     fillScale = (availH - totalIbH) / totalVideoH;
+                    // Clamp so no video extends beyond the viewport width
+                    const viewW = window.innerWidth;
+                    loadedSlots.forEach(slot => {
+                        const layer = getLayer(slot);
+                        const vw = layer ? layer.querySelector('.video-wrapper') : null;
+                        const curW = vw ? parseFloat(vw.style.width || 0) : 0;
+                        const curH = slotRenderedH[slot] || 1;
+                        if (curW > 0 && curH > 0) {
+                            const maxScale = viewW / curW;
+                            if (maxScale < fillScale) fillScale = maxScale;
+                        }
+                    });
                 }
 
                 // Apply per-slot: shrink layer to ibReserve + scaled video height
