@@ -1075,7 +1075,7 @@
         /* Pixel magnifier / loupe */
         .pixel-magnifier {
             position: fixed;
-            width: 200px; height: 200px;
+            width: 200px; height: 200px; /* default; JS overrides on resize */
             z-index: 301;
             pointer-events: none;
             border: 2px solid rgba(255, 255, 255, 0.8);
@@ -1084,6 +1084,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
             display: none;
             overflow: hidden;
+            transform: translate(-50%, -50%);
         }
         .pixel-magnifier.active { display: block; }
         .pixel-magnifier canvas { width: 100%; height: 100%; image-rendering: pixelated; }
@@ -1551,20 +1552,34 @@
         }
 
         // ── Pixel Magnifier / Loupe ──────────────────────────────────────
-        const MAGNIFIER_SIZE = 200;
+        let magnifierSize = 200;
+        const magnifierSize_MIN = 100;
+        const magnifierSize_MAX = 400;
+        const magnifierSize_STEP = 50;
         let magnifierZoom = 8;
         const MAGNIFIER_ZOOM_MIN = 2;
         const MAGNIFIER_ZOOM_MAX = 32;
-        const MAGNIFIER_OFFSET = 10;
         let _lastMouseEvent = null; // cached for magnifier refresh on layer switch
+
+        function resizeMagnifier(delta) {
+            magnifierSize = Math.max(magnifierSize_MIN, Math.min(magnifierSize + delta, magnifierSize_MAX));
+            const el = document.getElementById('pixelMagnifier');
+            const canvas = document.getElementById('magnifierCanvas');
+            el.style.width = magnifierSize + 'px';
+            el.style.height = magnifierSize + 'px';
+            canvas.width = magnifierSize;
+            canvas.height = magnifierSize;
+            if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
+        }
 
         function toggleMagnifier() {
             magnifierEnabled = !magnifierEnabled;
             const el = document.getElementById('pixelMagnifier');
             if (magnifierEnabled) {
-                el.classList.add('active');
                 document.body.classList.add('magnifier-active');
                 showToast('Magnifier ON');
+                // Don't show until cursor is over media — updateMagnifier will add 'active'
+                if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
             } else {
                 el.classList.remove('active');
                 document.body.classList.remove('magnifier-active');
@@ -1629,30 +1644,30 @@
             } else {
                 effectiveScale = screenScale;
             }
-            const srcW = MAGNIFIER_SIZE / (magnifierZoom * effectiveScale);
+            const srcW = magnifierSize / (magnifierZoom * effectiveScale);
             const srcX = nativeX - srcW / 2;
             const srcY = nativeY - srcW / 2;
 
             // Draw magnified region
             const canvas = document.getElementById('magnifierCanvas');
             const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+            ctx.clearRect(0, 0, magnifierSize, magnifierSize);
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(media, srcX, srcY, srcW, srcW, 0, 0, MAGNIFIER_SIZE, MAGNIFIER_SIZE);
+            ctx.drawImage(media, srcX, srcY, srcW, srcW, 0, 0, magnifierSize, magnifierSize);
 
             // Draw crosshair at center
-            const cx = MAGNIFIER_SIZE / 2;
+            const cx = magnifierSize / 2;
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(cx, 0); ctx.lineTo(cx, MAGNIFIER_SIZE);
-            ctx.moveTo(0, cx); ctx.lineTo(MAGNIFIER_SIZE, cx);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
+            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
             ctx.stroke();
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
             ctx.setLineDash([2, 2]);
             ctx.beginPath();
-            ctx.moveTo(cx, 0); ctx.lineTo(cx, MAGNIFIER_SIZE);
-            ctx.moveTo(0, cx); ctx.lineTo(MAGNIFIER_SIZE, cx);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
+            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
             ctx.stroke();
             ctx.setLineDash([]);
 
@@ -1662,20 +1677,13 @@
             ctx.textAlign = 'right';
             ctx.textBaseline = 'bottom';
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(MAGNIFIER_SIZE - ctx.measureText(label).width - 8, MAGNIFIER_SIZE - 16, ctx.measureText(label).width + 6, 14);
+            ctx.fillRect(magnifierSize - ctx.measureText(label).width - 8, magnifierSize - 16, ctx.measureText(label).width + 6, 14);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillText(label, MAGNIFIER_SIZE - 4, MAGNIFIER_SIZE - 3);
+            ctx.fillText(label, magnifierSize - 4, magnifierSize - 3);
 
-            // Position magnifier near cursor, flipping at edges
-            let left = e.clientX + MAGNIFIER_OFFSET;
-            let top = e.clientY + MAGNIFIER_OFFSET;
-            const totalSize = MAGNIFIER_SIZE + 4; // include border
-            if (left + totalSize > window.innerWidth) left = e.clientX - MAGNIFIER_OFFSET - totalSize;
-            if (top + totalSize > window.innerHeight) top = e.clientY - MAGNIFIER_OFFSET - totalSize;
-            if (left < 0) left = MAGNIFIER_OFFSET;
-            if (top < 0) top = MAGNIFIER_OFFSET;
-            mag.style.left = left + 'px';
-            mag.style.top = top + 'px';
+            // Center magnifier on cursor (crosshair aligns with inspection point)
+            mag.style.left = e.clientX + 'px';
+            mag.style.top = e.clientY + 'px';
         }
 
         document.addEventListener('mousemove', updateMagnifier);
@@ -2517,6 +2525,7 @@
 
                 if (primaryVideo && !primaryVideo.paused) {
                     updateVideoProgress(primaryVideo);
+                    if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
                     globalAnimationId = requestAnimationFrame(updateLoop);
                 } else {
                     // Nothing is playing — stop the loop; it restarts on the next play event
@@ -3266,6 +3275,7 @@
             audioVizVisible = false;
             magnifierEnabled = false;
             magnifierZoom = 8;
+            magnifierSize = 200;
             document.getElementById('pixelMagnifier').classList.remove('active');
             document.body.classList.remove('magnifier-active');
             spectrogramLogScale = false;
@@ -4494,9 +4504,13 @@
             isMuted = !isMuted;
             const btn = document.getElementById('muteBtn');
 
-            getAllVideos().forEach(v => {
-                v.muted = isMuted;
-            });
+            if (isMuted) {
+                // Mute all videos
+                getAllVideos().forEach(v => { v.muted = true; });
+            } else {
+                // Unmute: re-apply audio source routing so only the active source plays
+                selectAudioSource(currentAudioSource);
+            }
 
             btn.textContent = isMuted ? '🔇' : '🔊';
         }
@@ -4630,10 +4644,20 @@
                 // W key toggles audio visualization (spectrogram)
                 e.preventDefault();
                 if (hasVideos) toggleAudioViz();
-            } else if (e.key === 'm' || e.key === 'M') {
-                // M key toggles pixel magnifier
+            } else if (e.key === 'g' || e.key === 'G') {
+                // G key toggles magnifying glass
                 e.preventDefault();
                 toggleMagnifier();
+            } else if (e.key === '[') {
+                e.preventDefault();
+                if (magnifierEnabled) resizeMagnifier(-magnifierSize_STEP);
+            } else if (e.key === ']') {
+                e.preventDefault();
+                if (magnifierEnabled) resizeMagnifier(magnifierSize_STEP);
+            } else if (e.key === 'm' || e.key === 'M') {
+                // M key toggles mute
+                e.preventDefault();
+                toggleMute();
             } else if (e.key === 'o' || e.key === 'O') {
                 // O key toggles overlay <-> split (tripartite for 3 assets, auto-layout for 2).
                 e.preventDefault();
@@ -4801,6 +4825,8 @@
             <table>
                 <tr><th>Key</th><th>Action</th></tr>
                 <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
+                <tr><td><kbd>G</kbd></td><td>Toggle magnifying glass</td></tr>
+                <tr><td><kbd>[ ]</kbd></td><td>Resize magnifying glass</td></tr>
                 <tr><td><kbd>← →</kbd></td><td>Switch asset (Overlay mode)</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Toggle Overlay mode</td></tr>
                 <tr><td><kbd>C</kbd></td><td>Toggle Compare / 3-UP mode</td></tr>
@@ -4812,7 +4838,7 @@
                 <tr><td><kbd>1</kbd></td><td>Zoom to 100% / toggle 100% cap</td></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
-                <tr><td><kbd>M</kbd></td><td>Toggle pixel magnifier</td></tr>
+                <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
                 <tr><td><kbd>W</kbd></td><td>Toggle waveform / spectrogram</td></tr>
@@ -4845,6 +4871,8 @@
         </div>
         <div class="shortcuts-list">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Load files</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>G</kbd></span><span class="shortcut-desc">Magnifying glass</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>[</kbd> <kbd>]</kbd></span><span class="shortcut-desc">Resize magnifier</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>←</kbd> <kbd>→</kbd></span><span class="shortcut-desc">Switch asset</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Toggle overlay mode</span></div>
@@ -4862,7 +4890,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧C</kbd></span><span class="shortcut-desc">Cycle color palette</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Pixel magnifier</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
         </div>
