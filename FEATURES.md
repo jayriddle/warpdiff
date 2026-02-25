@@ -1,27 +1,37 @@
 # WarpDiff
 
-Visual & audio comparison for creative review
+Visual & audio comparison for creative review. No setup, no install — runs in your browser.
 
-## Compare side-by-side or in overlay
+## Load and compare instantly
 
-Load 2–3 images or videos and instantly switch between side-by-side, 3-up grid, and overlay modes. Flip between assets with arrow keys.
+Load 2–3 images or videos by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original, Edit A, and Edit B.
 
-## Pixel-level precision
+## View modes
 
-Zoom from fit-to-screen down to 100% native pixels. Pan freely. See exactly what changed.
+- **Overlay** (`O`) — flip between assets with arrow keys, same position and zoom
+- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks the best layout
+- **3-Up** (`3`) — original on the left, two edits stacked on the right — more space-efficient so you see assets larger in the same viewport
+
+## Zoom loupe
+
+Press `Z` for a circular zoom loupe that follows your cursor, showing magnified native pixels without changing the overall zoom level.
+
+- `+`/`-` adjust magnification (2×–32×)
+- `[`/`]` resize the loupe (100–400px)
+- `Shift+Z` enables linked zoom — hover one asset, see the same spot magnified on all others (Grid/3-Up modes)
 
 ## Synchronized video playback
 
-All videos play in sync with shared transport controls. Scrub, frame-step with comma/period, and restart together.
+All videos play in sync with shared transport controls. Scrub, frame-step with `,`/`.`, and restart together. Per-source audio switching lets you listen to any asset's audio track independently.
 
 ## Audio visualization
 
-Toggle waveform and spectrogram views to spot compression, clipping, and frequency differences. Switch between linear and log frequency scales for deep bass detail.
-
-## Works instantly
-
-No install, no account, no upload. Open in any browser, drag and drop your files. Everything stays local on your machine.
+Press `W` to toggle waveform and spectrogram views. Waveform uses dB color coding — green for normal levels, yellow for caution (>-6dB), red for hot/clipping (>-1dB). Spectrogram supports linear/log frequency scale (`Shift+W`) and multiple color palettes (`Shift+C`).
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Compare, overlay, zoom, mute, step frames — all without touching the mouse.
+Every action has a hotkey. Press `K` to see them all, `Esc` to dismiss. Your preferences — loupe size, magnification, volume, spectrogram settings — persist across sessions.
+
+## Works instantly
+
+No install, no account, no upload. Open in any browser, load your files. Everything stays local on your machine.

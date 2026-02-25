@@ -5071,6 +5071,18 @@
             </table>
             <p>Zoom range: 5%–3200%. Each step multiplies/divides by √2 (~1.41×). In split modes, pressing <kbd>1</kbd> toggles between fit-to-panel and 100% cap.</p>
 
+            <h2>Zoom Loupe</h2>
+            <p>Press <kbd>Z</kbd> to toggle a circular zoom loupe that follows your cursor, showing a magnified view of native pixels without changing the overall zoom level. Works in all view modes.</p>
+            <table>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+                <tr><td><kbd>Z</kbd></td><td>Toggle zoom loupe</td></tr>
+                <tr><td><kbd>+</kbd> <kbd>−</kbd></td><td>Adjust magnification (2×–32×, when loupe is active)</td></tr>
+                <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Resize loupe (100–400px)</td></tr>
+                <tr><td><kbd>Shift+Z</kbd></td><td>Toggle linked zoom</td></tr>
+            </table>
+            <p><strong>Linked zoom:</strong> In Grid and 3-Up modes, enabling linked zoom (<kbd>Shift+Z</kbd>) shows corresponding loupes on all other visible assets at the same relative position — hover over one asset to compare the exact same spot across all versions.</p>
+            <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
+
             <h2>Video Playback</h2>
             <p>Video controls appear at the bottom when videos are loaded. All videos play, pause, and seek in sync.</p>
             <table>
@@ -5120,7 +5132,17 @@
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>Shift+C</kbd></td><td>Cycle spectrogram color palette</td></tr>
                 <tr><td><kbd>K</kbd></td><td>Toggle shortcuts panel</td></tr>
+                <tr><td><kbd>Esc</kbd></td><td>Dismiss loupe / close panel</td></tr>
             </table>
+
+            <h2>Preferences</h2>
+            <p>The following settings are saved to your browser and persist across sessions and page reloads:</p>
+            <ul>
+                <li>Zoom loupe size and magnification level</li>
+                <li>Linked zoom on/off</li>
+                <li>Volume level</li>
+                <li>Spectrogram scale (linear/log) and color palette</li>
+            </ul>
 
             <h2>Info Bar</h2>
             <p>Each asset displays an info bar showing: slot name, resolution (e.g. <code>1920×1080</code>), aspect ratio (e.g. <code>16:9</code>), and duration for videos or <code>—</code> for images.</p>
