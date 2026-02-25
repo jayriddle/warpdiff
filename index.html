@@ -1347,6 +1347,12 @@
                 <div class="pixel-magnifier" id="pixelMagnifier">
                     <canvas id="magnifierCanvas" width="200" height="200"></canvas>
                 </div>
+                <div class="pixel-magnifier" id="pixelMagnifier1">
+                    <canvas width="200" height="200"></canvas>
+                </div>
+                <div class="pixel-magnifier" id="pixelMagnifier2">
+                    <canvas width="200" height="200"></canvas>
+                </div>
 
                 <div class="identical-warning" id="identicalWarning">
                     ⚠️ Identical Assets Detected
@@ -1539,14 +1545,18 @@
         const MAGNIFIER_ZOOM_MAX = 32;
         let _lastMouseEvent = null; // cached for magnifier refresh on layer switch
 
+        const _magnifierEls = ['pixelMagnifier', 'pixelMagnifier1', 'pixelMagnifier2'];
+
         function resizeMagnifier(delta) {
             magnifierSize = Math.max(magnifierSize_MIN, Math.min(magnifierSize + delta, magnifierSize_MAX));
-            const el = document.getElementById('pixelMagnifier');
-            const canvas = document.getElementById('magnifierCanvas');
-            el.style.width = magnifierSize + 'px';
-            el.style.height = magnifierSize + 'px';
-            canvas.width = magnifierSize;
-            canvas.height = magnifierSize;
+            _magnifierEls.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.style.width = magnifierSize + 'px';
+                el.style.height = magnifierSize + 'px';
+                const canvas = el.querySelector('canvas');
+                if (canvas) { canvas.width = magnifierSize; canvas.height = magnifierSize; }
+            });
             if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
         }
 
@@ -1558,14 +1568,17 @@
                 document.body.classList.add('magnifier-active');
                 if (!_magnifierHintShown) {
                     _magnifierHintShown = true;
-                    showToast('Zoom ON — +/− level · [ ] resize');
+                    showToast('Zoom ON — +/− level · [ ] resize · ⇧Z linked');
                 } else {
                     showToast('Zoom ON');
                 }
                 // Don't show until cursor is over media — updateMagnifier will add 'active'
                 if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
             } else {
-                el.classList.remove('active');
+                _magnifierEls.forEach(id => {
+                    const m = document.getElementById(id);
+                    if (m) m.classList.remove('active');
+                });
                 document.body.classList.remove('magnifier-active');
                 showToast('Zoom OFF');
             }
@@ -1580,15 +1593,77 @@
             return null;
         }
 
+        // Draw a magnified region of `media` onto a magnifier canvas element.
+        // relX/relY are 0..1 normalized coords within the media.
+        // screenScale is screen px per native px for computing zoom.
+        function drawMagnifierCanvas(magEl, media, relX, relY, screenScale, screenX, screenY) {
+            const natW = media.naturalWidth || media.videoWidth;
+            const natH = media.naturalHeight || media.videoHeight;
+            if (!natW || !natH) { magEl.classList.remove('active'); return; }
+
+            magEl.classList.add('active');
+
+            const nativeX = relX * natW;
+            const nativeY = relY * natH;
+
+            const effectiveScale = screenScale;
+            const srcW = magnifierSize / (magnifierZoom * effectiveScale);
+            const srcX = nativeX - srcW / 2;
+            const srcY = nativeY - srcW / 2;
+
+            const canvas = magEl.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, magnifierSize, magnifierSize);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(media, srcX, srcY, srcW, srcW, 0, 0, magnifierSize, magnifierSize);
+
+            // Crosshair
+            const cx = magnifierSize / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
+            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
+            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Zoom label
+            const label = magnifierZoom + '×';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(magnifierSize - ctx.measureText(label).width - 8, magnifierSize - 16, ctx.measureText(label).width + 6, 14);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText(label, magnifierSize - 4, magnifierSize - 3);
+
+            // Position
+            magEl.style.left = screenX + 'px';
+            magEl.style.top = screenY + 'px';
+        }
+
         function updateMagnifier(e) {
             _lastMouseEvent = e;
             if (!magnifierEnabled) return;
             if (isPanning) {
-                document.getElementById('pixelMagnifier').classList.remove('active');
+                _magnifierEls.forEach(id => {
+                    document.getElementById(id).classList.remove('active');
+                });
                 return;
             }
             const mag = document.getElementById('pixelMagnifier');
             const wrapper = findWrapperUnderCursor(e.clientX, e.clientY);
+
+            // Hide all secondary loupes by default; they'll be shown if needed
+            document.getElementById('pixelMagnifier1').classList.remove('active');
+            document.getElementById('pixelMagnifier2').classList.remove('active');
+
             if (!wrapper) { mag.classList.remove('active'); return; }
 
             // In overlay mode, multiple wrappers overlap; use the active layer's media & wrapper
@@ -1608,66 +1683,42 @@
             const natH = media.naturalHeight || media.videoHeight;
             if (!natW || !natH) { mag.classList.remove('active'); return; }
 
-            mag.classList.add('active');
-
-            // Map cursor to native pixel coords
+            // Map cursor to normalized 0..1 coords
             const rect = targetWrapper.getBoundingClientRect();
             const relX = (e.clientX - rect.left) / rect.width;
             const relY = (e.clientY - rect.top) / rect.height;
-            const nativeX = relX * natW;
-            const nativeY = relY * natH;
 
-            // Source region in native pixels (centered on cursor position).
-            // Magnification is relative to the fit-to-viewport ("normalized") size
-            // in overlay mode, and relative to current screen rendering in split mode.
-            const screenScale = rect.width / natW; // current screen px per native px
-            let effectiveScale;
-            if (!isSplitMode) {
-                // Normalize to fit-to-viewport: cancel out the current zoomLevel
-                effectiveScale = screenScale * fitZoom / zoomLevel;
-            } else {
-                effectiveScale = screenScale;
+            // Screen scale for overlay mode: normalize to fit-to-viewport
+            const screenScale = rect.width / natW;
+            const effectiveScale = !isSplitMode
+                ? screenScale * fitZoom / zoomLevel
+                : screenScale;
+
+            // Draw primary loupe at cursor
+            drawMagnifierCanvas(mag, media, relX, relY, effectiveScale, e.clientX, e.clientY);
+
+            // In split mode, draw linked loupes on other visible media
+            if (isSplitMode && magnifierLinked) {
+                const allWrappers = document.querySelectorAll('.video-wrapper');
+                let secondaryIdx = 0;
+                const secondaryIds = ['pixelMagnifier1', 'pixelMagnifier2'];
+                allWrappers.forEach(w => {
+                    if (w === targetWrapper || secondaryIdx >= secondaryIds.length) return;
+                    const m = w.querySelector('img, video');
+                    if (!m) return;
+                    const mNatW = m.naturalWidth || m.videoWidth;
+                    const mNatH = m.naturalHeight || m.videoHeight;
+                    if (!mNatW || !mNatH) return;
+                    const wRect = w.getBoundingClientRect();
+                    // Position the linked loupe at the same relative position on this media
+                    const sx = wRect.left + relX * wRect.width;
+                    const sy = wRect.top + relY * wRect.height;
+                    const wScale = wRect.width / mNatW;
+                    const secMag = document.getElementById(secondaryIds[secondaryIdx]);
+                    drawMagnifierCanvas(secMag, m, relX, relY, wScale, sx, sy);
+                    secondaryIdx++;
+                });
             }
-            const srcW = magnifierSize / (magnifierZoom * effectiveScale);
-            const srcX = nativeX - srcW / 2;
-            const srcY = nativeY - srcW / 2;
-
-            // Draw magnified region
-            const canvas = document.getElementById('magnifierCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, magnifierSize, magnifierSize);
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(media, srcX, srcY, srcW, srcW, 0, 0, magnifierSize, magnifierSize);
-
-            // Draw crosshair at center
-            const cx = magnifierSize / 2;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
-            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
-            ctx.stroke();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.setLineDash([2, 2]);
-            ctx.beginPath();
-            ctx.moveTo(cx, 0); ctx.lineTo(cx, magnifierSize);
-            ctx.moveTo(0, cx); ctx.lineTo(magnifierSize, cx);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Draw magnification label in bottom-right corner
-            const label = magnifierZoom + '×';
-            ctx.font = 'bold 11px monospace';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'bottom';
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(magnifierSize - ctx.measureText(label).width - 8, magnifierSize - 16, ctx.measureText(label).width + 6, 14);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillText(label, magnifierSize - 4, magnifierSize - 3);
-
-            // Center magnifier on cursor (crosshair aligns with inspection point)
-            mag.style.left = e.clientX + 'px';
-            mag.style.top = e.clientY + 'px';
         }
 
         document.addEventListener('mousemove', updateMagnifier);
@@ -1696,7 +1747,8 @@
         let waveformData = {};         // { slot: Float32Array } — downsampled amplitude
         let spectrogramData = {};      // { slot: { data: Uint8Array[], sampleRate, duration } }
         let audioVizVisible = false;   // W key toggle
-        let magnifierEnabled = false;   // M key toggle (pixel magnifier)
+        let magnifierEnabled = false;   // Z key toggle (pixel magnifier)
+        let magnifierLinked = true;     // Shift+Z toggle: linked loupes in split mode
         let spectrogramLogScale = false; // linear vs log frequency axis
         let audioFileBuffers = {};     // { slot: ArrayBuffer } — raw file data for decoding
         // Smooth multiplicative zoom: each step multiplies/divides by ZOOM_STEP.
@@ -3344,9 +3396,13 @@
             audioFileBuffers = {};
             audioVizVisible = false;
             magnifierEnabled = false;
+            magnifierLinked = true;
             magnifierZoom = 4;
             magnifierSize = 200;
-            document.getElementById('pixelMagnifier').classList.remove('active');
+            _magnifierEls.forEach(id => {
+                const m = document.getElementById(id);
+                if (m) m.classList.remove('active');
+            });
             document.body.classList.remove('magnifier-active');
             spectrogramLogScale = false;
             currentPaletteIndex = 0;
@@ -4723,6 +4779,12 @@
                 // W key toggles audio visualization (spectrogram)
                 e.preventDefault();
                 if (hasVideos) toggleAudioViz();
+            } else if (e.key === 'Z' && e.shiftKey) {
+                // Shift+Z toggles linked loupes in split mode
+                e.preventDefault();
+                magnifierLinked = !magnifierLinked;
+                showToast('Linked zoom ' + (magnifierLinked ? 'ON' : 'OFF'));
+                if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
             } else if (e.key === 'z' || e.key === 'Z') {
                 // Z key toggles zoom/magnifier (industry standard)
                 e.preventDefault();
@@ -4905,6 +4967,7 @@
                 <tr><th>Key</th><th>Action</th></tr>
                 <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
                 <tr><td><kbd>Z</kbd></td><td>Toggle zoom loupe</td></tr>
+                <tr><td><kbd>Shift+Z</kbd></td><td>Toggle linked zoom in Grid mode</td></tr>
                 <tr><td><kbd>[ ]</kbd></td><td>Resize zoom loupe</td></tr>
                 <tr><td><kbd>← →</kbd></td><td>Switch asset (Overlay mode)</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Toggle Overlay mode</td></tr>
@@ -4951,6 +5014,7 @@
         <div class="shortcuts-list">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>L</kbd></span><span class="shortcut-desc">Load files</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>Z</kbd></span><span class="shortcut-desc">Zoom loupe</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧Z</kbd></span><span class="shortcut-desc">Linked zoom (Grid mode)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>[</kbd> <kbd>]</kbd></span><span class="shortcut-desc">Resize loupe</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>−</kbd></span><span class="shortcut-desc">Loupe zoom level (when active)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>←</kbd> <kbd>→</kbd></span><span class="shortcut-desc">Switch asset</span></div>
