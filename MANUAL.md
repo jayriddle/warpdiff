@@ -67,7 +67,7 @@ Zoom and pan are available in **Overlay mode only**.
 
 Zoom range: 5% – 3200%. Each step multiplies/divides by √2 (~1.41×).
 
-In **split modes** (Grid, 3-UP), pressing **1** toggles between fit-to-panel and 100% mode (no upscaling — images smaller than their cell render at actual size).
+In **split modes** (Grid, 3-UP), pressing **1** toggles between fit-to-panel and 100% native pixels. Assets zoom to their actual pixel size, even if that means overflowing the panel.
 
 A zoom indicator appears at the bottom-right corner of each asset showing the current scale (e.g. `1.5×`).
 
@@ -167,7 +167,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 | **F** | Fullscreen |
 | **+** / **−** | Zoom in/out (or loupe magnification when active) |
 | **0** | Zoom to fit |
-| **1** | Zoom to 100% / toggle 100% cap |
+| **1** | Zoom to 100% native pixels / fit to panel |
 | **Space** | Play / Pause |
 | **,** / **.** | Frame step back / forward |
 | **R** | Restart |
@@ -202,7 +202,7 @@ Each asset displays an info bar showing:
 
 The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60).
 
-In split modes, the info bar of the asset whose audio is currently playing is highlighted.
+In split modes, the active asset is indicated with a cyan border and highlighted info bar.
 
 ---
 
