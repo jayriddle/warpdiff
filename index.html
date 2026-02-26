@@ -5135,23 +5135,50 @@
                     setViewMode('horizontal');
                 }
 
-                // Stagger fade-in after layout is committed.
-                // Double-rAF ensures opacity:0 is painted before adding the transition.
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    loadedLayers.forEach(layer => {
-                        layer.style.transition = 'opacity 0.2s ease';
-                    });
-                    loadedLayers.forEach((layer, i) => {
-                        setTimeout(() => { layer.style.opacity = '1'; }, i * 60);
-                    });
-                    // Clean up inline styles after the last transition completes
-                    setTimeout(() => {
+                // Stagger fade-in after layout is committed AND all videos
+                // have decoded their first frame (canplay). Without this,
+                // info bars fade in but video content pops on later.
+                // Wait for all videos to actually render their first frame
+                // before starting the fade-in. requestVideoFrameCallback fires
+                // only after a frame is composited on screen — canplay/readyState
+                // can fire before the frame is actually visible.
+                const videoEls = loadedLayers
+                    .map(l => l.querySelector('video'))
+                    .filter(Boolean);
+
+                function startFadeIn() {
+                    // Double-rAF ensures opacity:0 is painted before adding the transition.
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
                         loadedLayers.forEach(layer => {
-                            layer.style.opacity = '';
-                            layer.style.transition = '';
+                            layer.style.transition = 'opacity 0.2s ease';
                         });
-                    }, loadedLayers.length * 60 + 250);
-                }));
+                        loadedLayers.forEach((layer, i) => {
+                            setTimeout(() => { layer.style.opacity = '1'; }, i * 60);
+                        });
+                        // Clean up inline styles after the last transition completes
+                        setTimeout(() => {
+                            loadedLayers.forEach(layer => {
+                                layer.style.opacity = '';
+                                layer.style.transition = '';
+                            });
+                        }, loadedLayers.length * 60 + 250);
+                    }));
+                }
+
+                if (videoEls.length === 0) {
+                    startFadeIn();
+                } else {
+                    let remaining = videoEls.length;
+                    videoEls.forEach(v => {
+                        // Seek to 0 to force a frame render on a paused video
+                        v.currentTime = 0;
+                        v.requestVideoFrameCallback(() => {
+                            if (--remaining === 0) startFadeIn();
+                        });
+                    });
+                    // Safety timeout — don't wait forever
+                    setTimeout(() => { if (remaining > 0) { remaining = 0; startFadeIn(); } }, 2000);
+                }
 
                 // Show video controls if any videos
                 if (hasVideos) {
