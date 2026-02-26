@@ -30,7 +30,7 @@ Press `W` to toggle waveform and spectrogram views. Waveform uses dB color codin
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Press `K` to see them all, `Esc` to dismiss. Your preferences — loupe size, magnification, volume, spectrogram settings — persist across sessions.
+Every action has a hotkey. Press `?` for help, `K` for the full hotkey list, `Esc` to dismiss. Your preferences — loupe size, magnification, volume, spectrogram settings — persist across sessions.
 
 ## Works instantly
 
