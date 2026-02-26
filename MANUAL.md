@@ -173,6 +173,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 | **W** | Toggle waveform / spectrogram |
 | **Shift+W** | Toggle linear / log frequency |
 | **Shift+C** | Cycle spectrogram color palette |
+| **?** | Help (Quick Start popup) |
 | **K** | Toggle shortcuts panel |
 | **Esc** | Dismiss loupe / close panel |
 
@@ -200,6 +201,14 @@ Each asset displays an info bar showing:
 The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60).
 
 In split modes, the active asset is indicated with a cyan border and highlighted info bar.
+
+---
+
+## Welcome & Changelog
+
+On your first visit, a **Quick Start** popup appears with an overview of the main features. On subsequent visits after an update, a **What's New** popup shows what changed in the latest version. Both dismiss automatically when you load files, or you can close them with the ✕ button, Escape key, or clicking the backdrop.
+
+Press **?** or click the **Help** button in the header to reopen the Quick Start popup at any time.
 
 ---
 

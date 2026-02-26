@@ -5259,6 +5259,13 @@
                 return;
             }
 
+            // ? or / key toggles Quick Start popup — works at any time
+            if (e.key === '?' || e.key === '/') {
+                e.preventDefault();
+                toggleQuickStart();
+                return;
+            }
+
             // K key toggles shortcuts panel — works at any time
             if (e.key === 'k' || e.key === 'K') {
                 e.preventDefault();
@@ -5766,6 +5773,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧C</kbd></span><span class="shortcut-desc">Cycle color palette</span></div>
             <hr class="shortcut-divider">
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>?</kbd></span><span class="shortcut-desc">Help</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>K</kbd></span><span class="shortcut-desc">Toggle this panel</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>Esc</kbd></span><span class="shortcut-desc">Dismiss loupe / close panel</span></div>
         </div>
