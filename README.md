@@ -10,8 +10,7 @@ A browser-based visual comparison tool for reviewing 2–3 versions of images or
 
 **View modes**
 - **Overlay** (`O`) — flip between assets with arrow keys, same position/zoom
-- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout
-- **Grid** (`3`) — inline (equal columns/rows) or offset (original left, edits stacked right)
+- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout; `3` toggles inline / offset
 
 **Zoom loupe** (`Z`)
 - Pixel-level inspection without changing your view
@@ -22,10 +21,13 @@ A browser-based visual comparison tool for reviewing 2–3 versions of images or
 - Synced playback across all assets
 - Frame-step with `,` and `.`
 - Per-source audio switching (O/A/B) with individual mute
-- `W` for waveform with dB color coding + spectrogram
+
+**Analysis**
+- `V` video scopes — RGB histogram, waveform monitor, vectorscope
+- `W` audio waveform with dB color coding + spectrogram
 
 **Keyboard-first**
-- Every action has a hotkey — press `K` to see them all, `Esc` to dismiss
+- Every action has a hotkey — press `?` for help, `K` for all hotkeys
 - Zoom, pan, and navigate without touching the mouse
 - Preferences (loupe, volume, spectrogram settings) persist across sessions
 
