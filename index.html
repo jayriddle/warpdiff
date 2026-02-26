@@ -571,7 +571,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr;
-            column-gap: 16px;
+            column-gap: 8px;
             height: 100%;
             overflow: hidden;
             align-items: stretch;
@@ -1019,6 +1019,42 @@
             max-width: 36px;
         }
 
+        .scopes-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            margin: 0 -16px;
+            padding: 0 16px;
+            box-sizing: border-box;
+        }
+        .scopes-panel.active {
+            max-height: 500px;
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        .scopes-row {
+            display: flex;
+            gap: 4px;
+            height: 160px;
+        }
+        .scopes-row .audio-viz-row {
+            flex: 1;
+            min-width: 0;
+        }
+        .scopes-row .vectorscope-col {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: stretch;
+            padding-right: 4px;
+        }
+        .vectorscope-col canvas {
+            display: block;
+            height: 100%;
+            aspect-ratio: 1;
+        }
+
         .spectrogram-scale-toggle {
             display: flex;
             align-items: center;
@@ -1438,6 +1474,25 @@
             </div>
         </div>
         <div class="video-controls" id="videoControls">
+            <div class="scopes-panel" id="scopesPanel">
+                <div class="scopes-row">
+                    <div class="audio-viz-row">
+                        <div class="audio-viz-label"><span>R G B</span></div>
+                        <div class="audio-viz-canvas-wrap">
+                            <canvas id="histogramCanvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="audio-viz-row">
+                        <div class="audio-viz-label"><span>100</span><span>0</span></div>
+                        <div class="audio-viz-canvas-wrap">
+                            <canvas id="waveformMonitorCanvas"></canvas>
+                        </div>
+                    </div>
+                    <div class="vectorscope-col">
+                        <canvas id="vectorscopeCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
             <div class="spectrogram-panel" id="spectrogramPanel">
                 <div class="audio-viz-row waveform-row">
                     <div class="audio-viz-label" id="waveformLabels"><span>L</span><span>R</span></div>
@@ -1828,6 +1883,8 @@
         let spectrogramData = {};      // { slot: { data: Uint8Array[], sampleRate, duration } }
         let audioVizVisible = false;   // W key toggle
         let magnifierEnabled = false;   // Z key toggle (pixel magnifier)
+        let videoScopesVisible = false; // V key toggle
+        let _scopeOffscreen = null;     // offscreen canvas for frame sampling
         let magnifierLinked = _prefs.load('magnifierLinked', false); // Shift+Z toggle
         let spectrogramLogScale = _prefs.load('spectrogramLogScale', false);
         let audioFileBuffers = {};     // { slot: ArrayBuffer } — raw file data for decoding
@@ -2419,6 +2476,247 @@
             }
         }
 
+        // ── Video Scopes (Histogram, Waveform Monitor, Vectorscope) ────
+
+        function sampleVideoFrame(media) {
+            if (!_scopeOffscreen) {
+                _scopeOffscreen = document.createElement('canvas');
+                _scopeOffscreen.width = 320;
+                _scopeOffscreen.height = 180;
+            }
+            const ctx = _scopeOffscreen.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(media, 0, 0, 320, 180);
+            return ctx.getImageData(0, 0, 320, 180);
+        }
+
+        function drawHistogram(imageData, canvas) {
+            const w = canvas.clientWidth * devicePixelRatio;
+            const h = canvas.clientHeight * devicePixelRatio;
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const pixels = imageData.data;
+            const rBins = new Uint32Array(256);
+            const gBins = new Uint32Array(256);
+            const bBins = new Uint32Array(256);
+
+            for (let i = 0; i < pixels.length; i += 4) {
+                rBins[pixels[i]]++;
+                gBins[pixels[i + 1]]++;
+                bBins[pixels[i + 2]]++;
+            }
+
+            // Fixed normalization: scale relative to total pixel count so the
+            // Y-axis stays consistent across frames (no auto-ranging)
+            const totalPixels = pixels.length / 4;
+            const maxVal = totalPixels / 32;
+
+            const drawChannel = (bins, color) => {
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                for (let i = 0; i < 256; i++) {
+                    const x = (i / 255) * w;
+                    const y = h - (Math.min(bins[i], maxVal) / maxVal) * h;
+                    ctx.lineTo(x, y);
+                }
+                ctx.lineTo(w, h);
+                ctx.closePath();
+                ctx.fillStyle = color;
+                ctx.fill();
+            };
+
+            drawChannel(rBins, 'rgba(255, 40, 40, 0.45)');
+            drawChannel(gBins, 'rgba(40, 255, 40, 0.45)');
+            drawChannel(bBins, 'rgba(40, 80, 255, 0.45)');
+        }
+
+        function drawWaveformMonitor(imageData, canvas) {
+            const w = canvas.clientWidth * devicePixelRatio;
+            const h = canvas.clientHeight * devicePixelRatio;
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+            }
+            const ctx = canvas.getContext('2d');
+
+            // Build pixel buffer directly — orders of magnitude faster than fillRect calls
+            const buf = ctx.createImageData(w, h);
+            const out = buf.data;
+
+            // Accumulate hit counts per output pixel, then write green intensity
+            const hits = new Uint16Array(w * h);
+            const pixels = imageData.data;
+            const srcW = imageData.width;
+            const srcH = imageData.height;
+
+            for (let sx = 0; sx < srcW; sx++) {
+                const ox = Math.floor((sx / srcW) * w);
+                for (let sy = 0; sy < srcH; sy++) {
+                    const idx = (sy * srcW + sx) * 4;
+                    const luma = (0.299 * pixels[idx] + 0.587 * pixels[idx + 1] + 0.114 * pixels[idx + 2]) / 255;
+                    const oy = Math.floor((1 - luma) * (h - 1));
+                    hits[oy * w + ox]++;
+                }
+            }
+
+            // Map hit counts to green phosphor intensity
+            const maxHits = Math.max(1, srcH * 0.02);
+            for (let i = 0; i < hits.length; i++) {
+                if (hits[i] > 0) {
+                    const intensity = Math.min(1, hits[i] / maxHits);
+                    const p = i * 4;
+                    out[p]     = Math.round(intensity * 80);
+                    out[p + 1] = Math.round(140 + intensity * 115);
+                    out[p + 2] = Math.round(intensity * 40);
+                    out[p + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(buf, 0, 0);
+
+            // IRE reference lines on top
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+            ctx.lineWidth = 1;
+            for (const ire of [0, 25, 50, 75, 100]) {
+                const y = Math.round(h - (ire / 100) * h) + 0.5;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+        }
+
+        function drawVectorscope(imageData, canvas) {
+            const size = canvas.clientHeight * devicePixelRatio;
+            if (canvas.width !== size || canvas.height !== size) {
+                canvas.width = size;
+                canvas.height = size;
+            }
+            const ctx = canvas.getContext('2d');
+
+            // Build pixel buffer for the dot plot
+            const buf = ctx.createImageData(size, size);
+            const out = buf.data;
+            const hits = new Uint16Array(size * size);
+
+            const cx = size / 2;
+            const cy = size / 2;
+            const radius = (size / 2) - 4;
+            const plotScale = radius / 128;
+
+            const pixels = imageData.data;
+            for (let i = 0; i < pixels.length; i += 4) {
+                const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+                const cb = -0.169 * r - 0.331 * g + 0.500 * b;
+                const cr =  0.500 * r - 0.419 * g - 0.081 * b;
+                const px = Math.round(cx + cb * plotScale);
+                const py = Math.round(cy - cr * plotScale);
+                if (px >= 0 && px < size && py >= 0 && py < size) {
+                    hits[py * size + px]++;
+                }
+            }
+
+            const maxHits = Math.max(1, pixels.length / 4 * 0.0001);
+            for (let i = 0; i < hits.length; i++) {
+                if (hits[i] > 0) {
+                    const intensity = Math.min(1, hits[i] / maxHits);
+                    const p = i * 4;
+                    out[p]     = Math.round(intensity * 80);
+                    out[p + 1] = Math.round(140 + intensity * 115);
+                    out[p + 2] = Math.round(intensity * 40);
+                    out[p + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(buf, 0, 0);
+
+            // Draw graticule overlay
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Crosshair
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - radius);
+            ctx.lineTo(cx, cy + radius);
+            ctx.moveTo(cx - radius, cy);
+            ctx.lineTo(cx + radius, cy);
+            ctx.stroke();
+
+            // Skin tone line
+            ctx.strokeStyle = 'rgba(255, 180, 100, 0.25)';
+            ctx.beginPath();
+            const skinAngle = (123 * Math.PI) / 180;
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(skinAngle) * radius, cy - Math.sin(skinAngle) * radius);
+            ctx.stroke();
+
+            // Color target labels
+            const targets = [
+                { label: 'R',  cb: -0.169,  cr:  0.500 },
+                { label: 'Y',  cb: -0.437,  cr:  0.081 },
+                { label: 'G',  cb: -0.331,  cr: -0.419 },
+                { label: 'C',  cb:  0.169,  cr: -0.500 },
+                { label: 'B',  cb:  0.437,  cr: -0.081 },
+                { label: 'M',  cb:  0.331,  cr:  0.419 },
+            ];
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.font = `${Math.round(size * 0.07)}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const tScale = radius / 0.55;
+            targets.forEach(t => {
+                const tx = cx + t.cb * tScale;
+                const ty = cy - t.cr * tScale;
+                ctx.fillText(t.label, tx, ty);
+            });
+        }
+
+        function getActiveMediaElement() {
+            // Get the media element for the currently active/hovered asset
+            if (!isSplitMode) {
+                const activeLayer = document.querySelector('.overlay-layer.active');
+                return activeLayer ? activeLayer.querySelector('video, img') : null;
+            }
+            // Split mode: use the asset under the cursor, or fall back to current
+            const slot = assetOrder[currentAssetIndex];
+            const layer = getLayer(slot);
+            return layer ? layer.querySelector('video, img') : null;
+        }
+
+        function updateVideoScopes() {
+            if (!videoScopesVisible) return;
+            const media = getActiveMediaElement();
+            if (!media) return;
+            // For videos, skip if not ready
+            if (media.tagName === 'VIDEO' && media.readyState < 2) return;
+
+            const imageData = sampleVideoFrame(media);
+            const histCanvas = document.getElementById('histogramCanvas');
+            const wfmCanvas = document.getElementById('waveformMonitorCanvas');
+            const vecCanvas = document.getElementById('vectorscopeCanvas');
+            if (histCanvas) drawHistogram(imageData, histCanvas);
+            if (wfmCanvas) drawWaveformMonitor(imageData, wfmCanvas);
+            if (vecCanvas) drawVectorscope(imageData, vecCanvas);
+        }
+
+        function toggleVideoScopes() {
+            videoScopesVisible = !videoScopesVisible;
+            const panel = document.getElementById('scopesPanel');
+            if (panel) panel.classList.toggle('active', videoScopesVisible);
+            showToast('Video Scopes ' + (videoScopesVisible ? 'ON' : 'OFF'));
+            if (videoScopesVisible) {
+                requestAnimationFrame(() => updateVideoScopes());
+            }
+            animateRelayout(350);
+        }
+
         // ── End Audio Visualization ─────────────────────────────────────
 
         function loadFile(slot, file) {
@@ -2728,6 +3026,7 @@
                 if (primaryVideo && !primaryVideo.paused) {
                     updateVideoProgress(primaryVideo);
                     if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
+                    if (videoScopesVisible) updateVideoScopes();
                     globalAnimationId = requestAnimationFrame(updateLoop);
                 } else {
                     // Nothing is playing — stop the loop; it restarts on the next play event
@@ -2842,6 +3141,8 @@
             
             video.addEventListener('seeked', function() {
                 updateVideoProgress(video);
+                // Refresh scopes after seek completes (frame is decoded)
+                if (videoScopesVisible) updateVideoScopes();
             });
         }
 
@@ -3088,6 +3389,8 @@
 
             // Refresh magnifier so it shows the newly active layer's pixels
             if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
+            // Refresh video scopes for the new asset
+            if (videoScopesVisible) updateVideoScopes();
         }
 
         // Setup video scrubbing with drag support
@@ -3169,6 +3472,8 @@
                     _scrubContainerRect = null;
 
                     if (wasPlaying) playAllVideos();
+                    // Refresh scopes once after scrub ends
+                    if (videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
             });
         });
@@ -3494,6 +3799,9 @@
             document.body.classList.remove('magnifier-active');
             const specPanel = document.getElementById('spectrogramPanel');
             if (specPanel) specPanel.classList.remove('active');
+            videoScopesVisible = false;
+            const scopesPanel = document.getElementById('scopesPanel');
+            if (scopesPanel) scopesPanel.classList.remove('active');
             const scaleBtn = document.getElementById('spectrogramScaleToggle');
             if (scaleBtn) scaleBtn.textContent = 'LIN';
             const palBtn = document.getElementById('spectrogramPaletteToggle');
@@ -3608,12 +3916,17 @@
                 const frameDuration = 1 / fps;
                 v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + direction * frameDuration));
             });
-            // Update progress display from the first video
+            // Update progress display after seek completes (seeked event handles
+            // the visual update). Also update optimistically for responsive feel.
             const primary = videos[0];
             if (primary) updateVideoProgressFromTime(primary, primary.currentTime);
             // Refresh magnifier after seek so loupe shows the new frame
             if (magnifierEnabled && _lastMouseEvent) {
                 requestAnimationFrame(() => updateMagnifier(_lastMouseEvent));
+            }
+            // Refresh video scopes after frame step
+            if (videoScopesVisible) {
+                requestAnimationFrame(() => updateVideoScopes());
             }
         }
 
@@ -3712,6 +4025,10 @@
                 let widthConstrained = isEqualLayout
                     ? document.body.classList.contains('tripartite-rows')
                     : false;
+                // Detect mixed orientations (some landscape, some portrait) for equal layouts.
+                // When mixed, each asset scales independently to fit its cell instead of sharing
+                // a dimension that penalises the minority orientation.
+                let _hasLandscape = false, _hasPortrait = false;
                 slots.forEach(slot => {
                     if (!mediaData[slot]) return;
                     const layer = getLayer(slot);
@@ -3720,6 +4037,7 @@
                     if (!media) return;
                     const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
+                    if (nw >= nh) _hasLandscape = true; else _hasPortrait = true;
                     // Use layer.offsetWidth/Height — the true grid cell dimensions.
                     // mediaContainer is position:absolute so its offsetHeight may not
                     // reflect the grid row height correctly.
@@ -3824,10 +4142,16 @@
 
                 // Apply shared dimension: same width (portrait) or same height (landscape).
                 // Then apply the effective zoom so +/- and 1 keys scale all three assets together.
+                const mixedOrientations = isEqualLayout && _hasLandscape && _hasPortrait;
                 slots.forEach(slot => {
                     const d = tripartiteLayout[slot];
                     if (!d) return;
-                    if (widthConstrained) {
+                    if (mixedOrientations) {
+                        // Placeholder — computed in equal-area pass below
+                        d.rw = d.fitW;
+                        d.rh = d.fitH;
+                        d.sharedZoom = d.rw / d.nw;
+                    } else if (widthConstrained) {
                         // Portrait: share width, height follows aspect ratio
                         d.rw = Math.round(minW * tripartiteEffectiveZoom);
                         d.rh = Math.round(minW * tripartiteEffectiveZoom * d.nh / d.nw);
@@ -3855,9 +4179,87 @@
                 // the group in the viewport, so gaps don't grow between images when zooming out.
                 if (isEqualLayout) {
                     const isColumns = document.body.classList.contains('tripartite-columns');
-                    const gap = isColumns ? 16 : 2; // columns: 16px horizontal gap; rows: 2px vertical gap
+                    const gap = isColumns ? 8 : 2; // columns: 8px horizontal gap; rows: 2px vertical gap
                     const loadedSlots = slots.filter(s => tripartiteLayout[s]);
                     if (isColumns && loadedSlots.length > 0) {
+                        // Equal-area layout for mixed orientations: each asset gets
+                        // the same rendered area so visual weight is balanced.
+                        // For area A and aspect ratio r = nw/nh:
+                        //   rendered width  = √(A·r)
+                        //   rendered height = √(A/r)
+                        if (mixedOrientations) {
+                            const anyD = tripartiteLayout[loadedSlots[0]];
+                            const availH = anyD.ch - anyD.ibH - 8;
+                            const availW = window.innerWidth - (loadedSlots.length - 1) * gap - 16;
+
+                            // Compute aspect ratios
+                            const ratios = {};
+                            loadedSlots.forEach(s => {
+                                const d = tripartiteLayout[s];
+                                ratios[s] = d.nw / d.nh;
+                            });
+
+                            // Max area from width constraint:
+                            //   sum(√(A·r_i)) ≤ availW → √A ≤ availW / sum(√r_i)
+                            const sumSqrtR = loadedSlots.reduce((sum, s) => sum + Math.sqrt(ratios[s]), 0);
+                            const aFromW = Math.pow(availW / sumSqrtR, 2);
+
+                            // Max area from height constraint:
+                            //   max(√(A/r_i)) ≤ availH → A ≤ availH² · min(r_i)
+                            const minR = Math.min(...loadedSlots.map(s => ratios[s]));
+                            const aFromH = availH * availH * minR;
+
+                            const fitArea = Math.min(aFromW, aFromH);
+
+                            // Apply zoom: splitZoomLevel=1 → native pixels (1:1)
+                            // targetArea scales rendered dimensions by sqrt, so linear zoom
+                            // factor = sqrt(areaMult). To reach native: areaMult = linearScale².
+                            let linearZoom = splitStepZoom;
+                            if (splitZoomLevel === 1) {
+                                // Find the linear scale that makes the smallest asset 1:1
+                                let minNativeScale = Infinity;
+                                loadedSlots.forEach(s => {
+                                    const d = tripartiteLayout[s];
+                                    const r = ratios[s];
+                                    const baseW = Math.sqrt(fitArea * r);
+                                    const nativeScale = d.nw / baseW; // < 1 when upscaled at fit
+                                    if (nativeScale < minNativeScale) minNativeScale = nativeScale;
+                                });
+                                linearZoom = minNativeScale * splitStepZoom;
+                            }
+                            // Area multiplier = linearZoom²
+                            let targetArea = fitArea * linearZoom * linearZoom;
+
+                            // Clamp so nothing overflows viewport
+                            const projW = loadedSlots.reduce((sum, s) => sum + Math.sqrt(targetArea * ratios[s]), 0);
+                            const projMaxH = Math.max(...loadedSlots.map(s => Math.sqrt(targetArea / ratios[s])));
+                            const clamped = projW > availW || projMaxH > availH;
+                            if (clamped) targetArea = fitArea;
+
+                            _tripartiteZoomWasCapped = clamped && (splitZoomLevel === 1 || splitStepZoom > 1);
+
+                            loadedSlots.forEach(s => {
+                                const d = tripartiteLayout[s];
+                                const r = ratios[s];
+                                d.rw = Math.round(Math.sqrt(targetArea * r));
+                                d.rh = Math.round(Math.sqrt(targetArea / r));
+                                d.sharedZoom = d.rw / d.nw;
+                            });
+
+                            // Set grid columns to match rendered widths
+                            const container = document.querySelector('.overlay-container');
+                            if (container) {
+                                container.style.gridTemplateColumns = loadedSlots.map(s =>
+                                    Math.round(tripartiteLayout[s].rw) + 'px'
+                                ).join(' ');
+                                // Recompute cell widths
+                                loadedSlots.forEach(s => {
+                                    const layer = getLayer(s);
+                                    if (layer) tripartiteLayout[s].cw = layer.offsetWidth;
+                                });
+                            }
+                        }
+
                         // Total rendered width of all images + gaps between them
                         const totalGroupW = loadedSlots.reduce((sum, s) => sum + Math.round(tripartiteLayout[s].rw), 0)
                             + (loadedSlots.length - 1) * gap;
@@ -3872,8 +4274,10 @@
                         loadedSlots.forEach(s => {
                             const d = tripartiteLayout[s];
                             d._tx = imgX - cellLeftEdge;
-                            // Vertically center the image in its cell
-                            d._ty = Math.round((d.ch - d.rh) / 2);
+                            // Vertically position: info bar at top, then center remaining
+                            // space with upward bias (1/3 above, 2/3 below)
+                            const remainH = d.ch - d.ibH - d.rh;
+                            d._ty = d.ibH + Math.round(Math.max(0, remainH) / 3);
                             imgX += Math.round(d.rw) + gap;
                             cellLeftEdge += d.cw + gap;
                         });
@@ -4036,7 +4440,7 @@
                     const loadedSlots = slots.filter(s => mediaData[s]);
                     const slotIdx = loadedSlots.indexOf(slot);
                     const nSlots = loadedSlots.length;
-                    const gap = 16;
+                    const gap = 8;
                     const groupW = renderedW * nSlots + gap * (nSlots - 1);
                     const groupLeft = Math.round((window.innerWidth - groupW) / 2);
                     // offsetX is relative to each cell's own origin (cell i starts at i * containerW)
@@ -4336,6 +4740,10 @@
                     document.body.classList.remove(...splitModeClasses);
                     document.body.classList.add('split-mode');
 
+                    // Clear any inline grid-template-columns override from mixed orientations
+                    const container = document.querySelector('.overlay-container');
+                    if (container) container.style.gridTemplateColumns = '';
+
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
                         const hasMedia = layer.querySelector('img, video');
                         if (hasMedia) layer.classList.add('active');
@@ -4346,9 +4754,15 @@
                     if (targetMode === 'vertical') {
                         document.body.classList.add('vertical-stack');
                     } else if (targetMode === 'tripartite') {
-                        if (tripartiteLayout3Col) {
-                            const sample = Object.values(mediaData).find(m => m && m.w && m.h);
-                            const isLandscape = sample ? sample.w >= sample.h : false;
+                        const dims = Object.values(mediaData).filter(m => m && m.w && m.h);
+                        const landscapes = dims.filter(m => m.w >= m.h).length;
+                        const mixedOr = landscapes > 0 && landscapes < dims.length;
+
+                        if (mixedOr || tripartiteLayout3Col) {
+                            // Mixed orientations always use grid (equal-area handles it);
+                            // uniform orientations respect the user's grid preference.
+                            const allSame = !mixedOr;
+                            const isLandscape = allSame && landscapes === dims.length;
                             document.body.classList.add(isLandscape ? 'tripartite-rows' : 'tripartite-columns');
                         } else {
                             document.body.classList.add('tripartite');
@@ -4665,11 +5079,12 @@
                 }
 
                 // Auto-pick layout based on aspect ratio of loaded assets.
-                // Use the first slot that has decoded dimensions (w/h set by img.onload /
-                // loadedmetadata). Slots without w/h are skipped — they were created by
-                // reader.onload before the image decoded, so dimensions aren't ready yet.
-                const sample = Object.values(mediaData).find(m => m && m.w && m.h);
-                const isLandscape = sample ? sample.w >= sample.h : false;
+                // If orientations are mixed, prefer horizontal (side-by-side) so each
+                // asset gets its own column and scales independently.
+                const dims = Object.values(mediaData).filter(m => m && m.w && m.h);
+                const landscapes = dims.filter(m => m.w >= m.h).length;
+                const allSame = landscapes === 0 || landscapes === dims.length;
+                const isLandscape = allSame && landscapes === dims.length;
 
                 // Prepare layers for staggered fade-in.
                 // Set opacity:0 before setViewMode so layers are invisible from the start.
@@ -4862,6 +5277,13 @@
                 e.preventDefault();
                 const isAnyTripartiteNow = isTripartiteMode();
                 if (isSplitMode && isAnyTripartiteNow) {
+                    // Skip toggle when orientations are mixed — L-shaped doesn't work
+                    const dims3 = Object.values(mediaData).filter(m => m && m.w && m.h);
+                    const land3 = dims3.filter(m => m.w >= m.h).length;
+                    if (land3 > 0 && land3 < dims3.length) {
+                        showToast('1+2 layout unavailable for mixed orientations');
+                        return;
+                    }
                     tripartiteLayout3Col = !tripartiteLayout3Col;
                     localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
                     setViewMode('tripartite');
@@ -4886,6 +5308,10 @@
                 // W key toggles audio visualization (spectrogram)
                 e.preventDefault();
                 if (hasVideos) toggleAudioViz();
+            } else if (e.key === 'v') {
+                // V key toggles video scopes (histogram, waveform monitor, vectorscope)
+                e.preventDefault();
+                if (document.getElementById('comparisonView').classList.contains('active')) toggleVideoScopes();
             } else if (e.key === 'Z' && e.shiftKey) {
                 // Shift+Z toggles linked loupes in split mode
                 e.preventDefault();
@@ -5247,6 +5673,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>,</kbd> <kbd>.</kbd></span><span class="shortcut-desc">Frame back / forward</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>V</kbd></span><span class="shortcut-desc">Video scopes</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>W</kbd></span><span class="shortcut-desc">Audio waveform / spectrogram</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧C</kbd></span><span class="shortcut-desc">Cycle color palette</span></div>
