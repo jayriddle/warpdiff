@@ -1,10 +1,10 @@
 # WarpDiff
 
-Visual & audio comparison for creative review. No setup, no install — runs in your browser.
+Visual & audio comparison for creative review. Compare images, videos, or audio files. No setup, no install — runs in your browser.
 
 ## Load and compare instantly
 
-Load 2–3 images or videos by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original, Edit A, and Edit B.
+Load 2–3 images, videos, or audio files by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original, Edit A, and Edit B.
 
 ## View modes
 
@@ -30,6 +30,10 @@ Press `V` to toggle RGB histogram, waveform monitor, and vectorscope. Scopes upd
 ## Audio visualization
 
 Press `W` to toggle waveform and spectrogram views. Waveform uses dB color coding — green for normal levels, yellow for caution (>-6dB), red for hot/clipping (>-1dB). Spectrogram supports linear/log frequency scale (`Shift+W`) and multiple color palettes (`Shift+C`).
+
+## Audio file comparison
+
+Load 2–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), and file size. Spectrogram scale and palette controls (`Shift+W`, `Shift+C`) apply to all audio slots.
 
 ## Keyboard-driven workflow
 

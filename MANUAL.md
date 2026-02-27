@@ -12,7 +12,7 @@ WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions 
 - Drag and drop files onto the window
 
 **File requirements:**
-- 2 or 3 files (images or videos)
+- 2 or 3 files (images, videos, or audio files)
 - 2 files → assigned to **Edit A** and **Edit B**
 - 3 files → assigned to **Original**, **Edit A**, and **Edit B**
 - Files are automatically sorted oldest → newest by last-modified timestamp
@@ -131,6 +131,20 @@ Mono tracks display a single waveform with a MONO indicator. Stereo tracks show 
 
 ---
 
+## Audio File Comparison
+
+Load 2–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each audio slot displays a waveform (top 40%) and spectrogram (bottom 60%) with frequency labels.
+
+**Info bar** shows audio metadata: sample rate (e.g. `48 kHz`), channels (`Mono` / `Stereo`), bit depth (e.g. `24-bit` for lossless, or codec name like `MP3` for lossy), file size, and duration.
+
+**Spectrogram controls** work in audio mode:
+- **Shift+W** toggles linear / log frequency scale
+- **Shift+C** cycles color palettes
+
+Audio files use the same synced playback controls as video: Space to play/pause, progress bar to seek, O/A/B buttons to select which track to hear.
+
+---
+
 ## Video Scopes
 
 Press **V** to toggle the video scopes panel above the video controls. Three scopes are displayed side by side:
@@ -193,10 +207,10 @@ The following settings are saved to your browser and persist across sessions and
 ## Info Bar
 
 Each asset displays an info bar showing:
-- Slot name (ORIGINAL, IMAGE A / EDIT A, IMAGE B / EDIT B)
-- Resolution (e.g. `1920×1080`)
-- Aspect ratio (e.g. `16:9`) — shown in amber if it doesn't match a known standard, as a heads-up to check export settings
-- Duration for videos (e.g. `0:02:34`), or `—` for images
+- Slot name (ORIGINAL, IMAGE A / EDIT A, IMAGE B / EDIT B — or AUDIO O / A / B for audio files)
+- Resolution (e.g. `1920×1080`) and aspect ratio (e.g. `16:9`) for images/videos — shown in amber if non-standard
+- For audio files: sample rate, channels, bit depth/codec, and file size
+- Duration for videos and audio (e.g. `0:02:34`), or `—` for images
 
 The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60).
 
@@ -215,6 +229,6 @@ Press **?** or click the **Help** button in the header to reopen the Quick Start
 ## Limitations
 
 - **2 or 3 files only** — loading 1 or 4+ files is not supported
-- **Images and videos only** — other file types are ignored
+- **Images, videos, and audio only** — other file types are ignored
 - **Pan available in Overlay mode only**
 - **Audio:** one track at a time; others are automatically muted
