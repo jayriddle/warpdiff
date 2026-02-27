@@ -1624,7 +1624,7 @@
     </div>
 
     <script>
-        const APP_VERSION = '2';
+        const APP_VERSION = '3';
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
 
         // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
@@ -6360,14 +6360,21 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3</h3>
+            <ul>
+                <li>Audio file comparison — load 2–3 audio files for side-by-side waveform + spectrogram</li>
+                <li>Audio info bars: sample rate, channels, bit depth/codec, file size</li>
+                <li>Video scopes: RGB histogram, waveform monitor, vectorscope <kbd>V</kbd></li>
+                <li>Active asset indicator with cyan border and highlighted info bar</li>
+                <li>Equal-area layout for mixed orientations in Grid mode</li>
+                <li>Spectrogram scale and palette controls work in audio-only mode</li>
+            </ul>
             <h3>v2</h3>
             <ul>
                 <li>View modes: Grid <kbd>G</kbd> with inline and offset <kbd>3</kbd> layouts</li>
                 <li>Zoom loupe <kbd>Z</kbd> with adjustable magnification, resize, linked mode</li>
                 <li>Video: frame stepping, synced playback, per-source audio switching</li>
                 <li>Audio waveform with dB color coding, spectrogram with palette/scale options</li>
-                <li>Audio file comparison — load 2–3 audio files for side-by-side waveform + spectrogram</li>
-                <li>Visual scopes: histogram, parade, vectorscope <kbd>V</kbd> with multiple display modes</li>
                 <li>Fullscreen mode <kbd>F</kbd></li>
                 <li>Preferences persist across sessions</li>
                 <li>Keyboard-driven workflow — press <kbd>K</kbd> for all hotkeys</li>
