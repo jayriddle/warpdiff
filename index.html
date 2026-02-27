@@ -1410,6 +1410,21 @@
         .load-toast.visible {
             opacity: 1;
         }
+        .audio-viz-slot-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+        }
+        .audio-slot-cursor {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            z-index: 5;
+        }
     </style>
 </head>
 <body>
@@ -1421,7 +1436,7 @@
                     Load
                     <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
                 </button>
-                <input type="file" id="multiFileInput" accept="image/*,video/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button class="position-toggle" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
                     Reset
                     <div class="help-tooltip">Clear all assets and start over</div>
@@ -1609,6 +1624,8 @@
         // Returns { w, h } for an <img> or <video> element's native dimensions.
         function mediaDims(el) {
             if (!el) return { w: 0, h: 0 };
+            // Audio viz canvases use fixed 16:9 dimensions for layout
+            if (el.classList && el.classList.contains('audio-viz-slot-canvas')) return { w: 1920, h: 480 };
             return { w: el.naturalWidth || el.videoWidth || 0, h: el.naturalHeight || el.videoHeight || 0 };
         }
 
@@ -1639,7 +1656,7 @@
             assetOrder.forEach(slot => {
                 if (!mediaData[slot]) return;
                 const layer = getLayer(slot);
-                const media = layer && layer.querySelector('img, video');
+                const media = layer && layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                 if (!media) return;
                 const { w, h } = mediaDims(media);
                 if (!w || !h) return;
@@ -1663,6 +1680,23 @@
             document.querySelectorAll('video').forEach(v => {
                 if (v !== sourceVideo) action(v);
             });
+        }
+
+        // Shared media sync — works for both video and audio modes
+        function syncMedia(source, action) {
+            const tag = hasAudios ? '.overlay-layer audio' : 'video';
+            document.querySelectorAll(tag).forEach(el => {
+                if (el !== source) action(el);
+            });
+        }
+
+        // Shared progress display — delegates to audio or video format
+        function updateMediaProgress(media) {
+            if (hasAudios) {
+                updateAudioProgress(media);
+            } else {
+                updateVideoProgress(media);
+            }
         }
 
         // Brief non-intrusive toast shown after file load. Auto-dismisses after `duration` ms.
@@ -1834,10 +1868,10 @@
                 const activeLayer = document.querySelector('.overlay-layer.active');
                 if (!activeLayer) { mag.classList.remove('active'); return; }
                 targetWrapper = activeLayer.querySelector('.video-wrapper');
-                media = targetWrapper ? targetWrapper.querySelector('img, video') : null;
+                media = targetWrapper ? targetWrapper.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
             } else {
                 targetWrapper = wrapper;
-                media = wrapper.querySelector('img, video');
+                media = wrapper.querySelector('img, video, canvas.audio-viz-slot-canvas');
             }
             if (!media) { mag.classList.remove('active'); return; }
 
@@ -1866,7 +1900,7 @@
                 const secondaryIds = ['pixelMagnifier1', 'pixelMagnifier2'];
                 allWrappers.forEach(w => {
                     if (w === targetWrapper || secondaryIdx >= secondaryIds.length) return;
-                    const m = w.querySelector('img, video');
+                    const m = w.querySelector('img, video, canvas.audio-viz-slot-canvas');
                     if (!m) return;
                     const mNatW = m.naturalWidth || m.videoWidth;
                     const mNatH = m.naturalHeight || m.videoHeight;
@@ -1888,6 +1922,7 @@
         let currentAssetIndex = 0;
         // isFullscreen removed — zoom/pan always available in overlay; browser fullscreen via F key
         let hasVideos = false;
+        let hasAudios = false;
         let isMuted = false;
         let isPanning = false;
         let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
@@ -1980,13 +2015,20 @@
         }
 
         function handleMultipleFiles(files) {
-            // Filter for images and videos only
+            // Filter for images, videos, and audio
             const mediaFiles = files.filter(f =>
-                f.type.startsWith('image/') || f.type.startsWith('video/')
+                f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
             );
 
             if (mediaFiles.length !== 2 && mediaFiles.length !== 3) {
                 alert(`Please select 2 or 3 media files.\nYou selected ${mediaFiles.length} media file(s).\n\n2 files = Edit A vs Edit B (no original)\n3 files = Original vs Edit A vs Edit B`);
+                return;
+            }
+
+            // Reject mixed audio + non-audio loads
+            const audioCount = mediaFiles.filter(f => f.type.startsWith('audio/')).length;
+            if (audioCount > 0 && audioCount < mediaFiles.length) {
+                alert('Cannot mix audio files with image/video files.\nPlease load either all audio files or all image/video files.');
                 return;
             }
 
@@ -2488,6 +2530,8 @@
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
                 drawSpectrogram(slot);
             }
+            if (hasAudios) redrawAllAudioSlotCanvases();
+            showToast('Frequency scale: ' + (spectrogramLogScale ? 'LOG' : 'LINEAR'));
         }
 
         function cycleSpectrogramPalette() {
@@ -2501,6 +2545,8 @@
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
                 drawSpectrogram(slot);
             }
+            if (hasAudios) redrawAllAudioSlotCanvases();
+            showToast('Palette: ' + name.toUpperCase());
         }
 
         // ── Video Scopes (Histogram, Waveform Monitor, Vectorscope) ────
@@ -2746,8 +2792,487 @@
 
         // ── End Audio Visualization ─────────────────────────────────────
 
+        // ── Audio File Comparison ──────────────────────────────────────────
+
+        let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
+        let _audioMaxDuration = 0;   // uniform time scale across all audio slots
+
+        // Shared media helpers — work for both video and audio modes
+        function getAllPlayableMedia() {
+            const tag = hasAudios ? 'audio' : 'video';
+            return [
+                document.querySelector('#layerOriginal ' + tag),
+                document.querySelector('#layerEditA ' + tag),
+                document.querySelector('#layerEditB ' + tag)
+            ].filter(Boolean);
+        }
+
+        function playAllMedia() { getAllPlayableMedia().forEach(m => m.play()); }
+        function pauseAllMedia() { getAllPlayableMedia().forEach(m => m.pause()); }
+
+        function setupAudioHandlers(audio, slot) {
+            audio.addEventListener('play', function() {
+                syncMedia(audio, a => {
+                    a.play();
+                    if (Math.abs(a.currentTime - audio.currentTime) > 0.1) {
+                        a.currentTime = audio.currentTime;
+                    }
+                });
+                startProgressUpdateLoop();
+            });
+
+            audio.addEventListener('pause', function() {
+                syncMedia(audio, a => { if (!a.paused) a.pause(); });
+            });
+
+            audio.addEventListener('seeked', function() {
+                updateMediaProgress(audio);
+            });
+        }
+
+        function updateAudioProgress(media) {
+            const duration = media.duration;
+            if (isNaN(duration) || duration === 0) return;
+            getProgressEls();
+            const currentTime = media.currentTime;
+            if (_elProgressBar) _elProgressBar.style.width = ((currentTime / duration) * 100) + '%';
+
+            // Time-only timecode (no frames for audio)
+            const fmtTime = (t) => {
+                const m = Math.floor(t / 60);
+                const s = Math.floor(t % 60);
+                const ms = Math.floor((t % 1) * 100);
+                return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+            };
+            if (_elTimecode) _elTimecode.textContent = fmtTime(currentTime);
+            if (_elDuration) _elDuration.textContent = fmtTime(duration);
+            updateAllAudioSlotCursors(media);
+        }
+
+        // Detect bit depth from raw audio file bytes
+        function detectAudioBitDepth(arrayBuffer, fileName) {
+            const view = new DataView(arrayBuffer);
+            const ext = (fileName || '').split('.').pop().toLowerCase();
+            // WAV: "RIFF" header — bit depth at byte 34
+            if (view.byteLength > 44) {
+                const riff = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+                if (riff === 'RIFF') {
+                    return view.getUint16(34, true) + '-bit';
+                }
+            }
+            // AIFF: "FORM" header — bit depth at offset 26 of COMM chunk
+            if (view.byteLength > 30) {
+                const form = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+                if (form === 'FORM') {
+                    // Search for COMM chunk
+                    for (let i = 12; i < Math.min(view.byteLength - 8, 1024); i++) {
+                        const id = String.fromCharCode(view.getUint8(i), view.getUint8(i+1), view.getUint8(i+2), view.getUint8(i+3));
+                        if (id === 'COMM') {
+                            return view.getInt16(i + 14) + '-bit';
+                        }
+                    }
+                }
+            }
+            // FLAC: "fLaC" header — bits per sample in STREAMINFO
+            if (view.byteLength > 20) {
+                const flac = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+                if (flac === 'fLaC') {
+                    // Bits per sample is at byte 20, bits 4-8 (5 bits) + 1
+                    const bps = ((view.getUint8(20) & 0x01) << 4 | (view.getUint8(21) >> 4)) + 1;
+                    return bps + '-bit';
+                }
+            }
+            // Lossy formats: report codec instead
+            if (ext === 'mp3') return 'MP3';
+            if (ext === 'aac' || ext === 'm4a') return 'AAC';
+            if (ext === 'ogg' || ext === 'opus') return ext.toUpperCase();
+            return '';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function updateAudioInfoBar(slot, audioBuffer, arrayBuffer) {
+            const layer = getLayer(slot);
+            if (!layer) return;
+            const infoBar = layer.querySelector('.asset-info-bar');
+            if (!infoBar) return;
+            const md = mediaData[slot];
+
+            const srEl = infoBar.querySelector('.asset-sample-rate');
+            if (srEl) {
+                const sr = audioBuffer.sampleRate;
+                srEl.textContent = sr >= 1000 ? (sr / 1000) + ' kHz' : sr + ' Hz';
+            }
+
+            const chEl = infoBar.querySelector('.asset-channels');
+            if (chEl) {
+                const n = audioBuffer.numberOfChannels;
+                chEl.textContent = n === 1 ? 'Mono' : n === 2 ? 'Stereo' : n + 'ch';
+            }
+
+            const bdEl = infoBar.querySelector('.asset-bit-depth');
+            if (bdEl && arrayBuffer) {
+                bdEl.textContent = detectAudioBitDepth(arrayBuffer, md && md.name);
+            }
+
+            const szEl = infoBar.querySelector('.asset-file-size');
+            if (szEl && md) {
+                szEl.textContent = formatFileSize(md.size);
+            }
+        }
+
+        function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
+            const ctx = getAudioContext();
+            ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
+                const numBuckets = 4000;
+                const waveform = computeWaveformData(audioBuffer, numBuckets);
+                const spectrogram = computeSpectrogramData(audioBuffer);
+                _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer };
+
+                // Update info bar with audio metadata
+                updateAudioInfoBar(slot, audioBuffer, arrayBuffer);
+
+                // Recompute max duration across all loaded audio slots
+                _audioMaxDuration = 0;
+                assetOrder.forEach(s => {
+                    if (_audioSlotVizData[s]) {
+                        _audioMaxDuration = Math.max(_audioMaxDuration, _audioSlotVizData[s].audioBuffer.duration);
+                    }
+                });
+
+                // Redraw all canvases with uniform time scale
+                assetOrder.forEach(s => {
+                    if (_audioSlotVizData[s]) drawAudioSlotCanvas(s);
+                });
+            }).catch(err => {
+                console.error('Audio decode error for slot ' + slot + ':', err);
+            });
+        }
+
+        function drawAudioSlotCanvas(slot, _retries) {
+            const canvas = document.querySelector(`.audio-viz-slot-canvas[data-slot="${slot}"]`);
+            if (!canvas) return;
+            const vizData = _audioSlotVizData[slot];
+            if (!vizData) return;
+
+            const wrapper = canvas.parentElement;
+            const dpr = window.devicePixelRatio || 1;
+            const w = wrapper.offsetWidth;
+            const h = wrapper.offsetHeight;
+            if (w === 0 || h === 0) {
+                // Layout not ready yet — retry after next frame (up to 30 attempts)
+                if ((_retries || 0) < 30) {
+                    requestAnimationFrame(() => drawAudioSlotCanvas(slot, (_retries || 0) + 1));
+                }
+                return;
+            }
+
+            // Skip redraws when wrapper is temporarily collapsed (e.g. during layout transitions)
+            if (w < 200 || h < 50) {
+                if (canvas.width > 0) return; // keep existing render
+            }
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // ── Label margin ──
+            const labelMargin = Math.round(30 * dpr);
+
+            const slotDuration = vizData.audioBuffer.duration;
+            const maxDuration = _audioMaxDuration || slotDuration;
+            // Fraction of drawable width this file actually fills
+            const drawableW = canvas.width - labelMargin;
+            const fillFrac = slotDuration / maxDuration;
+            const fillW = Math.round(drawableW * fillFrac);
+
+            const waveH = Math.round(canvas.height * 0.4);
+            const specH = canvas.height - waveH;
+            const isStereo = !!vizData.waveform.R;
+
+            // ── Waveform (top 40%) ──
+            ctx.save();
+            ctx.translate(labelMargin, 0);
+            const wf = vizData.waveform;
+            const wfColor = 'rgba(100, 200, 255, 0.8)';
+
+            if (isStereo) {
+                const halfH = Math.floor(waveH / 2);
+                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, halfH, wfColor, slotDuration, maxDuration);
+                drawWaveformChannelScaled(ctx, wf.R, fillW, halfH, waveH - halfH, 'rgba(255, 160, 80, 0.8)', slotDuration, maxDuration);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(0, halfH);
+                ctx.lineTo(fillW, halfH);
+                ctx.stroke();
+            } else {
+                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, waveH, wfColor, slotDuration, maxDuration);
+            }
+
+            // dB grid lines
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.setLineDash([4, 4]);
+            const midY = waveH / 2;
+            [-6, -12].forEach(db => {
+                const amp = Math.pow(10, db / 20);
+                [midY - amp * (waveH / 2), midY + amp * (waveH / 2)].forEach(y => {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(fillW, y);
+                    ctx.stroke();
+                });
+            });
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // ── Waveform/Spectrogram divider ──
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(labelMargin, waveH);
+            ctx.lineTo(canvas.width, waveH);
+            ctx.stroke();
+
+            // ── Spectrogram (bottom 60%) ──
+            ctx.fillStyle = '#111';
+            ctx.fillRect(labelMargin, waveH, fillW, specH);
+            const spec = vizData.spectrogram;
+            if (spec && spec.L && spec.L.frames.length) {
+                const numBins = spec.L.frames[0].length;
+                const sr = spec.sampleRate;
+
+                if (spec.R && spec.R.frames.length) {
+                    const halfSpecH = Math.floor(specH / 2);
+                    const imgData = ctx.createImageData(fillW, specH);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, halfSpecH, sr);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.R.frames, numBins, halfSpecH, specH - halfSpecH, sr);
+                    ctx.putImageData(imgData, labelMargin, waveH);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.beginPath();
+                    ctx.moveTo(labelMargin, waveH + halfSpecH);
+                    ctx.lineTo(labelMargin + fillW, waveH + halfSpecH);
+                    ctx.stroke();
+                } else {
+                    const imgData = ctx.createImageData(fillW, specH);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, specH, sr);
+                    ctx.putImageData(imgData, labelMargin, waveH);
+                }
+            }
+
+            // Dim the empty region beyond the file's duration
+            if (fillFrac < 1) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(labelMargin + fillW, 0, canvas.width - labelMargin - fillW, canvas.height);
+            }
+
+            // ── Draw labels in the left margin ──
+            const fontSize = Math.round(9 * dpr);
+            ctx.font = fontSize + 'px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const labelX = labelMargin / 2;
+
+            // Waveform channel labels
+            if (isStereo) {
+                const halfH = Math.floor(waveH / 2);
+                ctx.fillStyle = '#6ab4ff';
+                ctx.fillText('L', labelX, halfH / 2);
+                ctx.fillStyle = '#ffa050';
+                ctx.fillText('R', labelX, halfH + (waveH - halfH) / 2);
+            }
+
+            // Spectrogram frequency labels
+            ctx.fillStyle = '#888';
+            ctx.font = Math.round(8 * dpr) + 'px monospace';
+            if (isStereo) {
+                const halfSpecH = Math.floor(specH / 2);
+                // L channel spectrogram labels
+                ctx.fillStyle = '#6ab4ff';
+                ctx.fillText('L', labelX, waveH + halfSpecH / 2);
+                // R channel spectrogram labels
+                ctx.fillStyle = '#ffa050';
+                ctx.fillText('R', labelX, waveH + halfSpecH + (specH - halfSpecH) / 2);
+            } else {
+                // Mono: frequency scale labels
+                const freqLabels = spectrogramLogScale
+                    ? ['20k', '10k', '1k', '100', '20']
+                    : ['20k', '10k', '5k', '1k', '100'];
+                ctx.fillStyle = '#888';
+                const n = freqLabels.length;
+                for (let i = 0; i < n; i++) {
+                    const t = i / (n - 1); // 0 = top, 1 = bottom
+                    const y = waveH + t * (specH - fontSize) + fontSize / 2;
+                    ctx.fillText(freqLabels[i], labelX, y);
+                }
+            }
+        }
+
+        // Like drawWaveformChannel but respects uniform time scale
+        function drawWaveformChannelScaled(ctx, data, fillW, topY, h, color, slotDuration, maxDuration) {
+            const numBuckets = data.length / 2;
+            const midY = topY + h / 2;
+            const halfH = h / 2;
+            const bucketW = fillW / numBuckets;
+            const bw = Math.max(bucketW, 1);
+            for (let i = 0; i < numBuckets; i++) {
+                const min = data[i * 2];
+                const max = data[i * 2 + 1];
+                const absMax = Math.max(Math.abs(max), Math.abs(min));
+                const x = i * bucketW;
+
+                ctx.fillStyle = color;
+                const fullTop = midY - max * halfH;
+                const fullBot = midY - min * halfH;
+                ctx.fillRect(x, fullTop, bw, fullBot - fullTop);
+
+                // Overdraw dB zones
+                for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
+                    const zone = WAVEFORM_ZONES[z];
+                    if (absMax < zone.threshold) continue;
+                    const t = zone.threshold;
+                    if (max > t) {
+                        ctx.fillStyle = zone.color;
+                        ctx.fillRect(x, midY - max * halfH, bw, (max - t) * halfH);
+                    }
+                    if (min < -t) {
+                        ctx.fillStyle = zone.color;
+                        ctx.fillRect(x, midY + t * halfH, bw, (-min - t) * halfH);
+                    }
+                }
+            }
+        }
+
+        function updateAllAudioSlotCursors(primaryAudio) {
+            if (!primaryAudio || !primaryAudio.duration) return;
+            const maxDur = _audioMaxDuration || primaryAudio.duration;
+            const pct = primaryAudio.currentTime / maxDur;
+            const labelMarginCss = 30; // matches drawAudioSlotCanvas label margin
+
+            document.querySelectorAll('.audio-slot-cursor').forEach(cursor => {
+                const wrapper = cursor.parentElement;
+                if (wrapper) {
+                    const drawableW = wrapper.offsetWidth - labelMarginCss;
+                    cursor.style.left = (labelMarginCss + pct * drawableW) + 'px';
+                }
+            });
+        }
+
+        function redrawAllAudioSlotCanvases() {
+            assetOrder.forEach(s => {
+                if (_audioSlotVizData[s]) drawAudioSlotCanvas(s);
+            });
+        }
+
+        // ── End Audio File Comparison ──────────────────────────────────────
+
         function loadFile(slot, file) {
             const isVideo = file.type.startsWith('video/');
+            const isAudio = file.type.startsWith('audio/');
+
+            // Audio files: read as ArrayBuffer, create hidden <audio> for playback,
+            // create canvas for waveform+spectrogram rendering.
+            if (isAudio) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const arrayBuffer = e.target.result;
+                    const blob = new Blob([arrayBuffer], { type: file.type });
+                    const blobUrl = URL.createObjectURL(blob);
+
+                    mediaData[slot] = {
+                        type: 'audio',
+                        src: blobUrl,
+                        name: file.name,
+                        size: file.size,
+                        lastModified: file.lastModified,
+                        w: 1920,
+                        h: 480
+                    };
+
+                    const layer = getLayer(slot);
+                    const oldContainer = layer.querySelector('.media-container');
+                    if (oldContainer) oldContainer.remove();
+
+                    const mediaContainer = document.createElement('div');
+                    mediaContainer.className = 'media-container';
+
+                    // Hidden audio element for playback
+                    const audio = document.createElement('audio');
+                    audio.src = blobUrl;
+                    audio.controls = false;
+                    audio.loop = true;
+                    audio.volume = _prefs.load('volume', 100) / 100;
+                    audio.style.display = 'none';
+                    mediaContainer.appendChild(audio);
+
+                    // Canvas for waveform + spectrogram
+                    const canvas = document.createElement('canvas');
+                    canvas.className = 'audio-viz-slot-canvas';
+                    canvas.dataset.slot = slot;
+
+                    audio.addEventListener('loadedmetadata', function() {
+                        updateDurationDisplay(slot, audio.duration);
+                        setupAudioHandlers(audio, slot);
+                        checkAllLoaded();
+                    });
+
+                    hasAudios = true;
+
+                    let infoBar = layer.querySelector('.asset-info-bar');
+                    let zoomIndicator = layer.querySelector('.split-zoom-indicator');
+
+                    const slotLabel = slot === 'original' ? 'AUDIO O' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
+                    if (!infoBar) {
+                        infoBar = document.createElement('div');
+                        infoBar.className = 'asset-info-bar';
+                    }
+                    infoBar.innerHTML = `
+                        <span class="asset-name">${slotLabel}</span>
+                        <span class="asset-sample-rate"></span>
+                        <span class="asset-channels"></span>
+                        <span class="asset-bit-depth"></span>
+                        <span class="asset-file-size"></span>
+                        <span class="asset-duration">-</span>
+                    `;
+
+                    if (!zoomIndicator) {
+                        zoomIndicator = document.createElement('div');
+                        zoomIndicator.className = 'split-zoom-indicator';
+                        zoomIndicator.id = `zoom${capitalize(slot)}`;
+                        zoomIndicator.textContent = '';
+                    }
+
+                    const videoWrapper = document.createElement('div');
+                    videoWrapper.className = 'video-wrapper';
+                    videoWrapper.style.position = 'relative';
+                    videoWrapper.appendChild(canvas);
+
+                    // Add playback cursor overlay
+                    const cursor = document.createElement('div');
+                    cursor.className = 'audio-slot-cursor';
+                    cursor.dataset.slot = slot;
+                    cursor.style.left = '30px'; // matches label margin
+                    videoWrapper.appendChild(cursor);
+
+                    videoWrapper.appendChild(zoomIndicator);
+                    videoWrapper.appendChild(infoBar);
+                    mediaContainer.appendChild(videoWrapper);
+                    layer.appendChild(mediaContainer);
+                    layer.style.opacity = '0';
+
+                    // Decode audio and compute viz data
+                    audioFileBuffers[slot] = arrayBuffer;
+                    decodeAndComputeAudioSlotViz(slot, arrayBuffer);
+                };
+                reader.readAsArrayBuffer(file);
+                return;
+            }
 
             // Videos: read as ArrayBuffer once, create blob URL for playback,
             // reuse the same buffer for audio visualization.
@@ -2919,7 +3444,7 @@
                 videoWrapper.className = 'video-wrapper';
 
                 // Move the media element into the wrapper
-                const mediaEl = mediaContainer.querySelector('img, video');
+                const mediaEl = mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                 if (mediaEl) videoWrapper.appendChild(mediaEl);
 
                 // Zoom indicator lives inside the wrapper — always at bottom-right of video bounds
@@ -3037,26 +3562,31 @@
             if (globalAnimationId !== null) return;
 
             function updateLoop() {
-                // Use the cached primary video ref; fall back to a live query only if stale
-                let primaryVideo = primaryVideoRef;
-                if (!primaryVideo || primaryVideo.isConnected === false) {
-                    // Stale ref — re-query once and re-cache
-                    if (!isSplitMode) {
-                        const activeLayer = document.querySelector('.overlay-layer.active');
-                        primaryVideo = activeLayer ? activeLayer.querySelector('video') : null;
-                    } else {
-                        primaryVideo = document.querySelector('.overlay-layer video');
+                let primary;
+
+                if (hasAudios) {
+                    // Audio mode: use first audio element
+                    primary = getAllPlayableMedia()[0];
+                } else {
+                    // Video mode: use cached primary video ref; fall back to live query if stale
+                    primary = primaryVideoRef;
+                    if (!primary || primary.isConnected === false) {
+                        if (!isSplitMode) {
+                            const activeLayer = document.querySelector('.overlay-layer.active');
+                            primary = activeLayer ? activeLayer.querySelector('video') : null;
+                        } else {
+                            primary = document.querySelector('.overlay-layer video');
+                        }
+                        primaryVideoRef = primary;
                     }
-                    primaryVideoRef = primaryVideo;
                 }
 
-                if (primaryVideo && !primaryVideo.paused) {
-                    updateVideoProgress(primaryVideo);
-                    if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
-                    if (videoScopesVisible) updateVideoScopes();
+                if (primary && !primary.paused) {
+                    updateMediaProgress(primary);
+                    if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
+                    if (!hasAudios && videoScopesVisible) updateVideoScopes();
                     globalAnimationId = requestAnimationFrame(updateLoop);
                 } else {
-                    // Nothing is playing — stop the loop; it restarts on the next play event
                     globalAnimationId = null;
                 }
             }
@@ -3203,9 +3733,9 @@
         function applyAudioMuteImmediate(source) {
             const layer = getLayer(source);
             if (!layer) return;
-            const video = layer.querySelector('video');
-            if (!video) return;
-            video.muted = audioMuteStates[source];
+            const mediaEl = layer.querySelector('video') || layer.querySelector('audio');
+            if (!mediaEl) return;
+            mediaEl.muted = audioMuteStates[source];
         }
 
         function selectAudioSource(source) {
@@ -3217,15 +3747,15 @@
                 if (btn) btn.classList.toggle('active', s === source);
             });
 
-            // Mute all videos except the selected source and update button icons
+            // Mute all videos/audios except the selected source and update button icons
             assetOrder.forEach(slot => {
                 const layer = getLayer(slot);
 
                 if (layer) {
-                    const video = layer.querySelector('video');
-                    if (video) {
+                    const mediaEl = layer.querySelector('video') || layer.querySelector('audio');
+                    if (mediaEl) {
                         const shouldMute = (slot !== source) || audioMuteStates[slot];
-                        video.muted = shouldMute;
+                        mediaEl.muted = shouldMute;
                         updateAudioButton(slot, shouldMute);
                     }
 
@@ -3237,7 +3767,7 @@
 
         function setVolume(value) {
             const volume = value / 100;
-            document.querySelectorAll('.overlay-layer video').forEach(v => {
+            document.querySelectorAll('.overlay-layer video, .overlay-layer audio').forEach(v => {
                 v.volume = volume;
             });
             _prefs.save('volume', Number(value));
@@ -3411,11 +3941,12 @@
                 if (activeLayer) activeLayer.classList.add('active');
             }
 
-            // Check if current asset is video and update progress if so
-            const video = activeLayer ? activeLayer.querySelector('video') : null;
-            if (video) {
-                primaryVideoRef = video; // keep rAF loop ref fresh
-                updateVideoProgress(video);
+            // Update progress for active media
+            const tag = hasAudios ? 'audio' : 'video';
+            const playable = activeLayer ? activeLayer.querySelector(tag) : null;
+            if (playable) {
+                if (!hasAudios) primaryVideoRef = playable;
+                updateMediaProgress(playable);
             }
 
             // Reposition the newly active layer's wrapper with the current zoom/pan offset.
@@ -3425,9 +3956,9 @@
             refreshAssetButtons();
 
             // Refresh magnifier so it shows the newly active layer's pixels
-            if (magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
+            if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
             // Refresh video scopes for the new asset
-            if (videoScopesVisible) updateVideoScopes();
+            if (!hasAudios && videoScopesVisible) updateVideoScopes();
         }
 
         // Setup video scrubbing with drag support
@@ -3465,8 +3996,9 @@
                     }
                 }
 
-                // Update timecode from seek target (currentTime lags until decode completes)
-                updateVideoProgressFromTime(video, t);
+                // Update timecode from seek target
+                if (hasAudios) updateAudioProgress(video);
+                else updateVideoProgressFromTime(video, t);
             }
 
             progressContainer.addEventListener('mousedown', function(e) {
@@ -3478,18 +4010,19 @@
                     globalAnimationId = null;
                 }
 
+                const tag = hasAudios ? 'audio' : 'video';
                 const activeLayer = document.querySelector('.overlay-layer.active');
-                _scrubVideo = activeLayer ? activeLayer.querySelector('video') : null;
+                _scrubVideo = activeLayer ? activeLayer.querySelector(tag) : null;
                 if (!_scrubVideo) {
-                    const vids = getAllVideos();
-                    if (vids.length > 0) _scrubVideo = vids[0];
+                    const els = getAllPlayableMedia();
+                    if (els.length > 0) _scrubVideo = els[0];
                 }
-                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer video'));
+                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer ' + tag));
                 _scrubContainerRect = progressContainer.getBoundingClientRect();
 
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
-                    if (wasPlaying) pauseAllVideos();
+                    if (wasPlaying) pauseAllMedia();
                 }
 
                 scrubToPosition(e);
@@ -3508,9 +4041,9 @@
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
-                    if (wasPlaying) playAllVideos();
+                    if (wasPlaying) playAllMedia();
                     // Refresh scopes once after scrub ends
-                    if (videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
+                    if (!hasAudios && videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
             });
         });
@@ -3542,7 +4075,7 @@
                 assetOrder.forEach(slot => {
                     if (mediaData[slot]) {
                         const layer = getLayer(slot);
-                        const media = layer && layer.querySelector('img, video');
+                        const media = layer && layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                         if (media) {
                             const { w: nw } = mediaDims(media);
                             if (nw > 0 && nw < minNW) minNW = nw;
@@ -3563,7 +4096,7 @@
                     assetOrder.forEach(slot => {
                         if (mediaData[slot]) {
                             const layer = getLayer(slot);
-                            const media = layer && layer.querySelector('img, video');
+                            const media = layer && layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                             if (media) {
                                 const { w: nw, h: nh } = mediaDims(media);
                                 if (nw > 0 && nh > 0) {
@@ -3594,7 +4127,7 @@
                 if (!mediaData[slot]) return;
                 const layer = getLayer(slot);
                 if (!layer) return;
-                const media = layer.querySelector('img, video');
+                const media = layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                 const vw = layer.querySelector('.video-wrapper');
                 if (!media || !vw) return;
 
@@ -3789,6 +4322,7 @@
             currentAssetIndex = 0;
             expectedFileCount = 0;
             hasVideos = false;
+            hasAudios = false;
             zoomLevel = 1;
             splitZoomLevel = null;
             splitStepZoom = 1.0;
@@ -3797,8 +4331,11 @@
             panOffsetY = 0;
             isPanning = false;
 
-            // Stop video progress loop — will be restarted if new load includes videos
+            // Stop video/audio progress loop — will be restarted if new load includes videos/audio
             stopProgressUpdateLoop();
+
+            // Remove audio slot cursors
+            document.querySelectorAll('.audio-slot-cursor').forEach(c => c.remove());
 
             // Reset audio mute state and button UI for all slots
             assetOrder.forEach(slot => {
@@ -3822,6 +4359,8 @@
             waveformData = {};
             spectrogramData = {};
             audioFileBuffers = {};
+            _audioSlotVizData = {};
+            _audioMaxDuration = 0;
             audioVizVisible = false;
             magnifierEnabled = false;
             // Keep persisted prefs (magnifierLinked, magnifierZoom, magnifierSize,
@@ -3917,30 +4456,14 @@
             ].filter(v => v);
         }
 
-        function playAllVideos() {
-            getAllVideos().forEach(v => v.play());
-        }
-
-        function pauseAllVideos() {
-            getAllVideos().forEach(v => v.pause());
-        }
-
         function togglePlayPause() {
-            const firstVideo = document.querySelector('.overlay-layer video');
-            if (firstVideo) {
-                if (firstVideo.paused) {
-                    playAllVideos();
-                } else {
-                    pauseAllVideos();
-                }
-            }
+            const els = getAllPlayableMedia();
+            if (els.length === 0) return;
+            if (els[0].paused) playAllMedia(); else pauseAllMedia();
         }
 
         function restartAllVideos() {
-            getAllVideos().forEach(v => {
-                v.currentTime = 0;
-                v.play();
-            });
+            getAllPlayableMedia().forEach(m => { m.currentTime = 0; m.play(); });
         }
 
         function stepFrame(direction) {
@@ -3990,7 +4513,7 @@
 
                 const slotName = capitalize(slot);
                 const layer = getLayer(slot);
-                const media = layer.querySelector('img, video');
+                const media = layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                 const indicator = document.getElementById(`zoom${slotName}`);
 
                 if (!media || !indicator) return;
@@ -4077,7 +4600,7 @@
                     if (!mediaData[slot]) return;
                     const layer = getLayer(slot);
                     const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                    const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                    const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
                     if (!media) return;
                     const { w: nw, h: nh } = mediaDims(media);
                     if (!nw || !nh) return;
@@ -4388,7 +4911,7 @@
                         if (!mediaData[slot]) return;
                         const layer = getLayer(slot);
                         const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                        const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                        const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
                         const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
                         if (!media || !mediaContainer) return;
                         const { w: nw, h: nh } = mediaDims(media);
@@ -4421,7 +4944,7 @@
 
                 const layer = getLayer(slot);
                 const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                const media = mediaContainer ? mediaContainer.querySelector('img, video') : null;
+                const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
                 const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
                 const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
 
@@ -4705,6 +5228,7 @@
         const positionLabelsToMediaRaf = rafThrottle(positionLabelsToMedia);
 
         // Call positioning on resize
+        let _audioResizeRaf = null;
         window.addEventListener('resize', () => {
             if (isSplitMode) {
                 positionLabelsToMediaRaf();
@@ -4714,6 +5238,12 @@
             if (audioVizVisible) {
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
                 updateAudioVisForSlot(slot);
+            }
+            if (hasAudios && !_audioResizeRaf) {
+                _audioResizeRaf = requestAnimationFrame(() => {
+                    _audioResizeRaf = null;
+                    redrawAllAudioSlotCanvases();
+                });
             }
         });
 
@@ -4791,7 +5321,7 @@
                     if (container) container.style.gridTemplateColumns = '';
 
                     document.querySelectorAll('.overlay-layer').forEach(layer => {
-                        const hasMedia = layer.querySelector('img, video');
+                        const hasMedia = layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                         if (hasMedia) layer.classList.add('active');
                         layer.style.height = '';
                         layer.style.marginTop = '';
@@ -4821,7 +5351,7 @@
                     const isAnyTripartite = isTripartiteMode();
                     if (!isAnyTripartite) {
                         document.querySelectorAll('.overlay-layer').forEach(layer => {
-                            layer.style.display = layer.querySelector('img, video') ? '' : 'none';
+                            layer.style.display = layer.querySelector('img, video, canvas.audio-viz-slot-canvas') ? '' : 'none';
                         });
                     } else {
                         document.querySelectorAll('.overlay-layer').forEach(layer => {
@@ -5142,7 +5672,24 @@
                     .filter(Boolean);
                 loadedLayers.forEach(layer => { layer.style.opacity = '0'; });
 
-                if (loadedCount === 2 && !mediaData.original) {
+                if (hasAudios) {
+                    // Audio mode: force vertical stack, label as AUDIO A/B/O
+                    if (loadedCount === 2 && !mediaData.original) {
+                        document.querySelector('#layerEditA .asset-name').textContent = 'AUDIO A';
+                        document.querySelector('#layerEditB .asset-name').textContent = 'AUDIO B';
+                    } else if (loadedCount === 3) {
+                        document.querySelector('#layerOriginal .asset-name').textContent = 'AUDIO O';
+                        document.querySelector('#layerEditA .asset-name').textContent = 'AUDIO A';
+                        document.querySelector('#layerEditB .asset-name').textContent = 'AUDIO B';
+                    }
+                    // Audio always uses vertical stack in grid
+                    if (loadedCount === 3) {
+                        tripartiteLayout3Col = true;
+                        setViewMode('tripartite');
+                    } else {
+                        setViewMode('vertical');
+                    }
+                } else if (loadedCount === 2 && !mediaData.original) {
                     // Relabel: IMAGE A/B or VIDEO A/B (no "EDIT" label when there's no original)
                     const mediaType = (mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video')
                         ? 'VIDEO' : 'IMAGE';
@@ -5209,9 +5756,15 @@
                     setTimeout(() => { if (remaining > 0) { remaining = 0; startFadeIn(); } }, 2000);
                 }
 
-                // Show video controls if any videos
-                if (hasVideos) {
+                // Show video controls if any videos or audio
+                if (hasVideos || hasAudios) {
                     document.getElementById('videoControls').classList.add('active');
+                }
+
+                // Audio mode: redraw all slot canvases after layout is committed.
+                // Double-rAF ensures positionLabelsToMedia has fully sized the wrappers.
+                if (hasAudios) {
+                    requestAnimationFrame(() => requestAnimationFrame(() => redrawAllAudioSlotCanvases()));
                 }
             }
         }
@@ -5221,8 +5774,8 @@
             const btn = document.getElementById('muteBtn');
 
             if (isMuted) {
-                // Mute all videos
-                getAllVideos().forEach(v => { v.muted = true; });
+                // Mute all videos/audios
+                getAllPlayableMedia().forEach(m => { m.muted = true; });
             } else {
                 // Unmute: re-apply audio source routing so only the active source plays
                 selectAudioSource(currentAudioSource);
@@ -5354,6 +5907,7 @@
             } else if (e.key === '3') {
                 // Toggle between L-shaped and equal-layout 3-UP
                 e.preventDefault();
+                if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
                 const isAnyTripartiteNow = isTripartiteMode();
                 if (isSplitMode && isAnyTripartiteNow) {
                     // Skip toggle when orientations are mixed — L-shaped doesn't work
@@ -5378,22 +5932,28 @@
             } else if (e.key === 'W' && e.shiftKey) {
                 // Shift+W toggles log/linear frequency scale
                 e.preventDefault();
-                if (hasVideos && audioVizVisible) toggleSpectrogramScale();
+                if ((hasVideos && audioVizVisible) || hasAudios) toggleSpectrogramScale();
             } else if (e.key === 'C' && e.shiftKey) {
                 // Shift+C cycles spectrogram color palette
                 e.preventDefault();
-                if (hasVideos && audioVizVisible) cycleSpectrogramPalette();
+                if ((hasVideos && audioVizVisible) || hasAudios) cycleSpectrogramPalette();
             } else if (e.key === 'w') {
                 // W key toggles audio visualization (spectrogram)
                 e.preventDefault();
-                if (hasVideos) toggleAudioViz();
+                if (hasAudios) {
+                    showToast('Audio visualization is shown in main view');
+                } else if (hasVideos) {
+                    toggleAudioViz();
+                }
             } else if (e.key === 'v') {
                 // V key toggles video scopes (histogram, waveform monitor, vectorscope)
                 e.preventDefault();
+                if (hasAudios) { showToast('Video scopes not available in audio mode'); return; }
                 if (document.getElementById('comparisonView').classList.contains('active')) toggleVideoScopes();
             } else if (e.key === 'Z' && e.shiftKey) {
                 // Shift+Z toggles linked loupes in split mode
                 e.preventDefault();
+                if (hasAudios) return;
                 magnifierLinked = !magnifierLinked;
                 _prefs.save('magnifierLinked', magnifierLinked);
                 showToast('Linked zoom ' + (magnifierLinked ? 'ON' : 'OFF'));
@@ -5401,6 +5961,7 @@
             } else if (e.key === 'z' || e.key === 'Z') {
                 // Z key toggles zoom/magnifier (industry standard)
                 e.preventDefault();
+                if (hasAudios) { showToast('Magnifier not available in audio mode'); return; }
                 toggleMagnifier();
             } else if (e.key === '[') {
                 e.preventDefault();
@@ -5418,6 +5979,14 @@
                 const allThreeLoaded = getLoadedSlotCount() === 3;
                 if (isSplitMode) {
                     setViewMode('overlay');
+                } else if (hasAudios) {
+                    // Audio: always vertical stack
+                    if (allThreeLoaded) {
+                        tripartiteLayout3Col = true;
+                        setViewMode('tripartite');
+                    } else {
+                        setViewMode('vertical');
+                    }
                 } else if (allThreeLoaded) {
                     setViewMode('tripartite');
                 } else {
@@ -5425,15 +5994,35 @@
                 }
             } else if (e.key === ',') {
                 e.preventDefault();
-                stepFrame(-1);
+                if (hasAudios) {
+                    getAllPlayableMedia().forEach(a => { a.currentTime = Math.max(0, a.currentTime - 0.05); });
+                    const primary = getAllPlayableMedia()[0];
+                    if (primary) { updateAudioProgress(primary); updateAllAudioSlotCursors(primary); }
+                } else {
+                    stepFrame(-1);
+                }
             } else if (e.key === '.') {
                 e.preventDefault();
-                stepFrame(1);
+                if (hasAudios) {
+                    getAllPlayableMedia().forEach(a => { a.currentTime = Math.min(a.duration, a.currentTime + 0.05); });
+                    const primary = getAllPlayableMedia()[0];
+                    if (primary) { updateAudioProgress(primary); updateAllAudioSlotCursors(primary); }
+                } else {
+                    stepFrame(1);
+                }
             } else if (e.key === 'g' || e.key === 'G') {
                 // G key toggles grid mode depending on asset count.
                 e.preventDefault();
                 const allThreeLoaded = getLoadedSlotCount() === 3;
-                if (allThreeLoaded) {
+                if (hasAudios) {
+                    // Audio: always vertical stack
+                    if (!isSplitMode) {
+                        if (allThreeLoaded) { tripartiteLayout3Col = true; setViewMode('tripartite'); }
+                        else setViewMode('vertical');
+                    } else {
+                        setViewMode('overlay');
+                    }
+                } else if (allThreeLoaded) {
                     // 3-asset cycle: overlay <-> tripartite
                     if (!isSplitMode) {
                         setViewMode('tripartite');
