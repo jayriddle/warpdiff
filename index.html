@@ -5900,7 +5900,7 @@
                 return;
             }
 
-            if (e.key === 'ArrowLeft') {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 // Move to previous non-empty slot
                 let nextIndex = (currentAssetIndex - 1 + assetOrder.length) % assetOrder.length;
@@ -5912,7 +5912,7 @@
                 if (mediaData[assetOrder[nextIndex]]) {
                     switchToAsset(nextIndex);
                 }
-            } else if (e.key === 'ArrowRight') {
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
                 e.preventDefault();
                 // Move to next non-empty slot
                 let nextIndex = (currentAssetIndex + 1) % assetOrder.length;
@@ -6282,7 +6282,7 @@
                 <tr><td><kbd>Z</kbd></td><td>Toggle zoom loupe</td></tr>
                 <tr><td><kbd>Shift+Z</kbd></td><td>Toggle linked zoom in Grid mode</td></tr>
                 <tr><td><kbd>[ ]</kbd></td><td>Resize zoom loupe</td></tr>
-                <tr><td><kbd>← →</kbd></td><td>Switch asset (Overlay mode)</td></tr>
+                <tr><td><kbd>← → ↑ ↓</kbd></td><td>Switch asset (Overlay mode)</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Toggle Overlay mode</td></tr>
                 <tr><td><kbd>G</kbd></td><td>Toggle Grid mode</td></tr>
                 <tr><td><kbd>3</kbd></td><td>Toggle Grid layout (Inline ↔ Offset)</td></tr>
@@ -6343,7 +6343,7 @@
 
             <h3>View Modes</h3>
             <ul>
-                <li><strong>Overlay</strong> <kbd>O</kbd> — flip between assets with <kbd>←</kbd> <kbd>→</kbd></li>
+                <li><strong>Overlay</strong> <kbd>O</kbd> — flip between assets with <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></li>
                 <li><strong>Grid</strong> <kbd>G</kbd> — side-by-side or stacked; <kbd>3</kbd> toggles inline / offset layout</li>
             </ul>
 
@@ -6423,7 +6423,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧Z</kbd></span><span class="shortcut-desc">Linked zoom (Grid mode)</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>[</kbd> <kbd>]</kbd></span><span class="shortcut-desc">Resize loupe</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>−</kbd></span><span class="shortcut-desc">Loupe zoom level (when active)</span></div>
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>←</kbd> <kbd>→</kbd></span><span class="shortcut-desc">Switch asset</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>← → ↑ ↓</kbd></span><span class="shortcut-desc">Switch asset</span></div>
             <hr class="shortcut-divider">
             <div class="shortcut-row"><span class="shortcut-key"><kbd>O</kbd></span><span class="shortcut-desc">Overlay mode</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>G</kbd></span><span class="shortcut-desc">Grid mode</span></div>

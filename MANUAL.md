@@ -171,7 +171,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 | **Z** | Toggle zoom loupe |
 | **Shift+Z** | Toggle linked zoom (Grid) |
 | **[ ]** | Resize zoom loupe |
-| **← →** | Switch asset (Overlay mode) |
+| **← → ↑ ↓** | Switch asset (Overlay mode) |
 | **O** | Toggle Overlay mode |
 | **G** | Toggle Grid mode |
 | **3** | Toggle Grid layout (Inline ↔ Offset) |
