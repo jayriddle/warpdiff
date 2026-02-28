@@ -108,6 +108,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **,** | Step back one frame |
 | **.** | Step forward one frame |
 | **R** | Restart from beginning |
+| **J** | Cycle playback speed (0.25× → 0.5× → 1× → 2×) |
 | **M** | Mute / Unmute |
 
 **Audio source selector:** Only one audio track plays at a time. Click O, A, or B to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
@@ -182,6 +183,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 | **Space** | Play / Pause |
 | **,** / **.** | Frame step back / forward |
 | **R** | Restart |
+| **J** | Cycle playback speed (0.25× / 0.5× / 1× / 2×) |
 | **M** | Mute |
 | **V** | Toggle video scopes (histogram, waveform monitor, vectorscope) |
 | **W** | Toggle waveform / spectrogram |

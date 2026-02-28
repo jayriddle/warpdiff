@@ -1632,7 +1632,7 @@
     </div>
 
     <script>
-        const APP_VERSION = '3';
+        const APP_VERSION = '3.1';
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
 
         // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
@@ -1965,6 +1965,8 @@
         let hasVideos = false;
         let hasAudios = false;
         let isMuted = false;
+        const PLAYBACK_RATES = [0.25, 0.5, 1, 2];
+        let playbackRateIndex = 2; // default 1×
         let isPanning = false;
         let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
         let panStartX = 0;
@@ -3041,32 +3043,34 @@
             const specH = canvas.height - waveH;
             const isStereo = !!vizData.waveform.R;
 
-            // ── Waveform (top 40%) ──
+            // ── Waveform (top 40%) with vertical padding ──
+            const wfPad = Math.round(waveH * 0.06); // 6% padding top and bottom
+            const wfInnerH = waveH - wfPad * 2;
             ctx.save();
-            ctx.translate(labelMargin, 0);
+            ctx.translate(labelMargin, wfPad);
             const wf = vizData.waveform;
             const wfColor = 'rgba(80, 200, 80, 0.8)';
 
             if (isStereo) {
-                const halfH = Math.floor(waveH / 2);
+                const halfH = Math.floor(wfInnerH / 2);
                 drawWaveformChannelScaled(ctx, wf.L, fillW, 0, halfH, wfColor, slotDuration, maxDuration);
-                drawWaveformChannelScaled(ctx, wf.R, fillW, halfH, waveH - halfH, wfColor, slotDuration, maxDuration);
+                drawWaveformChannelScaled(ctx, wf.R, fillW, halfH, wfInnerH - halfH, wfColor, slotDuration, maxDuration);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.beginPath();
                 ctx.moveTo(0, halfH);
                 ctx.lineTo(fillW, halfH);
                 ctx.stroke();
             } else {
-                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, waveH, wfColor, slotDuration, maxDuration);
+                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, wfInnerH, wfColor, slotDuration, maxDuration);
             }
 
             // dB grid lines
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
             ctx.setLineDash([4, 4]);
-            const midY = waveH / 2;
+            const midY = wfInnerH / 2;
             [-6, -12].forEach(db => {
                 const amp = Math.pow(10, db / 20);
-                [midY - amp * (waveH / 2), midY + amp * (waveH / 2)].forEach(y => {
+                [midY - amp * (wfInnerH / 2), midY + amp * (wfInnerH / 2)].forEach(y => {
                     ctx.beginPath();
                     ctx.moveTo(0, y);
                     ctx.lineTo(fillW, y);
@@ -3123,13 +3127,13 @@
             ctx.textBaseline = 'middle';
             const labelX = labelMargin / 2;
 
-            // Waveform channel labels
+            // Waveform channel labels (centered in padded region)
             if (isStereo) {
-                const halfH = Math.floor(waveH / 2);
+                const halfH = Math.floor(wfInnerH / 2);
                 ctx.fillStyle = '#6ab4ff';
-                ctx.fillText('L', labelX, halfH / 2);
+                ctx.fillText('L', labelX, wfPad + halfH / 2);
                 ctx.fillStyle = '#ffa050';
-                ctx.fillText('R', labelX, halfH + (waveH - halfH) / 2);
+                ctx.fillText('R', labelX, wfPad + halfH + (wfInnerH - halfH) / 2);
             }
 
             // Spectrogram frequency labels
@@ -4393,8 +4397,9 @@
             });
             currentAudioSource = 'original';
 
-            // Reset global mute toggle and button label
+            // Reset global mute toggle, playback speed, and button label
             isMuted = false;
+            playbackRateIndex = 2;
             const muteBtn = document.getElementById('muteBtn');
             if (muteBtn) muteBtn.textContent = '🔊';
 
@@ -6041,6 +6046,15 @@
             } else if (e.key === ']') {
                 e.preventDefault();
                 if (magnifierEnabled) resizeMagnifier(magnifierSize_STEP);
+            } else if (e.key === 'j' || e.key === 'J') {
+                // J key cycles playback speed
+                e.preventDefault();
+                if (hasVideos || hasAudios) {
+                    playbackRateIndex = (playbackRateIndex + 1) % PLAYBACK_RATES.length;
+                    const rate = PLAYBACK_RATES[playbackRateIndex];
+                    getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                    showToast('Speed ' + rate + '×');
+                }
             } else if (e.key === 'm' || e.key === 'M') {
                 // M key toggles mute
                 e.preventDefault();
@@ -6294,6 +6308,7 @@
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
                 <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
+                <tr><td><kbd>J</kbd></td><td>Cycle playback speed (0.25× → 0.5× → 1× → 2×)</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
                 <tr><td><kbd>W</kbd></td><td>Toggle waveform / spectrogram</td></tr>
@@ -6388,6 +6403,13 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.1</h3>
+            <ul>
+                <li>Variable playback speed <kbd>J</kbd> — cycle 0.25× / 0.5× / 1× / 2×</li>
+                <li>Up/down arrow keys to switch assets in Overlay mode</li>
+                <li>Audio file loading speed improvement</li>
+                <li>Bug fixes</li>
+            </ul>
             <h3>v3</h3>
             <ul>
                 <li>Audio file comparison — load 2–3 audio files for side-by-side waveform + spectrogram</li>
@@ -6438,6 +6460,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>,</kbd> <kbd>.</kbd></span><span class="shortcut-desc">Frame back / forward</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>J</kbd></span><span class="shortcut-desc">Playback speed</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>V</kbd></span><span class="shortcut-desc">Video scopes</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>W</kbd></span><span class="shortcut-desc">Audio waveform / spectrogram</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
