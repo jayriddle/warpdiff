@@ -207,7 +207,7 @@ The following settings are saved to your browser and persist across sessions and
 ## Info Bar
 
 Each asset displays an info bar showing:
-- Slot name (ORIGINAL, IMAGE A / EDIT A, IMAGE B / EDIT B — or AUDIO O / A / B for audio files)
+- Slot name (ORIGINAL, IMAGE A / EDIT A, IMAGE B / EDIT B — or AUDIO GT / A / B for audio files)
 - Resolution (e.g. `1920×1080`) and aspect ratio (e.g. `16:9`) for images/videos — shown in amber if non-standard
 - For audio files: sample rate, channels, bit depth/codec, and file size
 - Duration for videos and audio (e.g. `0:02:34`), or `—` for images

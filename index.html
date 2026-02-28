@@ -3271,7 +3271,7 @@
                     let infoBar = layer.querySelector('.asset-info-bar');
                     let zoomIndicator = layer.querySelector('.split-zoom-indicator');
 
-                    const slotLabel = slot === 'original' ? 'AUDIO O' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
+                    const slotLabel = slot === 'original' ? 'AUDIO GT' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
                     if (!infoBar) {
                         infoBar = document.createElement('div');
                         infoBar.className = 'asset-info-bar';
@@ -4486,6 +4486,14 @@
             if (elEditA) elEditA.textContent = 'EDIT A';
             if (elEditB) elEditB.textContent = 'EDIT B';
 
+            // Reset audio source button label (GT → O)
+            const btnO = document.getElementById('audioOriginal');
+            if (btnO) {
+                [...btnO.childNodes].filter(n => n.nodeType === Node.TEXT_NODE)
+                    .forEach(n => { n.textContent = n.textContent.replace('GT', 'O'); });
+            }
+            document.body.classList.remove('audio-mode');
+
             // Reset file input
             document.getElementById('multiFileInput').value = '';
         }
@@ -5684,6 +5692,13 @@
                 // (updateViewModeButtons will set correct visibility based on asset count)
 
                 // Show/hide audio source buttons based on what's loaded
+                // In audio-only mode, relabel "O" → "GT" (Ground Truth)
+                if (hasAudios && mediaData.original) {
+                    const btn = document.getElementById('audioOriginal');
+                    // Replace text node only (preserve the mute icon span)
+                    const textNodes = [...btn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE);
+                    textNodes.forEach(n => { n.textContent = n.textContent.replace('O', 'GT'); });
+                }
                 document.getElementById('audioOriginal').style.display = mediaData.original ? 'inline-block' : 'none';
                 document.getElementById('audioEditA').style.display = mediaData.editA ? 'inline-block' : 'none';
                 document.getElementById('audioEditB').style.display = mediaData.editB ? 'inline-block' : 'none';
@@ -5732,7 +5747,7 @@
                         document.querySelector('#layerEditA .asset-name').textContent = 'AUDIO A';
                         document.querySelector('#layerEditB .asset-name').textContent = 'AUDIO B';
                     } else if (loadedCount === 3) {
-                        document.querySelector('#layerOriginal .asset-name').textContent = 'AUDIO O';
+                        document.querySelector('#layerOriginal .asset-name').textContent = 'AUDIO GT';
                         document.querySelector('#layerEditA .asset-name').textContent = 'AUDIO A';
                         document.querySelector('#layerEditB .asset-name').textContent = 'AUDIO B';
                     }
