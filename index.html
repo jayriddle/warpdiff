@@ -2888,6 +2888,7 @@
         // ── Audio File Comparison ──────────────────────────────────────────
 
         let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
+        let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
 
         // Shared media helpers — work for both video and audio modes
@@ -3286,6 +3287,7 @@
                     const arrayBuffer = e.target.result;
                     const blob = new Blob([arrayBuffer], { type: file.type });
                     const blobUrl = URL.createObjectURL(blob);
+                    _blobUrls.push(blobUrl);
 
                     mediaData[slot] = {
                         type: 'audio',
@@ -3391,6 +3393,7 @@
                     const arrayBuffer = e.target.result;
                     const blob = new Blob([arrayBuffer], { type: file.type });
                     const blobUrl = URL.createObjectURL(blob);
+                    _blobUrls.push(blobUrl);
 
                     mediaData[slot] = {
                         type: 'video',
@@ -4433,6 +4436,8 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _blobUrls.forEach(url => URL.revokeObjectURL(url));
+            _blobUrls = [];
             mediaData.original = null;
             mediaData.editA = null;
             mediaData.editB = null;
