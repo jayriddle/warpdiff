@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WarpDiff</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
     <style>
         * {
             margin: 0;
@@ -1480,6 +1481,15 @@
             overflow: hidden;
         }
         .loading-overlay.active { display: flex; }
+        .loading-overlay .loading-logo {
+            width: 80px;
+            height: 80px;
+            animation: logo-pulse 2s ease-in-out infinite;
+        }
+        @keyframes logo-pulse {
+            0%, 100% { opacity: 0.4; transform: scale(1); }
+            50%      { opacity: 1;   transform: scale(1.08); }
+        }
         #loadingStatus {
             font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
             font-size: 13px;
@@ -1493,7 +1503,7 @@
     <div class="container">
         <div class="header">
             <div style="position: relative; display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
+                <img src="WarpDiff_Logo_v1.png" alt="" style="width: 18px; height: 18px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
                 <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 2–3 files to compare (or press L)" style="margin-left: 16px;">
                     Load
                     <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
@@ -6394,7 +6404,7 @@
     </div>
 
     <div class="loading-overlay" id="loadingOverlay">
-        <img src="loading.gif" alt="" style="max-width: 200px;">
+        <img src="WarpDiff_Logo_v1.png" alt="" class="loading-logo">
         <span id="loadingStatus">Initializing…</span>
     </div>
 
