@@ -2888,6 +2888,7 @@
         // ── Audio File Comparison ──────────────────────────────────────────
 
         let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
+        let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
 
         // Shared media helpers — work for both video and audio modes
@@ -2930,15 +2931,15 @@
             const currentTime = media.currentTime;
             if (_elProgressBar) _elProgressBar.style.width = ((currentTime / duration) * 100) + '%';
 
-            // Time-only timecode (no frames for audio); omit minutes when duration < 60s
+            // Audio timecode: M:SS.cc or S.cc (decimal centiseconds, no fake frames)
             const showMin = duration >= 60;
             const fmtTime = (t) => {
                 const m = Math.floor(t / 60);
                 const s = Math.floor(t % 60);
-                const ms = Math.floor((t % 1) * 100);
+                const cs = Math.floor((t % 1) * 100);
                 return showMin
-                    ? `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
-                    : `${s}.${ms.toString().padStart(2, '0')}`;
+                    ? `${m}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`
+                    : `${s}.${cs.toString().padStart(2, '0')}`;
             };
             if (_elTimecode) _elTimecode.textContent = fmtTime(currentTime);
             if (_elDuration) _elDuration.textContent = fmtTime(duration);
@@ -3286,6 +3287,7 @@
                     const arrayBuffer = e.target.result;
                     const blob = new Blob([arrayBuffer], { type: file.type });
                     const blobUrl = URL.createObjectURL(blob);
+                    _blobUrls.push(blobUrl);
 
                     mediaData[slot] = {
                         type: 'audio',
@@ -3391,6 +3393,7 @@
                     const arrayBuffer = e.target.result;
                     const blob = new Blob([arrayBuffer], { type: file.type });
                     const blobUrl = URL.createObjectURL(blob);
+                    _blobUrls.push(blobUrl);
 
                     mediaData[slot] = {
                         type: 'video',
@@ -3617,11 +3620,16 @@
             if (!duration) return;
             const minutes = Math.floor(duration / 60);
             const seconds = Math.floor(duration % 60);
-            const useFps = fps || 30;
-            const frames = Math.floor((duration % 1) * useFps);
-            const durationStr = minutes > 0
-                ? `${minutes}:${seconds.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`
-                : `${seconds}:${frames.toString().padStart(2, '0')}`;
+            let durationStr;
+            if (fps) {
+                // Video: M:SS:FF (always show minutes for clarity)
+                const frames = Math.floor((duration % 1) * fps);
+                durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`;
+            } else {
+                // Audio: M:SS.cc (always show minutes for clarity)
+                const cs = Math.floor((duration % 1) * 100);
+                durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
+            }
             updateAssetInfoBar(slot, { duration: durationStr });
         }
 
@@ -4433,6 +4441,8 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _blobUrls.forEach(url => URL.revokeObjectURL(url));
+            _blobUrls = [];
             mediaData.original = null;
             mediaData.editA = null;
             mediaData.editB = null;
@@ -6335,7 +6345,7 @@
             <table>
                 <tr><th>Control</th><th>Description</th></tr>
                 <tr><td>Progress bar</td><td>Click to seek; drag to scrub</td></tr>
-                <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count</td></tr>
+                <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count. Video uses <code>M:SS:FF</code> (frames); audio uses <code>M:SS.cc</code> (centiseconds) since audio has no frame rate</td></tr>
                 <tr><td>Speaker icon</td><td>Mute/unmute the active audio source</td></tr>
                 <tr><td>Volume slider</td><td>Adjust volume</td></tr>
                 <tr><td><kbd>O</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear</td></tr>
@@ -6395,7 +6405,7 @@
             <h2>Info Bar</h2>
             <p>Each asset displays an info bar showing: slot name, resolution (e.g. <code>1920×1080</code>), aspect ratio (e.g. <code>16:9</code>), and duration for videos or <code>—</code> for images. Audio files show sample rate, channels, bit depth/codec, and file size instead.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>
-            <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60).</p>
+            <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60). Video durations are shown as <code>M:SS:FF</code> (frames at the detected rate); audio durations use <code>M:SS.cc</code> (decimal centiseconds) since audio has no inherent frame rate.</p>
             <p>In split modes, the info bar of the asset whose audio is currently playing is highlighted.</p>
 
             <h2>Limitations</h2>
