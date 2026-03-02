@@ -6349,7 +6349,7 @@
             <table>
                 <tr><th>Control</th><th>Description</th></tr>
                 <tr><td>Progress bar</td><td>Click to seek; drag to scrub</td></tr>
-                <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count</td></tr>
+                <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count. Video uses <code>M:SS:FF</code> (frames); audio uses <code>M:SS.cc</code> (centiseconds) since audio has no frame rate</td></tr>
                 <tr><td>Speaker icon</td><td>Mute/unmute the active audio source</td></tr>
                 <tr><td>Volume slider</td><td>Adjust volume</td></tr>
                 <tr><td><kbd>O</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear</td></tr>
@@ -6409,7 +6409,7 @@
             <h2>Info Bar</h2>
             <p>Each asset displays an info bar showing: slot name, resolution (e.g. <code>1920×1080</code>), aspect ratio (e.g. <code>16:9</code>), and duration for videos or <code>—</code> for images. Audio files show sample rate, channels, bit depth/codec, and file size instead.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>
-            <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60).</p>
+            <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60). Video durations are shown as <code>M:SS:FF</code> (frames at the detected rate); audio durations use <code>M:SS.cc</code> (decimal centiseconds) since audio has no inherent frame rate.</p>
             <p>In split modes, the info bar of the asset whose audio is currently playing is highlighted.</p>
 
             <h2>Limitations</h2>
