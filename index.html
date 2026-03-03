@@ -18,7 +18,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: rgb(32, 32, 32);
+            background: rgb(16, 16, 16);
             color: #e0e0e0;
             overflow: hidden;
         }
@@ -1503,7 +1503,7 @@
     <div class="container">
         <div class="header">
             <div style="position: relative; display: flex; align-items: center; gap: 6px;">
-                <img src="WarpDiff_Logo_v1.png" alt="" style="width: 18px; height: 18px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
+                <img src="WarpDiff_Logo_v1.png" alt="" style="width: 22px; height: 22px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
                 <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 2–3 files to compare (or press L)" style="margin-left: 16px;">
                     Load
                     <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
@@ -2929,20 +2929,18 @@
             if (isNaN(duration) || duration === 0) return;
             getProgressEls();
             const currentTime = media.currentTime;
-            if (_elProgressBar) _elProgressBar.style.width = ((currentTime / duration) * 100) + '%';
+            const maxDur = _audioMaxDuration || duration;
+            if (_elProgressBar) _elProgressBar.style.width = ((currentTime / maxDur) * 100) + '%';
 
-            // Audio timecode: M:SS.cc or S.cc (decimal centiseconds, no fake frames)
-            const showMin = duration >= 60;
+            // Audio timecode: M:SS.cc (always show minutes for clarity)
             const fmtTime = (t) => {
                 const m = Math.floor(t / 60);
                 const s = Math.floor(t % 60);
                 const cs = Math.floor((t % 1) * 100);
-                return showMin
-                    ? `${m}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`
-                    : `${s}.${cs.toString().padStart(2, '0')}`;
+                return `${m}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
             };
             if (_elTimecode) _elTimecode.textContent = fmtTime(currentTime);
-            if (_elDuration) _elDuration.textContent = fmtTime(duration);
+            if (_elDuration) _elDuration.textContent = fmtTime(maxDur);
             updateAllAudioSlotCursors(media);
         }
 
@@ -3026,7 +3024,7 @@
             const ctx = getAudioContext();
             ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
                 updateLoadingStatus('Computing waveforms…');
-                const numBuckets = 4000;
+                const numBuckets = Math.ceil(audioBuffer.duration * 1000);
                 const waveform = computeWaveformData(audioBuffer, numBuckets);
                 const spectrogram = computeSpectrogramData(audioBuffer);
                 _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer };
@@ -4112,12 +4110,13 @@
                 const video = _scrubVideo;
                 if (!video || isNaN(video.duration)) return;
 
-                const t = pct * video.duration;
+                const seekDur = hasAudios ? (_audioMaxDuration || video.duration) : video.duration;
+                const t = Math.min(pct * seekDur, video.duration);
                 video.currentTime = t;
                 if (_scrubAllVideos) {
                     for (let i = 0; i < _scrubAllVideos.length; i++) {
                         const v = _scrubAllVideos[i];
-                        if (v !== video && !isNaN(v.duration)) v.currentTime = pct * v.duration;
+                        if (v !== video && !isNaN(v.duration)) v.currentTime = Math.min(pct * seekDur, v.duration);
                     }
                 }
 
@@ -4476,6 +4475,12 @@
             playbackRateIndex = 2;
             const muteBtn = document.getElementById('muteBtn');
             if (muteBtn) muteBtn.textContent = '🔊';
+
+            // Reset progress bar and timecode display
+            getProgressEls();
+            if (_elProgressBar) _elProgressBar.style.width = '0%';
+            if (_elTimecode) _elTimecode.textContent = '0:00';
+            if (_elDuration) _elDuration.textContent = '0:00';
 
             // Reset timecode display mode, stale fps cache, and sampling queue
             timecodeMode = 'time';
