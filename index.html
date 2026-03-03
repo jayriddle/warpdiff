@@ -2888,6 +2888,7 @@
         // ── Audio File Comparison ──────────────────────────────────────────
 
         let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
+        let _lastPrimaryAudioTime = 0;
         let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
 
@@ -3699,6 +3700,16 @@
 
                 if (primary && !primary.paused) {
                     updateMediaProgress(primary);
+                    if (hasAudios) {
+                        const t = primary.currentTime;
+                        if (_lastPrimaryAudioTime > 0 && t < _lastPrimaryAudioTime - 0.5) {
+                            const all = getAllPlayableMedia();
+                            for (let i = 1; i < all.length; i++) {
+                                all[i].currentTime = t;
+                            }
+                        }
+                        _lastPrimaryAudioTime = t;
+                    }
                     if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
                     if (!hasAudios && videoScopesVisible) updateVideoScopes();
                     globalAnimationId = requestAnimationFrame(updateLoop);
