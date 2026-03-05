@@ -738,6 +738,46 @@
             color: #ffffff;
         }
 
+        .asset-info-bar .asset-filename {
+            margin-left: auto;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        body.split-mode .overlay-layer.active-audio .asset-info-bar .asset-filename,
+        body:not(.split-mode) .overlay-layer.active .asset-info-bar .asset-filename {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Prompt bar below header */
+        #promptBar {
+            overflow: hidden;
+            max-height: 0;
+            background: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0 20px;
+            font-size: 15px;
+            color: #ccc;
+            z-index: 99;
+            transition: max-height 0.25s ease, padding 0.25s ease;
+        }
+        #promptBar.active {
+            max-height: 200px;
+            padding: 8px 20px;
+        }
+        #promptBar .prompt-label {
+            font-weight: 600;
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+        }
+        #promptBar .prompt-text {
+            max-width: 65ch;
+            line-height: 1.45;
+        }
+
         /* Active asset indicator - brighter info bar in overlay mode */
         body:not(.split-mode) .overlay-layer.active .asset-info-bar {
             display: flex;
@@ -1516,6 +1556,10 @@
                     Reset
                     <div class="help-tooltip">Clear all assets and start over</div>
                 </button>
+                <button class="position-toggle" onclick="pullFromIHWA(); this.blur();" id="ihwaPullBtn" data-help="Pull assets from an open IHWA tab" style="display:none;">
+                    Pull Assets
+                    <div class="help-tooltip">Pull assets from an open IHWA tab into WarpDiff</div>
+                </button>
                 <button class="quick-start-btn" onclick="toggleQuickStart()">Help</button>
 
             </div>
@@ -1523,6 +1567,10 @@
             <div id="modeStrip" style="display:none;"></div>
             <!-- Asset strip: overlay mode only — shows asset names, active one highlighted -->
             <div id="assetStrip" style="display:none;"></div>
+        </div>
+        <div id="promptBar">
+            <div class="prompt-label" id="promptLabel"></div>
+            <div class="prompt-text" id="promptText"></div>
         </div>
 
         <div class="comparison-view" id="comparisonView">
@@ -1542,6 +1590,7 @@
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
                         <span class="asset-duration">-</span>
+                        <span class="asset-filename"></span>
                     </div>
                 </div>
                 <div class="overlay-layer" id="layerEditA">
@@ -1552,6 +1601,7 @@
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
                         <span class="asset-duration">-</span>
+                        <span class="asset-filename"></span>
                     </div>
                 </div>
                 <div class="overlay-layer" id="layerEditB">
@@ -1562,6 +1612,7 @@
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
                         <span class="asset-duration">-</span>
+                        <span class="asset-filename"></span>
                     </div>
                 </div>
                 
@@ -1666,7 +1717,7 @@
     </div>
 
     <script>
-        const APP_VERSION = '3.1';
+        const APP_VERSION = '3.2';
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
         document.getElementById('appVersion').style.cursor = 'pointer';
         document.getElementById('appVersion').addEventListener('click', () => {
@@ -2047,6 +2098,13 @@
             return _headerEl;
         }
 
+        function getHeaderHeight() {
+            const headerEl = getHeaderEl();
+            const h = headerEl ? headerEl.offsetHeight : 50;
+            const promptBar = document.getElementById('promptBar');
+            return h + (promptBar ? promptBar.offsetHeight : 0);
+        }
+
 
         // Cached progress-bar UI elements — queried once at startup, reused by
         // updateVideoProgress() which runs inside the rAF loop at 60fps.
@@ -2109,7 +2167,72 @@
             handleMultipleFiles(files);
         }
 
-        function handleMultipleFiles(files) {
+        // ── IHWA Pull ─────────────────────────────────────────────────────
+        function pullFromIHWA() {
+            const btn = document.getElementById('ihwaPullBtn');
+            btn.textContent = 'Pulling…';
+            btn.disabled = true;
+            window.postMessage({ type: 'WARPDIFF_PULL' }, '*');
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.source !== window || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
+
+            const btn = document.getElementById('ihwaPullBtn');
+
+            if (event.data.error) {
+                btn.textContent = 'Pull Assets';
+                btn.disabled = false;
+                showLoadToast(event.data.error, true, 5000);
+                return;
+            }
+
+            if (!event.data.files || event.data.files.length === 0) {
+                btn.textContent = 'Pull Assets';
+                btn.disabled = false;
+                showLoadToast('No media files received from IHWA', true, 5000);
+                return;
+            }
+
+            // Reconstruct File objects from the transferred data
+            const files = event.data.files.map(f => {
+                const bytes = new Uint8Array(f.buffer);
+                return new File([bytes], f.name, {
+                    type: f.contentType,
+                    lastModified: f.lastModified
+                });
+            });
+
+            btn.textContent = 'Pull Assets';
+            btn.disabled = false;
+            handleMultipleFiles(files, { skipToast: true });
+            showPrompt(event.data.prompt);
+        });
+
+        function showPrompt(prompt) {
+            const bar = document.getElementById('promptBar');
+            const label = document.getElementById('promptLabel');
+            const text = document.getElementById('promptText');
+            if (!prompt || !prompt.text) {
+                bar.classList.remove('active');
+                // Recalc layout after drawer transition so assets resize
+                setTimeout(() => {
+                    if (isSplitMode) positionLabelsToMediaRaf();
+                    else applyZoomRaf();
+                }, 260);
+                return;
+            }
+            label.textContent = prompt.label || 'Prompt';
+            text.textContent = prompt.text;
+            bar.classList.add('active');
+            // Recalc layout after drawer transition so assets resize
+            setTimeout(() => {
+                if (isSplitMode) positionLabelsToMediaRaf();
+                else applyZoomRaf();
+            }, 260);
+        }
+
+        function handleMultipleFiles(files, opts) {
             // Filter for images, videos, and audio
             const mediaFiles = files.filter(f =>
                 f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
@@ -2159,21 +2282,25 @@
                 loadFile('original', sortedFiles[0]);
                 loadFile('editA', sortedFiles[1]);
                 loadFile('editB', sortedFiles[2]);
-                if (hasTimestampCollision) {
-                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
-                } else {
-                    const n = f => f.name.length > 22 ? f.name.slice(0, 20) + '…' : f.name;
-                    showLoadToast(`Original: ${n(sortedFiles[0])}  ·  A: ${n(sortedFiles[1])}  ·  B: ${n(sortedFiles[2])}`);
+                if (!opts?.skipToast) {
+                    if (hasTimestampCollision) {
+                        showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
+                    } else {
+                        const n = f => f.name.length > 22 ? f.name.slice(0, 20) + '…' : f.name;
+                        showLoadToast(`Original: ${n(sortedFiles[0])}  ·  A: ${n(sortedFiles[1])}  ·  B: ${n(sortedFiles[2])}`);
+                    }
                 }
             } else {
                 // 2 files: oldest -> editA, newest -> editB (no original)
                 loadFile('editA', sortedFiles[0]);
                 loadFile('editB', sortedFiles[1]);
-                if (hasTimestampCollision) {
-                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
-                } else {
-                    const n = f => f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
-                    showLoadToast(`A: ${n(sortedFiles[0])}  ·  B: ${n(sortedFiles[1])}`);
+                if (!opts?.skipToast) {
+                    if (hasTimestampCollision) {
+                        showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
+                    } else {
+                        const n = f => f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
+                        showLoadToast(`A: ${n(sortedFiles[0])}  ·  B: ${n(sortedFiles[1])}`);
+                    }
                 }
             }
         }
@@ -3047,6 +3174,21 @@
             return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
+        function setFilename(infoBar, name) {
+            const el = infoBar.querySelector('.asset-filename');
+            if (!el || !name) return;
+            // Show full name in title for hover; middle-truncate for display
+            el.title = name;
+            if (name.length <= 30) { el.textContent = name; return; }
+            const dotIdx = name.lastIndexOf('.');
+            const ext = dotIdx >= 0 ? name.slice(dotIdx) : '';
+            const base = dotIdx >= 0 ? name.slice(0, dotIdx) : name;
+            const maxBase = 30 - ext.length - 1;
+            const head = Math.ceil(maxBase / 2);
+            const tail = Math.floor(maxBase / 2);
+            el.textContent = base.slice(0, head) + '…' + base.slice(-tail) + ext;
+        }
+
         function updateAudioInfoBar(slot, audioBuffer, arrayBuffer) {
             const layer = getLayer(slot);
             if (!layer) return;
@@ -3075,6 +3217,8 @@
             if (szEl && md) {
                 szEl.textContent = formatFileSize(md.size);
             }
+
+            if (md && md.name) setFilename(infoBar, md.name);
         }
 
         function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
@@ -3398,7 +3542,9 @@
                         <span class="asset-bit-depth"></span>
                         <span class="asset-duration">-</span>
                         <span class="asset-file-size"></span>
+                        <span class="asset-filename"></span>
                     `;
+                    if (mediaData[slot] && mediaData[slot].name) setFilename(infoBar, mediaData[slot].name);
 
                     if (!zoomIndicator) {
                         zoomIndicator = document.createElement('div');
@@ -3496,8 +3642,10 @@
                             <span class="asset-aspect">-</span>
                             <span class="asset-fps"></span>
                             <span class="asset-duration">-</span>
+                            <span class="asset-filename"></span>
                         `;
                     }
+                    if (mediaData[slot] && mediaData[slot].name) setFilename(infoBar, mediaData[slot].name);
 
                     if (!zoomIndicator) {
                         zoomIndicator = document.createElement('div');
@@ -3589,8 +3737,10 @@
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
                         <span class="asset-duration">-</span>
+                        <span class="asset-filename"></span>
                     `;
                 }
+                if (mediaData[slot] && mediaData[slot].name) setFilename(infoBar, mediaData[slot].name);
 
                 if (!zoomIndicator) {
                     zoomIndicator = document.createElement('div');
@@ -3721,6 +3871,10 @@
                 const durationElement = infoBar.querySelector('.asset-duration');
                 if (durationElement) durationElement.textContent = data.duration;
             }
+
+            // Update filename
+            const md = mediaData[slot];
+            if (md && md.name) setFilename(infoBar, md.name);
         }
 
         // Global progress update loop (shared across all videos)
@@ -4251,8 +4405,7 @@
         function applyZoom() {
             if (isSplitMode) return; // zoom/pan only applies in overlay mode
 
-            const headerEl = getHeaderEl();
-            const headerH = headerEl ? headerEl.offsetHeight : 50;
+            const headerH = getHeaderHeight();
             const controlsEl = document.getElementById('videoControls');
             const controlsH = (controlsEl && controlsEl.classList.contains('active')) ? controlsEl.offsetHeight : 0;
 
@@ -4444,8 +4597,7 @@
             const centerLeft = parseFloat(vw.dataset.centerLeft || 0);
             const scaledW    = parseFloat(vw.dataset.scaledW    || 0);
             const scaledH    = parseFloat(vw.dataset.scaledH    || 0);
-            const headerEl2  = getHeaderEl();
-            const headerH    = parseFloat(headerEl2 ? headerEl2.offsetHeight : 50);
+            const headerH    = getHeaderHeight();
             const viewW = window.innerWidth;
             const viewH = window.innerHeight;
             const slackX = viewW * 0.25;
@@ -4512,6 +4664,7 @@
             mediaData.original = null;
             mediaData.editA = null;
             mediaData.editB = null;
+            document.getElementById('promptBar').classList.remove('active');
             currentAssetIndex = 0;
             expectedFileCount = 0;
             hasVideos = false;
@@ -4617,9 +4770,11 @@
                     const res = infoBar.querySelector('.asset-resolution');
                     const asp = infoBar.querySelector('.asset-aspect');
                     const dur = infoBar.querySelector('.asset-duration');
+                    const fn = infoBar.querySelector('.asset-filename');
                     if (res) res.textContent = '-';
                     if (asp) asp.textContent = '-';
                     if (dur) dur.textContent = '-';
+                    if (fn) fn.textContent = '';
                 }
 
                 // Reset zoom indicator
@@ -5344,8 +5499,7 @@
             // (info-bar + video) and vertically center the whole group in the viewport.
             // Always runs so landscape videos don't have gaps between them.
             if (isVertical && Object.keys(slotRenderedH).length > 0) {
-                const headerEl = getHeaderEl();
-                const headerH = headerEl ? headerEl.offsetHeight : 39;
+                const headerH = getHeaderHeight();
                 const controlsEl = document.getElementById('videoControls');
                 const controlsH = (controlsEl && controlsEl.classList.contains('active')) ? controlsEl.offsetHeight : 0;
                 const availH = window.innerHeight - headerH - controlsH;
@@ -6555,6 +6709,13 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.2</h3>
+            <ul>
+                <li>Multi-resolution STFT spectrogram with interpolated rendering</li>
+                <li>Audio timecode uses decimal centiseconds (S.cc / M:SS.cc)</li>
+                <li>Loading overlay with status updates during audio decode</li>
+                <li>Performance improvements and bug fixes</li>
+            </ul>
             <h3>v3.1</h3>
             <ul>
                 <li>Variable playback speed <kbd>J</kbd> — cycle 0.25× / 0.5× / 1× / 2×</li>
