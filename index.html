@@ -146,8 +146,9 @@
             background: rgba(160, 160, 160, 0.4);
             cursor: pointer;
             border-radius: 4px;
-            overflow: hidden;
+            overflow: visible;
             user-select: none;
+            position: relative;
         }
 
         .video-progress-container:active {
@@ -155,9 +156,41 @@
         }
 
         .video-progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
             height: 100%;
             background: rgb(160, 160, 160);
             width: 0%;
+            border-radius: 4px 0 0 4px;
+        }
+
+        .video-progress-bar.loop-active {
+            background: #f0a030;
+        }
+
+        .loop-marker {
+            position: absolute;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #f0a030;
+            margin-left: -5px;
+            z-index: 3;
+            pointer-events: none;
+            display: none;
+        }
+
+        .loop-region {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: rgba(240, 160, 48, 0.25);
+            z-index: 1;
+            pointer-events: none;
+            display: none;
         }
 
         .video-timecode:hover {
@@ -1465,6 +1498,7 @@
             width: 100%;
             height: 100%;
             background: #1a1a1a;
+            cursor: pointer;
         }
         .audio-slot-cursor {
             position: absolute;
@@ -1496,8 +1530,8 @@
             border-radius: 4px 4px 0 0;
             flex-shrink: 0;
         }
-        /* Split mode: info bar flows inside the flex column */
-        body.split-mode .audio-slot-group > .asset-info-bar {
+        /* Info bar flows inside the flex column (both overlay and split modes for audio) */
+        .audio-slot-group > .asset-info-bar {
             position: relative !important;
             bottom: auto !important;
         }
@@ -1509,6 +1543,7 @@
             position: relative;
             flex: 1;
             min-height: 0;
+            overflow: hidden;
         }
 
         /* Loading overlay */
@@ -1717,7 +1752,7 @@
     </div>
 
     <script>
-        const APP_VERSION = '3.2';
+        const APP_VERSION = '3.3';
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
         document.getElementById('appVersion').style.cursor = 'pointer';
         document.getElementById('appVersion').addEventListener('click', () => {
@@ -1827,6 +1862,141 @@
                 updateAudioProgress(media);
             } else {
                 updateVideoProgress(media);
+            }
+        }
+
+        // ── In/Out loop markers ──
+        function setLoopPoint(type) {
+            const media = getAllPlayableMedia()[0];
+            if (!media) return;
+            const t = media.currentTime;
+            if (type === 'in') {
+                _loopInPoint = t;
+                if (_loopOutPoint !== null && _loopOutPoint < _loopInPoint) {
+                    const tmp = _loopInPoint; _loopInPoint = _loopOutPoint; _loopOutPoint = tmp;
+                }
+                showToast('In: ' + formatLoopTime(t));
+            } else {
+                _loopOutPoint = t;
+                if (_loopInPoint !== null && _loopInPoint > _loopOutPoint) {
+                    const tmp = _loopInPoint; _loopInPoint = _loopOutPoint; _loopOutPoint = tmp;
+                }
+                showToast('Out: ' + formatLoopTime(t));
+            }
+            updateLoopMarkerUI();
+            redrawAudioSlotCanvases();
+        }
+
+        function redrawAudioSlotCanvases() {
+            if (hasAudios) {
+                ['original', 'editA', 'editB'].forEach(s => {
+                    if (_audioSlotVizData[s]) drawAudioSlotCanvas(s);
+                });
+            } else if (hasVideos && audioVizVisible) {
+                // Redraw video audio viz panel
+                const slot = assetOrder[currentAssetIndex];
+                if (waveformData[slot]) drawWaveform(slot);
+                if (spectrogramData[slot]) drawSpectrogram(slot);
+            }
+        }
+
+        function clearLoopMarkers(silent) {
+            _loopInPoint = null;
+            _loopOutPoint = null;
+            updateLoopMarkerUI();
+            // Reset progress bar to normal mode
+            getProgressEls();
+            if (_elProgressBar) {
+                _elProgressBar.classList.remove('loop-active');
+                _elProgressBar.style.left = '0';
+                const media = getAllPlayableMedia()[0];
+                if (media && media.duration) {
+                    _elProgressBar.style.width = (media.currentTime / media.duration * 100) + '%';
+                }
+            }
+            redrawAudioSlotCanvases();
+            if (!silent) showToast('Loop markers cleared');
+        }
+
+        function formatLoopTime(t) {
+            if (hasAudios) {
+                // Audio: S.cc / M:SS.cc
+                const m = Math.floor(t / 60);
+                const s = t - m * 60;
+                return m > 0 ? m + ':' + s.toFixed(2).padStart(5, '0') : s.toFixed(2);
+            } else {
+                // Video: use frame-based timecode
+                const media = getAllPlayableMedia()[0];
+                const fps = (media && videoFrameRates[media.src]) || 30;
+                const frame = Math.floor(t * fps + 0.01);
+                const totalSec = Math.floor(frame / fps);
+                const f = frame - totalSec * fps;
+                const m = Math.floor(totalSec / 60);
+                const s = totalSec - m * 60;
+                if (m > 0) return m + ':' + String(s).padStart(2, '0') + ':' + String(f).padStart(2, '0');
+                return s + ':' + String(f).padStart(2, '0');
+            }
+        }
+
+        function updateLoopMarkerUI() {
+            const container = document.getElementById('videoProgressContainer');
+            if (!container) return;
+            let inMarker = document.getElementById('loopInMarker');
+            let outMarker = document.getElementById('loopOutMarker');
+            let region = document.getElementById('loopRegion');
+            if (!inMarker) {
+                inMarker = document.createElement('div');
+                inMarker.id = 'loopInMarker';
+                inMarker.className = 'loop-marker';
+                container.appendChild(inMarker);
+            }
+            if (!outMarker) {
+                outMarker = document.createElement('div');
+                outMarker.id = 'loopOutMarker';
+                outMarker.className = 'loop-marker';
+                container.appendChild(outMarker);
+            }
+            if (!region) {
+                region = document.createElement('div');
+                region.id = 'loopRegion';
+                region.className = 'loop-region';
+                container.appendChild(region);
+            }
+
+            const duration = getAllPlayableMedia()[0]?.duration || 1;
+            if (_loopInPoint !== null) {
+                inMarker.style.display = 'block';
+                inMarker.style.left = (_loopInPoint / duration * 100) + '%';
+            } else {
+                inMarker.style.display = 'none';
+            }
+            if (_loopOutPoint !== null) {
+                outMarker.style.display = 'block';
+                outMarker.style.left = (_loopOutPoint / duration * 100) + '%';
+            } else {
+                outMarker.style.display = 'none';
+            }
+            if (_loopInPoint !== null && _loopOutPoint !== null) {
+                region.style.display = 'block';
+                region.style.left = (_loopInPoint / duration * 100) + '%';
+                region.style.width = ((_loopOutPoint - _loopInPoint) / duration * 100) + '%';
+            } else {
+                region.style.display = 'none';
+            }
+        }
+
+        function updateProgressBarForLoop(currentTime, duration) {
+            if (_loopInPoint !== null && _loopOutPoint !== null) {
+                const inPct = _loopInPoint / duration * 100;
+                const loopLen = _loopOutPoint - _loopInPoint;
+                const progressPct = loopLen > 0 ? Math.max(0, (currentTime - _loopInPoint) / loopLen) * (loopLen / duration * 100) : 0;
+                _elProgressBar.style.left = inPct + '%';
+                _elProgressBar.style.width = progressPct + '%';
+                _elProgressBar.classList.add('loop-active');
+            } else {
+                _elProgressBar.style.left = '0';
+                _elProgressBar.style.width = (currentTime / duration * 100) + '%';
+                _elProgressBar.classList.remove('loop-active');
             }
         }
 
@@ -2055,8 +2225,12 @@
         let hasVideos = false;
         let hasAudios = false;
         let isMuted = false;
-        const PLAYBACK_RATES = [0.25, 0.5, 1, 2];
-        let playbackRateIndex = 2; // default 1×
+        const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+        let playbackRateIndex = 3; // default 1×
+        let _loopInPoint = null;   // in-point time (seconds) for sub-region looping
+        let _loopOutPoint = null;  // out-point time (seconds) for sub-region looping
+        let _lastEscTime = 0;     // timestamp of last Esc press for double-tap detection
+        let isDragging = false;   // true during progress bar or canvas scrub
         let isPanning = false;
         let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
         let panStartX = 0;
@@ -2312,6 +2486,72 @@
             return audioContext;
         }
 
+        // Scrub audio preview — plays short snippets with gain envelope to avoid clicks
+        let _scrubSource = null;
+        let _scrubGain = null;
+        let _scrubLastTime = 0;
+        const _SCRUB_SNIPPET_LEN = 0.08;  // 80ms snippet
+        const _SCRUB_FADE = 0.01;         // 10ms fade in/out
+        const _SCRUB_THROTTLE = 50;       // min ms between new snippets
+
+        function playScrubSnippet(time) {
+            const now = performance.now();
+            if (now - _scrubLastTime < _SCRUB_THROTTLE) return;
+            _scrubLastTime = now;
+
+            const ctx = getAudioContext();
+            const slot = assetOrder[currentAssetIndex];
+            const vizData = _audioSlotVizData[slot];
+            if (!vizData || !vizData.audioBuffer) return;
+            const buf = vizData.audioBuffer;
+            const offset = Math.max(0, Math.min(time, buf.duration - _SCRUB_SNIPPET_LEN));
+
+            // Fade out previous snippet smoothly
+            if (_scrubGain) {
+                _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
+                _scrubGain.gain.setValueAtTime(_scrubGain.gain.value, ctx.currentTime);
+                _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
+            }
+            if (_scrubSource) {
+                const old = _scrubSource;
+                setTimeout(() => { try { old.stop(); } catch (_) {} }, _SCRUB_FADE * 1000 + 10);
+            }
+
+            const gain = ctx.createGain();
+            gain.connect(ctx.destination);
+            // Fade in
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(1, ctx.currentTime + _SCRUB_FADE);
+            // Fade out before end
+            gain.gain.setValueAtTime(1, ctx.currentTime + _SCRUB_SNIPPET_LEN - _SCRUB_FADE);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_SNIPPET_LEN);
+
+            const source = ctx.createBufferSource();
+            source.buffer = buf;
+            source.connect(gain);
+            source.start(0, offset, _SCRUB_SNIPPET_LEN);
+            _scrubSource = source;
+            _scrubGain = gain;
+            source.onended = () => {
+                if (_scrubSource === source) { _scrubSource = null; _scrubGain = null; }
+            };
+        }
+
+        function stopScrubSnippet() {
+            const ctx = getAudioContext();
+            if (_scrubGain) {
+                _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
+                _scrubGain.gain.setValueAtTime(_scrubGain.gain.value, ctx.currentTime);
+                _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
+            }
+            if (_scrubSource) {
+                const old = _scrubSource;
+                setTimeout(() => { try { old.stop(); } catch (_) {} }, _SCRUB_FADE * 1000 + 10);
+                _scrubSource = null;
+                _scrubGain = null;
+            }
+        }
+
         // Minimal radix-2 FFT (in-place, complex interleaved)
         function fft(re, im) {
             const n = re.length;
@@ -2518,42 +2758,58 @@
             { threshold: 0,               color: null },                          // below -6dB: use default
         ];
 
-        function drawWaveformChannel(ctx, data, w, topY, halfH, color, clipColor) {
+        function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH) {
             const numBuckets = data.length / 2;
-            const bucketW = w / numBuckets;
-            const midY = topY + halfH;
-            const bw = Math.max(bucketW, 1);
-            for (let i = 0; i < numBuckets; i++) {
-                const min = data[i * 2];
-                const max = data[i * 2 + 1];
-                const absMax = Math.max(Math.abs(max), Math.abs(min));
-                const x = i * bucketW;
+            if (numBuckets === 0) return;
+            const midY = topY + fullH / 2;
+            const halfH = fullH / 2;
+            const bucketW = drawW / numBuckets;
 
-                // Draw the base (default color) for the full extent
-                ctx.fillStyle = color;
-                const fullTop = midY - max * halfH;
-                const fullBot = midY - min * halfH;
-                ctx.fillRect(x, fullTop, bw, fullBot - fullTop);
+            // Build closed Path2D: max peaks left→right, min peaks right→left
+            const path = new Path2D();
+            path.moveTo(0, midY - data[1] * halfH); // first max
+            for (let i = 1; i < numBuckets; i++) {
+                path.lineTo(i * bucketW, midY - data[i * 2 + 1] * halfH);
+            }
+            // Trace min peaks right→left
+            for (let i = numBuckets - 1; i >= 0; i--) {
+                path.lineTo(i * bucketW, midY - data[i * 2] * halfH);
+            }
+            path.closePath();
 
-                // Overdraw colored zones from lowest threshold up (so higher zones paint on top)
-                for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
-                    const zone = WAVEFORM_ZONES[z];
-                    if (absMax < zone.threshold) continue;
-                    const t = zone.threshold;
-                    // Draw the zone band: from threshold to peak, on both positive and negative sides
-                    if (max > t) {
-                        const zoneTop = midY - max * halfH;
-                        const zoneBot = midY - t * halfH;
-                        ctx.fillStyle = zone.color;
-                        ctx.fillRect(x, zoneTop, bw, zoneBot - zoneTop);
-                    }
-                    if (min < -t) {
-                        const zoneTop = midY + t * halfH;
-                        const zoneBot = midY - min * halfH;
-                        ctx.fillStyle = zone.color;
-                        ctx.fillRect(x, zoneTop, bw, zoneBot - zoneTop);
-                    }
-                }
+            // Fill with vertical gradient
+            const grad = ctx.createLinearGradient(0, topY, 0, topY + fullH);
+            grad.addColorStop(0.0, 'rgba(30, 130, 30, 0.7)');
+            grad.addColorStop(0.5, 'rgba(100, 230, 100, 0.9)');
+            grad.addColorStop(1.0, 'rgba(30, 130, 30, 0.7)');
+            ctx.fillStyle = grad;
+            ctx.fill(path);
+
+            // Anti-aliased stroke for crisp edges
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = 'rgba(100, 230, 100, 0.35)';
+            ctx.lineWidth = 0.5;
+            ctx.stroke(path);
+
+            // Overlay dB zone coloring clipped to waveform shape
+            for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
+                const zone = WAVEFORM_ZONES[z];
+                const t = zone.threshold;
+                // Positive side: band from threshold to top
+                const bandTopPos = midY - halfH;       // top of channel
+                const bandBotPos = midY - t * halfH;   // threshold line
+                // Negative side: band from threshold to bottom
+                const bandTopNeg = midY + t * halfH;
+                const bandBotNeg = midY + halfH;
+
+                ctx.save();
+                ctx.clip(path);
+                ctx.fillStyle = zone.color;
+                // Positive zone band
+                ctx.fillRect(0, bandTopPos, drawW, bandBotPos - bandTopPos);
+                // Negative zone band
+                ctx.fillRect(0, bandTopNeg, drawW, bandBotNeg - bandTopNeg);
+                ctx.restore();
             }
         }
 
@@ -2612,19 +2868,29 @@
             if (!data || !data.L || data.L.length === 0) return;
 
             if (data.R) {
-                const halfH = h / 2;
-                drawWaveformChannel(ctx, data.L, w, 0, halfH, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
-                drawWaveformChannel(ctx, data.R, w, halfH, halfH, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
-                drawWaveformDbGrid(ctx, w, 0, halfH);
-                drawWaveformDbGrid(ctx, w, halfH, halfH);
+                const chH = h / 2;
+                drawWaveformChannelSmooth(ctx, data.L, w, 0, chH);
+                drawWaveformChannelSmooth(ctx, data.R, w, h / 2, chH);
+                drawWaveformDbGrid(ctx, w, 0, chH / 2);
+                drawWaveformDbGrid(ctx, w, h / 2, chH / 2);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                 ctx.beginPath();
-                ctx.moveTo(0, halfH);
-                ctx.lineTo(w, halfH);
+                ctx.moveTo(0, h / 2);
+                ctx.lineTo(w, h / 2);
                 ctx.stroke();
             } else {
-                drawWaveformChannel(ctx, data.L, w, 0, h / 2, 'rgba(80, 200, 80, 0.8)', 'rgba(255, 80, 80, 0.7)');
+                drawWaveformChannelSmooth(ctx, data.L, w, 0, h);
                 drawWaveformDbGrid(ctx, w, 0, h / 2);
+            }
+            // Dim regions outside loop markers
+            if (_loopInPoint !== null && _loopOutPoint !== null) {
+                const media = getAllPlayableMedia()[0];
+                const dur = media?.duration || 1;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                const inX = (_loopInPoint / dur) * w;
+                const outX = (_loopOutPoint / dur) * w;
+                if (inX > 0) ctx.fillRect(0, 0, inX, h);
+                if (outX < w) ctx.fillRect(outX, 0, w - outX, h);
             }
         }
 
@@ -2724,6 +2990,16 @@
                 // Mono: full height
                 drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, canvas.height, sr);
                 ctx.putImageData(imgData, 0, 0);
+            }
+            // Dim regions outside loop markers
+            if (_loopInPoint !== null && _loopOutPoint !== null) {
+                const media = getAllPlayableMedia()[0];
+                const dur = media?.duration || 1;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                const inX = (_loopInPoint / dur) * canvas.width;
+                const outX = (_loopOutPoint / dur) * canvas.width;
+                if (inX > 0) ctx.fillRect(0, 0, inX, canvas.height);
+                if (outX < canvas.width) ctx.fillRect(outX, 0, canvas.width - outX, canvas.height);
             }
         }
 
@@ -3090,6 +3366,7 @@
 
         function setupAudioHandlers(audio, slot) {
             audio.addEventListener('play', function() {
+                if (isDragging) return;
                 syncMedia(audio, a => {
                     a.play();
                     if (Math.abs(a.currentTime - audio.currentTime) > 0.1) {
@@ -3100,10 +3377,12 @@
             });
 
             audio.addEventListener('pause', function() {
+                if (isDragging) return;
                 syncMedia(audio, a => { if (!a.paused) a.pause(); });
             });
 
             audio.addEventListener('seeked', function() {
+                if (isDragging) return;
                 updateMediaProgress(audio);
             });
         }
@@ -3114,7 +3393,7 @@
             getProgressEls();
             const currentTime = media.currentTime;
             const maxDur = _audioMaxDuration || duration;
-            if (_elProgressBar) _elProgressBar.style.width = ((currentTime / maxDur) * 100) + '%';
+            if (_elProgressBar) updateProgressBarForLoop(currentTime, maxDur);
 
             // Audio timecode: M:SS.cc (always show minutes for clarity)
             const fmtTime = (t) => {
@@ -3274,8 +3553,6 @@
             }
             canvas.width = w * dpr;
             canvas.height = h * dpr;
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#111';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3307,15 +3584,15 @@
 
             if (isStereo) {
                 const halfH = Math.floor(wfInnerH / 2);
-                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, halfH, wfColor, slotDuration, maxDuration);
-                drawWaveformChannelScaled(ctx, wf.R, fillW, halfH, wfInnerH - halfH, wfColor, slotDuration, maxDuration);
+                drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, halfH);
+                drawWaveformChannelSmooth(ctx, wf.R, fillW, halfH, wfInnerH - halfH);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                 ctx.beginPath();
                 ctx.moveTo(0, halfH);
                 ctx.lineTo(fillW, halfH);
                 ctx.stroke();
             } else {
-                drawWaveformChannelScaled(ctx, wf.L, fillW, 0, wfInnerH, wfColor, slotDuration, maxDuration);
+                drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, wfInnerH);
             }
 
             // dB grid lines
@@ -3374,6 +3651,19 @@
                 ctx.fillRect(labelMargin + fillW, 0, canvas.width - labelMargin - fillW, canvas.height);
             }
 
+            // ── Dim regions outside loop in/out points ──
+            if (_loopInPoint !== null && _loopOutPoint !== null) {
+                const loopInX = labelMargin + Math.round((_loopInPoint / maxDuration) * drawableW);
+                const loopOutX = labelMargin + Math.round((_loopOutPoint / maxDuration) * drawableW);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                if (loopInX > labelMargin) {
+                    ctx.fillRect(labelMargin, 0, loopInX - labelMargin, canvas.height);
+                }
+                if (loopOutX < labelMargin + fillW) {
+                    ctx.fillRect(loopOutX, 0, labelMargin + fillW - loopOutX, canvas.height);
+                }
+            }
+
             // ── Draw labels in the left margin ──
             const fontSize = Math.round(9 * dpr);
             ctx.font = fontSize + 'px monospace';
@@ -3416,53 +3706,25 @@
             }
         }
 
-        // Like drawWaveformChannel but respects uniform time scale
-        function drawWaveformChannelScaled(ctx, data, fillW, topY, h, color, slotDuration, maxDuration) {
-            const numBuckets = data.length / 2;
-            const midY = topY + h / 2;
-            const halfH = h / 2;
-            const bucketW = fillW / numBuckets;
-            const bw = Math.max(bucketW, 1);
-            for (let i = 0; i < numBuckets; i++) {
-                const min = data[i * 2];
-                const max = data[i * 2 + 1];
-                const absMax = Math.max(Math.abs(max), Math.abs(min));
-                const x = i * bucketW;
 
-                ctx.fillStyle = color;
-                const fullTop = midY - max * halfH;
-                const fullBot = midY - min * halfH;
-                ctx.fillRect(x, fullTop, bw, fullBot - fullTop);
-
-                // Overdraw dB zones
-                for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
-                    const zone = WAVEFORM_ZONES[z];
-                    if (absMax < zone.threshold) continue;
-                    const t = zone.threshold;
-                    if (max > t) {
-                        ctx.fillStyle = zone.color;
-                        ctx.fillRect(x, midY - max * halfH, bw, (max - t) * halfH);
-                    }
-                    if (min < -t) {
-                        ctx.fillStyle = zone.color;
-                        ctx.fillRect(x, midY + t * halfH, bw, (-min - t) * halfH);
-                    }
-                }
-            }
-        }
 
         function updateAllAudioSlotCursors(primaryAudio) {
             if (!primaryAudio || !primaryAudio.duration) return;
             const maxDur = _audioMaxDuration || primaryAudio.duration;
-            const pct = primaryAudio.currentTime / maxDur;
+            const t = primaryAudio.currentTime;
             const labelMarginCss = 30; // matches drawAudioSlotCanvas label margin
 
             document.querySelectorAll('.audio-slot-cursor').forEach(cursor => {
                 const wrapper = cursor.parentElement;
-                if (wrapper) {
-                    const drawableW = wrapper.offsetWidth - labelMarginCss;
-                    cursor.style.left = (labelMarginCss + pct * drawableW) + 'px';
-                }
+                if (!wrapper) return;
+                const slot = wrapper.querySelector('canvas')?.dataset.slot;
+                const slotDur = slot && _audioSlotVizData[slot]
+                    ? _audioSlotVizData[slot].audioBuffer.duration : maxDur;
+                const drawableW = wrapper.offsetWidth - labelMarginCss;
+                // Clamp cursor to this slot's drawn extent
+                const clampedT = Math.min(t, slotDur);
+                const pct = clampedT / maxDur;
+                cursor.style.left = (labelMarginCss + pct * drawableW) + 'px';
             });
         }
 
@@ -3920,6 +4182,13 @@
                         }
                         _lastPrimaryAudioTime = t;
                     }
+                    // In/out point loop enforcement
+                    if (_loopInPoint !== null && _loopOutPoint !== null) {
+                        const t = primary.currentTime;
+                        if (t >= _loopOutPoint) {
+                            getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
+                        }
+                    }
                     if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
                     if (!hasAudios && videoScopesVisible) updateVideoScopes();
                     globalAnimationId = requestAnimationFrame(updateLoop);
@@ -4157,7 +4426,7 @@
                 return;
             }
 
-            _elProgressBar.style.width = (video.currentTime / duration) * 100 + '%';
+            updateProgressBarForLoop(video.currentTime, duration);
             updateVideoProgressFromTime(video, video.currentTime);
             updateSpectrogramCursor(video);
         }
@@ -4305,10 +4574,19 @@
             if (!hasAudios && videoScopesVisible) updateVideoScopes();
         }
 
+        // Click on an overlay layer (asset or info bar) to make it active
+        assetOrder.forEach((slot, idx) => {
+            const layer = getLayer(slot);
+            if (!layer) return;
+            layer.addEventListener('click', () => {
+                if (mediaData[slot] && idx !== currentAssetIndex) switchToAsset(idx);
+            });
+        });
+
         // Setup video scrubbing with drag support
         document.addEventListener('DOMContentLoaded', function() {
             const progressContainer = document.getElementById('videoProgressContainer');
-            let isDragging = false;
+            // isDragging moved to module scope for access from audio handlers
             let wasPlaying = false;
 
             // Cached scrub targets — populated at mousedown, zero DOM queries during drag
@@ -4326,7 +4604,10 @@
 
                 // Update bar immediately so it tracks the cursor
                 getProgressEls();
-                if (_elProgressBar) _elProgressBar.style.width = (pct * 100) + '%';
+                if (_elProgressBar) {
+                    const seekDurEst = hasAudios ? (_audioMaxDuration || 1) : (_scrubVideo?.duration || 1);
+                    updateProgressBarForLoop(pct * seekDurEst, seekDurEst);
+                }
 
                 const video = _scrubVideo;
                 if (!video || isNaN(video.duration)) return;
@@ -4345,6 +4626,90 @@
                 if (hasAudios) updateAudioProgress(video);
                 else updateVideoProgressFromTime(video, t);
             }
+
+            // Scrub from audio/video viz canvas clicks — translate canvas X to progress pct
+            function canvasScrubToPosition(e, canvasEl) {
+                const rect = canvasEl.getBoundingClientRect();
+                const hasMargin = canvasEl.classList.contains('audio-viz-slot-canvas');
+                const labelMarginCss = hasMargin ? 30 : 0;
+                const drawableW = rect.width - labelMarginCss;
+                const x = e.clientX - rect.left - labelMarginCss;
+                const pct = Math.max(0, Math.min(1, x / drawableW));
+
+                getProgressEls();
+                const media = _scrubVideo;
+                if (!media || isNaN(media.duration)) return;
+
+                const seekDur = hasAudios ? (_audioMaxDuration || media.duration) : media.duration;
+                const t = Math.min(pct * seekDur, media.duration);
+                media.currentTime = t;
+                if (_scrubAllVideos) {
+                    for (let i = 0; i < _scrubAllVideos.length; i++) {
+                        const v = _scrubAllVideos[i];
+                        if (v !== media && !isNaN(v.duration)) v.currentTime = Math.min(pct * seekDur, v.duration);
+                    }
+                }
+                if (_elProgressBar) updateProgressBarForLoop(t, seekDur);
+                if (hasAudios) {
+                    updateAudioProgress(media);
+                    playScrubSnippet(t);
+                } else {
+                    updateVideoProgressFromTime(media, t);
+                }
+            }
+
+            let _scrubCanvas = null; // canvas being scrubbed (null = progress bar scrub)
+            let _regionSelectStart = null; // start time for shift+drag region selection
+
+            function canvasXToTime(e, canvasEl) {
+                const rect = canvasEl.getBoundingClientRect();
+                const hasMargin = canvasEl.classList.contains('audio-viz-slot-canvas');
+                const labelMarginCss = hasMargin ? 30 : 0;
+                const drawableW = rect.width - labelMarginCss;
+                const x = e.clientX - rect.left - labelMarginCss;
+                const pct = Math.max(0, Math.min(1, x / drawableW));
+                const media = getAllPlayableMedia()[0];
+                if (!media || isNaN(media.duration)) return null;
+                const seekDur = hasAudios ? (_audioMaxDuration || media.duration) : media.duration;
+                return Math.min(pct * seekDur, media.duration);
+            }
+
+            document.addEventListener('mousedown', function(e) {
+                const canvas = e.target.closest('.audio-viz-slot-canvas')
+                    || (e.target.id === 'panelWaveformCanvas' ? e.target : null)
+                    || (e.target.id === 'spectrogramCanvas' ? e.target : null);
+                if (!canvas) return;
+                _scrubCanvas = canvas;
+                isDragging = true;
+
+                if (globalAnimationId !== null) {
+                    cancelAnimationFrame(globalAnimationId);
+                    globalAnimationId = null;
+                }
+
+                // Switch active asset based on which canvas was clicked
+                const slot = canvas.dataset.slot;
+                if (slot) {
+                    const idx = assetOrder.indexOf(slot);
+                    if (idx >= 0 && idx !== currentAssetIndex) switchToAsset(idx);
+                }
+
+                const tag = hasAudios ? 'audio' : 'video';
+                _scrubVideo = getAllPlayableMedia()[0] || null;
+                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer ' + tag));
+
+                if (e.shiftKey) {
+                    // Shift+drag: region selection for loop in/out points
+                    _regionSelectStart = canvasXToTime(e, canvas);
+                } else {
+                    _regionSelectStart = null;
+                    if (_scrubVideo) {
+                        wasPlaying = !_scrubVideo.paused;
+                        if (wasPlaying) pauseAllMedia();
+                    }
+                    canvasScrubToPosition(e, canvas);
+                }
+            }, true);
 
             progressContainer.addEventListener('mousedown', function(e) {
                 isDragging = true;
@@ -4374,20 +4739,58 @@
             });
 
             document.addEventListener('mousemove', function(e) {
-                if (isDragging) scrubToPosition(e);
+                if (!isDragging) return;
+                if (_scrubCanvas && _regionSelectStart !== null) {
+                    // Shift+drag: preview the region as loop markers
+                    const t = canvasXToTime(e, _scrubCanvas);
+                    if (t !== null) {
+                        _loopInPoint = Math.min(_regionSelectStart, t);
+                        _loopOutPoint = Math.max(_regionSelectStart, t);
+                        updateLoopMarkerUI();
+                        redrawAudioSlotCanvases();
+                    }
+                } else if (_scrubCanvas) {
+                    canvasScrubToPosition(e, _scrubCanvas);
+                } else {
+                    scrubToPosition(e);
+                }
             });
 
             document.addEventListener('mouseup', function(e) {
                 if (isDragging) {
                     isDragging = false;
-                    if (_scrubContainerRect) scrubToPosition(e); // apply final cursor position
+                    if (_scrubCanvas && _regionSelectStart !== null) {
+                        // Finalize shift+drag region selection
+                        const t = canvasXToTime(e, _scrubCanvas);
+                        if (t !== null) {
+                            _loopInPoint = Math.min(_regionSelectStart, t);
+                            _loopOutPoint = Math.max(_regionSelectStart, t);
+                            // Only keep if region is meaningful (> 50ms)
+                            if (_loopOutPoint - _loopInPoint < 0.05) {
+                                _loopInPoint = null;
+                                _loopOutPoint = null;
+                            }
+                            updateLoopMarkerUI();
+                            redrawAudioSlotCanvases();
+                            if (_loopInPoint !== null) {
+                                showToast('Loop: ' + formatLoopTime(_loopInPoint) + ' → ' + formatLoopTime(_loopOutPoint));
+                            }
+                        }
+                        _regionSelectStart = null;
+                        _scrubCanvas = null;
+                    } else if (_scrubCanvas) {
+                        canvasScrubToPosition(e, _scrubCanvas);
+                        _scrubCanvas = null;
+                    } else if (_scrubContainerRect) {
+                        scrubToPosition(e);
+                    }
 
                     _scrubVideo = null;
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
+                    stopScrubSnippet();
                     if (wasPlaying) playAllMedia();
-                    // Refresh scopes once after scrub ends
                     if (!hasAudios && videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
             });
@@ -4478,17 +4881,30 @@
                 const { w: nw, h: nh } = mediaDims(media);
                 if (!nw || !nh) return;
 
-                // Scale this asset so its rendered width matches the narrowest asset's width.
-                // (minNW/nw) normalises wider assets down; zoomLevel is already in px/naturalPx
-                // units (fitZoom at fit-to-viewport, 1 at 100% actual pixels).
-                const perAssetScale = minNW > 0 ? (minNW / nw) * zoomLevel : zoomLevel;
-                const scaledW = Math.round(nw * perAssetScale);
-                const scaledH = Math.round(nh * perAssetScale);
-                // Vertically center media in the available space below the header.
-                // +1 ensures the info bar (positioned above the wrapper via bottom:100%)
-                // doesn't touch/overlap the header's bottom border.
-                const centerTop = headerH + infoBarH + 1 + Math.max(0, Math.round((availH - scaledH) / 2));
-                const centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
+                const isAudioCanvas = media.classList.contains('audio-viz-slot-canvas');
+                let scaledW, scaledH, centerTop, centerLeft;
+
+                if (isAudioCanvas) {
+                    // Audio: full viewport width, aspect-ratio height, vertically centered.
+                    // Info bar is inside the flex column so no external offset needed.
+                    const audioAvailH = window.innerHeight - headerH - 1 - controlsH;
+                    scaledW = window.innerWidth;
+                    scaledH = Math.min(Math.round(audioAvailH / 3), audioAvailH);
+                    centerTop = headerH + 1 + Math.max(0, Math.round((audioAvailH - scaledH) / 2));
+                    centerLeft = 0;
+                } else {
+                    // Scale this asset so its rendered width matches the narrowest asset's width.
+                    // (minNW/nw) normalises wider assets down; zoomLevel is already in px/naturalPx
+                    // units (fitZoom at fit-to-viewport, 1 at 100% actual pixels).
+                    const perAssetScale = minNW > 0 ? (minNW / nw) * zoomLevel : zoomLevel;
+                    scaledW = Math.round(nw * perAssetScale);
+                    scaledH = Math.round(nh * perAssetScale);
+                    // Vertically center media in the available space below the header.
+                    // +1 ensures the info bar (positioned above the wrapper via bottom:100%)
+                    // doesn't touch/overlap the header's bottom border.
+                    centerTop = headerH + infoBarH + 1 + Math.max(0, Math.round((availH - scaledH) / 2));
+                    centerLeft = Math.max(0, Math.round((window.innerWidth - scaledW) / 2));
+                }
 
                 // Pan is applied to the wrapper position directly (not as a media transform)
                 // so the zoom badge and all wrapper children move with the image automatically.
@@ -4508,19 +4924,27 @@
                 vw.style.height = scaledH + 'px';
 
                 // Media fills its wrapper; no transform needed — pan is on the wrapper
-                media.style.imageRendering = zoomLevel >= 2 ? 'pixelated' : '';
-                media.style.width = '100%';
-                media.style.height = '100%';
-                media.style.maxWidth = 'none';
-                media.style.maxHeight = 'none';
-                media.style.objectFit = 'contain';
-                media.style.transform = '';
+                if (!isAudioCanvas) {
+                    media.style.imageRendering = zoomLevel >= 2 ? 'pixelated' : '';
+                    media.style.width = '100%';
+                    media.style.height = '100%';
+                    media.style.maxWidth = 'none';
+                    media.style.maxHeight = 'none';
+                    media.style.objectFit = 'contain';
+                    media.style.transform = '';
+                }
 
                 // Update per-asset zoom badge (actual pixel ratio for this specific asset)
-                const badge = vw.querySelector('.split-zoom-indicator');
-                if (badge) badge.textContent = perAssetScale.toFixed(2) + '×';
+                if (!isAudioCanvas) {
+                    const perAssetScale = minNW > 0 ? (minNW / nw) * zoomLevel : zoomLevel;
+                    const badge = vw.querySelector('.split-zoom-indicator');
+                    if (badge) badge.textContent = perAssetScale.toFixed(2) + '×';
+                }
 
             });
+
+            // Redraw audio canvases after wrapper dimensions are finalized
+            if (hasAudios) redrawAudioSlotCanvases();
         }
 
         function zoomIn() {
@@ -4690,15 +5114,16 @@
             });
             currentAudioSource = 'original';
 
-            // Reset global mute toggle, playback speed, and button label
+            // Reset global mute toggle, playback speed, loop markers, and button label
             isMuted = false;
-            playbackRateIndex = 2;
+            playbackRateIndex = 3;
+            clearLoopMarkers(true);
             const muteBtn = document.getElementById('muteBtn');
             if (muteBtn) muteBtn.textContent = '🔊';
 
             // Reset progress bar and timecode display
             getProgressEls();
-            if (_elProgressBar) _elProgressBar.style.width = '0%';
+            if (_elProgressBar) { _elProgressBar.style.width = '0%'; _elProgressBar.style.left = '0'; _elProgressBar.classList.remove('loop-active'); }
             if (_elTimecode) _elTimecode.textContent = '0:00';
             if (_elDuration) _elDuration.textContent = '0:00';
 
@@ -4826,7 +5251,8 @@
         }
 
         function restartAllVideos() {
-            getAllPlayableMedia().forEach(m => { m.currentTime = 0; m.play(); });
+            const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
+            getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play(); });
         }
 
         function stepFrame(direction) {
@@ -6164,9 +6590,13 @@
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
 
-            // Escape: dismiss magnifier, or close any open panel
+            // Escape: dismiss magnifier, close panels, or double-tap to clear loop markers
             if (e.key === 'Escape') {
-                if (magnifierEnabled) {
+                const now = Date.now();
+                if (now - _lastEscTime < 400 && (_loopInPoint !== null || _loopOutPoint !== null)) {
+                    _lastEscTime = 0;
+                    clearLoopMarkers();
+                } else if (magnifierEnabled) {
                     toggleMagnifier();
                 } else if (document.getElementById('changelogPopup').classList.contains('show')) {
                     dismissChangelog();
@@ -6177,6 +6607,7 @@
                 } else if (document.getElementById('manualPanel').classList.contains('open')) {
                     toggleManualPanel();
                 }
+                _lastEscTime = now;
                 return;
             }
 
@@ -6240,7 +6671,14 @@
                 }
             } else if (e.key === '+' || e.key === '=') {
                 e.preventDefault();
-                if (magnifierEnabled) {
+                if (hasAudios) {
+                    if (playbackRateIndex < PLAYBACK_RATES.length - 1) {
+                        playbackRateIndex++;
+                        const rate = PLAYBACK_RATES[playbackRateIndex];
+                        getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                        showToast('Speed ' + rate + '×');
+                    }
+                } else if (magnifierEnabled) {
                     magnifierZoom = Math.min(magnifierZoom * 2, MAGNIFIER_ZOOM_MAX);
                     _prefs.save('magnifierZoom', magnifierZoom);
                     showToast('Zoom ' + magnifierZoom + '×');
@@ -6250,7 +6688,14 @@
                 }
             } else if (e.key === '-' || e.key === '_') {
                 e.preventDefault();
-                if (magnifierEnabled) {
+                if (hasAudios) {
+                    if (playbackRateIndex > 0) {
+                        playbackRateIndex--;
+                        const rate = PLAYBACK_RATES[playbackRateIndex];
+                        getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                        showToast('Speed ' + rate + '×');
+                    }
+                } else if (magnifierEnabled) {
                     magnifierZoom = Math.max(magnifierZoom / 2, MAGNIFIER_ZOOM_MIN);
                     _prefs.save('magnifierZoom', magnifierZoom);
                     showToast('Zoom ' + magnifierZoom + '×');
@@ -6356,6 +6801,14 @@
                     getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
                     showToast('Speed ' + rate + '×');
                 }
+            } else if (e.key === 'i' || e.key === 'I') {
+                // I key sets loop in-point
+                e.preventDefault();
+                if (hasVideos || hasAudios) setLoopPoint('in');
+            } else if (e.key === 'p' || e.key === 'P') {
+                // P key sets loop out-point
+                e.preventDefault();
+                if (hasVideos || hasAudios) setLoopPoint('out');
             } else if (e.key === 'm' || e.key === 'M') {
                 // M key toggles mute
                 e.preventDefault();
@@ -6590,6 +7043,24 @@
             </table>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
 
+            <h2>Audio Timeline Interaction</h2>
+            <p>In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.</p>
+            <table>
+                <tr><th>Action</th><th>Result</th></tr>
+                <tr><td>Click on waveform/spectrogram</td><td>Seek to that position</td></tr>
+                <tr><td>Click and drag</td><td>Scrub through audio with preview</td></tr>
+                <tr><td><kbd>Shift</kbd> + click and drag</td><td>Select a region to set loop in/out points</td></tr>
+                <tr><td>Click on a different slot's canvas</td><td>Switch active audio to that slot</td></tr>
+            </table>
+            <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>P</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms.</p>
+            <table>
+                <tr><th>Shortcut</th><th>Action</th></tr>
+                <tr><td><kbd>I</kbd></td><td>Set loop in-point at current time</td></tr>
+                <tr><td><kbd>P</kbd></td><td>Set loop out-point at current time</td></tr>
+                <tr><td><kbd>Esc Esc</kbd></td><td>Clear both loop markers (double-tap)</td></tr>
+                <tr><td><kbd>R</kbd></td><td>Restart at in-point (or beginning if no markers)</td></tr>
+            </table>
+
             <h2>Keyboard Shortcuts Reference</h2>
             <table>
                 <tr><th>Key</th><th>Action</th></tr>
@@ -6602,14 +7073,17 @@
                 <tr><td><kbd>G</kbd></td><td>Toggle Grid mode</td></tr>
                 <tr><td><kbd>3</kbd></td><td>Toggle Grid layout (Inline ↔ Offset)</td></tr>
                 <tr><td><kbd>F</kbd></td><td>Fullscreen</td></tr>
-                <tr><td><kbd>+</kbd></td><td>Zoom in</td></tr>
-                <tr><td><kbd>−</kbd></td><td>Zoom out</td></tr>
+                <tr><td><kbd>+</kbd></td><td>Zoom in (video) / Speed up (audio)</td></tr>
+                <tr><td><kbd>−</kbd></td><td>Zoom out (video) / Speed down (audio)</td></tr>
                 <tr><td><kbd>0</kbd></td><td>Zoom to fit</td></tr>
                 <tr><td><kbd>1</kbd></td><td>Zoom to 100% / toggle 100% cap</td></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
                 <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
-                <tr><td><kbd>J</kbd></td><td>Cycle playback speed (0.25× → 0.5× → 1× → 2×)</td></tr>
+                <tr><td><kbd>J</kbd></td><td>Cycle playback speed (0.25× – 2×)</td></tr>
+                <tr><td><kbd>I</kbd></td><td>Set loop in-point</td></tr>
+                <tr><td><kbd>P</kbd></td><td>Set loop out-point</td></tr>
+                <tr><td><kbd>Esc Esc</kbd></td><td>Clear loop markers</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
                 <tr><td><kbd>W</kbd></td><td>Toggle waveform / spectrogram</td></tr>
@@ -6709,6 +7183,13 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.3</h3>
+            <ul>
+                <li>Loop markers — set in/out points to loop a section <kbd>I</kbd> <kbd>P</kbd></li>
+                <li>Click anywhere on an audio waveform to scrub to that position</li>
+                <li>Smoother waveform rendering with anti-aliased edges and gradient shading</li>
+                <li>Regions outside the loop range are dimmed on the analysis waveform</li>
+            </ul>
             <h3>v3.2</h3>
             <ul>
                 <li>Multi-resolution STFT spectrogram with interpolated rendering</li>
@@ -6765,7 +7246,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>3</kbd></span><span class="shortcut-desc">Grid: Inline / Offset</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>F</kbd></span><span class="shortcut-desc">Browser fullscreen</span></div>
             <hr class="shortcut-divider">
-            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>+</kbd> <kbd>-</kbd></span><span class="shortcut-desc">Zoom in / out · Speed up / down</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>0</kbd></span><span class="shortcut-desc">Zoom to fit</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>1</kbd></span><span class="shortcut-desc">Zoom to 100%</span></div>
             <hr class="shortcut-divider">
@@ -6774,6 +7255,7 @@
             <div class="shortcut-row"><span class="shortcut-key"><kbd>M</kbd></span><span class="shortcut-desc">Mute</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>R</kbd></span><span class="shortcut-desc">Restart</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>J</kbd></span><span class="shortcut-desc">Playback speed</span></div>
+            <div class="shortcut-row"><span class="shortcut-key"><kbd>I</kbd> <kbd>P</kbd></span><span class="shortcut-desc">Loop in / out point</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>V</kbd></span><span class="shortcut-desc">Video scopes</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>W</kbd></span><span class="shortcut-desc">Audio waveform / spectrogram</span></div>
             <div class="shortcut-row"><span class="shortcut-key"><kbd>⇧W</kbd></span><span class="shortcut-desc">Linear / log frequency</span></div>
