@@ -7159,7 +7159,7 @@
               } },
 
             // ── Zoom ──
-            { id: 'zoomFit', defaultKey: '0', label: 'Zoom to fit', section: 'zoom',
+            { id: 'zoomFit', defaultKey: '0', label: 'Zoom to fit screen', section: 'zoom',
               fn: () => resetFitZoom() },
             { id: 'zoom100', defaultKey: '1', label: 'Zoom to 100%', section: 'zoom',
               fn: () => {
@@ -7171,7 +7171,7 @@
                       splitStepZoom = 1.0;
                       document.body.classList.toggle('zoom-100', splitZoomLevel === 1);
                       positionLabelsToMedia();
-                      showToast(splitZoomLevel === 1 ? '100% native pixels' : 'Fit to panel');
+                      showToast(splitZoomLevel === 1 ? '100% native pixels' : 'Fit to screen');
                   }
               } },
             { id: 'zoomIn', defaultKey: '+', label: 'Zoom in', section: 'zoom', paired: 'zoomInOut',
@@ -7287,7 +7287,7 @@
               fn: () => { if ((hasVideos && audioVizVisible) || hasAudios) cycleSpectrogramPalette(); } },
 
             // ── Panels ──
-            { id: 'help', defaultKey: '?', label: 'Help', section: 'panels', global: true,
+            { id: 'help', defaultKey: '?', label: 'Help', section: 'panels', global: true, altKey: '/',
               fn: () => toggleQuickStart() },
             { id: 'shortcuts', defaultKey: 'h', label: 'This panel', section: 'panels', global: true,
               fn: () => toggleShortcutsPanel() },
@@ -7778,7 +7778,7 @@
         </div>
         <div class="manual-content">
             <h2>Loading Files</h2>
-            <p>WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side or stacked.</p>
+            <p>WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side by side.</p>
             <p><strong>Three ways to load files:</strong></p>
             <ul>
                 <li>Press <kbd>L</kbd></li>
@@ -7815,11 +7815,11 @@
                 <tr><th>Shortcut</th><th>Action</th></tr>
                 <tr><td><kbd>+</kbd></td><td>Zoom in</td></tr>
                 <tr><td><kbd>−</kbd></td><td>Zoom out</td></tr>
-                <tr><td><kbd>0</kbd></td><td>Zoom to fit</td></tr>
+                <tr><td><kbd>0</kbd></td><td>Zoom to fit screen</td></tr>
                 <tr><td><kbd>1</kbd></td><td>Zoom to 100% (actual pixels)</td></tr>
                 <tr><td>Click and drag</td><td>Pan (when zoomed in)</td></tr>
             </table>
-            <p>Zoom range: 5%–3200%. Each step multiplies/divides by √2 (~1.41×). In split modes, pressing <kbd>1</kbd> toggles between fit-to-panel and 100% cap.</p>
+            <p>Zoom range: 5%–3200%. Each step multiplies/divides by √2 (~1.41×). In split modes, pressing <kbd>1</kbd> toggles between fit to screen and 100% cap.</p>
 
             <h2>Zoom Loupe</h2>
             <p>Press <kbd>Z</kbd> to toggle a circular zoom loupe that follows your cursor, showing a magnified view of native pixels without changing the overall zoom level. Works in all view modes.</p>
@@ -7890,7 +7890,7 @@
                 <tr><td><kbd>F</kbd></td><td>Fullscreen</td></tr>
                 <tr><td><kbd>+</kbd></td><td>Zoom in</td></tr>
                 <tr><td><kbd>−</kbd></td><td>Zoom out</td></tr>
-                <tr><td><kbd>0</kbd></td><td>Zoom to fit</td></tr>
+                <tr><td><kbd>0</kbd></td><td>Zoom to fit screen</td></tr>
                 <tr><td><kbd>1</kbd></td><td>Zoom to 100% / toggle 100% cap</td></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart</td></tr>
@@ -7944,16 +7944,23 @@
             <button class="quick-start-close" onclick="toggleQuickStart()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>Install as App (optional for improved performance)</h3>
+            <ul>
+                <li>Chrome / Edge / Island: click install icon in address bar,<br>or ⋮ (three-dot menu in upper right) ▸ "Install WarpDiff"</li>
+                <li>Safari: Share ▸ "Add to Dock"</li>
+            </ul>
+
             <h3>Getting Started</h3>
             <ul>
-                <li>Drop 2–3 image, video, or audio files onto this window, or press <kbd>L</kbd> to load</li>
-                <li>Files auto-sort by save time (Original, Edit A, Edit B)</li>
+                <li>Save assets from the review tool: right-click ▸ Open in New Tab (auto-saves to Downloads on macOS) or right-click ▸ Save</li>
+                <li>Drop 2–3 image, video, or audio files onto this window, or press <kbd>L</kbd> to load from file browser</li>
+                <li>Files auto-sort by save time (Original, Edit A, Edit B) — save files one at a time so timestamps reflect the correct order</li>
             </ul>
 
             <h3>View Modes</h3>
             <ul>
                 <li><strong>Stack</strong> <kbd>S</kbd> — flip between assets with <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></li>
-                <li><strong>Grid</strong> <kbd>G</kbd> — side-by-side or stacked; <kbd>3</kbd> toggles inline / offset layout</li>
+                <li><strong>Grid</strong> <kbd>G</kbd> — all assets visible at once; <kbd>3</kbd> toggles inline / offset layout</li>
             </ul>
 
             <h3>Zoom Loupe</h3>
@@ -7979,14 +7986,9 @@
             <h3>Keyboard-First</h3>
             <ul>
                 <li><kbd>?</kbd> this help screen, <kbd>H</kbd> all hotkeys</li>
-                <li><kbd>+</kbd> <kbd>−</kbd> zoom, <kbd>0</kbd> fit, <kbd>1</kbd> native pixels</li>
+                <li><kbd>+</kbd> <kbd>−</kbd> zoom, <kbd>0</kbd> fit screen, <kbd>1</kbd> native pixels</li>
                 <li>Your preferences persist across sessions</li>
-            </ul>
-
-            <h3>Install as App</h3>
-            <ul>
-                <li>Chrome / Edge / Island: click install icon in address bar, or ⋮ ▸ "Install WarpDiff"</li>
-                <li>Safari: Share ▸ "Add to Dock"</li>
+                <li>Remap any hotkey from the <kbd>H</kbd> panel</li>
             </ul>
 
         </div>
