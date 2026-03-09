@@ -6191,7 +6191,11 @@
                 }
             }
 
-            // Compute min longest-side from measured data (replaces computeMinLongest DOM reads)
+            // ── Geometry computation: populate slotGeometry { rw, rh, tx, ty, zoom } per slot ──
+            // All layout paths write into this map; the DOM-write pass below applies them uniformly.
+            const slotGeometry = {}; // slot → { rw, rh, tx, ty, zoom }
+            const slotRenderedH = {}; // slot → rendered px height (for vertical-stack post-pass)
+
             function minLongestFromMeasured() {
                 let minLong = Infinity;
                 for (const s of slots) {
@@ -6202,32 +6206,61 @@
                 return minLong === Infinity ? 0 : minLong;
             }
 
-            // Horizontal compare pre-pass: scale all assets so their longest side matches
-            // the smallest longest-side across loaded assets.
-            let compareRefLong = 0;
-            if (!isVertical && !isTripartite) {
-                compareRefLong = minLongestFromMeasured();
-            }
-
-            // Track rendered heights so the vertical-stack group-centering pass can use them.
-            const slotRenderedH = {}; // slot → rendered px height (for loaded slots only)
-
-            // Vertical-stack pre-pass: anchor on the smallest longest-side across all loaded
-            // assets, then find the largest shared scale factor that fits every asset's
-            // longest-side-normalised dimensions within its cell.
-            // Anchoring on the longest side (same as horizontal compareRefLong) ensures both
-            // landscape and portrait assets render at the same dominant dimension on screen,
-            // so different-resolution videos appear at the same physical size.
-            let verticalRefLong = 0;
-            let verticalSharedScale = null;
-            if (isVertical) {
-                // Step 1: find the smallest longest-side across all loaded assets.
-                verticalRefLong = minLongestFromMeasured();
-
-                // Step 2: find the largest scale such that every asset's normalised dimensions
-                // fit within its cell. The per-slot rendering then uses:
-                //   renderedW = nw × (verticalRefLong / longest) × verticalSharedScale
-                //   renderedH = nh × (verticalRefLong / longest) × verticalSharedScale
+            if (isTripartite) {
+                // Grid sub-layouts: geometry already computed in gridLayout pre-pass above.
+                slots.forEach(slot => {
+                    const td = gridLayout[slot];
+                    if (!td) return;
+                    slotGeometry[slot] = {
+                        rw: Math.round(td.rw),
+                        rh: Math.round(td.rh),
+                        tx: td._tx !== undefined ? td._tx : Math.round((td.cw - td.rw) / 2),
+                        ty: td._ty !== undefined ? td._ty : td.ibH,
+                        zoom: td.sharedZoom
+                    };
+                });
+            } else if (!isVertical) {
+                // Horizontal compare: scale each asset so its longest side matches the
+                // smallest longest-side. Anchoring on the longest side gives the same
+                // dominant dimension on screen for both landscape and portrait pairs.
+                const compareRefLong = minLongestFromMeasured();
+                if (compareRefLong > 0) {
+                    const loadedSlots = slots.filter(s => measured.data[s]);
+                    const nSlots = loadedSlots.length;
+                    const gap = 4;
+                    // Compute per-slot rendered size (same for all since we anchor on longest-side,
+                    // but clampScale differs per cell — use min clampScale for group consistency).
+                    let groupRenderedW = 0, groupRenderedH = 0;
+                    const perSlot = {};
+                    loadedSlots.forEach(s => {
+                        const m = measured.data[s];
+                        const longestSide = Math.max(m.nw, m.nh);
+                        const refScale = compareRefLong / longestSide;
+                        const baseW = m.nw * refScale;
+                        const baseH = m.nh * refScale;
+                        let clampScale = Math.min(m.cw / baseW, m.availH / baseH);
+                        if (splitZoomLevel === 1) clampScale = Math.min(clampScale, 1);
+                        const rw = Math.round(baseW * clampScale * splitStepZoom);
+                        const rh = Math.round(baseH * clampScale * splitStepZoom);
+                        perSlot[s] = { rw, rh, baseW, baseH, clampScale };
+                    });
+                    // Group centering: center the whole group around the screen midpoint.
+                    const firstSlot = loadedSlots[0];
+                    const rw0 = perSlot[firstSlot].rw;
+                    const groupW = rw0 * nSlots + gap * (nSlots - 1);
+                    const groupLeft = Math.round((window.innerWidth - groupW) / 2);
+                    loadedSlots.forEach((s, idx) => {
+                        const m = measured.data[s];
+                        const p = perSlot[s];
+                        const tx = groupLeft + idx * (rw0 + gap) - idx * m.cw;
+                        const ty = m.ibH + Math.round((m.availH - p.rh) / 2);
+                        slotGeometry[s] = { rw: p.rw, rh: p.rh, tx, ty, zoom: p.rw / m.nw };
+                    });
+                }
+            } else {
+                // Vertical stack: anchor on the smallest longest-side, find shared fit scale.
+                const verticalRefLong = minLongestFromMeasured();
+                let verticalSharedScale = null;
                 if (verticalRefLong > 0) {
                     slots.forEach(slot => {
                         const m = measured.data[slot];
@@ -6236,127 +6269,52 @@
                         const baseW = m.nw * (verticalRefLong / longest);
                         const baseH = m.nh * (verticalRefLong / longest);
                         const fitScale = Math.min(m.cw / baseW, m.availH / baseH);
-                        if (verticalSharedScale === null || fitScale < verticalSharedScale) {
+                        if (verticalSharedScale === null || fitScale < verticalSharedScale)
                             verticalSharedScale = fitScale;
-                        }
                     });
-                    if (splitZoomLevel === 1 && verticalSharedScale !== null) {
-                        // Zoom to native pixels (1:1) for the reference asset, but
-                        // cap at fit scale so nothing overflows the viewport.
+                    if (splitZoomLevel === 1 && verticalSharedScale !== null)
                         verticalSharedScale = Math.min(verticalSharedScale, 1);
-                    }
                 }
+                slots.forEach(slot => {
+                    const m = measured.data[slot];
+                    if (!m) return;
+                    let rw, rh;
+                    if (verticalSharedScale !== null && verticalRefLong > 0) {
+                        const longest = Math.max(m.nw, m.nh);
+                        const normScale = verticalRefLong / longest;
+                        rw = m.nw * normScale * verticalSharedScale * splitStepZoom;
+                        rh = m.nh * normScale * verticalSharedScale * splitStepZoom;
+                    } else {
+                        const fitScale = Math.min(m.cw / m.nw, m.availH / m.nh);
+                        const scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
+                        rw = m.nw * scale * splitStepZoom;
+                        rh = m.nh * scale * splitStepZoom;
+                    }
+                    const tx = (m.cw - rw) / 2;
+                    const ty = m.ibH;
+                    slotGeometry[slot] = { rw: Math.round(rw), rh: Math.round(rh),
+                                           tx: Math.round(tx), ty: Math.round(ty),
+                                           zoom: rw / m.nw };
+                    slotRenderedH[slot] = Math.round(rh);
+                });
             }
 
+            // ── DOM write pass: apply computed geometry to video wrappers ──
             slots.forEach(slot => {
+                const g = slotGeometry[slot];
                 const m = measured.data[slot];
-                if (!m) return;
+                if (!g || !m) return;
 
-                const { nw: naturalWidth, nh: naturalHeight, cw: containerW, ch: containerH,
-                        ibH: ibReserve, availH: fitH,
-                        layer, mediaContainer, media, videoWrapper, infoBar } = m;
+                m.videoWrapper.style.position = '';
+                m.videoWrapper.style.width = g.rw + 'px';
+                m.videoWrapper.style.height = g.rh + 'px';
+                m.videoWrapper.style.top = g.ty + 'px';
+                m.videoWrapper.style.left = g.tx + 'px';
+                m.videoWrapper.style.transform = '';
+                m.videoWrapper.style.transformOrigin = '';
 
-                let renderedW, renderedH, offsetX, offsetY;
-                if (!isVertical && !isTripartite && compareRefLong > 0) {
-                    // Horizontal compare: scale each asset so its longest side = compareRefLong,
-                    // then apply splitStepZoom so +/- keys scale the whole group.
-                    // Anchoring on the longest side gives the same dominant dimension on screen
-                    // for both landscape (same width) and portrait (same height) pairs.
-                    const longestSide = Math.max(naturalWidth, naturalHeight);
-                    const refScale = compareRefLong / longestSide;
-                    const baseW = naturalWidth * refScale;
-                    const baseH = naturalHeight * refScale;
-                    // Clamp to fit-to-viewport at base zoom (splitStepZoom=1); splitStepZoom
-                    // can then push past the cell boundary (same as overlay zoom going past fit).
-                    // When splitZoomLevel===1, the smallest asset shows at 1:1 native pixels
-                    // and larger assets scale down to match the same visual size (no overflow).
-                    let clampScale = Math.min(containerW / baseW, fitH / baseH);
-                    if (splitZoomLevel === 1) clampScale = Math.min(clampScale, 1);
-                    renderedW = Math.round(baseW * clampScale * splitStepZoom);
-                    renderedH = Math.round(baseH * clampScale * splitStepZoom);
-                    // Keep the whole group centered around the screen midpoint.
-                    // At zoom > 1, images spill past their 50% cells — centering on the
-                    // full viewport width ensures symmetric overflow on both sides.
-                    const loadedSlots = slots.filter(s => mediaData[s]);
-                    const slotIdx = loadedSlots.indexOf(slot);
-                    const nSlots = loadedSlots.length;
-                    const gap = 4;
-                    const groupW = renderedW * nSlots + gap * (nSlots - 1);
-                    const groupLeft = Math.round((window.innerWidth - groupW) / 2);
-                    // offsetX is relative to each cell's own origin (cell i starts at i * containerW)
-                    offsetX = groupLeft + slotIdx * (renderedW + gap) - slotIdx * containerW;
-                    // Vertically center the image below the info bar reserve.
-                    offsetY = ibReserve + Math.round((fitH - renderedH) / 2);
-                } else {
-                    // Vertical-stack / offset / fallback: contain-fit per cell.
-                    if (isVertical && verticalSharedScale !== null && verticalRefLong > 0) {
-                        // Longest-side normalisation: scale each asset so its longest side
-                        // matches verticalRefLong, then apply the shared fit scale so every
-                        // asset occupies the same physical screen size regardless of resolution.
-                        const longest = Math.max(naturalWidth, naturalHeight);
-                        const normScale = verticalRefLong / longest;
-                        renderedW = naturalWidth  * normScale * verticalSharedScale * splitStepZoom;
-                        renderedH = naturalHeight * normScale * verticalSharedScale * splitStepZoom;
-                    } else {
-                        let scale;
-                        const mediaAspect = naturalWidth / naturalHeight;
-                        const containerAspect = containerW / fitH;
-                        let fitScale;
-                        if (containerAspect > mediaAspect) {
-                            fitScale = fitH / naturalHeight;
-                        } else {
-                            fitScale = containerW / naturalWidth;
-                        }
-                        // splitZoomLevel===1: zoom to native pixel size (1:1), capped at fit
-                        scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
-                        renderedW = naturalWidth  * scale * splitStepZoom;
-                        renderedH = naturalHeight * scale * splitStepZoom;
-                    }
-                    offsetX = (containerW - renderedW) / 2;
-                    // Top-align: info bar at top, video below it, extra space at bottom.
-                    offsetY = ibReserve;
-                    // Record for vertical-stack group-centering pass below
-                    if (isVertical) slotRenderedH[slot] = Math.round(renderedH);
-                }
-
-                // Grid sub-layouts (offset, inline-cols, inline-rows): all geometry
-                // is pre-computed in gridLayout — just apply positions.
-                if (isTripartite && gridLayout[slot]) {
-                    const td = gridLayout[slot];
-                    const tx = td._tx !== undefined ? td._tx : Math.round((td.cw - td.rw) / 2);
-                    const ty = td._ty !== undefined ? td._ty : td.ibH;
-
-                    videoWrapper.style.position = '';
-                    videoWrapper.style.width = Math.round(td.rw) + 'px';
-                    videoWrapper.style.height = Math.round(td.rh) + 'px';
-                    videoWrapper.style.top = ty + 'px';
-                    videoWrapper.style.left = tx + 'px';
-                    videoWrapper.style.transform = '';
-                    videoWrapper.style.transformOrigin = '';
-
-                    const infoBarZoom = layer.querySelector('.asset-info-bar .asset-zoom');
-                    if (infoBarZoom) infoBarZoom.textContent = formatZoom(td.sharedZoom);
-
-                    return; // skip the standard positioning below
-                }
-
-                // Size and position the video-wrapper to exactly cover the rendered media pixels.
-                // Clear position so any inline 'fixed' left by applyZoom() doesn't override CSS.
-                videoWrapper.style.position = '';
-                videoWrapper.style.width = Math.round(renderedW) + 'px';
-                videoWrapper.style.height = Math.round(renderedH) + 'px';
-                videoWrapper.style.top = Math.round(offsetY) + 'px';
-                videoWrapper.style.left = Math.round(offsetX) + 'px';
-                videoWrapper.style.transform = '';
-                videoWrapper.style.transformOrigin = '';
-
-                // Update zoom indicator in info bar
-                const infoBarZoom = layer.querySelector('.asset-info-bar .asset-zoom');
-                if (infoBarZoom) {
-                    const actualZoom = renderedW / naturalWidth;
-                    infoBarZoom.textContent = formatZoom(actualZoom);
-                }
-
+                const infoBarZoom = m.layer.querySelector('.asset-info-bar .asset-zoom');
+                if (infoBarZoom) infoBarZoom.textContent = formatZoom(g.zoom);
             });
 
             // Group-centering pass for vertical-stack: shrink each layer to its content height
