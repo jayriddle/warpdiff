@@ -5806,6 +5806,41 @@
         // Zoom indicators are updated inside positionLabelsToMedia (split) / applyZoom (overlay),
         // both of which are debounced on resize below — no separate listener needed.
 
+        // Unified DOM measurement pass — reads all layout-relevant dimensions once.
+        // Returns { data: { slot → SlotMeasurement }, anySkipped: bool }.
+        // SlotMeasurement: { nw, nh, cw, ch, ibH, availH, fitW, fitH,
+        //                    layer, mediaContainer, media, videoWrapper, infoBar }
+        function measureSlots(slots) {
+            const data = {};
+            let anySkipped = false;
+            slots.forEach(slot => {
+                if (!mediaData[slot]) return;
+                const layer = getLayer(slot);
+                const mediaContainer = layer ? layer.querySelector('.media-container') : null;
+                const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
+                const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
+                const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
+                if (!media || !mediaContainer || !videoWrapper) return;
+
+                const { w: nw, h: nh } = mediaDims(media);
+                if (!nw || !nh) return;
+
+                // Use layer dimensions for grid cells (mediaContainer is position:absolute)
+                const cw = layer.offsetWidth;
+                const ch = layer.offsetHeight;
+                if (!cw || !ch) { anySkipped = true; return; }
+
+                const ibH = (isGridMode && infoBar) ? (infoBar.offsetHeight || 28) : 0;
+                const availH = ch - ibH;
+                const fitW = Math.min(cw, Math.floor(availH * nw / nh));
+                const fitH = Math.min(availH, Math.floor(cw * nh / nw));
+
+                data[slot] = { nw, nh, cw, ch, ibH, availH, fitW, fitH,
+                               layer, mediaContainer, media, videoWrapper, infoBar };
+            });
+            return { data, anySkipped };
+        }
+
         // Positions the video-wrapper and info bar to exactly match the rendered media bounds.
         // Works in all modes: overlay, horizontal split, and vertical split.
         // The video-wrapper is JS-sized to the exact rendered video pixels so that the
@@ -5819,7 +5854,6 @@
             // positionLabelsToMedia only handles split modes (side-by-side, vertical-stack, offset).
             if (!isGridMode) return;
 
-            let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = assetOrder;
             const isVertical = document.body.classList.contains('vertical-stack');
             const isTripartite = isTripartiteMode();
@@ -5844,6 +5878,10 @@
                 if (container) container.style.paddingTop = '';
             }
 
+            // Unified measurement pass — reads all DOM dimensions once
+            const measured = measureSlots(slots);
+            let anySkipped = measured.anySkipped;
+
             // In offset mode, compute a shared rendered dimension so all three assets
             // appear the same size. Portrait assets (nw < nh) share rendered WIDTH;
             // landscape assets share rendered HEIGHT.
@@ -5858,39 +5896,16 @@
                 let widthConstrained = isEqualLayout
                     ? document.body.classList.contains('inline-rows')
                     : false;
-                // Detect mixed orientations (some landscape, some portrait) for equal layouts.
-                // When mixed, each asset scales independently to fit its cell instead of sharing
-                // a dimension that penalises the minority orientation.
                 let _hasLandscape = false, _hasPortrait = false;
                 slots.forEach(slot => {
-                    if (!mediaData[slot]) return;
-                    const layer = getLayer(slot);
-                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                    const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
-                    if (!media) return;
-                    const { w: nw, h: nh } = mediaDims(media);
-                    if (!nw || !nh) return;
-                    if (nw >= nh) _hasLandscape = true; else _hasPortrait = true;
-                    // Use layer.offsetWidth/Height — the true grid cell dimensions.
-                    // mediaContainer is position:absolute so its offsetHeight may not
-                    // reflect the grid row height correctly.
-                    const cw = layer.offsetWidth;
-                    const ch = layer.offsetHeight;
-                    if (!cw || !ch) { anySkipped = true; return; }
-                    // L-shaped layout only: portrait = nw < nh → width is the shared dimension
-                    if (!isEqualLayout && nw < nh) widthConstrained = true;
-                    // EditB is flush-top; reserve space for its info bar so the image
-                    // is sized to fit below the bar rather than behind it.
-                    const ibEl = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
-                    // Reserve info bar height for all slots in all grid layouts.
-                    const ibH = ibEl ? (ibEl.offsetHeight || 28) : 0;
-                    const availH = ch - ibH;
-                    // Contain-fit rendered size within available cell height
-                    const fitW = Math.min(cw, Math.floor(availH * nw / nh));
-                    const fitH = Math.min(availH, Math.floor(cw * nh / nw));
-                    gridLayout[slot] = { nw, nh, cw, ch, ibH, fitW, fitH };
-                    minW = Math.min(minW, fitW);
-                    minH = Math.min(minH, fitH);
+                    const m = measured.data[slot];
+                    if (!m) return;
+                    if (m.nw >= m.nh) _hasLandscape = true; else _hasPortrait = true;
+                    if (!isEqualLayout && m.nw < m.nh) widthConstrained = true;
+                    gridLayout[slot] = { nw: m.nw, nh: m.nh, cw: m.cw, ch: m.ch,
+                                         ibH: m.ibH, fitW: m.fitW, fitH: m.fitH };
+                    minW = Math.min(minW, m.fitW);
+                    minH = Math.min(minH, m.fitH);
                 });
                 // Determine the effective zoom multiplier for offset rendering.
                 // splitZoomLevel===1 means "smallest-resolution asset at 100% native pixels,
@@ -6093,10 +6108,10 @@
                                 container.style.gridTemplateColumns = loadedSlots.map(s =>
                                     Math.round(gridLayout[s].rw) + 'px'
                                 ).join(' ');
-                                // Recompute cell widths
+                                // Recompute cell widths after grid column change
                                 loadedSlots.forEach(s => {
-                                    const layer = getLayer(s);
-                                    if (layer) gridLayout[s].cw = layer.offsetWidth;
+                                    const ml = measured.data[s];
+                                    if (ml && ml.layer) gridLayout[s].cw = ml.layer.offsetWidth;
                                 });
                             }
                         }
@@ -6143,22 +6158,28 @@
                 }
             }
 
+            // Compute min longest-side from measured data (replaces computeMinLongest DOM reads)
+            function minLongestFromMeasured() {
+                let minLong = Infinity;
+                for (const s of slots) {
+                    const m = measured.data[s];
+                    if (!m) continue;
+                    minLong = Math.min(minLong, Math.max(m.nw, m.nh));
+                }
+                return minLong === Infinity ? 0 : minLong;
+            }
+
             // Horizontal compare pre-pass: scale all assets so their longest side matches
-            // the smallest longest-side across loaded assets. Anchoring on the longest side
-            // ensures both landscape and portrait assets render at the same dominant dimension
-            // (width for landscape, height for portrait), giving a consistent physical screen size.
-            // Each slot then clamps independently to its own cell dimensions.
+            // the smallest longest-side across loaded assets.
             let compareRefLong = 0;
             if (!isVertical && !isTripartite && !isOverlay) {
-                compareRefLong = computeMinLongest();
+                compareRefLong = minLongestFromMeasured();
             }
 
             // Overlay mode: find the smallest "longest side" across all loaded assets.
-            // All assets are then rendered so their longest side equals that reference
-            // length — the smallest asset shows at 1:1, larger ones scale down to match.
             let overlayRefLong = 0;
             if (isOverlay) {
-                overlayRefLong = computeMinLongest();
+                overlayRefLong = minLongestFromMeasured();
             }
 
             // Track rendered heights so the vertical-stack group-centering pass can use them.
@@ -6174,7 +6195,7 @@
             let verticalSharedScale = null;
             if (isVertical) {
                 // Step 1: find the smallest longest-side across all loaded assets.
-                verticalRefLong = computeMinLongest();
+                verticalRefLong = minLongestFromMeasured();
 
                 // Step 2: find the largest scale such that every asset's normalised dimensions
                 // fit within its cell. The per-slot rendering then uses:
@@ -6182,25 +6203,12 @@
                 //   renderedH = nh × (verticalRefLong / longest) × verticalSharedScale
                 if (verticalRefLong > 0) {
                     slots.forEach(slot => {
-                        if (!mediaData[slot]) return;
-                        const layer = getLayer(slot);
-                        const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                        const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
-                        const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
-                        if (!media || !mediaContainer) return;
-                        const { w: nw, h: nh } = mediaDims(media);
-                        if (!nw || !nh) return;
-                        const cw = mediaContainer.offsetWidth;
-                        const ch = mediaContainer.offsetHeight;
-                        if (!cw || !ch) return;
-                        const ibH = infoBar
-                            ? (infoBar._cachedH = infoBar.offsetHeight || 28)
-                            : 0;
-                        const availH = ch - ibH;
-                        const longest = Math.max(nw, nh);
-                        const baseW = nw * (verticalRefLong / longest);
-                        const baseH = nh * (verticalRefLong / longest);
-                        const fitScale = Math.min(cw / baseW, availH / baseH);
+                        const m = measured.data[slot];
+                        if (!m) return;
+                        const longest = Math.max(m.nw, m.nh);
+                        const baseW = m.nw * (verticalRefLong / longest);
+                        const baseH = m.nh * (verticalRefLong / longest);
+                        const fitScale = Math.min(m.cw / baseW, m.availH / baseH);
                         if (verticalSharedScale === null || fitScale < verticalSharedScale) {
                             verticalSharedScale = fitScale;
                         }
@@ -6214,30 +6222,12 @@
             }
 
             slots.forEach(slot => {
-                if (!mediaData[slot]) return;
+                const m = measured.data[slot];
+                if (!m) return;
 
-                const layer = getLayer(slot);
-                const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                const media = mediaContainer ? mediaContainer.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
-                const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
-                const infoBar = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
-
-                if (!media || !videoWrapper || !mediaContainer) return;
-
-                const { w: naturalWidth, h: naturalHeight } = mediaDims(media);
-                if (naturalWidth === 0 || naturalHeight === 0) return;
-
-                // Get the container bounds
-                const containerW = mediaContainer.offsetWidth;
-                const containerH = mediaContainer.offsetHeight;
-                if (containerW === 0 || containerH === 0) { anySkipped = true; return; }
-
-                // Reserve the top of each cell for the info bar so the
-                // video is always fitted below it — no overlap with the header.
-                const ibReserve = (isGridMode && infoBar)
-                    ? (infoBar._cachedH = infoBar.offsetHeight || 28)
-                    : 0;
-                const fitH = containerH - ibReserve;
+                const { nw: naturalWidth, nh: naturalHeight, cw: containerW, ch: containerH,
+                        ibH: ibReserve, availH: fitH,
+                        layer, mediaContainer, media, videoWrapper, infoBar } = m;
 
                 let renderedW, renderedH, offsetX, offsetY;
                 if (isOverlay && overlayRefLong > 0) {
@@ -6436,12 +6426,11 @@
                 let totalIbH = 0;
                 const slotIbH = {};
                 loadedSlots.forEach(slot => {
-                    const layer = getLayer(slot);
-                    const mediaContainer = layer ? layer.querySelector('.media-container') : null;
-                    const ib = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
+                    const m = measured.data[slot];
                     // Audio slots: info bar is inside the video-wrapper (audio-slot-group), no external offset needed
-                    const ibInGroup = ib && ib.parentElement && ib.parentElement.classList.contains('audio-slot-group');
-                    const ibH = (ib && !ibInGroup) ? (ib._cachedH || (ib._cachedH = ib.offsetHeight || 28)) : 0;
+                    const ibInGroup = m && m.infoBar && m.infoBar.parentElement &&
+                                      m.infoBar.parentElement.classList.contains('audio-slot-group');
+                    const ibH = (m && m.ibH && !ibInGroup) ? m.ibH : 0;
                     slotIbH[slot] = ibH;
                     totalIbH += ibH;
                     totalVideoH += slotRenderedH[slot];
@@ -6457,8 +6446,8 @@
                     // Clamp so no video extends beyond the viewport width
                     const viewW = window.innerWidth;
                     loadedSlots.forEach(slot => {
-                        const layer = getLayer(slot);
-                        const vw = layer ? layer.querySelector('.video-wrapper') : null;
+                        const m = measured.data[slot];
+                        const vw = m ? m.videoWrapper : null;
                         const curW = vw ? parseFloat(vw.style.width || 0) : 0;
                         const curH = slotRenderedH[slot] || 1;
                         if (curW > 0 && curH > 0) {
@@ -6470,10 +6459,9 @@
 
                 // Apply per-slot: shrink layer to ibReserve + scaled video height
                 loadedSlots.forEach(slot => {
-                    const layer = getLayer(slot);
-                    if (!layer) return;
-                    const mediaContainer = layer.querySelector('.media-container');
-                    const videoWrapper = mediaContainer ? mediaContainer.querySelector('.video-wrapper') : null;
+                    const m = measured.data[slot];
+                    if (!m) return;
+                    const { layer, mediaContainer, videoWrapper } = m;
                     const ibH = slotIbH[slot] || 0;
                     const scaledH = Math.round(slotRenderedH[slot] * fillScale);
                     const scaledW = Math.round((slotRenderedH[slot] > 0 ? scaledH / slotRenderedH[slot] : 1) * parseFloat(videoWrapper?.style.width || 0));
@@ -6491,9 +6479,8 @@
                 // Vertically center the group in the viewport
                 const scaledTotalH = totalIbH + Math.round(totalVideoH * fillScale);
                 const topPad = Math.max(0, Math.round((availH - scaledTotalH) / 2));
-                const firstSlot = loadedSlots[0];
-                const firstLayer = getLayer(firstSlot);
-                if (firstLayer) firstLayer.style.marginTop = topPad + 'px';
+                const firstM = measured.data[loadedSlots[0]];
+                if (firstM && firstM.layer) firstM.layer.style.marginTop = topPad + 'px';
 
                 // Controls are in document flow — no positioning needed
             }
