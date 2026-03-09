@@ -517,42 +517,6 @@
             font-weight: 500;
             color: #ccc;
         }
-        .landing-formats {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: -2px;
-        }
-        .landing-capsule {
-            font-size: 11px;
-            color: #777;
-            background: #1e1e1e;
-            border: 1px solid #333;
-            padding: 3px 12px;
-            border-radius: 999px;
-            letter-spacing: 0.03em;
-        }
-        .landing-capsule-sep {
-            font-size: 11px;
-            color: #555;
-        }
-        .landing-load-btn {
-            margin-top: 8px;
-            padding: 8px 28px;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            border-radius: 6px;
-            color: #ccc;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.15s, border-color 0.15s;
-        }
-        .landing-load-btn:hover {
-            background: #3a3a3a;
-            border-color: #666;
-            color: #fff;
-        }
         .landing-hints {
             margin-top: 20px;
             font-size: 12px;
@@ -1366,6 +1330,9 @@
             align-items: center;
             gap: 12px;
         }
+        .video-controls.images-only .video-controls-row {
+            display: none;
+        }
 
         .video-timecode,
         .video-duration {
@@ -1799,13 +1766,6 @@
                 <svg class="dropzone-border" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" rx="16" ry="16" width="calc(100% - 2px)" height="calc(100% - 2px)" fill="none" stroke="#444" stroke-width="2" stroke-dasharray="16 12"/></svg>
                 <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo">
                 <div class="landing-title">Drop 2–3 files to compare</div>
-                <div class="landing-formats">
-                    <span class="landing-capsule">Image</span>
-                    <span class="landing-capsule">Video</span>
-                    <span class="landing-capsule-sep">or</span>
-                    <span class="landing-capsule">Audio</span>
-                </div>
-                <button class="landing-load-btn" onclick="document.getElementById('multiFileInput').click(); this.blur();">Load Files</button>
             </div>
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
@@ -1884,7 +1844,7 @@
             <div class="scopes-panel" id="scopesPanel">
                 <div class="scopes-row">
                     <div class="audio-viz-row">
-                        <div class="audio-viz-label"><span>R G B</span></div>
+                        <div class="audio-viz-label"><span id="histogramLabel">RGB (log)</span></div>
                         <div class="audio-viz-canvas-wrap">
                             <canvas id="histogramCanvas"></canvas>
                         </div>
@@ -2463,7 +2423,7 @@
         const _waveformModeLabels = { luma: 'Luma', parade: 'RGB Parade', overlay: 'RGB Overlay' };
         let _histogramMode = 'rgb';     // 'rgb' | 'rgb+luma' | 'cdf'
         const _histogramModes = ['rgb', 'rgb+luma', 'cdf'];
-        const _histogramModeLabels = { rgb: 'RGB', 'rgb+luma': 'RGB + Luma', cdf: 'CDF' };
+        const _histogramModeLabels = { rgb: 'RGB (log)', 'rgb+luma': 'RGB + Luma (log)', cdf: 'CDF' };
         let magnifierLinked = _prefs.load('magnifierLinked', false); // Shift+Z toggle
         let spectrogramLogScale = _prefs.load('spectrogramLogScale', false);
         let audioFileBuffers = {};     // { slot: ArrayBuffer } — raw file data for decoding
@@ -3400,15 +3360,21 @@
                 ctx.lineWidth = 1;
                 ctx.stroke();
             } else {
-                // Histogram: RGB or RGB+Luma
-                const maxVal = totalPixels / 32;
+                // Histogram: RGB or RGB+Luma (log scale)
+                // Find max log value across all channels for normalization
+                let maxLog = 0;
+                for (let i = 0; i < 256; i++) {
+                    const v = Math.max(rBins[i], gBins[i], bBins[i]);
+                    if (v > 0) { const l = Math.log(v); if (l > maxLog) maxLog = l; }
+                }
+                if (maxLog === 0) maxLog = 1;
 
                 const drawChannel = (bins, color) => {
                     ctx.beginPath();
                     ctx.moveTo(0, h);
                     for (let i = 0; i < 256; i++) {
                         const x = (i / 255) * w;
-                        const y = h - (Math.min(bins[i], maxVal) / maxVal) * h;
+                        const y = bins[i] > 0 ? h - (Math.log(bins[i]) / maxLog) * h : h;
                         ctx.lineTo(x, y);
                     }
                     ctx.lineTo(w, h);
@@ -3433,7 +3399,7 @@
                     ctx.beginPath();
                     for (let i = 0; i < 256; i++) {
                         const x = (i / 255) * w;
-                        const y = h - (Math.min(lumaBins[i], maxVal) / maxVal) * h;
+                        const y = lumaBins[i] > 0 ? h - (Math.log(lumaBins[i]) / maxLog) * h : h;
                         if (i === 0) ctx.moveTo(x, y);
                         else ctx.lineTo(x, y);
                     }
@@ -3753,6 +3719,8 @@
                 histCanvas.addEventListener('click', () => {
                     const idx = (_histogramModes.indexOf(_histogramMode) + 1) % _histogramModes.length;
                     _histogramMode = _histogramModes[idx];
+                    const lbl = document.getElementById('histogramLabel');
+                    if (lbl) lbl.textContent = _histogramModeLabels[_histogramMode];
                     showToast('Histogram: ' + _histogramModeLabels[_histogramMode]);
                     if (videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 });
@@ -5380,12 +5348,13 @@
 
         function zoomIn() {
             if (isSplitMode) {
-                if (splitStepZoom >= 1.0) {
-                    showToast('Max zoom in Grid — use Stack or Loupe (Z)', 4000);
-                    return;
-                }
-                splitStepZoom = Math.min(splitStepZoom * ZOOM_STEP, 1.0);
+                const prevStep = splitStepZoom;
+                splitStepZoom *= ZOOM_STEP;
                 positionLabelsToMedia();
+                // Layout clamps splitStepZoom when it would overflow — detect that
+                if (_tripartiteZoomWasCapped || Math.abs(splitStepZoom - prevStep) < 0.001) {
+                    showToast('Max zoom in Grid — use Stack or Loupe (Z)', 4000);
+                }
                 return;
             }
             zoomLevel = Math.min(zoomLevel * ZOOM_STEP, ZOOM_MAX);
@@ -5613,7 +5582,9 @@
             // Hide mode and asset strips — they'll be rebuilt when assets load
             document.getElementById('modeStrip').style.display = 'none';
             document.getElementById('assetStrip').style.display = 'none';
-            document.getElementById('videoControls').classList.remove('active');
+            const vcReset = document.getElementById('videoControls');
+            vcReset.classList.remove('active');
+            vcReset.classList.remove('images-only');
 
             // Clear layers
             ['Original', 'EditA', 'EditB'].forEach(slot => {
@@ -5840,8 +5811,9 @@
                     // is sized to fit below the bar rather than behind it.
                     const ibEl = mediaContainer ? mediaContainer.querySelector('.asset-info-bar') : null;
                     // Equal layouts: every slot has a visible info bar so reserve its height for all slots.
-                    // L-shaped (tripartite): only editB is flush-top; original/editA float their bar above.
-                    const ibH = ibEl ? (isEqualLayout ? (ibEl.offsetHeight || 28) : (slot === 'editB' ? (ibEl.offsetHeight || 28) : 0)) : 0;
+                    // L-shaped (tripartite): reserve info bar height for editA and editB (both need space).
+                    // Original's bar overlaps its image (vertically centered, bar floats at top).
+                    const ibH = ibEl ? (isEqualLayout ? (ibEl.offsetHeight || 28) : (slot !== 'original' ? (ibEl.offsetHeight || 28) : 0)) : 0;
                     const availH = ch - ibH;
                     // Contain-fit rendered size within available cell height
                     const fitW = Math.min(cw, Math.floor(availH * nw / nh));
@@ -5934,11 +5906,11 @@
 
                 // Apply shared dimension: same width (portrait) or same height (landscape).
                 // Then apply the effective zoom so +/- and 1 keys scale all three assets together.
-                const mixedOrientations = isEqualLayout && _hasLandscape && _hasPortrait;
+                const useEqualArea = isEqualLayout && document.body.classList.contains('tripartite-columns');
                 slots.forEach(slot => {
                     const d = tripartiteLayout[slot];
                     if (!d) return;
-                    if (mixedOrientations) {
+                    if (useEqualArea) {
                         // Placeholder — computed in equal-area pass below
                         d.rw = d.fitW;
                         d.rh = d.fitH;
@@ -5974,12 +5946,12 @@
                     const gap = isColumns ? 4 : 2; // columns: 4px horizontal gap; rows: 2px vertical gap
                     const loadedSlots = slots.filter(s => tripartiteLayout[s]);
                     if (isColumns && loadedSlots.length > 0) {
-                        // Equal-area layout for mixed orientations: each asset gets
-                        // the same rendered area so visual weight is balanced.
+                        // Equal-area layout: each asset gets the same rendered area
+                        // so visual weight is balanced regardless of aspect ratio.
                         // For area A and aspect ratio r = nw/nh:
                         //   rendered width  = √(A·r)
                         //   rendered height = √(A/r)
-                        if (mixedOrientations) {
+                        if (useEqualArea) {
                             const anyD = tripartiteLayout[loadedSlots[0]];
                             const availH = anyD.ch - anyD.ibH - 8;
                             const availW = window.innerWidth - (loadedSlots.length - 1) * gap - 16;
@@ -6026,9 +5998,16 @@
                             const projW = loadedSlots.reduce((sum, s) => sum + Math.sqrt(targetArea * ratios[s]), 0);
                             const projMaxH = Math.max(...loadedSlots.map(s => Math.sqrt(targetArea / ratios[s])));
                             const clamped = projW > availW || projMaxH > availH;
-                            if (clamped) targetArea = fitArea;
+                            if (clamped) {
+                                targetArea = fitArea;
+                                // Clamp splitStepZoom so it doesn't silently accumulate past the cap.
+                                // linearZoom = nativeScale * splitStepZoom when 100% cap is active,
+                                // so max splitStepZoom that keeps linearZoom ≤ 1 is 1/nativeScale.
+                                const nativeScale = linearZoom / splitStepZoom; // base scale without stepZoom
+                                if (nativeScale > 0) splitStepZoom = Math.min(splitStepZoom, 1 / nativeScale);
+                            }
 
-                            _tripartiteZoomWasCapped = clamped && splitStepZoom > 1;
+                            _tripartiteZoomWasCapped = clamped;
 
                             loadedSlots.forEach(s => {
                                 const d = tripartiteLayout[s];
@@ -6280,8 +6259,8 @@
                 // the left-edge of A/B at the column midpoint, with the whole group centered.
                 if (isTripartite && tripartiteLayout[slot]) {
                     const td = tripartiteLayout[slot];
-                    const tw = Math.round(td.rw);
-                    const th = Math.round(td.rh);
+                    let tw = Math.round(td.rw);
+                    let th = Math.round(td.rh);
                     let ty, tx;
                     if (isEqualLayout) {
                         // Equal layout (tripartite-columns / tripartite-rows):
@@ -6289,25 +6268,29 @@
                         tx = td._tx !== undefined ? td._tx : Math.round((td.cw - td.rw) / 2);
                         ty = td._ty !== undefined ? td._ty : td.ibH;
                     } else {
-                        // L-shaped layout (tripartite):
-                        // Original: vertically centered in its full-height cell.
-                        // EditA: bottom-aligned in its cell (image sits at the A/B boundary).
-                        // EditB: top-aligned in its cell (image sits at the A/B boundary).
-                        // This places A and B adjacent at their shared edge, matching Original's midpoint.
+                        // L-shaped layout (tripartite): each image independently fills its cell.
+                        // Original: flush right; EditA: flush bottom-left; EditB: flush top-left.
+                        const cellAvailH = td.ch - (td.ibH || 0);
+                        const cellFitScale = Math.min(td.cw / td.nw, cellAvailH / td.nh);
+                        const cellScale = splitZoomLevel === 1 ? Math.min(cellFitScale, 1) : cellFitScale;
+                        td.rw = Math.round(td.nw * cellScale * splitStepZoom);
+                        td.rh = Math.round(td.nh * cellScale * splitStepZoom);
+                        td.sharedZoom = td.rw / td.nw;
+                        tw = td.rw;
+                        th = td.rh;
+
                         if (slot === 'original') {
                             ty = Math.round((td.ch - td.rh) / 2);
                         } else if (slot === 'editA') {
-                            ty = Math.round(td.ch - td.rh); // flush bottom
+                            ty = Math.max(td.ibH || 0, Math.round(td.ch - td.rh)); // flush bottom, but below info bar
                         } else {
                             ty = td.ibH || 0; // flush top, below the info bar
                         }
-                        // Original: flush right with 4px gap from centre; A/B: flush left with 4px gap.
-                        // 16px total between the centre column edges, matching compare mode.
-                        // Clamp so images don't extend past the outer edge of their cell.
+                        // Original: flush right; A/B: flush left. 4px gap from cell edge.
                         if (slot === 'original') {
-                            tx = Math.max(0, Math.round(td.cw - td.rw) - 8);
+                            tx = Math.max(0, Math.round(td.cw - td.rw) - 4);
                         } else {
-                            tx = Math.min(8, Math.round(td.cw - td.rw));
+                            tx = Math.min(4, Math.round(td.cw - td.rw));
                         }
                     }
 
@@ -7049,8 +7032,12 @@
                 }
 
                 // Show video controls if any videos or audio
+                const vcEl = document.getElementById('videoControls');
                 if (hasVideos || hasAudios) {
-                    document.getElementById('videoControls').classList.add('active');
+                    vcEl.classList.add('active');
+                    vcEl.classList.remove('images-only');
+                } else {
+                    vcEl.classList.add('images-only');
                 }
 
                 // Eagerly decode video audio tracks for waveform/spectrogram
@@ -7149,6 +7136,7 @@
                       if (land3 > 0 && land3 < dims3.length) { showToast('Offset layout unavailable for mixed orientations'); return; }
                       tripartiteLayout3Col = !tripartiteLayout3Col;
                       localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
+                      splitStepZoom = 1.0; // Reset zoom — layouts have different geometry
                       setViewMode('tripartite');
                   }
               } },
