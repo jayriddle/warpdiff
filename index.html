@@ -851,7 +851,7 @@
             transition: max-height 0.25s ease, padding 0.25s ease;
         }
         #promptBar.active {
-            max-height: 200px;
+            max-height: 500px;
             padding: 8px 20px;
         }
         #promptBar .prompt-label {
@@ -866,6 +866,28 @@
             max-width: 65ch;
             line-height: 1.45;
         }
+        #promptBar .criteria-summary {
+            font-weight: 600;
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-top: 8px;
+            cursor: pointer;
+            user-select: none;
+            list-style: none;
+        }
+        #promptBar .criteria-summary::-webkit-details-marker { display: none; }
+        #promptBar .criteria-summary::before { content: '▸ '; }
+        #promptBar details[open] .criteria-summary::before { content: '▾ '; }
+        #promptBar .criteria-list {
+            margin: 6px 0 0 0;
+            padding-left: 1.2em;
+            line-height: 1.5;
+            font-size: 14px;
+            color: #bbb;
+        }
+        #promptBar .criteria-list li { margin-bottom: 3px; }
 
         /* Active asset indicator - brighter info bar in overlay mode */
         body:not(.split-mode) .overlay-layer.active .asset-info-bar {
@@ -1759,6 +1781,10 @@
         <div id="promptBar">
             <div class="prompt-label" id="promptLabel"></div>
             <div class="prompt-text" id="promptText"></div>
+            <details id="criteriaDetails" style="display:none;">
+                <summary id="criteriaSummary" class="criteria-summary"></summary>
+                <ul id="criteriaList" class="criteria-list"></ul>
+            </details>
         </div>
 
         <div class="landing-cta" id="landingCta">
@@ -2540,7 +2566,15 @@
 
             // Reconstruct File objects from the transferred data
             const files = event.data.files.map(f => {
-                const bytes = new Uint8Array(f.buffer);
+                // Support both base64 (new) and raw buffer array (legacy)
+                let bytes;
+                if (f.base64) {
+                    const binary = atob(f.base64);
+                    bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                } else {
+                    bytes = new Uint8Array(f.buffer);
+                }
                 return new File([bytes], f.name, {
                     type: f.contentType,
                     lastModified: f.lastModified
@@ -2550,24 +2584,53 @@
             btn.textContent = 'Pull Assets';
             btn.disabled = false;
             handleMultipleFiles(files, { skipToast: true });
-            showPrompt(event.data.prompt);
+            showPrompt(event.data.prompt, event.data.criteria);
         });
 
-        function showPrompt(prompt) {
+        function showPrompt(prompt, criteria) {
             const bar = document.getElementById('promptBar');
             const label = document.getElementById('promptLabel');
             const text = document.getElementById('promptText');
-            if (!prompt || !prompt.text) {
+            const detailsEl = document.getElementById('criteriaDetails');
+            const summaryEl = document.getElementById('criteriaSummary');
+            const listEl = document.getElementById('criteriaList');
+
+            const hasPrompt = prompt && prompt.text;
+            const hasCriteria = criteria && criteria.items && criteria.items.length > 0;
+
+            if (!hasPrompt && !hasCriteria) {
                 bar.classList.remove('active');
-                // Recalc layout after drawer transition so assets resize
+                detailsEl.style.display = 'none';
                 setTimeout(() => {
                     if (isSplitMode) positionLabelsToMediaRaf();
                     else applyZoomRaf();
                 }, 260);
                 return;
             }
-            label.textContent = prompt.label || 'Prompt';
-            text.textContent = prompt.text;
+
+            if (hasPrompt) {
+                label.textContent = prompt.label || 'Prompt';
+                text.textContent = prompt.text;
+                label.style.display = '';
+                text.style.display = '';
+            } else {
+                label.style.display = 'none';
+                text.style.display = 'none';
+            }
+
+            if (hasCriteria) {
+                summaryEl.textContent = (criteria.label || 'Evaluation Criteria') + ' (' + criteria.items.length + ')';
+                listEl.innerHTML = '';
+                for (const item of criteria.items) {
+                    const li = document.createElement('li');
+                    li.textContent = item;
+                    listEl.appendChild(li);
+                }
+                detailsEl.style.display = '';
+            } else {
+                detailsEl.style.display = 'none';
+            }
+
             bar.classList.add('active');
             // Recalc layout after drawer transition so assets resize
             setTimeout(() => {
@@ -2575,6 +2638,14 @@
                 else applyZoomRaf();
             }, 260);
         }
+
+        // Recalc layout when criteria expand/collapse
+        document.getElementById('criteriaDetails').addEventListener('toggle', () => {
+            setTimeout(() => {
+                if (isSplitMode) positionLabelsToMediaRaf();
+                else applyZoomRaf();
+            }, 50);
+        });
 
         function handleMultipleFiles(files, opts) {
             // Filter for images, videos, and audio
@@ -5493,6 +5564,7 @@
             mediaData.editA = null;
             mediaData.editB = null;
             document.getElementById('promptBar').classList.remove('active');
+            document.getElementById('criteriaDetails').style.display = 'none';
             currentAssetIndex = 0;
             expectedFileCount = 0;
             hasVideos = false;
@@ -6611,6 +6683,36 @@
             updateAssetStrip();
         }
 
+        // Swap between inline and offset grid layouts without rebuilding the mode strip.
+        // Just swaps CSS classes, updates button highlights, and repositions.
+        function _swapTripartiteLayout() {
+            // Swap body classes
+            document.body.classList.remove('tripartite', 'tripartite-columns', 'tripartite-rows');
+            const container = document.querySelector('.overlay-container');
+            if (container) container.style.gridTemplateColumns = '';
+            if (tripartiteLayout3Col) {
+                const best = pickBestGridLayout(3);
+                document.body.classList.add(best === 'vertical' ? 'tripartite-rows' : 'tripartite-columns');
+            } else {
+                document.body.classList.add('tripartite');
+            }
+            // Update button highlights in the grid sub-options
+            const gridGroup = document.querySelector('.asset-group[data-group-type="grid"]');
+            if (gridGroup) {
+                const btns = gridGroup.querySelectorAll('.asset-btn');
+                btns.forEach(btn => {
+                    const isInline = btn.textContent === 'INLINE';
+                    btn.classList.toggle('active', isInline === tripartiteLayout3Col);
+                });
+            }
+            // Move underline to the newly active sub-option
+            positionAssetUnderline();
+            // Reposition after layout settles
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => positionLabelsToMedia(10));
+            });
+        }
+
         // Rebuilds the mode strip in the header. activeMode is 'overlay', 'tripartite',
         // 'horizontal', 'vertical', or 'compare' (the 2-asset auto-layout bucket).
         function updateModeStrip(activeMode) {
@@ -6669,6 +6771,7 @@
                     btn.textContent = opt.label;
                     btn.onclick = () => {
                         if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
+                        if (tripartiteLayout3Col === opt.is3Col) return; // already active
                         const dims3 = Object.values(mediaData).filter(m => m && m.w && m.h);
                         const land3 = dims3.filter(m => m.w >= m.h).length;
                         if (!opt.is3Col && land3 > 0 && land3 < dims3.length) {
@@ -6677,7 +6780,8 @@
                         }
                         tripartiteLayout3Col = opt.is3Col;
                         localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
-                        setViewMode('tripartite');
+                        splitStepZoom = 1.0;
+                        _swapTripartiteLayout();
                     };
                     gridGroup.appendChild(btn);
                 });
@@ -7136,8 +7240,8 @@
                       if (land3 > 0 && land3 < dims3.length) { showToast('Offset layout unavailable for mixed orientations'); return; }
                       tripartiteLayout3Col = !tripartiteLayout3Col;
                       localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
-                      splitStepZoom = 1.0; // Reset zoom — layouts have different geometry
-                      setViewMode('tripartite');
+                      splitStepZoom = 1.0;
+                      _swapTripartiteLayout();
                   }
               } },
             { id: 'fullscreen', defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
