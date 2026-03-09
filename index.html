@@ -6007,24 +6007,13 @@
                     b.rw = sharedW;
                 }
 
-                // L-shaped offset: compute shared contain-fit scale and per-slot positions
-                // in the pre-pass so the forEach only applies geometry.
+                // L-shaped offset: compute per-slot positions using the shared-dimension
+                // rw/rh already computed above. All assets share the same rendered width
+                // (portrait) or height (landscape), so they appear the same visual size.
                 if (!isEqualLayout) {
-                    let minScale = Infinity;
                     slots.forEach(s => {
                         const d = gridLayout[s];
                         if (!d) return;
-                        const aH = d.ch - (d.ibH || 0);
-                        const sc = Math.min(d.cw / d.nw, aH / d.nh);
-                        minScale = Math.min(minScale, sc);
-                    });
-                    if (splitZoomLevel === 1) minScale = Math.min(minScale, 1);
-                    slots.forEach(s => {
-                        const d = gridLayout[s];
-                        if (!d) return;
-                        d.rw = Math.round(d.nw * minScale * splitStepZoom);
-                        d.rh = Math.round(d.nh * minScale * splitStepZoom);
-                        d.sharedZoom = d.rw / d.nw;
                         // Vertical positioning: Original centered, EditA flush bottom, EditB flush top
                         if (s === 'original') {
                             d._ty = Math.max(d.ibH || 0, Math.round((d.ch - d.rh) / 2));
