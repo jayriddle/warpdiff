@@ -1779,12 +1779,12 @@
             <div id="assetStrip" style="display:none;"></div>
         </div>
         <div id="promptBar">
-            <div class="prompt-label" id="promptLabel"></div>
-            <div class="prompt-text" id="promptText"></div>
             <details id="criteriaDetails" style="display:none;">
                 <summary id="criteriaSummary" class="criteria-summary"></summary>
                 <ul id="criteriaList" class="criteria-list"></ul>
             </details>
+            <div class="prompt-label" id="promptLabel"></div>
+            <div class="prompt-text" id="promptText"></div>
         </div>
 
         <div class="landing-cta" id="landingCta">
@@ -2530,7 +2530,7 @@
             window.postMessage({ type: 'WARPDIFF_PULL' }, '*');
         }
 
-        window.addEventListener('message', (event) => {
+        window.addEventListener('message', async (event) => {
             if (event.source !== window || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
 
             const btn = document.getElementById('ihwaPullBtn');
@@ -2542,6 +2542,36 @@
                 return;
             }
 
+            // Fast path: signed URLs — fetch directly from GCS (no base64 round-trip)
+            if (event.data.signedItems && event.data.signedItems.length > 0) {
+                try {
+                    const t0 = performance.now();
+                    const filePromises = event.data.signedItems.map(async item => {
+                        const resp = await fetch(item.signedUrl, { credentials: 'omit' });
+                        if (!resp.ok) throw new Error(`${resp.status} fetching ${item.name}`);
+                        const blob = await resp.blob();
+                        return new File([blob], item.name, {
+                            type: item.contentType,
+                            lastModified: item.lastModified
+                        });
+                    });
+                    const files = await Promise.all(filePromises);
+                    console.log(`[IHWA] Direct fetch: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
+
+                    btn.textContent = 'Pull Assets';
+                    btn.disabled = false;
+                    handleMultipleFiles(files, { skipToast: true });
+                    showPrompt(event.data.prompt, event.data.criteria);
+                    return;
+                } catch (e) {
+                    // CORS or network error — fall back to base64 via background
+                    console.warn('[IHWA] Direct fetch failed, requesting fallback:', e.message);
+                    window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, '*');
+                    return;
+                }
+            }
+
+            // Fallback path: base64-encoded files from background
             if (!event.data.files || event.data.files.length === 0) {
                 btn.textContent = 'Pull Assets';
                 btn.disabled = false;
@@ -2549,14 +2579,12 @@
                 return;
             }
 
-            // Reconstruct File objects from the transferred data
-            const files = event.data.files.map(f => {
-                // Support both base64 (new) and raw buffer array (legacy)
+            const t0 = performance.now();
+            const filePromises = event.data.files.map(async f => {
                 let bytes;
                 if (f.base64) {
-                    const binary = atob(f.base64);
-                    bytes = new Uint8Array(binary.length);
-                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    const resp = await fetch('data:application/octet-stream;base64,' + f.base64);
+                    bytes = new Uint8Array(await resp.arrayBuffer());
                 } else {
                     bytes = new Uint8Array(f.buffer);
                 }
@@ -2565,6 +2593,8 @@
                     lastModified: f.lastModified
                 });
             });
+            const files = await Promise.all(filePromises);
+            console.log(`[IHWA] Base64 fallback: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
 
             btn.textContent = 'Pull Assets';
             btn.disabled = false;
