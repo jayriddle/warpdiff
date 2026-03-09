@@ -545,7 +545,7 @@
             flex-direction: column;
         }
 
-        .overlay-container {
+        .asset-container {
             width: 100%;
             flex: 1;
             min-height: 0;
@@ -557,7 +557,7 @@
             justify-content: center;
         }
 
-        .overlay-layer {
+        .asset-layer {
             position: absolute;
             top: 0;
             left: 0;
@@ -570,7 +570,7 @@
             pointer-events: none;
         }
 
-        .overlay-layer.active {
+        .asset-layer.active {
             opacity: 1;
             pointer-events: auto;
         }
@@ -607,38 +607,38 @@
 
         /* In overlay mode the video-wrapper is position:fixed; give it z-index above the
            header (z-index:10) so the info bar (bottom:100%) isn't hidden behind it. */
-        body:not(.split-mode) .video-wrapper {
+        body:not(.grid-mode) .video-wrapper {
             z-index: 11;
         }
 
         /* In overlay mode, only show info bar for the active layer */
-        body:not(.split-mode) .overlay-layer:not(.active) .asset-info-bar {
+        body:not(.grid-mode) .asset-layer:not(.active) .asset-info-bar {
             display: none;
         }
 
         /* Info bars always visible in split modes */
-        body.split-mode .asset-info-bar {
+        body.grid-mode .asset-info-bar {
             display: flex;
         }
 
-        body.side-by-side .overlay-layer {
+        body.side-by-side .asset-layer {
             position: relative;
             width: 50%;
             display: inline-block;
             vertical-align: top;
         }
 
-        body.split-mode .overlay-layer {
+        body.grid-mode .asset-layer {
             opacity: 1;
             pointer-events: auto;
         }
 
         /* Horizontal split: layer height */
-        body.side-by-side .overlay-layer {
+        body.side-by-side .asset-layer {
             height: 100%;
         }
 
-        body.side-by-side .overlay-container {
+        body.side-by-side .asset-container {
             white-space: nowrap;
             overflow-x: auto;
             display: flex;
@@ -648,7 +648,7 @@
         }
 
         /* Vertical stacking mode */
-        body.vertical-stack .overlay-layer {
+        body.vertical-stack .asset-layer {
             position: relative !important;
             width: 100%;
             height: calc(100% / 3);
@@ -658,18 +658,18 @@
         }
 
         /* 2-asset vertical: divide by 2 not 3 */
-        body.vertical-stack.two-asset .overlay-layer {
+        body.vertical-stack.two-asset .asset-layer {
             height: calc(100% / 2);
         }
 
-        body.vertical-stack .overlay-container {
+        body.vertical-stack .asset-container {
             white-space: normal;
             overflow-y: visible;
             display: block;
         }
 
-        /* Tripartite: Original left-half, Edit A top-right, Edit B bottom-right */
-        body.tripartite .overlay-container {
+        /* Offset grid: Original left-half, Edit A top-right, Edit B bottom-right */
+        body.offset .asset-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
@@ -680,8 +680,8 @@
             justify-items: stretch;
         }
 
-        /* Equal-layout tripartite: 3 columns (portrait) or 3 rows (landscape) */
-        body.tripartite-columns .overlay-container {
+        /* Inline grid: 3 equal columns (portrait) or 3 equal rows (landscape) */
+        body.inline-cols .asset-container {
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             grid-template-rows: 1fr;
@@ -691,11 +691,11 @@
             align-items: stretch;
             justify-items: stretch;
         }
-        body.tripartite-columns #layerOriginal { grid-column: 1; grid-row: 1; }
-        body.tripartite-columns #layerEditA   { grid-column: 2; grid-row: 1; }
-        body.tripartite-columns #layerEditB   { grid-column: 3; grid-row: 1; }
+        body.inline-cols #layerOriginal { grid-column: 1; grid-row: 1; }
+        body.inline-cols #layerEditA   { grid-column: 2; grid-row: 1; }
+        body.inline-cols #layerEditB   { grid-column: 3; grid-row: 1; }
 
-        body.tripartite-rows .overlay-container {
+        body.inline-rows .asset-container {
             display: grid;
             grid-template-columns: 1fr;
             grid-template-rows: 1fr 1fr 1fr;
@@ -705,13 +705,13 @@
             align-items: stretch;
             justify-items: stretch;
         }
-        body.tripartite-rows #layerOriginal { grid-column: 1; grid-row: 1; }
-        body.tripartite-rows #layerEditA   { grid-column: 1; grid-row: 2; }
-        body.tripartite-rows #layerEditB   { grid-column: 1; grid-row: 3; }
+        body.inline-rows #layerOriginal { grid-column: 1; grid-row: 1; }
+        body.inline-rows #layerEditA   { grid-column: 1; grid-row: 2; }
+        body.inline-rows #layerEditB   { grid-column: 1; grid-row: 3; }
 
-        body.tripartite .overlay-layer,
-        body.tripartite-columns .overlay-layer,
-        body.tripartite-rows .overlay-layer {
+        body.offset .asset-layer,
+        body.inline-cols .asset-layer,
+        body.inline-rows .asset-layer {
             position: relative !important;
             width: 100% !important;
             height: 100% !important;
@@ -724,9 +724,9 @@
         /* zoom-100 class is toggled when user presses 1 (100% native pixels).
            Assets are capped at viewport fit so no overflow is needed. */
 
-        body.tripartite .media-container,
-        body.tripartite-columns .media-container,
-        body.tripartite-rows .media-container {
+        body.offset .media-container,
+        body.inline-cols .media-container,
+        body.inline-rows .media-container {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
@@ -736,10 +736,10 @@
         }
 
         /* In all split modes the video-wrapper is JS-sized to exact rendered bounds.
-           The media element must fill it 100%. Override the general overlay-layer rule
+           The media element must fill it 100%. Override the general asset-layer rule
            (width:auto; height:auto) which has equal specificity but appears later. */
-        body.split-mode .overlay-layer img,
-        body.split-mode .overlay-layer video {
+        body.grid-mode .asset-layer img,
+        body.grid-mode .asset-layer video {
             width: 100% !important;
             height: 100% !important;
             max-width: none !important;
@@ -747,24 +747,24 @@
             object-fit: contain;
         }
 
-        body.tripartite #layerOriginal {
+        body.offset #layerOriginal {
             grid-column: 1;
             grid-row: 1 / 3;
         }
 
-        body.tripartite #layerEditA {
+        body.offset #layerEditA {
             grid-column: 2;
             grid-row: 1;
         }
 
-        body.tripartite #layerEditB {
+        body.offset #layerEditB {
             grid-column: 2;
             grid-row: 2;
         }
 
         /* fit-cover toggles */
-        body.split-mode.fit-cover .video-wrapper img,
-        body.split-mode.fit-cover .video-wrapper video {
+        body.grid-mode.fit-cover .video-wrapper img,
+        body.grid-mode.fit-cover .video-wrapper video {
             object-fit: cover;
         }
 
@@ -833,8 +833,8 @@
             white-space: nowrap;
         }
 
-        body.split-mode .overlay-layer.active-audio .asset-info-bar .asset-filename,
-        body:not(.split-mode) .overlay-layer.active .asset-info-bar .asset-filename {
+        body.grid-mode .asset-layer.active-audio .asset-info-bar .asset-filename,
+        body:not(.grid-mode) .asset-layer.active .asset-info-bar .asset-filename {
             color: rgba(255, 255, 255, 0.5);
         }
 
@@ -890,18 +890,18 @@
         #promptBar .criteria-list li { margin-bottom: 3px; }
 
         /* Active asset indicator - brighter info bar in overlay mode */
-        body:not(.split-mode) .overlay-layer.active .asset-info-bar {
+        body:not(.grid-mode) .asset-layer.active .asset-info-bar {
             display: flex;
             background: rgba(60, 60, 60, 0.95);
             color: #e0e0e0;
         }
 
-        body:not(.split-mode) .overlay-layer.active .asset-info-bar .asset-name {
+        body:not(.grid-mode) .asset-layer.active .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
         /* Active audio indicator for split views - shows which audio is playing */
-        body.split-mode .overlay-layer.active-audio .video-wrapper::after {
+        body.grid-mode .asset-layer.active-audio .video-wrapper::after {
             content: '';
             position: absolute;
             top: 0;
@@ -913,12 +913,12 @@
             z-index: 5;
         }
 
-        body.split-mode .overlay-layer.active-audio .asset-info-bar {
+        body.grid-mode .asset-layer.active-audio .asset-info-bar {
             background: rgba(0, 140, 190, 0.85);
             color: #fff;
         }
 
-        body.split-mode .overlay-layer.active-audio .asset-info-bar .asset-name {
+        body.grid-mode .asset-layer.active-audio .asset-info-bar .asset-name {
             color: #ffffff;
         }
 
@@ -926,8 +926,8 @@
             display: none !important;
         }
 
-        .overlay-layer img,
-        .overlay-layer video {
+        .asset-layer img,
+        .asset-layer video {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
@@ -1404,16 +1404,16 @@
         }
 
         /* Overlay mode: pan cursor always active (zoom/pan available without mode gate) */
-        body:not(.split-mode) .overlay-container {
+        body:not(.grid-mode) .asset-container {
             cursor: grab;
         }
 
-        body:not(.split-mode) .overlay-container.panning {
+        body:not(.grid-mode) .asset-container.panning {
             cursor: grabbing;
         }
 
-        body:not(.split-mode) .overlay-layer img,
-        body:not(.split-mode) .overlay-layer video {
+        body:not(.grid-mode) .asset-layer img,
+        body:not(.grid-mode) .asset-layer video {
             position: relative;
             transition: none;
         }
@@ -1439,8 +1439,8 @@
         }
 
         /* When magnifier is active, use crosshair cursor over media */
-        body.magnifier-active .overlay-container,
-        body.magnifier-active .overlay-container.panning,
+        body.magnifier-active .asset-container,
+        body.magnifier-active .asset-container.panning,
         body.magnifier-active .video-wrapper {
             cursor: crosshair !important;
         }
@@ -1685,7 +1685,7 @@
             z-index: 5;
         }
         /* Audio mode (split): fill each grid cell completely */
-        body.audio-mode.split-mode .video-wrapper.audio-slot-group {
+        body.audio-mode.grid-mode .video-wrapper.audio-slot-group {
             top: 0 !important;
             left: 0 !important;
             width: 100% !important;
@@ -1710,7 +1710,7 @@
             position: relative !important;
             bottom: auto !important;
         }
-        body.split-mode .overlay-layer.active-audio .audio-slot-group > .asset-info-bar {
+        body.grid-mode .asset-layer.active-audio .audio-slot-group > .asset-info-bar {
             background: rgba(0, 140, 190, 0.85);
             color: #fff;
         }
@@ -1799,7 +1799,7 @@
         </div>
 
         <div class="comparison-view" id="comparisonView">
-            <div class="overlay-container" id="overlayContainer">
+            <div class="asset-container" id="assetContainer">
                 <!-- Layout controls for side-by-side mode -->
                 <div class="layout-controls" id="layoutControls">
                     <button onclick="setViewMode('horizontal')" id="horizontalBtn" class="active">Horizontal</button>
@@ -1807,7 +1807,7 @@
                     <span style="color: #999; font-size: 11px; margin: 0 5px;">Drag to reorder</span>
                 </div>
                 
-                <div class="overlay-layer" id="layerOriginal">
+                <div class="asset-layer" id="layerOriginal">
                     <div class="asset-info-bar">
                         <span class="asset-name">ORIGINAL</span>
                         <span class="asset-zoom"></span>
@@ -1818,7 +1818,7 @@
                         <span class="asset-filename"></span>
                     </div>
                 </div>
-                <div class="overlay-layer" id="layerEditA">
+                <div class="asset-layer" id="layerEditA">
                     <div class="asset-info-bar">
                         <span class="asset-name">EDIT A</span>
                         <span class="asset-zoom"></span>
@@ -1829,7 +1829,7 @@
                         <span class="asset-filename"></span>
                     </div>
                 </div>
-                <div class="overlay-layer" id="layerEditB">
+                <div class="asset-layer" id="layerEditB">
                     <div class="asset-info-bar">
                         <span class="asset-name">EDIT B</span>
                         <span class="asset-zoom"></span>
@@ -1951,7 +1951,7 @@
         });
 
         // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
-        let tripartiteLayout3Col = localStorage.getItem('tripartiteLayout3Col') === 'true';
+        let gridInlineMode = (localStorage.getItem('gridInlineMode') ?? localStorage.getItem('gridLayout3Col')) === 'true';
 
         // ── Persistent user preferences ─────────────────────────────────
         const _prefs = {
@@ -1972,7 +1972,7 @@
 
         const assetOrder = ['original', 'editA', 'editB'];
 
-        // Returns the overlay-layer element for a given slot key ('original', 'editA', 'editB').
+        // Returns the asset-layer element for a given slot key ('original', 'editA', 'editB').
         // Centralises the slot→DOM-id mapping so it doesn't have to be computed ad-hoc everywhere.
         const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB' };
         function getLayer(slot) { return document.getElementById(SLOT_LAYER_ID[slot]); }
@@ -1988,9 +1988,9 @@
         function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 
         function isTripartiteMode() {
-            return document.body.classList.contains('tripartite') ||
-                   document.body.classList.contains('tripartite-columns') ||
-                   document.body.classList.contains('tripartite-rows');
+            return document.body.classList.contains('offset') ||
+                   document.body.classList.contains('inline-cols') ||
+                   document.body.classList.contains('inline-rows');
         }
 
         // Updates the mute button appearance for a given audio slot.
@@ -2040,7 +2040,7 @@
 
         // Shared media sync — works for both video and audio modes
         function syncMedia(source, action) {
-            const tag = hasAudios ? '.overlay-layer audio' : 'video';
+            const tag = hasAudios ? '.asset-layer audio' : 'video';
             document.querySelectorAll(tag).forEach(el => {
                 if (el !== source) action(el);
             });
@@ -2355,8 +2355,8 @@
 
             // In overlay mode, multiple wrappers overlap; use the active layer's media & wrapper
             let media, targetWrapper;
-            if (!isSplitMode) {
-                const activeLayer = document.querySelector('.overlay-layer.active');
+            if (!isGridMode) {
+                const activeLayer = document.querySelector('.asset-layer.active');
                 if (!activeLayer) { mag.classList.remove('active'); return; }
                 targetWrapper = activeLayer.querySelector('.video-wrapper');
                 media = targetWrapper ? targetWrapper.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
@@ -2377,7 +2377,7 @@
 
             // Screen scale for overlay mode: normalize to fit-to-viewport
             const screenScale = rect.width / natW;
-            const effectiveScale = !isSplitMode
+            const effectiveScale = !isGridMode
                 ? screenScale * fitZoom / zoomLevel
                 : screenScale;
 
@@ -2385,7 +2385,7 @@
             drawMagnifierCanvas(mag, media, relX, relY, effectiveScale, e.clientX, e.clientY);
 
             // In split mode, draw linked loupes on other visible media
-            if (isSplitMode && magnifierLinked) {
+            if (isGridMode && magnifierLinked) {
                 const allWrappers = document.querySelectorAll('.video-wrapper');
                 let secondaryIdx = 0;
                 const secondaryIds = ['pixelMagnifier1', 'pixelMagnifier2'];
@@ -2431,7 +2431,7 @@
         let zoomLevel = 1; // Default 1x zoom (actual size/fit)
         let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
         let splitStepZoom = 1.0; // multiplicative zoom for split modes (1.0 = no extra zoom)
-        let _tripartiteZoomWasCapped = false; // set by tripartite pre-pass; read by '1' key handler
+        let _gridZoomWasCapped = false; // set by offset pre-pass; read by '1' key handler
         let timecodeMode = 'time'; // 'time' or 'frames'
         let videoFrameRates = {}; // Store framerate for each video
 
@@ -2490,7 +2490,7 @@
         // Cached pan targets: set in handlePanStart, reused every mousemove in
         // handlePanMove and clampPanOffsets without re-querying the DOM.
         let _panVw    = null; // active .video-wrapper during pan
-        let _panLayer = null; // active .overlay-layer during pan
+        let _panLayer = null; // active .asset-layer during pan
 
         // Debounced positionLabelsToMedia — collapses rapid per-asset load events into one call
         // so normalization always runs after all loaded slots have reported their dimensions.
@@ -2602,7 +2602,7 @@
                 bar.classList.remove('active');
                 detailsEl.style.display = 'none';
                 setTimeout(() => {
-                    if (isSplitMode) positionLabelsToMediaRaf();
+                    if (isGridMode) positionLabelsToMediaRaf();
                     else applyZoomRaf();
                 }, 260);
                 return;
@@ -2634,7 +2634,7 @@
             bar.classList.add('active');
             // Recalc layout after drawer transition so assets resize
             setTimeout(() => {
-                if (isSplitMode) positionLabelsToMediaRaf();
+                if (isGridMode) positionLabelsToMediaRaf();
                 else applyZoomRaf();
             }, 260);
         }
@@ -2642,7 +2642,7 @@
         // Recalc layout when criteria expand/collapse
         document.getElementById('criteriaDetails').addEventListener('toggle', () => {
             setTimeout(() => {
-                if (isSplitMode) positionLabelsToMediaRaf();
+                if (isGridMode) positionLabelsToMediaRaf();
                 else applyZoomRaf();
             }, 50);
         });
@@ -2674,7 +2674,7 @@
             // Tell checkAllLoaded() how many files to wait for before activating the view.
             // Without this, it fires at loadedCount=2 during a 3-file load and calls
             // setViewMode('horizontal'), which hides the empty third layer — causing a
-            // black screen when tripartite mode is set a moment later.
+            // black screen when offset mode is set a moment later.
             expectedFileCount = mediaFiles.length;
 
             // Sort by lastModified timestamp (oldest to newest)
@@ -3301,7 +3301,7 @@
         function animateRelayout(durationMs) {
             _relayoutEndTime = performance.now() + durationMs;
             function tick() {
-                if (isSplitMode) positionLabelsToMedia();
+                if (isGridMode) positionLabelsToMedia();
                 else applyZoom();
                 if (performance.now() < _relayoutEndTime) requestAnimationFrame(tick);
             }
@@ -3729,8 +3729,8 @@
 
         function getActiveMediaElement() {
             // Get the media element for the currently active/hovered asset
-            if (!isSplitMode) {
-                const activeLayer = document.querySelector('.overlay-layer.active');
+            if (!isGridMode) {
+                const activeLayer = document.querySelector('.asset-layer.active');
                 return activeLayer ? activeLayer.querySelector('video, img') : null;
             }
             // Split mode: use the asset under the cursor, or fall back to current
@@ -4609,11 +4609,11 @@
                     // Video mode: use cached primary video ref; fall back to live query if stale
                     primary = primaryVideoRef;
                     if (!primary || primary.isConnected === false) {
-                        if (!isSplitMode) {
-                            const activeLayer = document.querySelector('.overlay-layer.active');
+                        if (!isGridMode) {
+                            const activeLayer = document.querySelector('.asset-layer.active');
                             primary = activeLayer ? activeLayer.querySelector('video') : null;
                         } else {
-                            primary = document.querySelector('.overlay-layer video');
+                            primary = document.querySelector('.asset-layer video');
                         }
                         primaryVideoRef = primary;
                     }
@@ -4822,7 +4822,7 @@
 
         function setVolume(value) {
             const volume = value / 100;
-            document.querySelectorAll('.overlay-layer video, .overlay-layer audio').forEach(v => {
+            document.querySelectorAll('.asset-layer video, .asset-layer audio').forEach(v => {
                 v.volume = volume;
             });
             _prefs.save('volume', Number(value));
@@ -4883,7 +4883,7 @@
         function toggleTimecodeMode() {
             timecodeMode = timecodeMode === 'time' ? 'frames' : 'time';
             // Update display immediately
-            const activeLayer = document.querySelector('.overlay-layer.active');
+            const activeLayer = document.querySelector('.asset-layer.active');
             if (activeLayer) {
                 const video = activeLayer.querySelector('video');
                 if (video) {
@@ -4996,8 +4996,8 @@
             const activeLayer = getLayer(assetKey);
 
             // Hide all layers (only in overlay mode)
-            if (!isSplitMode) {
-                document.querySelectorAll('.overlay-layer').forEach(layer => {
+            if (!isGridMode) {
+                document.querySelectorAll('.asset-layer').forEach(layer => {
                     layer.classList.remove('active');
                 });
                 if (activeLayer) activeLayer.classList.add('active');
@@ -5155,7 +5155,7 @@
 
                 const tag = hasAudios ? 'audio' : 'video';
                 _scrubVideo = getAllPlayableMedia()[0] || null;
-                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer ' + tag));
+                _scrubAllVideos = Array.from(document.querySelectorAll('.asset-layer ' + tag));
 
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
@@ -5180,13 +5180,13 @@
                 }
 
                 const tag = hasAudios ? 'audio' : 'video';
-                const activeLayer = document.querySelector('.overlay-layer.active');
+                const activeLayer = document.querySelector('.asset-layer.active');
                 _scrubVideo = activeLayer ? activeLayer.querySelector(tag) : null;
                 if (!_scrubVideo) {
                     const els = getAllPlayableMedia();
                     if (els.length > 0) _scrubVideo = els[0];
                 }
-                _scrubAllVideos = Array.from(document.querySelectorAll('.overlay-layer ' + tag));
+                _scrubAllVideos = Array.from(document.querySelectorAll('.asset-layer ' + tag));
                 _scrubContainerRect = progressContainer.getBoundingClientRect();
 
                 if (_scrubVideo) {
@@ -5267,7 +5267,7 @@
 
         // Browser fullscreen change handler — recalculates layout when chrome disappears/reappears.
         document.addEventListener('fullscreenchange', () => {
-            if (isSplitMode) {
+            if (isGridMode) {
                 requestAnimationFrame(() => positionLabelsToMedia());
             } else {
                 applyZoom();
@@ -5275,7 +5275,7 @@
         });
 
         function applyZoom() {
-            if (isSplitMode) return; // zoom/pan only applies in overlay mode
+            if (isGridMode) return; // zoom/pan only applies in overlay mode
 
             const headerH = getHeaderHeight();
             const controlsEl = document.getElementById('videoControls');
@@ -5301,7 +5301,7 @@
                 if (minNW === Infinity) minNW = 0;
                 // fitZoom: scale so the narrowest (reference) asset fits the viewport
                 const viewW = window.innerWidth;
-                const sampleBarFit = document.querySelector('.overlay-layer.active .video-wrapper > .asset-info-bar');
+                const sampleBarFit = document.querySelector('.asset-layer.active .video-wrapper > .asset-info-bar');
                 const infoBarHFit = sampleBarFit && sampleBarFit.offsetHeight > 0 ? sampleBarFit.offsetHeight : 22;
                 const viewH = window.innerHeight - headerH - infoBarHFit - 1 - controlsH;
                 if (minNW > 0) {
@@ -5336,7 +5336,7 @@
             // minNW * sharedScale — same-width assets appear identically wide on screen.
             // Reserve space for the info bar above the media so it sits below the header.
             // Measure from the active layer's info bar (non-active ones are display:none → offsetHeight 0).
-            const sampleBar = document.querySelector('.overlay-layer.active .video-wrapper > .asset-info-bar');
+            const sampleBar = document.querySelector('.asset-layer.active .video-wrapper > .asset-info-bar');
             const infoBarH = sampleBar && sampleBar.offsetHeight > 0 ? sampleBar.offsetHeight : 22;
             const availH = window.innerHeight - headerH - infoBarH - 1 - controlsH;
             assetOrder.forEach(slot => {
@@ -5418,12 +5418,12 @@
         }
 
         function zoomIn() {
-            if (isSplitMode) {
+            if (isGridMode) {
                 const prevStep = splitStepZoom;
                 splitStepZoom *= ZOOM_STEP;
                 positionLabelsToMedia();
                 // Layout clamps splitStepZoom when it would overflow — detect that
-                if (_tripartiteZoomWasCapped || Math.abs(splitStepZoom - prevStep) < 0.001) {
+                if (_gridZoomWasCapped || Math.abs(splitStepZoom - prevStep) < 0.001) {
                     showToast('Max zoom in Grid — use Stack or Loupe (Z)', 4000);
                 }
                 return;
@@ -5433,7 +5433,7 @@
         }
 
         function zoomOut() {
-            if (isSplitMode) {
+            if (isGridMode) {
                 splitStepZoom = Math.max(splitStepZoom / ZOOM_STEP, ZOOM_MIN);
                 positionLabelsToMedia();
                 return;
@@ -5461,7 +5461,7 @@
         }
 
         function resetFitZoom() {
-            if (isSplitMode) {
+            if (isGridMode) {
                 splitStepZoom = 1.0;
                 splitZoomLevel = null;
                 document.body.classList.remove('zoom-100');
@@ -5475,7 +5475,7 @@
         }
 
         function setupPanHandlers() {
-            const container = document.getElementById('overlayContainer');
+            const container = document.getElementById('assetContainer');
             // Remove first to prevent double-attachment on repeated inspect entries
             container.removeEventListener('mousedown', handlePanStart);
             container.removeEventListener('mousemove', handlePanMove);
@@ -5522,10 +5522,10 @@
             isPanning = true;
             panStartX = e.clientX - panOffsetX;
             panStartY = e.clientY - panOffsetY;
-            document.getElementById('overlayContainer').classList.add('panning');
+            document.getElementById('assetContainer').classList.add('panning');
             // Cache the active layer's vw so handlePanMove/clampPanOffsets
             // never query the DOM during the hot mousemove path.
-            _panLayer = document.querySelector('.overlay-layer.active');
+            _panLayer = document.querySelector('.asset-layer.active');
             _panVw    = _panLayer ? _panLayer.querySelector('.video-wrapper') : null;
         }
 
@@ -5551,7 +5551,7 @@
         function handlePanEnd(e) {
             isPanning = false;
             _panVw = null; _panLayer = null; // release cached refs
-            document.getElementById('overlayContainer').classList.remove('panning');
+            document.getElementById('assetContainer').classList.remove('panning');
             applyZoom(); // re-anchor wrapper to the settled pan position
         }
 
@@ -5639,13 +5639,13 @@
             const vizControls = document.getElementById('videoControls');
             if (vizControls) vizControls.classList.remove('audio-viz-active');
             document.body.classList.remove('fullscreen', ...splitModeClasses);
-            isSplitMode = false;
+            isGridMode = false;
             viewActivating = false;
             pendingViewActivation = false;
             layoutMode = 'horizontal';
 
             // Restore all layers to visible for next load
-            document.querySelectorAll('.overlay-layer').forEach(layer => {
+            document.querySelectorAll('.asset-layer').forEach(layer => {
                 layer.style.display = '';
             });
             document.getElementById('comparisonView').classList.remove('active');
@@ -5765,7 +5765,7 @@
             }
         }
 
-        let isSplitMode = false;
+        let isGridMode = false;
         let viewActivating = false;    // true while checkAllLoaded() activation is in progress for current load batch
         let pendingViewActivation = false; // true when fps queue is still draining at the time checkAllLoaded() first completes
         let layoutMode = 'horizontal'; // 'horizontal' or 'vertical'
@@ -5774,7 +5774,7 @@
         // for the current viewport dimensions and asset aspect ratios.
         // n = number of assets (2 or 3). Returns 'horizontal' or 'vertical'.
         function pickBestGridLayout(n) {
-            const container = document.querySelector('.overlay-container');
+            const container = document.querySelector('.asset-container');
             const W = container ? container.offsetWidth : window.innerWidth;
             const H = container ? container.offsetHeight : window.innerHeight;
             if (!W || !H) return 'horizontal';
@@ -5816,16 +5816,16 @@
         //   - Vertical: to the left of the video-wrapper
         function positionLabelsToMedia(retriesLeft = 5) {
             // In overlay mode, applyZoom() owns all wrapper positions.
-            // positionLabelsToMedia only handles split modes (side-by-side, vertical-stack, tripartite).
-            if (!isSplitMode) return;
+            // positionLabelsToMedia only handles split modes (side-by-side, vertical-stack, offset).
+            if (!isGridMode) return;
 
             let anySkipped = false; // tracks if any slot had zero-dimension container (needs retry)
             const slots = assetOrder;
             const isVertical = document.body.classList.contains('vertical-stack');
             const isTripartite = isTripartiteMode();
-            const isEqualLayout = document.body.classList.contains('tripartite-columns') ||
-                                  document.body.classList.contains('tripartite-rows');
-            const isOverlay = !isSplitMode && !isVertical;
+            const isEqualLayout = document.body.classList.contains('inline-cols') ||
+                                  document.body.classList.contains('inline-rows');
+            const isOverlay = !isGridMode && !isVertical;
 
             // Reset video controls position when not in vertical-stack (CSS takes over)
             if (!isVertical) {
@@ -5840,23 +5840,23 @@
                     const layer = getLayer(slot);
                     if (layer) { layer.style.height = ''; layer.style.marginTop = ''; }
                 });
-                const container = document.querySelector('.overlay-container');
+                const container = document.querySelector('.asset-container');
                 if (container) container.style.paddingTop = '';
             }
 
-            // In tripartite mode, compute a shared rendered dimension so all three assets
+            // In offset mode, compute a shared rendered dimension so all three assets
             // appear the same size. Portrait assets (nw < nh) share rendered WIDTH;
             // landscape assets share rendered HEIGHT.
             // Original is flush-right; A/B are flush-left at the A/B boundary.
-            const tripartiteLayout = {}; // slot → { rw, rh, cw, ch, sharedZoom }
+            const gridLayout = {}; // slot → { rw, rh, cw, ch, sharedZoom }
             if (isTripartite) {
                 let minW = Infinity, minH = Infinity;
                 // For equal layouts the shared dimension is determined by the grid axis:
-                //   tripartite-rows (stacked): cells share full width → anchor on width
-                //   tripartite-columns (side by side): cells share full height → anchor on height
+                //   inline-rows (stacked): cells share full width → anchor on width
+                //   inline-cols (side by side): cells share full height → anchor on height
                 // For the L-shaped layout, keep the old behaviour: portrait assets share width.
                 let widthConstrained = isEqualLayout
-                    ? document.body.classList.contains('tripartite-rows')
+                    ? document.body.classList.contains('inline-rows')
                     : false;
                 // Detect mixed orientations (some landscape, some portrait) for equal layouts.
                 // When mixed, each asset scales independently to fit its cell instead of sharing
@@ -5888,53 +5888,53 @@
                     // Contain-fit rendered size within available cell height
                     const fitW = Math.min(cw, Math.floor(availH * nw / nh));
                     const fitH = Math.min(availH, Math.floor(cw * nh / nw));
-                    tripartiteLayout[slot] = { nw, nh, cw, ch, ibH, fitW, fitH };
+                    gridLayout[slot] = { nw, nh, cw, ch, ibH, fitW, fitH };
                     minW = Math.min(minW, fitW);
                     minH = Math.min(minH, fitH);
                 });
-                // Determine the effective zoom multiplier for tripartite rendering.
+                // Determine the effective zoom multiplier for offset rendering.
                 // splitZoomLevel===1 means "smallest-resolution asset at 100% native pixels,
                 // others scaled down to match its physical size" — compute the multiplier
                 // that achieves this using a longest-side anchor, then apply splitStepZoom on top.
-                let tripartiteBaseZoom = 1;
-                let tripartiteEffectiveZoom = splitStepZoom;
+                let offsetBaseZoom = 1;
+                let offsetEffectiveZoom = splitStepZoom;
                 if (splitZoomLevel === 1) {
                     // Find the smallest longest-side (= smallest-resolution asset's reference dim).
-                    let tripartiteRefLong = Infinity;
+                    let offsetRefLong = Infinity;
                     slots.forEach(slot => {
-                        const d = tripartiteLayout[slot];
+                        const d = gridLayout[slot];
                         if (!d) return;
                         const longest = Math.max(d.nw, d.nh);
-                        if (longest < tripartiteRefLong) tripartiteRefLong = longest;
+                        if (longest < offsetRefLong) offsetRefLong = longest;
                     });
                     // The base size (at splitStepZoom=1) for the shared-dim anchor is minW or minH.
-                    // We want the smallest-resolution asset to render at tripartiteRefLong native px.
-                    // For landscape (share height): base = minH; target = tripartiteRefLong px of height
-                    //   → multiplier = tripartiteRefLong / minH (but clamp to fit)
-                    // For portrait (share width): target = tripartiteRefLong px of width
-                    //   → multiplier = tripartiteRefLong / minW
+                    // We want the smallest-resolution asset to render at offsetRefLong native px.
+                    // For landscape (share height): base = minH; target = offsetRefLong px of height
+                    //   → multiplier = offsetRefLong / minH (but clamp to fit)
+                    // For portrait (share width): target = offsetRefLong px of width
+                    //   → multiplier = offsetRefLong / minW
                     if (widthConstrained && minW < Infinity) {
-                        tripartiteBaseZoom = tripartiteRefLong / minW;
+                        offsetBaseZoom = offsetRefLong / minW;
                     } else if (!widthConstrained && minH < Infinity) {
-                        tripartiteBaseZoom = tripartiteRefLong / minH;
+                        offsetBaseZoom = offsetRefLong / minH;
                     }
-                    tripartiteEffectiveZoom = tripartiteBaseZoom * splitStepZoom;
+                    offsetEffectiveZoom = offsetBaseZoom * splitStepZoom;
                 }
 
-                // Clamp tripartiteEffectiveZoom so no asset overflows its cell
+                // Clamp offsetEffectiveZoom so no asset overflows its cell
                 // (only when NOT at 100% native — the 1 key should allow overflow).
                 // When splitZoomLevel===1, skip clamping so assets render at true 1:1 pixels
                 // even if they exceed the cell bounds (CSS overflow handles the visual).
                 if (splitZoomLevel !== 1) {
                     let maxAllowed = Infinity;
-                    const isRows = document.body.classList.contains('tripartite-rows');
+                    const isRows = document.body.classList.contains('inline-rows');
                     if (isRows && widthConstrained) {
-                        // For tripartite-rows, clamp so the total group height fits the
+                        // For inline-rows, clamp so the total group height fits the
                         // combined container height. Per-cell clamping would leave each
                         // image tiny with large gaps; group clamping lets them tile tightly.
                         let totalProjH = 0, totalAvailH = 0, rowSlotCount = 0;
                         slots.forEach(slot => {
-                            const d = tripartiteLayout[slot];
+                            const d = gridLayout[slot];
                             if (!d) return;
                             rowSlotCount++;
                             if (minW > 0) totalProjH += minW * d.nh / d.nw;
@@ -5946,7 +5946,7 @@
                         if (totalProjH > 0) maxAllowed = Math.min(maxAllowed, (totalAvailH - rowGaps) / totalProjH);
                     } else {
                         slots.forEach(slot => {
-                            const d = tripartiteLayout[slot];
+                            const d = gridLayout[slot];
                             if (!d) return;
                             if (widthConstrained) {
                                 if (minW > 0) maxAllowed = Math.min(maxAllowed, d.cw / minW);
@@ -5960,25 +5960,25 @@
                         });
                     }
                     if (maxAllowed < Infinity) {
-                        _tripartiteZoomWasCapped = tripartiteEffectiveZoom > maxAllowed - 0.001;
-                        tripartiteEffectiveZoom = Math.min(tripartiteEffectiveZoom, maxAllowed);
+                        _gridZoomWasCapped = offsetEffectiveZoom > maxAllowed - 0.001;
+                        offsetEffectiveZoom = Math.min(offsetEffectiveZoom, maxAllowed);
                         // Clamp splitStepZoom so it doesn't accumulate past the layout cap.
                         // Without this, pressing '+' at the limit inflates splitStepZoom invisibly,
                         // requiring many '-' presses before the zoom visually decreases.
-                        const maxStep = maxAllowed / (tripartiteBaseZoom || 1);
+                        const maxStep = maxAllowed / (offsetBaseZoom || 1);
                         if (splitStepZoom > maxStep) splitStepZoom = maxStep;
                     } else {
-                        _tripartiteZoomWasCapped = false;
+                        _gridZoomWasCapped = false;
                     }
                 } else {
-                    _tripartiteZoomWasCapped = false;
+                    _gridZoomWasCapped = false;
                 }
 
                 // Apply shared dimension: same width (portrait) or same height (landscape).
                 // Then apply the effective zoom so +/- and 1 keys scale all three assets together.
-                const useEqualArea = isEqualLayout && document.body.classList.contains('tripartite-columns');
+                const useEqualArea = isEqualLayout && document.body.classList.contains('inline-cols');
                 slots.forEach(slot => {
-                    const d = tripartiteLayout[slot];
+                    const d = gridLayout[slot];
                     if (!d) return;
                     if (useEqualArea) {
                         // Placeholder — computed in equal-area pass below
@@ -5987,13 +5987,13 @@
                         d.sharedZoom = d.rw / d.nw;
                     } else if (widthConstrained) {
                         // Portrait: share width, height follows aspect ratio
-                        d.rw = Math.round(minW * tripartiteEffectiveZoom);
-                        d.rh = Math.round(minW * tripartiteEffectiveZoom * d.nh / d.nw);
+                        d.rw = Math.round(minW * offsetEffectiveZoom);
+                        d.rh = Math.round(minW * offsetEffectiveZoom * d.nh / d.nw);
                         d.sharedZoom = d.rw / d.nw;
                     } else {
                         // Landscape: share height, width follows aspect ratio
-                        d.rh = Math.round(minH * tripartiteEffectiveZoom);
-                        d.rw = Math.round(minH * tripartiteEffectiveZoom * d.nw / d.nh);
+                        d.rh = Math.round(minH * offsetEffectiveZoom);
+                        d.rw = Math.round(minH * offsetEffectiveZoom * d.nw / d.nh);
                         d.sharedZoom = d.rh / d.nh;
                     }
                 });
@@ -6001,9 +6001,9 @@
                 // In L-shaped mode, ensure Edit A and Edit B have identical rendered
                 // width so they align visually. Different native aspect ratios or
                 // rounding can cause slight differences — use the minimum of the two.
-                if (!isEqualLayout && tripartiteLayout['editA'] && tripartiteLayout['editB']) {
-                    const a = tripartiteLayout['editA'];
-                    const b = tripartiteLayout['editB'];
+                if (!isEqualLayout && gridLayout['editA'] && gridLayout['editB']) {
+                    const a = gridLayout['editA'];
+                    const b = gridLayout['editB'];
                     const sharedW = Math.min(a.rw, b.rw);
                     a.rw = sharedW;
                     b.rw = sharedW;
@@ -6012,9 +6012,9 @@
                 // Group-centering for equal layouts: cluster images together and center
                 // the group in the viewport, so gaps don't grow between images when zooming out.
                 if (isEqualLayout) {
-                    const isColumns = document.body.classList.contains('tripartite-columns');
+                    const isColumns = document.body.classList.contains('inline-cols');
                     const gap = isColumns ? 4 : 2; // columns: 4px horizontal gap; rows: 2px vertical gap
-                    const loadedSlots = slots.filter(s => tripartiteLayout[s]);
+                    const loadedSlots = slots.filter(s => gridLayout[s]);
                     if (isColumns && loadedSlots.length > 0) {
                         // Equal-area layout: each asset gets the same rendered area
                         // so visual weight is balanced regardless of aspect ratio.
@@ -6022,14 +6022,14 @@
                         //   rendered width  = √(A·r)
                         //   rendered height = √(A/r)
                         if (useEqualArea) {
-                            const anyD = tripartiteLayout[loadedSlots[0]];
+                            const anyD = gridLayout[loadedSlots[0]];
                             const availH = anyD.ch - anyD.ibH - 8;
                             const availW = window.innerWidth - (loadedSlots.length - 1) * gap - 16;
 
                             // Compute aspect ratios
                             const ratios = {};
                             loadedSlots.forEach(s => {
-                                const d = tripartiteLayout[s];
+                                const d = gridLayout[s];
                                 ratios[s] = d.nw / d.nh;
                             });
 
@@ -6053,7 +6053,7 @@
                                 // Find the linear scale that makes the smallest asset 1:1
                                 let minNativeScale = Infinity;
                                 loadedSlots.forEach(s => {
-                                    const d = tripartiteLayout[s];
+                                    const d = gridLayout[s];
                                     const r = ratios[s];
                                     const baseW = Math.sqrt(fitArea * r);
                                     const nativeScale = d.nw / baseW; // < 1 when upscaled at fit
@@ -6077,10 +6077,10 @@
                                 if (nativeScale > 0) splitStepZoom = Math.min(splitStepZoom, 1 / nativeScale);
                             }
 
-                            _tripartiteZoomWasCapped = clamped;
+                            _gridZoomWasCapped = clamped;
 
                             loadedSlots.forEach(s => {
-                                const d = tripartiteLayout[s];
+                                const d = gridLayout[s];
                                 const r = ratios[s];
                                 d.rw = Math.round(Math.sqrt(targetArea * r));
                                 d.rh = Math.round(Math.sqrt(targetArea / r));
@@ -6088,24 +6088,24 @@
                             });
 
                             // Set grid columns to match rendered widths
-                            const container = document.querySelector('.overlay-container');
+                            const container = document.querySelector('.asset-container');
                             if (container) {
                                 container.style.gridTemplateColumns = loadedSlots.map(s =>
-                                    Math.round(tripartiteLayout[s].rw) + 'px'
+                                    Math.round(gridLayout[s].rw) + 'px'
                                 ).join(' ');
                                 // Recompute cell widths
                                 loadedSlots.forEach(s => {
                                     const layer = getLayer(s);
-                                    if (layer) tripartiteLayout[s].cw = layer.offsetWidth;
+                                    if (layer) gridLayout[s].cw = layer.offsetWidth;
                                 });
                             }
                         }
 
                         // Total rendered width of all images + gaps between them
-                        const totalGroupW = loadedSlots.reduce((sum, s) => sum + Math.round(tripartiteLayout[s].rw), 0)
+                        const totalGroupW = loadedSlots.reduce((sum, s) => sum + Math.round(gridLayout[s].rw), 0)
                             + (loadedSlots.length - 1) * gap;
                         // Total container width = sum of cell widths + CSS column-gaps
-                        const totalContainerW = loadedSlots.reduce((sum, s) => sum + tripartiteLayout[s].cw, 0)
+                        const totalContainerW = loadedSlots.reduce((sum, s) => sum + gridLayout[s].cw, 0)
                             + (loadedSlots.length - 1) * gap;
                         // Where the group should start (in container coordinates)
                         const groupStartX = Math.round((totalContainerW - totalGroupW) / 2);
@@ -6113,7 +6113,7 @@
                         let cellLeftEdge = 0;
                         let imgX = groupStartX;
                         loadedSlots.forEach(s => {
-                            const d = tripartiteLayout[s];
+                            const d = gridLayout[s];
                             d._tx = imgX - cellLeftEdge;
                             // Vertically position: info bar at top, then center remaining
                             // space with upward bias (1/3 above, 2/3 below)
@@ -6123,17 +6123,17 @@
                             cellLeftEdge += d.cw + gap;
                         });
                     } else if (!isColumns && loadedSlots.length > 0) {
-                        // tripartite-rows: cluster vertically, center the group
+                        // inline-rows: cluster vertically, center the group
                         const totalGroupH = loadedSlots.reduce((sum, s) => {
-                            const d = tripartiteLayout[s];
+                            const d = gridLayout[s];
                             return sum + d.ibH + Math.round(d.rh);
                         }, 0) + (loadedSlots.length - 1) * gap;
-                        const totalContainerH = loadedSlots.reduce((sum, s) => sum + tripartiteLayout[s].ch, 0);
+                        const totalContainerH = loadedSlots.reduce((sum, s) => sum + gridLayout[s].ch, 0);
                         const groupStartY = Math.max(0, Math.round((totalContainerH - totalGroupH) / 2));
                         let cellTopEdge = 0;
                         let imgY = groupStartY;
                         loadedSlots.forEach(s => {
-                            const d = tripartiteLayout[s];
+                            const d = gridLayout[s];
                             d._ty = imgY - cellTopEdge + d.ibH;
                             d._tx = Math.round((d.cw - d.rw) / 2);
                             imgY += d.ibH + Math.round(d.rh) + gap;
@@ -6234,7 +6234,7 @@
 
                 // Reserve the top of each cell for the info bar so the
                 // video is always fitted below it — no overlap with the header.
-                const ibReserve = (isSplitMode && infoBar)
+                const ibReserve = (isGridMode && infoBar)
                     ? (infoBar._cachedH = infoBar.offsetHeight || 28)
                     : 0;
                 const fitH = containerH - ibReserve;
@@ -6292,7 +6292,7 @@
                     // Vertically center the image below the info bar reserve.
                     offsetY = ibReserve + Math.round((fitH - renderedH) / 2);
                 } else {
-                    // Vertical-stack / tripartite / fallback: contain-fit per cell.
+                    // Vertical-stack / offset / fallback: contain-fit per cell.
                     if (isVertical && verticalSharedScale !== null && verticalRefLong > 0) {
                         // Longest-side normalisation: scale each asset so its longest side
                         // matches verticalRefLong, then apply the shared fit scale so every
@@ -6323,29 +6323,29 @@
                     if (isVertical) slotRenderedH[slot] = Math.round(renderedH);
                 }
 
-                // In tripartite mode: use the shared zoom dimensions computed in the pre-pass.
+                // In offset mode: use the shared zoom dimensions computed in the pre-pass.
                 // Original is flush-right in its cell; EditA/EditB are flush-left in theirs.
                 // All three are vertically centered. This makes right-edge of Original meet
                 // the left-edge of A/B at the column midpoint, with the whole group centered.
-                if (isTripartite && tripartiteLayout[slot]) {
-                    const td = tripartiteLayout[slot];
+                if (isTripartite && gridLayout[slot]) {
+                    const td = gridLayout[slot];
                     let tw = Math.round(td.rw);
                     let th = Math.round(td.rh);
                     let ty, tx;
                     if (isEqualLayout) {
-                        // Equal layout (tripartite-columns / tripartite-rows):
+                        // Equal layout (inline-cols / inline-rows):
                         // Use group-centered positions computed in the pre-pass.
                         tx = td._tx !== undefined ? td._tx : Math.round((td.cw - td.rw) / 2);
                         ty = td._ty !== undefined ? td._ty : td.ibH;
                     } else {
-                        // L-shaped layout (tripartite): all images render at the same size.
+                        // L-shaped layout (offset): all images render at the same size.
                         // Use the minimum contain-fit scale across all cells so they match.
                         // Original: flush right; EditA: flush bottom-left; EditB: flush top-left.
                         if (!td._lSharedScale) {
                             // Compute shared scale once from the measurement pass data
                             let minScale = Infinity;
                             slots.forEach(s => {
-                                const d = tripartiteLayout[s];
+                                const d = gridLayout[s];
                                 if (!d) return;
                                 const aH = d.ch - (d.ibH || 0);
                                 const sc = Math.min(d.cw / d.nw, aH / d.nh);
@@ -6353,7 +6353,7 @@
                             });
                             if (splitZoomLevel === 1) minScale = Math.min(minScale, 1);
                             slots.forEach(s => {
-                                if (tripartiteLayout[s]) tripartiteLayout[s]._lSharedScale = minScale;
+                                if (gridLayout[s]) gridLayout[s]._lSharedScale = minScale;
                             });
                         }
                         const cellScale = td._lSharedScale;
@@ -6402,7 +6402,7 @@
                 videoWrapper.style.transform = '';
                 videoWrapper.style.transformOrigin = '';
 
-                // In overlay mode the .overlay-layer img CSS rule sets width:auto which
+                // In overlay mode the .asset-layer img CSS rule sets width:auto which
                 // prevents the image from filling the JS-sized wrapper. Force 100%×100%
                 // so the image scales to exactly the wrapper dimensions.
                 if (isOverlay) {
@@ -6523,7 +6523,7 @@
         let _audioResizeRaf = null;
         let _layoutResizeRaf = null;
         window.addEventListener('resize', () => {
-            if (isSplitMode) {
+            if (isGridMode) {
                 positionLabelsToMediaRaf();
                 // Reconsider horizontal vs vertical layout on viewport resize
                 if (!hasAudios && !_layoutResizeRaf) {
@@ -6531,12 +6531,12 @@
                         _layoutResizeRaf = null;
                         const loadedCount = getLoadedSlotCount();
                         const isTripartite = isTripartiteMode();
-                        if (isTripartite && tripartiteLayout3Col) {
+                        if (isTripartite && gridInlineMode) {
                             const best = pickBestGridLayout(3);
-                            const isRows = document.body.classList.contains('tripartite-rows');
-                            const want = best === 'vertical' ? 'tripartite-rows' : 'tripartite-columns';
-                            const have = isRows ? 'tripartite-rows' : 'tripartite-columns';
-                            if (want !== have) setViewMode('tripartite');
+                            const isRows = document.body.classList.contains('inline-rows');
+                            const want = best === 'vertical' ? 'inline-rows' : 'inline-cols';
+                            const have = isRows ? 'inline-rows' : 'inline-cols';
+                            if (want !== have) setViewMode('offset');
                         } else if (!isTripartite && loadedCount === 2) {
                             const best = pickBestGridLayout(2);
                             if (best !== layoutMode) setViewMode(best);
@@ -6558,20 +6558,20 @@
             }
         });
 
-        const splitModeClasses = ['side-by-side', 'vertical-stack', 'tripartite', 'tripartite-columns', 'tripartite-rows', 'split-mode', 'two-asset', 'zoom-100'];
+        const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'grid-mode', 'two-asset', 'zoom-100'];
 
         function setViewMode(mode) {
             // Update view mode
             if (mode === 'overlay') {
                 // Return to overlay mode
-                if (isSplitMode) {
+                if (isGridMode) {
                     document.body.classList.remove(...splitModeClasses);
-                    isSplitMode = false;
+                    isGridMode = false;
                     splitZoomLevel = null;
                     splitStepZoom = 1.0;
 
                     // Restore all layers to visible so overlay mode can show them
-                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    document.querySelectorAll('.asset-layer').forEach(layer => {
                         layer.style.display = '';
                     });
 
@@ -6591,7 +6591,7 @@
                     });
 
                     // Hide all layers except current
-                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    document.querySelectorAll('.asset-layer').forEach(layer => {
                         layer.classList.remove('active');
                         // Remove active-audio class when leaving split view
                         layer.classList.remove('active-audio');
@@ -6606,15 +6606,15 @@
                 const targetMode = mode;
                 const loadedSlotCount = getLoadedSlotCount();
 
-                // Preserve zoom when toggling between tripartite sub-layouts (L-shaped <-> equal)
+                // Preserve zoom when toggling between offset sub-layouts (L-shaped <-> equal)
                 const wasTripartite = isTripartiteMode();
-                const isTripartiteSwitch = wasTripartite && targetMode === 'tripartite';
+                const isTripartiteSwitch = wasTripartite && targetMode === 'offset';
                 if (!isTripartiteSwitch) {
                     splitZoomLevel = null;
                     splitStepZoom = 1.0;
                 }
-                if (!isSplitMode) {
-                    isSplitMode = true;
+                if (!isGridMode) {
+                    isGridMode = true;
                     selectAudioSource(currentAudioSource);
                 }
                 layoutMode = targetMode;
@@ -6625,13 +6625,13 @@
                 // applyZoom() — no prior clear needed, which would create a blank frame.
                 const applyLayout = () => {
                     document.body.classList.remove(...splitModeClasses);
-                    document.body.classList.add('split-mode');
+                    document.body.classList.add('grid-mode');
 
                     // Clear any inline grid-template-columns override from mixed orientations
-                    const container = document.querySelector('.overlay-container');
+                    const container = document.querySelector('.asset-container');
                     if (container) container.style.gridTemplateColumns = '';
 
-                    document.querySelectorAll('.overlay-layer').forEach(layer => {
+                    document.querySelectorAll('.asset-layer').forEach(layer => {
                         const hasMedia = layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
                         if (hasMedia) layer.classList.add('active');
                         layer.style.height = '';
@@ -6640,17 +6640,17 @@
 
                     if (targetMode === 'vertical') {
                         document.body.classList.add('vertical-stack');
-                    } else if (targetMode === 'tripartite') {
+                    } else if (targetMode === 'offset') {
                         const dims = Object.values(mediaData).filter(m => m && m.w && m.h);
                         const landscapes = dims.filter(m => m.w >= m.h).length;
                         const mixedOr = landscapes > 0 && landscapes < dims.length;
 
-                        if (mixedOr || tripartiteLayout3Col) {
+                        if (mixedOr || gridInlineMode) {
                             // Pick rows vs columns based on which gives larger images
                             const best = pickBestGridLayout(3);
-                            document.body.classList.add(best === 'vertical' ? 'tripartite-rows' : 'tripartite-columns');
+                            document.body.classList.add(best === 'vertical' ? 'inline-rows' : 'inline-cols');
                         } else {
-                            document.body.classList.add('tripartite');
+                            document.body.classList.add('offset');
                         }
                     } else {
                         document.body.classList.add('side-by-side');
@@ -6659,11 +6659,11 @@
                     // Tripartite keeps all 3 cells visible so the CSS grid doesn't collapse.
                     const isAnyTripartite = isTripartiteMode();
                     if (!isAnyTripartite) {
-                        document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        document.querySelectorAll('.asset-layer').forEach(layer => {
                             layer.style.display = layer.querySelector('img, video, canvas.audio-viz-slot-canvas') ? '' : 'none';
                         });
                     } else {
-                        document.querySelectorAll('.overlay-layer').forEach(layer => {
+                        document.querySelectorAll('.asset-layer').forEach(layer => {
                             layer.style.display = '';
                         });
                     }
@@ -6675,7 +6675,7 @@
                 // Tripartite: grid cell sizes only stabilise after a layout pass,
                 // so run applyLayout in rAF N, then positionLabelsToMedia in rAF N+1.
                 // Other modes: a single rAF suffices since there is no grid to settle.
-                if (targetMode === 'tripartite') {
+                if (targetMode === 'offset') {
                     requestAnimationFrame(() => {
                         applyLayout();
                         requestAnimationFrame(() => {
@@ -6691,22 +6691,22 @@
             }
 
             // Update mode and asset strips in header
-            updateModeStrip(isSplitMode ? layoutMode : 'overlay');
+            updateModeStrip(isGridMode ? layoutMode : 'overlay');
             updateAssetStrip();
         }
 
         // Swap between inline and offset grid layouts without rebuilding the mode strip.
         // Just swaps CSS classes, updates button highlights, and repositions.
-        function _swapTripartiteLayout() {
+        function _swapGridSubLayout() {
             // Swap body classes
-            document.body.classList.remove('tripartite', 'tripartite-columns', 'tripartite-rows');
-            const container = document.querySelector('.overlay-container');
+            document.body.classList.remove('offset', 'inline-cols', 'inline-rows');
+            const container = document.querySelector('.asset-container');
             if (container) container.style.gridTemplateColumns = '';
-            if (tripartiteLayout3Col) {
+            if (gridInlineMode) {
                 const best = pickBestGridLayout(3);
-                document.body.classList.add(best === 'vertical' ? 'tripartite-rows' : 'tripartite-columns');
+                document.body.classList.add(best === 'vertical' ? 'inline-rows' : 'inline-cols');
             } else {
-                document.body.classList.add('tripartite');
+                document.body.classList.add('offset');
             }
             // Update button highlights in the grid sub-options
             const gridGroup = document.querySelector('.asset-group[data-group-type="grid"]');
@@ -6714,7 +6714,7 @@
                 const btns = gridGroup.querySelectorAll('.asset-btn');
                 btns.forEach(btn => {
                     const isInline = btn.textContent === 'INLINE';
-                    btn.classList.toggle('active', isInline === tripartiteLayout3Col);
+                    btn.classList.toggle('active', isInline === gridInlineMode);
                 });
             }
             // Move underline to the newly active sub-option
@@ -6725,7 +6725,7 @@
             });
         }
 
-        // Rebuilds the mode strip in the header. activeMode is 'overlay', 'tripartite',
+        // Rebuilds the mode strip in the header. activeMode is 'overlay', 'offset',
         // 'horizontal', 'vertical', or 'compare' (the 2-asset auto-layout bucket).
         function updateModeStrip(activeMode) {
             const strip = document.getElementById('modeStrip');
@@ -6744,7 +6744,7 @@
             const isGridWith3 = normalised !== 'overlay' && loadedCount === 3;
 
             // Split mode first, STACK last: GRID  [grid-options]  STACK  [asset-options]
-            const gridMode = loadedCount === 3 ? 'tripartite' : 'compare';
+            const gridMode = loadedCount === 3 ? 'offset' : 'compare';
 
             // Wrap mode buttons + grid sub-options in a flex group
             const modeCore = document.createElement('div');
@@ -6756,7 +6756,7 @@
             gridBtn.textContent = 'GRID';
             gridBtn.onclick = () => {
                 if (gridMode === 'compare') setViewMode(layoutMode);
-                else setViewMode('tripartite');
+                else setViewMode('offset');
             };
             modeCore.appendChild(gridBtn);
 
@@ -6777,23 +6777,23 @@
                     gridGroup.appendChild(sep);
 
                     const btn = document.createElement('button');
-                    const isActive = tripartiteLayout3Col === opt.is3Col;
+                    const isActive = gridInlineMode === opt.is3Col;
                     const posClass = (i === 0 ? ' first-asset' : '') + (i === gridOpts.length - 1 ? ' last-asset' : '');
                     btn.className = 'asset-btn' + (isActive ? ' active' : '') + posClass;
                     btn.textContent = opt.label;
                     btn.onclick = () => {
                         if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
-                        if (tripartiteLayout3Col === opt.is3Col) return; // already active
+                        if (gridInlineMode === opt.is3Col) return; // already active
                         const dims3 = Object.values(mediaData).filter(m => m && m.w && m.h);
                         const land3 = dims3.filter(m => m.w >= m.h).length;
                         if (!opt.is3Col && land3 > 0 && land3 < dims3.length) {
                             showToast('Offset layout unavailable for mixed orientations');
                             return;
                         }
-                        tripartiteLayout3Col = opt.is3Col;
-                        localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
+                        gridInlineMode = opt.is3Col;
+                        localStorage.setItem('gridInlineMode', gridInlineMode);
                         splitStepZoom = 1.0;
-                        _swapTripartiteLayout();
+                        _swapGridSubLayout();
                     };
                     gridGroup.appendChild(btn);
                 });
@@ -6963,7 +6963,7 @@
             // Wait until all expected files are loaded before activating the view.
             // Firing early (e.g. at loadedCount=2 during a 3-file load) causes
             // setViewMode('horizontal') to hide the not-yet-loaded third layer,
-            // resulting in a black screen when tripartite mode is set moments later.
+            // resulting in a black screen when offset mode is set moments later.
             if (loadedCount < expectedFileCount) {
                 return;
             }
@@ -7074,8 +7074,8 @@
                     }
                     // Audio always uses vertical stack in grid
                     if (loadedCount === 3) {
-                        tripartiteLayout3Col = true;
-                        setViewMode('tripartite');
+                        gridInlineMode = true;
+                        setViewMode('offset');
                     } else {
                         setViewMode('vertical');
                     }
@@ -7092,11 +7092,11 @@
                     // Respect the user's stored equal-vs-L-shaped preference (written by '3' key).
                     // If no preference has ever been stored, default to equal layout.
                     // The rows-vs-columns sub-choice is always auto-picked by aspect ratio inside setViewMode.
-                    if (localStorage.getItem('tripartiteLayout3Col') === null) {
-                        tripartiteLayout3Col = true; // first-ever use: default to equal
+                    if (localStorage.getItem('gridInlineMode') === null) {
+                        gridInlineMode = true; // first-ever use: default to equal
                     }
-                    // else: tripartiteLayout3Col already holds the restored preference from startup
-                    setViewMode('tripartite');
+                    // else: gridInlineMode already holds the restored preference from startup
+                    setViewMode('offset');
                 } else {
                     setViewMode('horizontal');
                 }
@@ -7223,37 +7223,37 @@
             { id: 'overlayMode', defaultKey: 's', label: 'Stack mode', section: 'view',
               fn: () => {
                   const allThreeLoaded = getLoadedSlotCount() === 3;
-                  if (isSplitMode) { setViewMode('overlay'); }
+                  if (isGridMode) { setViewMode('overlay'); }
                   else if (hasAudios) {
-                      if (allThreeLoaded) { tripartiteLayout3Col = true; setViewMode('tripartite'); } else { setViewMode('vertical'); }
-                  } else if (allThreeLoaded) { setViewMode('tripartite'); }
+                      if (allThreeLoaded) { gridInlineMode = true; setViewMode('offset'); } else { setViewMode('vertical'); }
+                  } else if (allThreeLoaded) { setViewMode('offset'); }
                   else { setViewMode(layoutMode); }
               } },
             { id: 'gridMode', defaultKey: 'g', label: 'Grid mode', section: 'view',
               fn: () => {
                   const allThreeLoaded = getLoadedSlotCount() === 3;
                   if (hasAudios) {
-                      if (!isSplitMode) {
-                          if (allThreeLoaded) { tripartiteLayout3Col = true; setViewMode('tripartite'); } else setViewMode('vertical');
+                      if (!isGridMode) {
+                          if (allThreeLoaded) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
                       } else { setViewMode('overlay'); }
                   } else if (allThreeLoaded) {
-                      if (!isSplitMode) setViewMode('tripartite'); else setViewMode('overlay');
+                      if (!isGridMode) setViewMode('offset'); else setViewMode('overlay');
                   } else {
-                      if (!isSplitMode) setViewMode(layoutMode); else setViewMode('overlay');
+                      if (!isGridMode) setViewMode(layoutMode); else setViewMode('overlay');
                   }
               } },
             { id: 'toggleOffset', defaultKey: '3', label: 'Grid: Inline / Offset', section: 'view',
               fn: () => {
                   if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
                   const isAnyTripartiteNow = isTripartiteMode();
-                  if (isSplitMode && isAnyTripartiteNow) {
+                  if (isGridMode && isAnyTripartiteNow) {
                       const dims3 = Object.values(mediaData).filter(m => m && m.w && m.h);
                       const land3 = dims3.filter(m => m.w >= m.h).length;
                       if (land3 > 0 && land3 < dims3.length) { showToast('Offset layout unavailable for mixed orientations'); return; }
-                      tripartiteLayout3Col = !tripartiteLayout3Col;
-                      localStorage.setItem('tripartiteLayout3Col', tripartiteLayout3Col);
+                      gridInlineMode = !gridInlineMode;
+                      localStorage.setItem('gridInlineMode', gridInlineMode);
                       splitStepZoom = 1.0;
-                      _swapTripartiteLayout();
+                      _swapGridSubLayout();
                   }
               } },
             { id: 'fullscreen', defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
@@ -7267,7 +7267,7 @@
               fn: () => resetFitZoom() },
             { id: 'zoom100', defaultKey: '1', label: 'Zoom to 100%', section: 'zoom',
               fn: () => {
-                  if (!isSplitMode) {
+                  if (!isGridMode) {
                       zoomLevel = 1; panOffsetX = 0; panOffsetY = 0; applyZoom();
                   } else {
                       const atTrue100 = splitZoomLevel === 1 && splitStepZoom === 1.0;
@@ -7865,7 +7865,7 @@
             get zoomLevel() { return zoomLevel; },
             get fitZoom() { return fitZoom; },
             get currentAssetIndex() { return currentAssetIndex; },
-            get isSplitMode() { return isSplitMode; },
+            get isGridMode() { return isGridMode; },
             get panOffsetX() { return panOffsetX; },
             get panOffsetY() { return panOffsetY; },
             get splitZoomLevel() { return splitZoomLevel; },
