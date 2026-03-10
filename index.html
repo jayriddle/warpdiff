@@ -1220,6 +1220,16 @@
             padding-bottom: 4px;
         }
 
+        .spectrogram-panel.active.expanded {
+            max-height: 600px;
+        }
+        .spectrogram-panel.expanded .waveform-row {
+            height: 240px;
+        }
+        .spectrogram-panel.expanded .spectrogram-row {
+            height: 360px;
+        }
+
         .audio-viz-row {
             display: flex;
             align-items: stretch;
@@ -1757,9 +1767,9 @@
         <div class="header">
             <div style="position: relative; display: flex; align-items: center; gap: 6px;">
                 <img src="WarpDiff_Logo_v1.png" alt="" style="width: 22px; height: 22px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
-                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 2–3 files to compare (or press L)" style="margin-left: 16px;">
+                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 1–3 files (or press L)" style="margin-left: 16px;">
                     Load
-                    <div class="help-tooltip">Select 2–3 files to compare (auto-sorts by save time). Shortcut: L</div>
+                    <div class="help-tooltip">Select 1–3 files to review or compare (auto-sorts by save time). Shortcut: L</div>
                 </button>
                 <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button class="position-toggle" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
@@ -1814,6 +1824,7 @@
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
+                        <span class="asset-bpm"></span>
                         <span class="asset-duration"></span>
                         <span class="asset-filename"></span>
                     </div>
@@ -1825,6 +1836,7 @@
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
+                        <span class="asset-bpm"></span>
                         <span class="asset-duration"></span>
                         <span class="asset-filename"></span>
                     </div>
@@ -1836,6 +1848,7 @@
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
                         <span class="asset-fps"></span>
+                        <span class="asset-bpm"></span>
                         <span class="asset-duration"></span>
                         <span class="asset-filename"></span>
                     </div>
@@ -2426,6 +2439,7 @@
         let waveformData = {};         // { slot: Float32Array } — downsampled amplitude
         let spectrogramData = {};      // { slot: { data: Uint8Array[], sampleRate, duration } }
         let audioVizVisible = false;   // W key toggle
+        let audioVizExpanded = false;  // 2x height mode
         let magnifierEnabled = false;   // Z key toggle (pixel magnifier)
         let videoScopesVisible = false; // V key toggle
         let _scopeOffscreen = null;     // offscreen canvas for frame sampling
@@ -2720,7 +2734,7 @@
                         showLoadToast(`Original: ${n(sortedFiles[0])}  ·  A: ${n(sortedFiles[1])}  ·  B: ${n(sortedFiles[2])}`);
                     }
                 }
-            } else {
+            } else if (sortedFiles.length === 2) {
                 // 2 files: oldest -> editA, newest -> editB (no original)
                 loadFile('editA', sortedFiles[0]);
                 loadFile('editB', sortedFiles[1]);
@@ -2731,6 +2745,13 @@
                         const n = f => f.name.length > 28 ? f.name.slice(0, 26) + '…' : f.name;
                         showLoadToast(`A: ${n(sortedFiles[0])}  ·  B: ${n(sortedFiles[1])}`);
                     }
+                }
+            } else {
+                // 1 file: single asset review
+                loadFile('editA', sortedFiles[0]);
+                if (!opts?.skipToast) {
+                    const n = f => f.name.length > 40 ? f.name.slice(0, 38) + '…' : f.name;
+                    showLoadToast(n(sortedFiles[0]));
                 }
             }
         }
@@ -3300,6 +3321,15 @@
                 waveformData[slot] = computeWaveformData(audioBuffer, 600);
                 spectrogramData[slot] = computeSpectrogramData(audioBuffer);
                 delete audioFileBuffers[slot];
+                // BPM detection for video audio tracks
+                if (audioBuffer.duration >= 3) {
+                    const bpm = detectBPM(audioBuffer);
+                    if (bpm) {
+                        const layer = getLayer(slot);
+                        const bpmEl = layer && layer.querySelector('.asset-bpm');
+                        if (bpmEl) bpmEl.textContent = bpm + ' BPM';
+                    }
+                }
                 // Draw if this is the currently active/visible slot
                 const activeSlot = assetOrder[currentAssetIndex];
                 if (slot === activeSlot || slot === currentAudioSource) {
@@ -3324,15 +3354,34 @@
         }
 
         function toggleAudioViz() {
-            audioVizVisible = !audioVizVisible;
             const panel = document.getElementById('spectrogramPanel');
-            if (panel) panel.classList.toggle('active', audioVizVisible);
             const controls = document.getElementById('videoControls');
-            if (controls) controls.classList.toggle('audio-viz-active', audioVizVisible);
+
+            if (!audioVizVisible) {
+                // off → normal
+                audioVizVisible = true;
+                audioVizExpanded = false;
+                if (panel) { panel.classList.add('active'); panel.classList.remove('expanded'); }
+                if (controls) controls.classList.add('audio-viz-active');
+                showToast('Audio: waveform + spectrogram');
+            } else if (!audioVizExpanded) {
+                // normal → expanded (2×)
+                audioVizExpanded = true;
+                if (panel) panel.classList.add('expanded');
+                showToast('Audio: expanded');
+            } else {
+                // expanded → off
+                audioVizVisible = false;
+                audioVizExpanded = false;
+                if (panel) { panel.classList.remove('active', 'expanded'); }
+                if (controls) controls.classList.remove('audio-viz-active');
+            }
+
             if (audioVizVisible) {
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
-                // Redraw once canvases have dimensions (after first frame)
                 requestAnimationFrame(() => updateAudioVisForSlot(slot));
+                // Redraw after CSS transition completes so canvases fill final size
+                setTimeout(() => updateAudioVisForSlot(slot), 350);
             }
             // Continuously re-layout during the CSS transition so media resizes smoothly
             animateRelayout(350);
@@ -3832,14 +3881,24 @@
             ].filter(Boolean);
         }
 
-        function playAllMedia() { getAllPlayableMedia().forEach(m => m.play()); }
-        function pauseAllMedia() { getAllPlayableMedia().forEach(m => m.pause()); }
+        let _bulkSyncActive = false;
+        function playAllMedia() {
+            _bulkSyncActive = true;
+            getAllPlayableMedia().forEach(m => m.play().catch(() => {}));
+            startProgressUpdateLoop();
+            setTimeout(() => { _bulkSyncActive = false; }, 50);
+        }
+        function pauseAllMedia() {
+            _bulkSyncActive = true;
+            getAllPlayableMedia().forEach(m => m.pause());
+            _bulkSyncActive = false;
+        }
 
         function setupAudioHandlers(audio, slot) {
             audio.addEventListener('play', function() {
-                if (isDragging) return;
+                if (isDragging || _bulkSyncActive) return;
                 syncMedia(audio, a => {
-                    a.play();
+                    a.play().catch(() => {});
                     if (Math.abs(a.currentTime - audio.currentTime) > 0.1) {
                         a.currentTime = audio.currentTime;
                     }
@@ -3848,12 +3907,12 @@
             });
 
             audio.addEventListener('pause', function() {
-                if (isDragging) return;
+                if (isDragging || _bulkSyncActive) return;
                 syncMedia(audio, a => { if (!a.paused) a.pause(); });
             });
 
             audio.addEventListener('seeked', function() {
-                if (isDragging) return;
+                if (isDragging || _bulkSyncActive) return;
                 updateMediaProgress(audio);
             });
         }
@@ -3939,6 +3998,103 @@
             el.textContent = base.slice(0, head) + '…' + base.slice(-tail) + ext;
         }
 
+        // BPM detection via onset-strength autocorrelation.
+        // Runs asynchronously to avoid blocking the UI during decode.
+        function detectBPM(audioBuffer) {
+            const sr = audioBuffer.sampleRate;
+            const ch0 = audioBuffer.getChannelData(0);
+
+            // 1. Downsample to ~11 kHz mono for speed
+            const dsFactor = Math.max(1, Math.round(sr / 11025));
+            const dsRate = sr / dsFactor;
+            const dsLen = Math.floor(ch0.length / dsFactor);
+            const ds = new Float32Array(dsLen);
+            if (audioBuffer.numberOfChannels >= 2) {
+                const ch1 = audioBuffer.getChannelData(1);
+                for (let i = 0; i < dsLen; i++) {
+                    const j = i * dsFactor;
+                    ds[i] = (ch0[j] + ch1[j]) * 0.5;
+                }
+            } else {
+                for (let i = 0; i < dsLen; i++) ds[i] = ch0[i * dsFactor];
+            }
+
+            // 2. Compute energy in short windows (~23 ms hop, ~46 ms window)
+            const hopSize = Math.round(dsRate * 0.023);
+            const winSize = hopSize * 2;
+            const numFrames = Math.floor((dsLen - winSize) / hopSize);
+            if (numFrames < 16) return null;
+
+            // Band-filtered energy: low band (bass/kick) and full-band
+            const onsetLow = new Float32Array(numFrames);
+            const onsetFull = new Float32Array(numFrames);
+
+            // Simple single-pole low-pass at ~200 Hz for bass detection
+            const rc = 1 / (2 * Math.PI * 200);
+            const dt = 1 / dsRate;
+            const lpAlpha = dt / (rc + dt);
+
+            for (let f = 0; f < numFrames; f++) {
+                const start = f * hopSize;
+                let eFull = 0;
+                let eLow = 0;
+                let lpState = 0;
+                for (let i = 0; i < winSize; i++) {
+                    const s = ds[start + i];
+                    eFull += s * s;
+                    lpState += lpAlpha * (s - lpState);
+                    eLow += lpState * lpState;
+                }
+                onsetFull[f] = eFull;
+                onsetLow[f] = eLow;
+            }
+
+            // 3. Spectral flux (half-wave rectified difference)
+            const onset = new Float32Array(numFrames);
+            for (let f = 1; f < numFrames; f++) {
+                // Weighted combination: bass-heavy for kick detection
+                const dLow = onsetLow[f] - onsetLow[f - 1];
+                const dFull = onsetFull[f] - onsetFull[f - 1];
+                onset[f] = Math.max(0, dLow * 3 + dFull);
+            }
+
+            // 4. Autocorrelation over BPM range 50–220
+            const minLag = Math.round((60 / 220) / (hopSize / dsRate));
+            const maxLag = Math.round((60 / 50) / (hopSize / dsRate));
+            const acLen = Math.min(maxLag + 1, numFrames);
+
+            let bestLag = minLag;
+            let bestVal = -Infinity;
+            for (let lag = minLag; lag <= Math.min(maxLag, numFrames - 1); lag++) {
+                let sum = 0;
+                const n = Math.min(numFrames - lag, acLen);
+                for (let i = 0; i < n; i++) sum += onset[i] * onset[i + lag];
+                // Weight toward musically common tempos (80-160 BPM)
+                const bpm = 60 / (lag * hopSize / dsRate);
+                const weight = (bpm >= 80 && bpm <= 160) ? 1.2 : 1.0;
+                sum *= weight;
+                if (sum > bestVal) { bestVal = sum; bestLag = lag; }
+            }
+
+            const rawBPM = 60 / (bestLag * hopSize / dsRate);
+
+            // 5. Refine: check half-time and double-time
+            const candidates = [rawBPM];
+            if (rawBPM * 2 <= 220) candidates.push(rawBPM * 2);
+            if (rawBPM / 2 >= 50) candidates.push(rawBPM / 2);
+
+            // Pick candidate closest to 80-140 range (most common)
+            let best = rawBPM;
+            let bestDist = Infinity;
+            for (const c of candidates) {
+                const center = 110;
+                const d = Math.abs(c - center);
+                if (d < bestDist) { bestDist = d; best = c; }
+            }
+
+            return Math.round(best);
+        }
+
         function updateAudioInfoBar(slot, audioBuffer, arrayBuffer) {
             const layer = getLayer(slot);
             if (!layer) return;
@@ -3966,6 +4122,15 @@
             const szEl = infoBar.querySelector('.asset-file-size');
             if (szEl && md) {
                 szEl.textContent = formatFileSize(md.size);
+            }
+
+            // BPM detection (async to avoid blocking UI)
+            const bpmEl = infoBar.querySelector('.asset-bpm');
+            if (bpmEl && audioBuffer.duration >= 3) {
+                setTimeout(() => {
+                    const bpm = detectBPM(audioBuffer);
+                    if (bpm) bpmEl.textContent = bpm + ' BPM';
+                }, 50);
             }
 
             if (md && md.name) setFilename(infoBar, md.name);
@@ -4618,8 +4783,10 @@
                 let primary;
 
                 if (hasAudios) {
-                    // Audio mode: use first audio element
-                    primary = getAllPlayableMedia()[0];
+                    // Audio mode: use the currently selected audio source
+                    const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
+                    const activeLayer = getLayer(activeSlot);
+                    primary = activeLayer ? activeLayer.querySelector('audio') : getAllPlayableMedia()[0];
                 } else {
                     // Video mode: use cached primary video ref; fall back to live query if stale
                     primary = primaryVideoRef;
@@ -4649,8 +4816,16 @@
                     // In/out point loop enforcement
                     if (_loopInPoint !== null && _loopOutPoint !== null) {
                         const t = primary.currentTime;
-                        if (t >= _loopOutPoint) {
+                        if (t >= _loopOutPoint || t < _loopInPoint - 0.05) {
                             getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
+                        } else if (hasAudios) {
+                            // Keep non-primary audio tracks in sync within the loop
+                            const all = getAllPlayableMedia();
+                            for (let i = 0; i < all.length; i++) {
+                                if (all[i] !== primary && Math.abs(all[i].currentTime - t) > 0.1) {
+                                    all[i].currentTime = t;
+                                }
+                            }
                         }
                     }
                     if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
@@ -4746,10 +4921,10 @@
             
             video.addEventListener('play', function() {
                 // Suppress sync while any video is being sampled for fps
-                if (fpsDetectionQueue.length > 0) return;
+                if (fpsDetectionQueue.length > 0 || _bulkSyncActive) return;
                 // Sync all videos when any video plays
                 syncVideos(video, v => {
-                    v.play();
+                    v.play().catch(() => {});
                     if (Math.abs(v.currentTime - video.currentTime) > 0.5) {
                         v.currentTime = video.currentTime;
                     }
@@ -4761,7 +4936,7 @@
 
             video.addEventListener('pause', function() {
                 // Suppress sync while any video is being sampled for fps
-                if (fpsDetectionQueue.length > 0) return;
+                if (fpsDetectionQueue.length > 0 || _bulkSyncActive) return;
                 // Sync pause to all other videos
                 syncVideos(video, v => { if (!v.paused) v.pause(); });
             });
@@ -5153,6 +5328,7 @@
                     || (e.target.id === 'panelWaveformCanvas' ? e.target : null)
                     || (e.target.id === 'spectrogramCanvas' ? e.target : null);
                 if (!canvas) return;
+                e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
                 _scrubCanvas = canvas;
                 isDragging = true;
 
@@ -5186,6 +5362,7 @@
             }, true);
 
             progressContainer.addEventListener('mousedown', function(e) {
+                e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
                 isDragging = true;
 
                 // Cancel any pending progress-loop frame so it can't override the bar during drag
@@ -5273,8 +5450,15 @@
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
 
+                    // Reset so the RAF loop doesn't misinterpret the seek as a backward jump
+                    _lastPrimaryAudioTime = 0;
+
                     stopScrubSnippet();
-                    if (wasPlaying) playAllMedia();
+                    if (wasPlaying) {
+                        // Defer play by one frame so the browser finalizes the seek
+                        // before resuming — prevents stale-position race on quick taps
+                        requestAnimationFrame(() => playAllMedia());
+                    }
                     if (!hasAudios && videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
             });
@@ -5631,6 +5815,7 @@
             _audioSlotVizData = {};
             _audioMaxDuration = 0;
             audioVizVisible = false;
+            audioVizExpanded = false;
             magnifierEnabled = false;
             // Keep persisted prefs (magnifierLinked, magnifierZoom, magnifierSize,
             // spectrogramLogScale, palette) — don't reset to defaults
@@ -5643,7 +5828,7 @@
             });
             document.body.classList.remove('magnifier-active');
             const specPanel = document.getElementById('spectrogramPanel');
-            if (specPanel) specPanel.classList.remove('active');
+            if (specPanel) { specPanel.classList.remove('active'); specPanel.classList.remove('expanded'); }
             videoScopesVisible = false;
             const scopesPanel = document.getElementById('scopesPanel');
             if (scopesPanel) scopesPanel.classList.remove('active');
@@ -5653,7 +5838,7 @@
             if (palBtn) palBtn.textContent = 'VIRIDIS';
             const vizControls = document.getElementById('videoControls');
             if (vizControls) vizControls.classList.remove('audio-viz-active');
-            document.body.classList.remove('fullscreen', ...splitModeClasses);
+            document.body.classList.remove('fullscreen', 'single-asset', ...splitModeClasses);
             isGridMode = false;
             viewActivating = false;
             pendingViewActivation = false;
@@ -5696,6 +5881,8 @@
                     if (fn) fn.textContent = '';
                     const fps = infoBar.querySelector('.asset-fps');
                     if (fps) fps.textContent = '';
+                    const bpm = infoBar.querySelector('.asset-bpm');
+                    if (bpm) bpm.textContent = '';
                 }
 
                 // Reset zoom indicator in info bar
@@ -5745,8 +5932,11 @@
         }
 
         function restartAllVideos() {
+            _bulkSyncActive = true;
             const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
-            getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play(); });
+            getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play().catch(() => {}); });
+            startProgressUpdateLoop();
+            setTimeout(() => { _bulkSyncActive = false; }, 50);
         }
 
         function stepFrame(direction) {
@@ -6550,6 +6740,7 @@
                         });
                     }
                     document.body.classList.toggle('two-asset', loadedSlotCount === 2);
+                    document.body.classList.toggle('single-asset', loadedSlotCount === 1);
 
 
                 };
@@ -6612,7 +6803,7 @@
         function updateModeStrip(activeMode) {
             const strip = document.getElementById('modeStrip');
             const loadedCount = getLoadedSlotCount();
-            if (loadedCount === 0) { strip.style.display = 'none'; return; }
+            if (loadedCount <= 1) { strip.style.display = 'none'; return; }
 
             // Normalise activeMode: horizontal/vertical both map to 'compare' for highlighting
             const normalised = (activeMode === 'horizontal' || activeMode === 'vertical') ? 'compare' : activeMode;
@@ -6883,8 +7074,8 @@
                 return;
             }
 
-            // Need at least 2 files loaded (Edit A and Edit B minimum)
-            if (loadedCount >= 2) {
+            // Need at least 1 file loaded
+            if (loadedCount >= 1) {
                 viewActivating = true; // prevent re-entry from subsequent img.load events
                 
                 // Hide quick start or changelog popup if showing
@@ -7773,7 +7964,7 @@
             </ul>
             <p><strong>File requirements:</strong></p>
             <ul>
-                <li>2 or 3 files (images or videos)</li>
+                <li>1–3 files (images, videos, or audio)</li>
                 <li>2 files → assigned to <strong>Edit A</strong> and <strong>Edit B</strong></li>
                 <li>3 files → assigned to <strong>Original</strong>, <strong>Edit A</strong>, and <strong>Edit B</strong></li>
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
@@ -7910,7 +8101,7 @@
 
             <h2>Limitations</h2>
             <ul>
-                <li><strong>2 or 3 files only</strong> — loading 1 or 4+ files is not supported</li>
+                <li><strong>1–3 files</strong> — 1 file for solo review, 2 for A/B, 3 for Original + A + B</li>
                 <li><strong>Images, videos, and audio only</strong> — other file types are ignored</li>
                 <li><strong>Pan available in Stack mode only</strong></li>
                 <li><strong>Audio:</strong> one track at a time; others are automatically muted</li>
