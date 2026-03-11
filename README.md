@@ -1,6 +1,6 @@
 # *Warp*Diff
 
-A browser-based comparison tool for reviewing 1–3 versions of images, videos, or audio files. No setup, no install — runs in your browser. Installable as a PWA for offline use.
+A browser-based comparison tool for reviewing 2–3 versions of images, videos, or audio files. No setup, no install — runs in your browser. Installable as a PWA for offline use.
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
@@ -49,7 +49,7 @@ A browser-based comparison tool for reviewing 1–3 versions of images, videos, 
 ## Usage
 
 1. Open the [live app](https://jayriddle.github.io/warpdiff/) — or install it as a PWA
-2. Press **L** (or click **Load**, or drag and drop) and select 1–3 image, video, or audio files
+2. Press **L** (or click **Load**, or drag and drop) and select 2–3 image, video, or audio files
 3. Use **Stack / Grid** buttons to switch views
 4. Press **H** to see all keyboard shortcuts
 

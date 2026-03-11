@@ -4,7 +4,7 @@ Visual & audio comparison for creative review. Compare images, videos, or audio 
 
 ## Load and compare instantly
 
-Load 1–3 images, videos, or audio files by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original (Ground Truth), Edit A, and Edit B. A landing drop zone with hints appears when no files are loaded.
+Load 2–3 images, videos, or audio files by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original (Ground Truth), Edit A, and Edit B. A landing drop zone with hints appears when no files are loaded.
 
 ## View modes
 
