@@ -1,6 +1,6 @@
 # *Warp*Diff
 
-A browser-based comparison tool for reviewing 2–3 versions of images, videos, or audio files. No setup, no install — just click to start.
+A browser-based comparison tool for reviewing 1–3 versions of images, videos, or audio files. No setup, no install — runs in your browser. Installable as a PWA for offline use.
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
@@ -28,11 +28,13 @@ A browser-based comparison tool for reviewing 2–3 versions of images, videos, 
 
 **Audio file comparison**
 - Load 2–3 audio files (MP3, WAV, FLAC, etc.) for side-by-side waveform + spectrogram
-- Info bars show sample rate, channels, bit depth/codec, file size
+- Info bars show sample rate, channels, bit depth/codec, file size, BPM
+- Automatic BPM detection via spectral flux onset analysis
 
 **Analysis**
-- `V` video scopes — RGB histogram, waveform monitor, vectorscope (click scopes to cycle modes)
+- `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
 - `W` audio waveform with dB color coding + spectrogram
+- `Shift+W` toggle linear/log frequency, `Shift+C` cycle spectrogram palettes
 
 **Keyboard-first**
 - Every action has a hotkey — press `?` for help, `H` for all hotkeys
@@ -40,10 +42,14 @@ A browser-based comparison tool for reviewing 2–3 versions of images, videos, 
 - Zoom, pan, and navigate without touching the mouse
 - Preferences (loupe, volume, spectrogram settings, custom hotkeys) persist across sessions
 
+**Installable**
+- Install as a standalone app from Chrome, Edge, or Safari
+- Offline-capable via service worker with network-first caching
+
 ## Usage
 
-1. Open the [live app](https://jayriddle.github.io/warpdiff/)
-2. Press **L** (or click **Load**) and select 2–3 image, video, or audio files
+1. Open the [live app](https://jayriddle.github.io/warpdiff/) — or install it as a PWA
+2. Press **L** (or click **Load**, or drag and drop) and select 1–3 image, video, or audio files
 3. Use **Stack / Grid** buttons to switch views
 4. Press **H** to see all keyboard shortcuts
 

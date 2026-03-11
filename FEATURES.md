@@ -4,13 +4,14 @@ Visual & audio comparison for creative review. Compare images, videos, or audio 
 
 ## Load and compare instantly
 
-Load 2–3 images, videos, or audio files by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original, Edit A, and Edit B.
+Load 1–3 images, videos, or audio files by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Original (Ground Truth), Edit A, and Edit B. A landing drop zone with hints appears when no files are loaded.
 
 ## View modes
 
-- **Overlay** (`O`) — flip between assets with arrow keys, same position and zoom
+- **Stack** (`S`) — flip between assets with arrow keys, same position and zoom
 - **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks the best layout; `3` toggles inline / offset
 - Active asset highlighted with cyan border and info bar. Mixed orientations use an equal-area layout so each asset has the same visual weight.
+- Responsive grid layout auto-picks horizontal or vertical based on viewport dimensions and asset aspect ratios, re-evaluated on resize.
 
 ## Zoom loupe
 
@@ -24,9 +25,19 @@ Press `Z` for a circular zoom loupe that follows your cursor, showing magnified 
 
 All videos play in sync with shared transport controls. Scrub, frame-step with `,`/`.`, and restart together. Per-source audio switching lets you listen to any asset's audio track independently.
 
+- `J`/`K` cycle playback speed slower/faster (0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 2×)
+- `I`/`O` set loop in/out points; Shift+drag on the progress bar to select a loop region
+- Loop markers shown as orange triangles on the progress bar
+
 ## Video scopes
 
-Press `V` to toggle RGB histogram, waveform monitor, and vectorscope. Scopes update in real time during playback and on frame step.
+Press `V` to toggle the video scopes panel. Three scopes are displayed side by side — click the histogram or waveform to cycle through modes:
+
+- **Histogram** — RGB → RGB + luma → CDF (cumulative distribution)
+- **Waveform** — luma → RGB parade → RGB overlay
+- **Vectorscope** — plots color information (Cb vs Cr) with skin tone line and color target markers
+
+Scopes update in real time during playback and on frame step. Works on both video frames and still images.
 
 ## Audio visualization
 
@@ -34,12 +45,18 @@ Press `W` to toggle waveform and spectrogram views. Waveform uses dB color codin
 
 ## Audio file comparison
 
-Load 2–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), and file size. Spectrogram scale and palette controls (`Shift+W`, `Shift+C`) apply to all audio slots.
+Load 2–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), file size, and BPM.
+
+Automatic BPM detection uses spectral flux onset analysis with autocorrelation, weighted toward musically common tempos. Spectrogram scale and palette controls (`Shift+W`, `Shift+C`) apply to all audio slots.
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Press `?` for help, `K` for the full hotkey list, `Esc` to dismiss. Your preferences — loupe size, magnification, volume, spectrogram settings — persist across sessions.
+Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions.
+
+## Installable
+
+WarpDiff is a Progressive Web App. Install it from Chrome, Edge, or Safari for a standalone window experience. Offline-capable via service worker with network-first caching — works without an internet connection after first load.
 
 ## Works instantly
 
-No install, no account, no upload. Open in any browser, load your files. Everything stays local on your machine.
+No install required, no account, no upload. Open in any browser, load your files. Everything stays local on your machine.
