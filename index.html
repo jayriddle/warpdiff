@@ -1988,7 +1988,7 @@
                 
                 <div class="asset-layer" id="layerOriginal">
                     <div class="asset-info-bar">
-                        <span class="asset-name">ORIGINAL</span>
+                        <span class="asset-name">REFERENCE</span>
                         <span class="asset-zoom"></span>
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
@@ -2000,7 +2000,7 @@
                 </div>
                 <div class="asset-layer" id="layerEditA">
                     <div class="asset-info-bar">
-                        <span class="asset-name">EDIT A</span>
+                        <span class="asset-name">A</span>
                         <span class="asset-zoom"></span>
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
@@ -2012,7 +2012,7 @@
                 </div>
                 <div class="asset-layer" id="layerEditB">
                     <div class="asset-info-bar">
-                        <span class="asset-name">EDIT B</span>
+                        <span class="asset-name">B</span>
                         <span class="asset-zoom"></span>
                         <span class="asset-resolution">-</span>
                         <span class="asset-aspect">-</span>
@@ -4243,8 +4243,13 @@
         }
 
         function _diffPairLabel(pair) {
-            const names = { original: 'GT', editA: 'A', editB: 'B' };
-            return (names[pair[0]] || pair[0]) + ' – ' + (names[pair[1]] || pair[1]);
+            function shortLabel(slot) {
+                const full = slotLabel(slot);
+                if (slot === 'original') return 'Reference';
+                // "RESPONSE A" → "A", "VIDEO B" → "B", "AUDIO A" → "A", "IMAGE A" → "A"
+                return full.split(' ').pop();
+            }
+            return shortLabel(pair[0]) + ' – ' + shortLabel(pair[1]);
         }
 
         function _ensureDiffCanvas() {
@@ -6514,18 +6519,20 @@
         let _ihwaMode = false; // true when assets loaded from IHWA
 
         function slotLabel(slot) {
-            if (_ihwaMode) {
-                const isAudio = document.body.classList.contains('audio-mode');
-                if (isAudio) {
-                    return slot === 'original' ? 'GROUND-TRUTH AUDIO' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
-                }
-                const isVideo = !!(mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video');
-                if (isVideo) {
-                    return slot === 'original' ? 'REFERENCE VIDEO' : slot === 'editA' ? 'VIDEO A' : 'VIDEO B';
-                }
-                return slot === 'original' ? 'REFERENCE IMAGE' : slot === 'editA' ? 'RESPONSE A' : 'RESPONSE B';
+            const isAudio = document.body.classList.contains('audio-mode');
+            const isVideo = !!(mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video');
+            const hasOriginal = !!mediaData.original;
+
+            if (isAudio) {
+                if (!hasOriginal) return slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
+                return slot === 'original' ? 'GROUND-TRUTH AUDIO' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
             }
-            return slot === 'original' ? 'ORIGINAL' : slot === 'editA' ? 'EDIT A' : 'EDIT B';
+            if (isVideo) {
+                if (!hasOriginal) return slot === 'editA' ? 'VIDEO A' : 'VIDEO B';
+                return slot === 'original' ? 'REFERENCE VIDEO' : slot === 'editA' ? 'VIDEO A' : 'VIDEO B';
+            }
+            if (!hasOriginal) return slot === 'editA' ? 'IMAGE A' : 'IMAGE B';
+            return slot === 'original' ? 'REFERENCE IMAGE' : slot === 'editA' ? 'RESPONSE A' : 'RESPONSE B';
         }
 
         // Pick horizontal vs vertical layout based on which gives larger rendered images
@@ -7720,20 +7727,15 @@
                         setViewMode('vertical');
                     }
                 } else if (loadedCount === 2 && !mediaData.original) {
-                    if (_ihwaMode) {
-                        document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                        document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-                    } else {
-                        // Relabel: IMAGE A/B or VIDEO A/B (no "EDIT" label when there's no original)
-                        const mediaType = (mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video')
-                            ? 'VIDEO' : 'IMAGE';
-                        document.querySelector('#layerEditA .asset-name').textContent = mediaType + ' A';
-                        document.querySelector('#layerEditB .asset-name').textContent = mediaType + ' B';
-                    }
+                    document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
+                    document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
 
                     // Pick layout that gives largest images for the current viewport
                     setViewMode(pickBestGridLayout(2));
                 } else if (loadedCount === 3) {
+                    document.querySelector('#layerOriginal .asset-name').textContent = slotLabel('original');
+                    document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
+                    document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
                     // Respect the user's stored equal-vs-L-shaped preference (written by '3' key).
                     // If no preference has ever been stored, default to equal layout.
                     // The rows-vs-columns sub-choice is always auto-picked by aspect ratio inside setViewMode.
@@ -8787,7 +8789,7 @@
             <h3>v3.65</h3>
             <ul>
                 <li>Difference mode — press <kbd>D</kbd> in Stack mode to see pixel differences between two assets; identical pixels are black, differences glow</li>
-                <li>Arrow keys cycle through pairs (GT–A, GT–B, A–B) when difference mode is active; <kbd>Shift+D</kbd> also cycles</li>
+                <li>Arrow keys cycle through pairs (Reference–A, Reference–B, A–B) when difference mode is active; <kbd>Shift+D</kbd> also cycles</li>
                 <li>Works with images and video — updates live during playback and on frame step</li>
             </ul>
             <h3>v3.6</h3>
