@@ -762,6 +762,45 @@
             grid-row: 2;
         }
 
+        /* Quad grid: 2x2 layout for 4 files */
+        body.quad-grid .asset-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+            height: 100%;
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+        body.quad-grid #layerOriginal { grid-column: 1; grid-row: 1; }
+        body.quad-grid #layerEditA    { grid-column: 2; grid-row: 1; }
+        body.quad-grid #layerEditB    { grid-column: 1; grid-row: 2; }
+        body.quad-grid #layerEditC    { grid-column: 2; grid-row: 2; }
+
+        body.quad-grid .asset-layer {
+            position: relative !important;
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+            align-items: unset !important;
+            justify-content: unset !important;
+            overflow: visible;
+        }
+
+        body.quad-grid .media-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            overflow: visible !important;
+        }
+
+        /* Inline grids: add editC to 4th column/row */
+        body.inline-cols #layerEditC { grid-column: 4; grid-row: 1; }
+        body.inline-rows #layerEditC { grid-column: 1; grid-row: 4; }
+
         /* fit-cover toggles */
         body.grid-mode.fit-cover .video-wrapper img,
         body.grid-mode.fit-cover .video-wrapper video {
@@ -1931,9 +1970,9 @@
         <div class="header">
             <div style="position: relative; display: flex; align-items: center; gap: 6px;">
                 <img src="WarpDiff_Logo_v1.png" alt="" style="width: 22px; height: 22px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
-                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 1–3 files (or press L)" style="margin-left: 16px;">
+                <button class="position-toggle" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" data-help="Load 1–4 files (or press L)" style="margin-left: 16px;">
                     Load
-                    <div class="help-tooltip">Select 1–3 files to review or compare (auto-sorts by save time). Shortcut: L</div>
+                    <div class="help-tooltip">Select 1–4 files to review or compare (auto-sorts by save time). Shortcut: L</div>
                 </button>
                 <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button class="position-toggle" onclick="resetAll()" style="display: none;" id="resetBtn" data-help="Clear all assets and start over">
@@ -1970,7 +2009,7 @@
             <div class="landing-dropzone">
                 <svg class="dropzone-border" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" rx="16" ry="16" width="calc(100% - 2px)" height="calc(100% - 2px)" fill="none" stroke="#444" stroke-width="2" stroke-dasharray="16 12"/></svg>
                 <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo">
-                <div class="landing-title">Drop 1–3 files to review</div>
+                <div class="landing-title">Drop 1–4 files to review</div>
             </div>
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
@@ -2022,6 +2061,18 @@
                         <span class="asset-filename"></span>
                     </div>
                 </div>
+                <div class="asset-layer" id="layerEditC">
+                    <div class="asset-info-bar">
+                        <span class="asset-name">C</span>
+                        <span class="asset-zoom"></span>
+                        <span class="asset-resolution">-</span>
+                        <span class="asset-aspect">-</span>
+                        <span class="asset-fps"></span>
+                        <span class="asset-bpm"></span>
+                        <span class="asset-duration"></span>
+                        <span class="asset-filename"></span>
+                    </div>
+                </div>
                 
                 <div class="pixel-magnifier" id="pixelMagnifier">
                     <canvas id="magnifierCanvas" width="200" height="200"></canvas>
@@ -2030,6 +2081,9 @@
                     <canvas width="200" height="200"></canvas>
                 </div>
                 <div class="pixel-magnifier" id="pixelMagnifier2">
+                    <canvas width="200" height="200"></canvas>
+                </div>
+                <div class="pixel-magnifier" id="pixelMagnifier3">
                     <canvas width="200" height="200"></canvas>
                 </div>
 
@@ -2118,6 +2172,10 @@
                         <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editB')">🔊</span>
                         B
                     </button>
+                    <button onclick="selectAudioSource('editC')" id="audioEditC" title="Click to select audio source">
+                        <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editC')">🔊</span>
+                        C
+                    </button>
                 </div>
             </div>
         </div>
@@ -2149,14 +2207,15 @@
         const mediaData = {
             original: null,
             editA: null,
-            editB: null
+            editB: null,
+            editC: null
         };
 
-        const assetOrder = ['original', 'editA', 'editB'];
+        const assetOrder = ['original', 'editA', 'editB', 'editC'];
 
-        // Returns the asset-layer element for a given slot key ('original', 'editA', 'editB').
+        // Returns the asset-layer element for a given slot key ('original', 'editA', 'editB', 'editC').
         // Centralises the slot→DOM-id mapping so it doesn't have to be computed ad-hoc everywhere.
-        const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB' };
+        const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB', editC: 'layerEditC' };
         function getLayer(slot) { return document.getElementById(SLOT_LAYER_ID[slot]); }
 
         // Returns { w, h } for an <img> or <video> element's native dimensions.
@@ -2172,7 +2231,8 @@
         function isTripartiteMode() {
             return document.body.classList.contains('offset') ||
                    document.body.classList.contains('inline-cols') ||
-                   document.body.classList.contains('inline-rows');
+                   document.body.classList.contains('inline-rows') ||
+                   document.body.classList.contains('quad-grid');
         }
 
         // Updates the mute button appearance for a given audio slot.
@@ -2246,7 +2306,7 @@
 
         function redrawAudioSlotCanvases() {
             if (hasAudios) {
-                ['original', 'editA', 'editB'].forEach(s => {
+                assetOrder.forEach(s => {
                     if (_audioSlotVizData[s]) drawAudioSlotCanvas(s);
                 });
             } else if (hasVideos && audioVizVisible) {
@@ -2398,7 +2458,7 @@
         const MAGNIFIER_ZOOM_MAX = 32;
         let _lastMouseEvent = null; // cached for magnifier refresh on layer switch
 
-        const _magnifierEls = ['pixelMagnifier', 'pixelMagnifier1', 'pixelMagnifier2'];
+        const _magnifierEls = ['pixelMagnifier', 'pixelMagnifier1', 'pixelMagnifier2', 'pixelMagnifier3'];
 
         function resizeMagnifier(delta) {
             magnifierSize = Math.max(magnifierSize_MIN, Math.min(magnifierSize + delta, magnifierSize_MAX));
@@ -2517,6 +2577,7 @@
             // Hide all secondary loupes by default; they'll be shown if needed
             document.getElementById('pixelMagnifier1').classList.remove('active');
             document.getElementById('pixelMagnifier2').classList.remove('active');
+            document.getElementById('pixelMagnifier3').classList.remove('active');
 
             if (!wrapper) { mag.classList.remove('active'); return; }
 
@@ -2555,7 +2616,7 @@
             if (isGridMode && magnifierLinked) {
                 const allWrappers = document.querySelectorAll('.video-wrapper');
                 let secondaryIdx = 0;
-                const secondaryIds = ['pixelMagnifier1', 'pixelMagnifier2'];
+                const secondaryIds = ['pixelMagnifier1', 'pixelMagnifier2', 'pixelMagnifier3'];
                 allWrappers.forEach(w => {
                     if (w === targetWrapper || secondaryIdx >= secondaryIds.length) return;
                     const m = w.querySelector('img, video, canvas.audio-viz-slot-canvas');
@@ -3089,8 +3150,8 @@
                 f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
             );
 
-            if (mediaFiles.length < 1 || mediaFiles.length > 3) {
-                alert(`Please select 1–3 media files.\nYou selected ${mediaFiles.length} media file(s).\n\n1 file = single asset review\n2 files = A vs B\n3 files = Original vs Edit A vs Edit B`);
+            if (mediaFiles.length < 1 || mediaFiles.length > 4) {
+                alert(`Please select 1–4 media files.\nYou selected ${mediaFiles.length} media file(s).\n\n1 file = single asset review\n2 files = A vs B\n3 files = Original vs A vs B\n4 files = Original vs A vs B vs C`);
                 return;
             }
 
@@ -3129,7 +3190,21 @@
                 }
             }
 
-            if (sortedFiles.length === 3) {
+            if (sortedFiles.length === 4) {
+                // 4 files: oldest -> original, then editA, editB, editC
+                loadFile('original', sortedFiles[0]);
+                loadFile('editA', sortedFiles[1]);
+                loadFile('editB', sortedFiles[2]);
+                loadFile('editC', sortedFiles[3]);
+                if (!opts?.skipToast) {
+                    if (hasTimestampCollision) {
+                        showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
+                    } else {
+                        const n = f => f.name.length > 18 ? f.name.slice(0, 16) + '…' : f.name;
+                        showLoadToast(`Original: ${n(sortedFiles[0])}  ·  A: ${n(sortedFiles[1])}  ·  B: ${n(sortedFiles[2])}  ·  C: ${n(sortedFiles[3])}`);
+                    }
+                }
+            } else if (sortedFiles.length === 3) {
                 // 3 files: oldest -> original, middle -> editA, newest -> editB
                 loadFile('original', sortedFiles[0]);
                 loadFile('editA', sortedFiles[1]);
@@ -4395,11 +4470,7 @@
         // Shared media helpers — work for both video and audio modes
         function getAllPlayableMedia() {
             const tag = hasAudios ? 'audio' : 'video';
-            return [
-                document.querySelector('#layerOriginal ' + tag),
-                document.querySelector('#layerEditA ' + tag),
-                document.querySelector('#layerEditB ' + tag)
-            ].filter(Boolean);
+            return assetOrder.map(s => document.querySelector('#' + SLOT_LAYER_ID[s] + ' ' + tag)).filter(Boolean);
         }
 
         let _bulkSyncActive = false;
@@ -5478,7 +5549,8 @@
         let audioMuteStates = {
             original: false,
             editA: false,
-            editB: false
+            editB: false,
+            editC: false
         };
 
         function toggleAudioMute(source) {
@@ -5649,7 +5721,8 @@
             const labels = {
                 'original': 'Original',
                 'editA': 'Edit A',
-                'editB': 'Edit B'
+                'editB': 'Edit B',
+                'editC': 'Edit C'
             };
 
             // Compare all pairs for identical content.
@@ -6293,6 +6366,7 @@
             mediaData.original = null;
             mediaData.editA = null;
             mediaData.editB = null;
+            mediaData.editC = null;
             document.getElementById('instructionsPane').classList.remove('active');
             document.getElementById('promptPane').classList.remove('active');
             document.getElementById('criteriaDetails').style.display = 'none';
@@ -6397,7 +6471,7 @@
             vcReset.classList.remove('images-only');
 
             // Clear layers
-            ['Original', 'EditA', 'EditB'].forEach(slot => {
+            ['Original', 'EditA', 'EditB', 'EditC'].forEach(slot => {
                 const layer = document.getElementById(`layer${slot}`);
                 // Remove media container
                 const mediaContainer = layer.querySelector('.media-container');
@@ -6433,8 +6507,10 @@
             // may no longer exist in the DOM until the next loadFile() recreates it.
             const elEditA = document.querySelector('#layerEditA .asset-name');
             const elEditB = document.querySelector('#layerEditB .asset-name');
+            const elEditC = document.querySelector('#layerEditC .asset-name');
             if (elEditA) elEditA.textContent = slotLabel('editA');
             if (elEditB) elEditB.textContent = slotLabel('editB');
+            if (elEditC) elEditC.textContent = slotLabel('editC');
 
             // Reset audio source button label (GT → O)
             const btnO = document.getElementById('audioOriginal');
@@ -6457,11 +6533,7 @@
 
         // Video controls
         function getAllVideos() {
-            return [
-                document.querySelector('#layerOriginal video'),
-                document.querySelector('#layerEditA video'),
-                document.querySelector('#layerEditB video')
-            ].filter(v => v);
+            return assetOrder.map(s => document.querySelector('#' + SLOT_LAYER_ID[s] + ' video')).filter(Boolean);
         }
 
         function togglePlayPause() {
@@ -6521,19 +6593,20 @@
 
         function slotLabel(slot) {
             const isAudio = document.body.classList.contains('audio-mode');
-            const isVideo = !!(mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video');
+            const isVideo = assetOrder.some(s => mediaData[s]?.type === 'video');
             const hasOriginal = !!mediaData.original;
+            const letterMap = { editA: 'A', editB: 'B', editC: 'C' };
+            const letter = letterMap[slot] || '';
 
-            if (isAudio) {
-                if (!hasOriginal) return slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
-                return slot === 'original' ? 'GROUND-TRUTH AUDIO' : slot === 'editA' ? 'AUDIO A' : 'AUDIO B';
+            if (slot === 'original') {
+                if (isAudio) return 'GROUND-TRUTH AUDIO';
+                if (isVideo) return 'REFERENCE VIDEO';
+                return 'REFERENCE IMAGE';
             }
-            if (isVideo) {
-                if (!hasOriginal) return slot === 'editA' ? 'VIDEO A' : 'VIDEO B';
-                return slot === 'original' ? 'REFERENCE VIDEO' : slot === 'editA' ? 'VIDEO A' : 'VIDEO B';
-            }
-            if (!hasOriginal) return slot === 'editA' ? 'IMAGE A' : 'IMAGE B';
-            return slot === 'original' ? 'REFERENCE IMAGE' : slot === 'editA' ? 'RESPONSE A' : 'RESPONSE B';
+            if (isAudio) return 'AUDIO ' + letter;
+            if (isVideo) return 'VIDEO ' + letter;
+            if (!hasOriginal) return 'IMAGE ' + letter;
+            return 'RESPONSE ' + letter;
         }
 
         // Pick horizontal vs vertical layout based on which gives larger rendered images
@@ -7164,7 +7237,7 @@
                         _layoutResizeRaf = null;
                         const loadedCount = getLoadedSlotCount();
                         const isTripartite = isTripartiteMode();
-                        if (isTripartite && gridInlineMode) {
+                        if (isTripartite && gridInlineMode && !document.body.classList.contains('quad-grid')) {
                             const best = pickBestGridLayout(3);
                             const isRows = document.body.classList.contains('inline-rows');
                             const want = best === 'vertical' ? 'inline-rows' : 'inline-cols';
@@ -7191,7 +7264,7 @@
             }
         });
 
-        const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'grid-mode', 'two-asset', 'zoom-100'];
+        const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'quad-grid', 'grid-mode', 'two-asset', 'zoom-100'];
 
         function setViewMode(mode) {
             // Update view mode
@@ -7273,7 +7346,9 @@
                         layer.style.marginTop = '';
                     });
 
-                    if (targetMode === 'vertical') {
+                    if (targetMode === 'quad') {
+                        document.body.classList.add('quad-grid');
+                    } else if (targetMode === 'vertical') {
                         document.body.classList.add('vertical-stack');
                     } else if (targetMode === 'offset') {
                         const dims = Object.values(mediaData).filter(m => m && m.w && m.h);
@@ -7311,7 +7386,7 @@
                 // Tripartite: grid cell sizes only stabilise after a layout pass,
                 // so run applyLayout in rAF N, then positionLabelsToMedia in rAF N+1.
                 // Other modes: a single rAF suffices since there is no grid to settle.
-                if (targetMode === 'offset') {
+                if (targetMode === 'offset' || targetMode === 'quad') {
                     requestAnimationFrame(() => {
                         applyLayout();
                         requestAnimationFrame(() => {
@@ -7368,8 +7443,8 @@
             const loadedCount = getLoadedSlotCount();
             if (loadedCount <= 1) { strip.style.display = 'none'; return; }
 
-            // Normalise activeMode: horizontal/vertical both map to 'compare' for highlighting
-            const normalised = (activeMode === 'horizontal' || activeMode === 'vertical') ? 'compare' : activeMode;
+            // Normalise activeMode: horizontal/vertical/quad all map to 'compare' for highlighting
+            const normalised = (activeMode === 'horizontal' || activeMode === 'vertical' || activeMode === 'quad') ? 'compare' : activeMode;
 
             // No sequential close-then-open — rebuild immediately and let
             // incoming animations (grid width expand / overlay slide-in) play naturally.
@@ -7380,7 +7455,7 @@
             const isGridWith3 = normalised !== 'overlay' && loadedCount === 3;
 
             // Split mode first, STACK last: GRID  [grid-options]  STACK  [asset-options]
-            const gridMode = loadedCount === 3 ? 'offset' : 'compare';
+            const gridMode = loadedCount === 4 ? 'quad' : loadedCount === 3 ? 'offset' : 'compare';
 
             // Wrap mode buttons + grid sub-options in a flex group
             const modeCore = document.createElement('div');
@@ -7391,7 +7466,8 @@
             gridBtn.className = 'mode-btn' + (normalised !== 'overlay' ? ' active' : '');
             gridBtn.textContent = 'GRID';
             gridBtn.onclick = () => {
-                if (gridMode === 'compare') setViewMode(layoutMode);
+                if (gridMode === 'quad') setViewMode('quad');
+                else if (gridMode === 'compare') setViewMode(layoutMode);
                 else setViewMode('offset');
             };
             modeCore.appendChild(gridBtn);
@@ -7664,30 +7740,22 @@
                     const textNodes = [...btn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE);
                     textNodes.forEach(n => { n.textContent = n.textContent.replace('O', 'GT'); });
                 }
-                document.getElementById('audioOriginal').style.display = mediaData.original ? 'inline-block' : 'none';
-                document.getElementById('audioEditA').style.display = mediaData.editA ? 'inline-block' : 'none';
-                document.getElementById('audioEditB').style.display = mediaData.editB ? 'inline-block' : 'none';
+                assetOrder.forEach(s => {
+                    const btnId = 'audio' + capitalize(s);
+                    const btn = document.getElementById(btnId);
+                    if (btn) btn.style.display = mediaData[s] ? 'inline-block' : 'none';
+                });
 
-                // Set initial audio source to first loaded video
-                if (mediaData.original) {
-                    selectAudioSource('original');
-                } else if (mediaData.editA) {
-                    selectAudioSource('editA');
-                } else {
-                    selectAudioSource('editB');
-                }
+                // Set initial audio source to first loaded slot
+                const firstLoaded = assetOrder.find(s => mediaData[s]);
+                if (firstLoaded) selectAudioSource(firstLoaded);
 
                 // Check for identical assets
                 checkForIdenticalAssets();
                 
                 // Start with first loaded asset
-                if (mediaData.original) {
-                    switchToAsset(0); // Start with original
-                } else if (mediaData.editA) {
-                    switchToAsset(1); // Start with Edit A if no original
-                } else {
-                    switchToAsset(2); // Start with Edit B
-                }
+                const firstLoadedIdx = assetOrder.findIndex(s => mediaData[s]);
+                switchToAsset(firstLoadedIdx >= 0 ? firstLoadedIdx : 0);
 
                 // Prepare layers for staggered fade-in.
                 // Set opacity:0 before setViewMode so layers are invisible from the start.
@@ -7697,46 +7765,42 @@
                     .filter(Boolean);
                 loadedLayers.forEach(layer => { layer.style.opacity = '0'; });
 
+                // Set asset labels for all loaded slots
+                assetOrder.forEach(s => {
+                    if (!mediaData[s]) return;
+                    const nameEl = document.querySelector('#' + SLOT_LAYER_ID[s] + ' .asset-name');
+                    if (nameEl) nameEl.textContent = slotLabel(s);
+                });
+
                 if (loadedCount === 1) {
                     // Single asset review — use overlay (Stack) mode
-                    const slot = mediaData.editA ? 'editA' : mediaData.original ? 'original' : 'editB';
+                    const slot = assetOrder.find(s => mediaData[s]);
                     const md = mediaData[slot];
+                    const nameEl = document.querySelector('#' + SLOT_LAYER_ID[slot] + ' .asset-name');
                     if (hasAudios) {
                         document.body.classList.add('audio-mode');
-                        document.querySelector('#layerEditA .asset-name').textContent = md.name || 'AUDIO';
+                        if (nameEl) nameEl.textContent = md.name || 'AUDIO';
                         setViewMode('vertical');
                     } else {
-                        document.querySelector('#layerEditA .asset-name').textContent = md.name || (md.type === 'video' ? 'VIDEO' : 'IMAGE');
+                        if (nameEl) nameEl.textContent = md.name || (md.type === 'video' ? 'VIDEO' : 'IMAGE');
                         setViewMode('overlay');
                     }
                 } else if (hasAudios) {
                     document.body.classList.add('audio-mode');
-                    // Audio mode: force vertical stack, update labels
-                    if (loadedCount === 2 && !mediaData.original) {
-                        document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                        document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-                    } else if (loadedCount === 3) {
-                        document.querySelector('#layerOriginal .asset-name').textContent = slotLabel('original');
-                        document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                        document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-                    }
                     // Audio always uses vertical stack in grid
-                    if (loadedCount === 3) {
+                    if (loadedCount >= 3) {
                         gridInlineMode = true;
                         setViewMode('offset');
                     } else {
                         setViewMode('vertical');
                     }
+                } else if (loadedCount === 4) {
+                    // 4 files: use 2x2 quad grid
+                    setViewMode('quad');
                 } else if (loadedCount === 2 && !mediaData.original) {
-                    document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                    document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-
                     // Pick layout that gives largest images for the current viewport
                     setViewMode(pickBestGridLayout(2));
                 } else if (loadedCount === 3) {
-                    document.querySelector('#layerOriginal .asset-name').textContent = slotLabel('original');
-                    document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                    document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
                     // Respect the user's stored equal-vs-L-shaped preference (written by '3' key).
                     // If no preference has ever been stored, default to equal layout.
                     // The rows-vs-columns sub-choice is always auto-picked by aspect ratio inside setViewMode.
@@ -7870,21 +7934,24 @@
             // ── View ──
             { id: 'overlayMode', defaultKey: 's', label: 'Stack mode', section: 'view',
               fn: () => {
-                  const allThreeLoaded = getLoadedSlotCount() === 3;
+                  const lc = getLoadedSlotCount();
                   if (isGridMode) { setViewMode('overlay'); }
+                  else if (lc === 4) { setViewMode('quad'); }
                   else if (hasAudios) {
-                      if (allThreeLoaded) { gridInlineMode = true; setViewMode('offset'); } else { setViewMode('vertical'); }
-                  } else if (allThreeLoaded) { setViewMode('offset'); }
+                      if (lc >= 3) { gridInlineMode = true; setViewMode('offset'); } else { setViewMode('vertical'); }
+                  } else if (lc === 3) { setViewMode('offset'); }
                   else { setViewMode(layoutMode); }
               } },
             { id: 'gridMode', defaultKey: 'g', label: 'Grid mode', section: 'view',
               fn: () => {
-                  const allThreeLoaded = getLoadedSlotCount() === 3;
-                  if (hasAudios) {
+                  const lc = getLoadedSlotCount();
+                  if (lc === 4) {
+                      if (!isGridMode) setViewMode('quad'); else setViewMode('overlay');
+                  } else if (hasAudios) {
                       if (!isGridMode) {
-                          if (allThreeLoaded) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
+                          if (lc >= 3) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
                       } else { setViewMode('overlay'); }
-                  } else if (allThreeLoaded) {
+                  } else if (lc === 3) {
                       if (!isGridMode) setViewMode('offset'); else setViewMode('overlay');
                   } else {
                       if (!isGridMode) setViewMode(layoutMode); else setViewMode('overlay');
@@ -8558,7 +8625,7 @@
         </div>
         <div class="manual-content">
             <h2>Loading Files</h2>
-            <p>WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images or videos side by side.</p>
+            <p>WarpDiff is a browser-based visual comparison tool for reviewing 1–4 versions of images or videos side by side.</p>
             <p><strong>Three ways to load files:</strong></p>
             <ul>
                 <li>Press <kbd>L</kbd></li>
@@ -8567,7 +8634,7 @@
             </ul>
             <p><strong>File requirements:</strong></p>
             <ul>
-                <li>1–3 files (images, videos, or audio)</li>
+                <li>1–4 files (images, videos, or audio)</li>
                 <li>2 files → assigned to <strong>Edit A</strong> and <strong>Edit B</strong></li>
                 <li>3 files → assigned to <strong>Original</strong>, <strong>Edit A</strong>, and <strong>Edit B</strong></li>
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
@@ -8704,7 +8771,7 @@
 
             <h2>Limitations</h2>
             <ul>
-                <li><strong>1–3 files</strong> — 1 file for solo review, 2 for A/B, 3 for Original + A + B</li>
+                <li><strong>1–4 files</strong> — 1 file for solo review, 2 for A/B, 3 for Original + A + B, 4 for Original + A + B + C</li>
                 <li><strong>Images, videos, and audio only</strong> — other file types are ignored</li>
                 <li><strong>Pan available in Stack mode only</strong></li>
                 <li><strong>Audio:</strong> one track at a time; others are automatically muted</li>
@@ -8733,7 +8800,7 @@
             <h3>Getting Started</h3>
             <ul>
                 <li>Save assets from the review tool: right-click ▸ Open in New Tab (auto-saves to Downloads on macOS) or right-click ▸ Save</li>
-                <li>Drop 2–3 image, video, or audio files onto this window, or press <kbd>L</kbd> to load from file browser</li>
+                <li>Drop 1–4 image, video, or audio files onto this window, or press <kbd>L</kbd> to load from file browser</li>
                 <li>Files auto-sort by save time (Original, Edit A, Edit B) — save files one at a time so timestamps reflect the correct order</li>
             </ul>
 

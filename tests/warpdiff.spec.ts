@@ -90,7 +90,8 @@ function ensureFixtures() {
     { name: 'green.png', buf: makeSizedPng(200, 150, 2) },
     { name: 'blue.png', buf: makeSizedPng(200, 150, 3) },
     { name: 'fourth.png', buf: makeSizedPng(100, 100, 4) },
-    { name: 'tall.png', buf: makeSizedPng(150, 300, 5) },
+    { name: 'fifth.png', buf: makeSizedPng(100, 100, 5) },
+    { name: 'tall.png', buf: makeSizedPng(150, 300, 6) },
   ];
 
   for (const { name, buf } of images) {
@@ -197,18 +198,33 @@ test.describe('File Loading', () => {
     );
   });
 
-  test('rejects single file with alert', async ({ page }) => {
+  test('loading 1 image activates single asset review', async ({ page }) => {
     await page.goto('/');
-    const dialogPromise = page.waitForEvent('dialog');
     const fileInput = page.locator('#multiFileInput');
-    const setFilesPromise = fileInput.setInputFiles(path.join(fixturesDir, 'red.png'));
-    const dialog = await dialogPromise;
-    expect(dialog.message()).toContain('2 or 3');
-    await dialog.accept();
-    await setFilesPromise;
+    await fileInput.setInputFiles(path.join(fixturesDir, 'red.png'));
+    await page.waitForFunction(
+      () => (window as any).__testAPI.currentAssetIndex >= 0 &&
+            document.getElementById('comparisonView')?.classList.contains('active'),
+      {}, { timeout: 5000 }
+    );
   });
 
-  test('rejects 4+ files with alert', async ({ page }) => {
+  test('loading 4 images activates quad grid mode', async ({ page }) => {
+    await page.goto('/');
+    const fileInput = page.locator('#multiFileInput');
+    await fileInput.setInputFiles([
+      path.join(fixturesDir, 'red.png'),
+      path.join(fixturesDir, 'green.png'),
+      path.join(fixturesDir, 'blue.png'),
+      path.join(fixturesDir, 'fourth.png'),
+    ]);
+    await page.waitForFunction(
+      () => document.body.classList.contains('quad-grid'),
+      {}, { timeout: 5000 }
+    );
+  });
+
+  test('rejects 5+ files with alert', async ({ page }) => {
     await page.goto('/');
     const dialogPromise = page.waitForEvent('dialog');
     const fileInput = page.locator('#multiFileInput');
@@ -217,25 +233,26 @@ test.describe('File Loading', () => {
       path.join(fixturesDir, 'green.png'),
       path.join(fixturesDir, 'blue.png'),
       path.join(fixturesDir, 'fourth.png'),
+      path.join(fixturesDir, 'fifth.png'),
     ]);
     const dialog = await dialogPromise;
-    expect(dialog.message()).toContain('2 or 3');
+    expect(dialog.message()).toContain('1–4');
     await dialog.accept();
     await setFilesPromise;
   });
 
-  test('rejects non-media files with alert', async ({ page }) => {
+  test('filters non-media files and loads remaining media', async ({ page }) => {
     await page.goto('/');
-    const dialogPromise = page.waitForEvent('dialog');
     const fileInput = page.locator('#multiFileInput');
-    const setFilesPromise = fileInput.setInputFiles([
+    // readme.txt is filtered out, leaving only red.png (1 media file — valid)
+    await fileInput.setInputFiles([
       path.join(fixturesDir, 'readme.txt'),
       path.join(fixturesDir, 'red.png'),
     ]);
-    const dialog = await dialogPromise;
-    expect(dialog.message()).toContain('2 or 3');
-    await dialog.accept();
-    await setFilesPromise;
+    await page.waitForFunction(
+      () => document.getElementById('comparisonView')?.classList.contains('active'),
+      {}, { timeout: 5000 }
+    );
   });
 });
 
