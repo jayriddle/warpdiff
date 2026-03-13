@@ -478,31 +478,61 @@
             gap: 16px;
         }
         .landing-cta.hidden { display: none; }
+        .landing-cta.in-iframe .landing-title,
+        .landing-cta.in-iframe .landing-hints { display: none; }
 
         .landing-dropzone {
             position: relative;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 12px;
-            padding: 48px 64px;
+            justify-content: center;
+            width: 280px;
+            height: 180px;
             border: none;
             border-radius: 16px;
+            overflow: hidden;
         }
-        .landing-dropzone > svg.dropzone-border {
+        @property --grad-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+        .landing-dropzone.starfield-off {
+            overflow: visible;
+        }
+        .landing-dropzone.starfield-off::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 16px;
+            padding: 2px;
+            background: conic-gradient(from var(--grad-angle, 0deg),
+                rgba(255,255,255,0.03), rgba(255,255,255,0.15),
+                rgba(255,255,255,0.03), rgba(255,255,255,0.15),
+                rgba(255,255,255,0.03));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: border-spin 12s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes border-spin {
+            to { --grad-angle: 360deg; }
+        }
+        .landing-dropzone.starfield-off > canvas.dropzone-starfield {
+            display: none;
+        }
+        .landing-dropzone > canvas.dropzone-starfield {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
             pointer-events: none;
-            animation: dropzone-pulse 3s ease-in-out infinite;
-        }
-        .landing-logo { margin-bottom: 8px; }
-        @keyframes dropzone-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
         .landing-logo {
+            position: relative;
+            z-index: 1;
             width: 64px;
             height: 64px;
             opacity: 0.6;
@@ -512,13 +542,34 @@
             0%, 100% { opacity: 0.4; transform: scale(1); }
             50% { opacity: 0.8; transform: scale(1.05); }
         }
+        /* Loading state: bigger logo, hide drop text, show status */
+        .landing-cta.loading .landing-logo {
+            width: 96px;
+            height: 96px;
+            opacity: 0.9;
+            animation: logo-pulse-loading 1.5s ease-in-out infinite;
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+        @keyframes logo-pulse-loading {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        .landing-cta.loading .landing-title { display: none; }
+        .landing-cta.loading .landing-hints { display: none; }
+        .landing-status {
+            font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+            font-size: 13px;
+            color: #888;
+            display: none;
+        }
+        .landing-cta.loading .landing-status { display: block; }
+
         .landing-title {
             font-size: 18px;
             font-weight: 500;
             color: #ccc;
         }
         .landing-hints {
-            margin-top: 20px;
             font-size: 12px;
             color: #555;
         }
@@ -971,45 +1022,9 @@
         .rating-btn:first-child { border-radius: 4px 0 0 4px; }
         .rating-btn:last-child { border-radius: 0 4px 4px 0; }
         .rating-btn:hover { background: rgba(255,255,255,0.12); color: #ddd; }
-        .rating-btn.selected-a {
-            background: rgba(0, 140, 255, 0.35);
-            border-color: rgba(0, 140, 255, 0.6);
-            color: #fff;
-        }
-        .rating-btn.selected-b {
-            background: rgba(255, 60, 60, 0.35);
-            border-color: rgba(255, 60, 60, 0.6);
-            color: #fff;
-        }
-        .rating-btn.selected-tie {
-            background: rgba(255, 180, 0, 0.3);
-            border-color: rgba(255, 180, 0, 0.55);
-            color: #fff;
-        }
-        /* Likert scale: 5-option A++|A+|=|B+|B++ */
-        .rating-btn.selected-a2 {
-            background: rgba(0, 140, 255, 0.5);
-            border-color: rgba(0, 140, 255, 0.7);
-            color: #fff;
-        }
-        .rating-btn.selected-a1 {
-            background: rgba(0, 140, 255, 0.25);
-            border-color: rgba(0, 140, 255, 0.45);
-            color: #fff;
-        }
-        .rating-btn.selected-b1 {
-            background: rgba(255, 60, 60, 0.25);
-            border-color: rgba(255, 60, 60, 0.45);
-            color: #fff;
-        }
-        .rating-btn.selected-b2 {
-            background: rgba(255, 60, 60, 0.5);
-            border-color: rgba(255, 60, 60, 0.7);
-            color: #fff;
-        }
-        .rating-btn.selected-eq {
-            background: rgba(255, 180, 0, 0.3);
-            border-color: rgba(255, 180, 0, 0.55);
+        .rating-btn[class*="selected-"] {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.45);
             color: #fff;
         }
         /* Checkbox toggles */
@@ -1027,8 +1042,8 @@
         }
         .rating-check:hover { background: rgba(255,255,255,0.12); color: #ddd; }
         .rating-check.checked {
-            background: rgba(120, 200, 120, 0.3);
-            border-color: rgba(120, 200, 120, 0.55);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.45);
             color: #fff;
         }
         .rating-textarea-row {
@@ -1526,6 +1541,18 @@
             display: none;
         }
 
+        .play-pause-btn {
+            background: none;
+            border: none;
+            color: rgb(160, 160, 160);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+            user-select: none;
+        }
+        .play-pause-btn:hover { color: #fff; }
+
         .video-timecode,
         .video-duration {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1871,35 +1898,6 @@
             overflow: hidden;
         }
 
-        /* Loading overlay */
-        .loading-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #111;
-            z-index: 9999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .loading-overlay.active { display: flex; }
-        .loading-overlay .loading-logo {
-            width: 80px;
-            height: 80px;
-            animation: logo-pulse 2s ease-in-out infinite;
-        }
-        @keyframes logo-pulse {
-            0%, 100% { opacity: 0.4; transform: scale(1); }
-            50%      { opacity: 1;   transform: scale(1.08); }
-        }
-        #loadingStatus {
-            font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
-            font-size: 13px;
-            color: #888;
-            margin-top: 24px;
-            letter-spacing: 0.05em;
-        }
     </style>
 </head>
 <body>
@@ -1944,13 +1942,14 @@
 
         <div class="landing-cta" id="landingCta">
             <div class="landing-dropzone">
-                <svg class="dropzone-border" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" rx="16" ry="16" width="calc(100% - 2px)" height="calc(100% - 2px)" fill="none" stroke="#444" stroke-width="2" stroke-dasharray="16 12"/></svg>
+                <canvas class="dropzone-starfield" id="dropzoneStarfield"></canvas>
                 <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo">
-                <div class="landing-title">Drop 1–3 files to review</div>
             </div>
+            <div class="landing-title">Drop 1–3 files to review</div>
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
             </div>
+            <div class="landing-status" id="landingStatus">Loading…</div>
         </div>
 
         <div class="comparison-view" id="comparisonView">
@@ -2063,6 +2062,7 @@
                 </div>
             </div>
             <div class="video-controls-row">
+                <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
                 <span class="video-timecode" id="videoTimecode" onclick="toggleTimecodeMode()" title="Click to toggle time/frame display">0:00</span>
                 <div class="video-progress-container" id="videoProgressContainer">
                     <div class="video-progress-bar" id="videoProgressBar"></div>
@@ -2091,7 +2091,10 @@
     </div>
 
     <script>
-        const APP_VERSION = '3.65';
+        const APP_VERSION = '3.7';
+        const _inIframe = window !== window.top;
+        if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
+        if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
         document.getElementById('appVersion').style.cursor = 'pointer';
         document.getElementById('appVersion').addEventListener('click', () => {
@@ -2190,6 +2193,13 @@
         }
 
         // ── In/Out loop markers ──
+        // Disable native .loop on all media when custom loop points are active,
+        // re-enable when cleared. Prevents native loop restart at 0:00 conflicting
+        // with RAF-based loop-point enforcement.
+        function setNativeLoop(enabled) {
+            getAllPlayableMedia().forEach(m => { m.loop = enabled; });
+        }
+
         function setLoopPoint(type) {
             const media = getAllPlayableMedia()[0];
             if (!media) return;
@@ -2207,6 +2217,7 @@
                 }
                 showToast('Out: ' + formatLoopTime(t));
             }
+            if (_loopInPoint !== null && _loopOutPoint !== null) setNativeLoop(false);
             updateLoopMarkerUI();
             redrawAudioSlotCanvases();
         }
@@ -2227,6 +2238,7 @@
         function clearLoopMarkers(silent) {
             _loopInPoint = null;
             _loopOutPoint = null;
+            setNativeLoop(true);
             updateLoopMarkerUI();
             // Reset progress bar to normal mode
             getProgressEls();
@@ -2642,17 +2654,21 @@
             _positionDebounceTimer = setTimeout(positionLabelsToMedia, 150);
         }
 
-        // --- Loading overlay ---
+        // --- Loading state (uses landing CTA starfield) ---
         function showLoading(msg) {
-            const el = document.getElementById('loadingOverlay');
-            el.classList.add('active');
-            document.getElementById('loadingStatus').textContent = msg || 'Loading…';
+            const cta = document.getElementById('landingCta');
+            cta.classList.remove('hidden');
+            cta.classList.add('loading');
+            document.getElementById('landingStatus').textContent = msg || 'Loading…';
+            if (window._starfieldSetSpeed) window._starfieldSetSpeed(3, true);
         }
         function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('active');
+            const cta = document.getElementById('landingCta');
+            cta.classList.remove('loading');
+            if (window._starfieldSetSpeed) window._starfieldSetSpeed(1, true);
         }
         function updateLoadingStatus(msg) {
-            document.getElementById('loadingStatus').textContent = msg;
+            document.getElementById('landingStatus').textContent = msg;
         }
 
         // Setup drag and drop — listen on the whole page
@@ -2686,6 +2702,46 @@
             btn.disabled = true;
             window.postMessage({ type: 'WARPDIFF_PULL' }, '*');
         }
+
+        // Sync rating panel buttons when IHWA reports updated question state
+        window.addEventListener('message', (event) => {
+            if (!event.data || event.data.type !== 'WARPDIFF_SYNC_QUESTIONS') return;
+            const panel = document.getElementById('ratingPanel');
+            if (!panel) return;
+            const rows = panel.querySelectorAll('.rating-row');
+            const questions = event.data.questions;
+            if (!questions) return;
+            rows.forEach((row, qi) => {
+                if (qi >= questions.length) return;
+                const q = questions[qi];
+                if (q.type === 'radio') {
+                    const btns = row.querySelectorAll('.rating-btn');
+                    // Find which option label is now checked
+                    const checkedLabel = (q.options.find(o => o.checked) || {}).label || '';
+                    btns.forEach(btn => {
+                        // Match by title (full label) or by data attribute
+                        const btnLabel = btn._optLabel || btn.title || '';
+                        const wasSelected = /selected-/.test(btn.className);
+                        if (btnLabel === checkedLabel) {
+                            // Preserve the existing selected-* class this button was designed with
+                            if (!wasSelected && btn._selClass) btn.classList.add(btn._selClass);
+                        } else {
+                            btn.className = 'rating-btn';
+                        }
+                    });
+                } else if (q.type === 'checkbox') {
+                    const checks = row.querySelectorAll('.rating-check');
+                    checks.forEach(chk => {
+                        const label = chk._optLabel || chk.title || '';
+                        const opt = q.options.find(o => o.label === label);
+                        if (opt) {
+                            if (opt.checked && !chk.classList.contains('checked')) chk.classList.add('checked');
+                            if (!opt.checked && chk.classList.contains('checked')) chk.classList.remove('checked');
+                        }
+                    });
+                }
+            });
+        });
 
         window.addEventListener('message', async (event) => {
             if (event.source !== window || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
@@ -2820,7 +2876,8 @@
             const instr = document.getElementById('instructionsPane');
             const prompt = document.getElementById('promptPane');
             const rating = document.getElementById('ratingPanel');
-            const hasContent = instr.classList.contains('active') || prompt.classList.contains('active') || rating.classList.contains('active');
+            const isIframe = window !== window.top;
+            const hasContent = isIframe && (instr.classList.contains('active') || prompt.classList.contains('active') || rating.classList.contains('active'));
             strip.classList.toggle('active', hasContent);
         }
 
@@ -2909,6 +2966,8 @@
                             const btn = document.createElement('button');
                             btn.textContent = shortLabels[oi];
                             btn.className = 'rating-btn';
+                            btn._optLabel = opt.label;
+                            btn._selClass = selClasses[oi];
                             if (opt.checked) btn.classList.add(selClasses[oi]);
                             btn.addEventListener('click', () => {
                                 opts.querySelectorAll('.rating-btn').forEach(b => b.className = 'rating-btn');
@@ -2938,13 +2997,13 @@
                                 opt.label.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F]\s*/gu, '').replace(/^Both (?:are |have )/i, '').replace(/^Neither (?:has |have )/i, 'No ').trim();
                             btn.textContent = shortLabel;
                             btn.className = 'rating-btn';
+                            btn._optLabel = opt.label;
+                            btn._selClass = isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie';
                             if (isExtra) btn.style.marginLeft = '4px';
-                            if (opt.checked) {
-                                btn.classList.add(isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie');
-                            }
+                            if (opt.checked) btn.classList.add(btn._selClass);
                             btn.addEventListener('click', () => {
                                 opts.querySelectorAll('.rating-btn').forEach(b => b.className = 'rating-btn');
-                                btn.classList.add(isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie');
+                                btn.classList.add(btn._selClass);
                                 window.postMessage({ type: 'WARPDIFF_SET_ANSWER', questionIndex: qi, value: opt.label }, '*');
                             });
                             opts.appendChild(btn);
@@ -2962,10 +3021,12 @@
                             btn.textContent = shortLabel;
                             btn.title = raw;
                             btn.className = 'rating-btn';
-                            if (opt.checked) btn.classList.add(isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie');
+                            btn._optLabel = opt.label;
+                            btn._selClass = isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie';
+                            if (opt.checked) btn.classList.add(btn._selClass);
                             btn.addEventListener('click', () => {
                                 opts.querySelectorAll('.rating-btn').forEach(b => b.className = 'rating-btn');
-                                btn.classList.add(isA ? 'selected-a' : isB ? 'selected-b' : 'selected-tie');
+                                btn.classList.add(btn._selClass);
                                 window.postMessage({ type: 'WARPDIFF_SET_ANSWER', questionIndex: qi, value: opt.label }, '*');
                             });
                             opts.appendChild(btn);
@@ -4395,15 +4456,21 @@
         }
 
         let _bulkSyncActive = false;
+        function _updatePlayPauseBtn(playing) {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.textContent = playing ? '❚❚' : '▶';
+        }
         function playAllMedia() {
             _bulkSyncActive = true;
             getAllPlayableMedia().forEach(m => m.play().catch(() => {}));
             startProgressUpdateLoop();
+            _updatePlayPauseBtn(true);
             setTimeout(() => { _bulkSyncActive = false; }, 50);
         }
         function pauseAllMedia() {
             _bulkSyncActive = true;
             getAllPlayableMedia().forEach(m => m.pause());
+            _updatePlayPauseBtn(false);
             _bulkSyncActive = false;
         }
 
@@ -7913,6 +7980,15 @@
                   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
                   else document.exitFullscreen();
               } },
+            { id: 'toggleStarfield', defaultKey: 'x', label: 'Ad Astra', section: 'view', global: true,
+              fn: () => {
+                  const dz = document.querySelector('.landing-dropzone');
+                  if (!dz) return;
+                  const off = dz.classList.toggle('starfield-off');
+                  if (window._starfieldSetVisible) window._starfieldSetVisible(!off);
+                  localStorage.setItem('starfieldOn', off ? '' : '1');
+                  showToast('Ad Astra ' + (off ? 'OFF' : 'ON'));
+              } },
 
             // ── Zoom ──
             { id: 'zoomFit', defaultKey: '0', label: 'Zoom to fit screen', section: 'zoom',
@@ -7999,7 +8075,7 @@
                   while (!mediaData[assetOrder[ni]] && a < assetOrder.length) { ni = (ni + 1) % assetOrder.length; a++; }
                   if (mediaData[assetOrder[ni]]) switchToAsset(ni);
               } },
-            { id: 'playPause', defaultKey: ' ', label: 'Play / Pause', section: 'transport',
+            { id: 'playPause', defaultKey: ' ', label: 'Play / Pause', section: 'transport', global: true,
               fn: () => togglePlayPause() },
             { id: 'frameBack', defaultKey: ',', label: 'Frame back', section: 'transport', paired: 'frameStepping',
               fn: () => {
@@ -8175,8 +8251,8 @@
         let _reassigningActionId = null; // currently waiting for a key press
 
         // Which sections go in which column, with display headers
-        const _leftSections = new Set(['files', 'view', 'zoom', 'analysis']);
-        const _rightSections = new Set(['transport', 'panels']);
+        const _leftSections = new Set(['files', 'view', 'zoom', 'panels']);
+        const _rightSections = new Set(['transport', 'analysis']);
         const _sectionHeaders = {
             files: 'Files', view: 'View', zoom: 'Zoom',
             transport: 'Transport', analysis: 'Analysis',
@@ -8235,8 +8311,8 @@
                 col.appendChild(_buildSingleRow(action));
             }
 
-            // "Escape" row in right column (non-reassignable, same section as panels)
-            rightCol.appendChild(_buildFixedRow('<kbd>Esc</kbd>', 'Dismiss panel'));
+            // "Escape" row in left column (non-reassignable, same section as panels)
+            leftCol.appendChild(_buildFixedRow('<kbd>Esc</kbd>', 'Dismiss panel'));
 
             list.appendChild(leftCol);
             list.appendChild(rightCol);
@@ -8432,6 +8508,8 @@
             // Escape: dismiss magnifier, close panels, or double-tap to clear loop markers
             if (e.key === 'Escape') {
                 const now = Date.now();
+                // Prevent browser from stealing iframe focus on Esc when loop is active
+                if (_loopInPoint !== null || _loopOutPoint !== null) e.preventDefault();
                 if (now - _lastEscTime < 400 && (_loopInPoint !== null || _loopOutPoint !== null)) {
                     _lastEscTime = 0;
                     clearLoopMarkers();
@@ -8528,6 +8606,207 @@
         }
 
         // Expose read-only test API for Playwright (avoids brittle eval of let-scoped vars)
+        // --- Starfield drop-zone border animation ---
+        // Uses OffscreenCanvas + Web Worker so animation continues during main-thread work.
+        // Falls back to main-thread canvas for browsers without OffscreenCanvas support.
+        (function initStarfield() {
+            const canvas = document.getElementById('dropzoneStarfield');
+            if (!canvas) return;
+            const landing = document.getElementById('landingCta');
+
+            // Shared drawing code (runs in worker or main thread)
+            const DRAW_CODE = `
+                const STAR_COUNT = 300;
+                const RADIUS = 16;
+                const SPEED_MIN = 0.0005;
+                const SPEED_MAX = 0.003;
+                let speedMult = 1, speedTarget = 1;
+                let stars = [], w = 0, h = 0, dpr = 1, running = false;
+                let ctx, vignette;
+
+                function spawnStar(fromCenter) {
+                    return {
+                        angle: Math.random() * Math.PI * 2,
+                        depth: fromCenter ? 0 : Math.random(),
+                        speed: SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN),
+                        brightness: 0.4 + Math.random() * 0.6,
+                        hue: 200 + Math.random() * 40
+                    };
+                }
+                function initStars() {
+                    stars = [];
+                    for (let i = 0; i < STAR_COUNT; i++) stars.push(spawnStar(false));
+                }
+                function rebuildVignette() {
+                    vignette = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h)*0.6);
+                    vignette.addColorStop(0, 'rgba(0,0,0,0.3)');
+                    vignette.addColorStop(0.2, 'rgba(0,0,0,0.08)');
+                    vignette.addColorStop(0.4, 'rgba(0,0,0,0)');
+                    vignette.addColorStop(1, 'rgba(0,0,0,0)');
+                }
+                function draw() {
+                    if (!running) return;
+                    // Ramp speed
+                    const diff = speedTarget - speedMult;
+                    if (Math.abs(diff) > 0.02) speedMult += diff * (diff > 0 ? 0.08 : 0.12);
+                    else speedMult = speedTarget;
+
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.roundRect(0, 0, w, h, RADIUS);
+                    ctx.clip();
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, w, h);
+
+                    const cx = w/2, cy = h/2, maxR = Math.sqrt(cx*cx + cy*cy);
+                    for (let i = 0; i < stars.length; i++) {
+                        const s = stars[i];
+                        s.depth += s.speed * speedMult;
+                        if (s.depth > 1) { stars[i] = spawnStar(true); continue; }
+                        const r = s.depth * maxR;
+                        const x = cx + Math.cos(s.angle) * r;
+                        const y = cy + Math.sin(s.angle) * r;
+                        const trail = s.depth * s.speed * speedMult * maxR * 4;
+                        const x0 = cx + Math.cos(s.angle) * Math.max(0, r - trail);
+                        const y0 = cy + Math.sin(s.angle) * Math.max(0, r - trail);
+                        const alpha = s.brightness * Math.min(1, s.depth * 2.5) * (0.3 + s.depth * 0.7);
+                        const thickness = 0.3 + s.depth * 2;
+                        ctx.strokeStyle = 'hsla(' + s.hue + ',70%,' + (70 + s.depth * 30) + '%,' + alpha + ')';
+                        ctx.lineWidth = thickness;
+                        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x, y); ctx.stroke();
+                        if (s.depth > 0.6) {
+                            ctx.fillStyle = 'hsla(' + s.hue + ',40%,95%,' + (alpha * 0.8) + ')';
+                            ctx.beginPath(); ctx.arc(x, y, thickness * 0.6, 0, Math.PI * 2); ctx.fill();
+                        }
+                    }
+                    ctx.fillStyle = vignette;
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.restore();
+                    requestAnimationFrame(draw);
+                }
+            `;
+
+            // --- Worker path ---
+            let worker = null;
+            const useWorker = typeof canvas.transferControlToOffscreen === 'function';
+
+            if (useWorker) {
+                const workerCode = DRAW_CODE + `
+                    let offscreen;
+                    self.onmessage = function(e) {
+                        const msg = e.data;
+                        if (msg.type === 'init') {
+                            offscreen = msg.canvas;
+                            dpr = msg.dpr;
+                            w = msg.w; h = msg.h;
+                            offscreen.width = w * dpr; offscreen.height = h * dpr;
+                            ctx = offscreen.getContext('2d');
+                            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                            rebuildVignette(); initStars();
+                        } else if (msg.type === 'resize') {
+                            w = msg.w; h = msg.h; dpr = msg.dpr;
+                            offscreen.width = w * dpr; offscreen.height = h * dpr;
+                            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                            rebuildVignette();
+                        } else if (msg.type === 'start') {
+                            if (!running) { running = true; draw(); }
+                        } else if (msg.type === 'stop') {
+                            running = false;
+                        } else if (msg.type === 'speed') {
+                            speedTarget = msg.value;
+                        }
+                    };
+                `;
+                const blob = new Blob([workerCode], { type: 'application/javascript' });
+                worker = new Worker(URL.createObjectURL(blob));
+                const offscreen = canvas.transferControlToOffscreen();
+                const rect = canvas.parentElement.getBoundingClientRect();
+                worker.postMessage({
+                    type: 'init', canvas: offscreen,
+                    w: rect.width, h: rect.height,
+                    dpr: window.devicePixelRatio || 1
+                }, [offscreen]);
+
+                window.addEventListener('resize', () => {
+                    const r = canvas.parentElement.getBoundingClientRect();
+                    worker.postMessage({ type: 'resize', w: r.width, h: r.height, dpr: window.devicePixelRatio || 1 });
+                });
+
+                window._starfieldSetSpeed = function(mult) {
+                    worker.postMessage({ type: 'speed', value: mult });
+                };
+                window._starfieldSetVisible = function(vis) {
+                    worker.postMessage({ type: vis ? 'start' : 'stop' });
+                };
+
+                const obs = new MutationObserver(() => {
+                    worker.postMessage({ type: landing.classList.contains('hidden') ? 'stop' : 'start' });
+                });
+                obs.observe(landing, { attributes: true, attributeFilter: ['class'] });
+                if (!landing.classList.contains('hidden')) worker.postMessage({ type: 'start' });
+
+            } else {
+                // --- Fallback: main-thread rendering ---
+                const ctx = canvas.getContext('2d');
+                let w, h, vignette, stars = [], animId = null;
+                let speedMult = 1, speedTarget = 1, running = false;
+                const STAR_COUNT = 300, RADIUS = 16, SPEED_MIN = 0.0005, SPEED_MAX = 0.003;
+
+                // Inline the helpers for fallback (same logic as DRAW_CODE)
+                function spawnStar(fromCenter) {
+                    return { angle: Math.random()*Math.PI*2, depth: fromCenter?0:Math.random(),
+                        speed: SPEED_MIN+Math.random()*(SPEED_MAX-SPEED_MIN),
+                        brightness: 0.4+Math.random()*0.6, hue: 200+Math.random()*40 };
+                }
+                function initStars() { stars=[]; for(let i=0;i<STAR_COUNT;i++) stars.push(spawnStar(false)); }
+                function rebuildVignette() {
+                    vignette=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.max(w,h)*0.6);
+                    vignette.addColorStop(0,'rgba(0,0,0,0.3)'); vignette.addColorStop(0.2,'rgba(0,0,0,0.08)');
+                    vignette.addColorStop(0.4,'rgba(0,0,0,0)'); vignette.addColorStop(1,'rgba(0,0,0,0)');
+                }
+                function resize() {
+                    const rect=canvas.parentElement.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
+                    w=rect.width; h=rect.height; canvas.width=w*dpr; canvas.height=h*dpr;
+                    ctx.setTransform(dpr,0,0,dpr,0,0); rebuildVignette();
+                }
+                function draw() {
+                    if (!running) { animId=null; return; }
+                    const diff=speedTarget-speedMult;
+                    if(Math.abs(diff)>0.02) speedMult+=diff*(diff>0?0.08:0.12); else speedMult=speedTarget;
+                    ctx.clearRect(0,0,w,h); ctx.save();
+                    ctx.beginPath(); ctx.roundRect(0,0,w,h,RADIUS); ctx.clip();
+                    ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+                    const cx=w/2,cy=h/2,maxR=Math.sqrt(cx*cx+cy*cy);
+                    for(let i=0;i<stars.length;i++){
+                        const s=stars[i]; s.depth+=s.speed*speedMult;
+                        if(s.depth>1){stars[i]=spawnStar(true);continue;}
+                        const r=s.depth*maxR,x=cx+Math.cos(s.angle)*r,y=cy+Math.sin(s.angle)*r;
+                        const trail=s.depth*s.speed*speedMult*maxR*4;
+                        const x0=cx+Math.cos(s.angle)*Math.max(0,r-trail),y0=cy+Math.sin(s.angle)*Math.max(0,r-trail);
+                        const alpha=s.brightness*Math.min(1,s.depth*2.5)*(0.3+s.depth*0.7),thickness=0.3+s.depth*2;
+                        ctx.strokeStyle='hsla('+s.hue+',70%,'+(70+s.depth*30)+'%,'+alpha+')';
+                        ctx.lineWidth=thickness; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x,y); ctx.stroke();
+                        if(s.depth>0.6){ctx.fillStyle='hsla('+s.hue+',40%,95%,'+(alpha*0.8)+')';
+                        ctx.beginPath();ctx.arc(x,y,thickness*0.6,0,Math.PI*2);ctx.fill();}
+                    }
+                    ctx.fillStyle=vignette; ctx.fillRect(0,0,w,h); ctx.restore();
+                    animId=requestAnimationFrame(draw);
+                }
+                function start() { if(running)return; resize(); if(!stars.length)initStars(); running=true; draw(); }
+                function stop() { running=false; }
+
+                window._starfieldSetSpeed = function(mult) { speedTarget = mult; };
+                window._starfieldSetVisible = function(vis) { if(vis) start(); else stop(); };
+                const obs = new MutationObserver(() => {
+                    if(landing.classList.contains('hidden')) stop(); else start();
+                });
+                obs.observe(landing, { attributes: true, attributeFilter: ['class'] });
+                window.addEventListener('resize', () => { if(running) resize(); });
+                if (!landing.classList.contains('hidden')) start();
+            }
+        })();
+
         window.__testAPI = {
             get zoomLevel() { return zoomLevel; },
             get fitZoom() { return fitZoom; },
@@ -8703,10 +8982,6 @@
         </div>
     </div>
 
-    <div class="loading-overlay" id="loadingOverlay">
-        <img src="WarpDiff_Logo_v1.png" alt="" class="loading-logo">
-        <span id="loadingStatus">Initializing…</span>
-    </div>
 
     <div class="quick-start-backdrop" id="quickStartBackdrop"></div>
     <div class="quick-start-popup" id="quickStartPopup">
@@ -8750,7 +9025,7 @@
 
             <h3>Analysis</h3>
             <ul>
-                <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode); <kbd>Shift+D</kbd> cycle pairs</li>
+                <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
                 <li><kbd>W</kbd> audio waveform with dB color coding + spectrogram</li>
             </ul>
@@ -8781,7 +9056,7 @@
             <h3>v3.65</h3>
             <ul>
                 <li>Difference mode — press <kbd>D</kbd> in Stack mode to see pixel differences between two assets; identical pixels are black, differences glow</li>
-                <li>Arrow keys cycle through pairs (Source–A, Source–B, A–B) when difference mode is active; <kbd>Shift+D</kbd> also cycles</li>
+                <li>Arrow keys cycle through pairs (Source–A, Source–B, A–B) when difference mode is active</li>
                 <li>Works with images and video — updates live during playback and on frame step</li>
             </ul>
             <h3>v3.6</h3>
