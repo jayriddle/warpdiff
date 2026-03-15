@@ -1,0 +1,318 @@
+// Hotkey system infrastructure — keymap engine, reassignment, panel rendering
+// No app-state dependencies; references globals defined in main <script> block:
+//   _hotkeyActions, _customKeys, _keymap, _reassigningActionId, showToast
+
+// Reserved keys that cannot be reassigned
+const _RESERVED_KEYS = new Set(['Escape', 'Meta', 'Control', 'Alt', 'Shift', 'Tab', 'Enter', 'CapsLock']);
+
+// Display-friendly names for special keys
+const _KEY_DISPLAY = {
+    ' ': 'Space', 'ArrowLeft': '←', 'ArrowRight': '→', 'ArrowUp': '↑', 'ArrowDown': '↓',
+    '+': '+', '-': '−', '=': '=', '_': '_',
+};
+function _keyDisplay(key, shift) {
+    return (shift ? '⇧' : '') + (_KEY_DISPLAY[key] || key.toUpperCase());
+}
+
+// Build keymap: maps key (with shift prefix) → action id
+function _buildKeymap() {
+    _keymap = {};
+    for (const action of _hotkeyActions) {
+        const key = _customKeys[action.id] !== undefined ? _customKeys[action.id] : action.defaultKey;
+        const prefix = action.shift ? 'S+' : '';
+        _keymap[prefix + key] = action.id;
+        // Also register altKey if present and not overridden
+        if (action.altKey && _customKeys[action.id] === undefined) {
+            _keymap[prefix + action.altKey] = action.id;
+        }
+    }
+    // Hidden aliases: unshifted = and _ map to +/- zoom (same physical keys)
+    if (!_keymap['=']) _keymap['='] = 'zoomIn';
+    if (!_keymap['_']) _keymap['_'] = 'zoomOut';
+}
+
+// Get current key for an action (custom or default)
+function _actionKey(actionId) {
+    const action = _hotkeyActions.find(a => a.id === actionId);
+    if (!action) return '';
+    return _customKeys[actionId] !== undefined ? _customKeys[actionId] : action.defaultKey;
+}
+
+// Check if an action has been customised
+function _isCustomised(actionId) {
+    return _customKeys[actionId] !== undefined;
+}
+
+// Reassign a hotkey
+function _reassignKey(actionId, newKey) {
+    const action = _hotkeyActions.find(a => a.id === actionId);
+    if (!action) return false;
+    if (_RESERVED_KEYS.has(newKey)) {
+        showToast('Key "' + _keyDisplay(newKey, false) + '" is reserved');
+        return 'conflict';
+    }
+    // Normalize to lowercase for letter keys
+    if (newKey.length === 1) newKey = newKey.toLowerCase();
+    // Check for conflicts (same key + same shift state)
+    const prefix = action.shift ? 'S+' : '';
+    const conflictId = _keymap[prefix + newKey] || _keymap[prefix + newKey.toLowerCase()];
+    if (conflictId && conflictId !== actionId) {
+        const conflict = _hotkeyActions.find(a => a.id === conflictId);
+        // Show conflict message inline on the reassigning kbd element
+        const activeKbd = document.querySelector('.shortcut-kbd-clickable.reassigning');
+        if (activeKbd) {
+            activeKbd.textContent = _keyDisplay(newKey, action.shift) + ' → ' + conflict.label;
+            activeKbd.classList.add('conflict-flash');
+            setTimeout(() => {
+                activeKbd.classList.remove('conflict-flash');
+                activeKbd.textContent = 'Press a key…';
+            }, 1500);
+        }
+        showToast(_keyDisplay(newKey, action.shift) + ' is already assigned to "' + conflict.label + '"');
+        return 'conflict';
+    }
+    if (newKey === action.defaultKey) {
+        delete _customKeys[actionId]; // revert to default
+    } else {
+        _customKeys[actionId] = newKey;
+    }
+    localStorage.setItem('customHotkeys', JSON.stringify(_customKeys));
+    _buildKeymap();
+    _renderShortcutsList();
+    return true;
+}
+
+// Reset one or all hotkeys
+function _resetHotkey(actionId) {
+    delete _customKeys[actionId];
+    localStorage.setItem('customHotkeys', JSON.stringify(_customKeys));
+    _buildKeymap();
+    _renderShortcutsList();
+}
+function _resetAllHotkeys() {
+    _customKeys = {};
+    localStorage.setItem('customHotkeys', '{}');
+    _buildKeymap();
+    _renderShortcutsList();
+    showToast('All hotkeys reset to defaults');
+}
+
+// ── Panel rendering ──────────────────────────────────────────────
+
+// Panel display: which paired groups to show together, with custom combined labels
+const _pairedLabels = {
+    loupeSize:     'Resize loupe',
+    frameStepping: 'Frame back / forward',
+    zoomInOut:     'Zoom in / out',
+    speed:         'Slower / Faster',
+    loopPoints:    'Loop in / out point',
+};
+
+// Which sections go in which column, with display headers
+const _leftSections = new Set(['files', 'view', 'zoom', 'panels']);
+const _rightSections = new Set(['transport', 'analysis']);
+const _sectionHeaders = {
+    files: 'Files', view: 'View', zoom: 'Zoom',
+    transport: 'Transport', analysis: 'Analysis',
+};
+
+function _renderShortcutsList() {
+    const list = document.querySelector('#shortcutsPanel .shortcuts-list');
+    if (!list) return;
+    list.innerHTML = '';
+    // Remove any previous reset-all row
+    const oldReset = list.parentElement.querySelector('.shortcut-reset-all-row');
+    if (oldReset) oldReset.remove();
+
+    const leftCol = document.createElement('div');
+    leftCol.className = 'shortcuts-col';
+    const rightCol = document.createElement('div');
+    rightCol.className = 'shortcuts-col';
+
+    const renderedPairs = new Set();
+    let lastLeftSection = null;
+    let lastRightSection = null;
+
+    for (const action of _hotkeyActions) {
+        const isLeft = _leftSections.has(action.section);
+        const col = isLeft ? leftCol : rightCol;
+        const lastSection = isLeft ? lastLeftSection : lastRightSection;
+
+        // Section headers
+        if (action.section !== lastSection) {
+            const header = _sectionHeaders[action.section];
+            if (header) {
+                if (lastSection) col.appendChild(document.createElement('hr')).className = 'shortcut-divider';
+                const h = document.createElement('div');
+                h.className = 'shortcut-section-header';
+                h.textContent = header;
+                col.appendChild(h);
+            } else if (lastSection) {
+                col.appendChild(document.createElement('hr')).className = 'shortcut-divider';
+            }
+        }
+        if (isLeft) lastLeftSection = action.section;
+        else lastRightSection = action.section;
+
+        // Handle paired actions (show on one row)
+        if (action.paired) {
+            if (renderedPairs.has(action.paired)) continue;
+            renderedPairs.add(action.paired);
+            col.appendChild(_buildPairedRow(action));
+            // Append Esc Esc row right after loop points
+            if (action.paired === 'loopPoints') {
+                col.appendChild(_buildFixedRow('<kbd>Esc</kbd> <small>2×</small>', 'Clear loop markers'));
+            }
+            continue;
+        }
+
+        col.appendChild(_buildSingleRow(action));
+    }
+
+    // "Escape" row in left column (non-reassignable, same section as panels)
+    leftCol.appendChild(_buildFixedRow('<kbd>Esc</kbd>', 'Dismiss panel'));
+
+    list.appendChild(leftCol);
+    list.appendChild(rightCol);
+
+    // Reset All button (only show if any customised)
+    if (Object.keys(_customKeys).length > 0) {
+        const resetRow = document.createElement('div');
+        resetRow.className = 'shortcut-reset-all-row';
+        const resetBtn = document.createElement('button');
+        resetBtn.className = 'shortcut-reset-all';
+        resetBtn.textContent = 'Reset All to Defaults';
+        resetBtn.addEventListener('click', _resetAllHotkeys);
+        resetRow.appendChild(resetBtn);
+        // Append below the columns
+        list.parentElement.appendChild(resetRow);
+    }
+}
+
+function _buildPairedRow(action) {
+    const partners = _hotkeyActions.filter(a => a.paired === action.paired);
+    const row = document.createElement('div');
+    row.className = 'shortcut-row';
+    if (partners.some(p => p.id === 'fullscreen') && window.matchMedia('(display-mode: standalone)').matches) {
+        row.classList.add('disabled');
+    }
+    const keySpan = document.createElement('span');
+    keySpan.className = 'shortcut-key';
+    partners.forEach((p, idx) => {
+        if (idx > 0) keySpan.appendChild(document.createTextNode(' '));
+        keySpan.appendChild(_buildKbd(p));
+        if (_isCustomised(p.id)) keySpan.appendChild(_buildResetIcon(p));
+        // Show altKey as a secondary kbd if present and not customised
+        if (p.altKey && !_isCustomised(p.id)) {
+            const altKbd = document.createElement('kbd');
+            altKbd.textContent = _keyDisplay(p.altKey, p.shift);
+            altKbd.className = 'shortcut-kbd-clickable';
+            altKbd.title = 'Alternate key (not reassignable)';
+            altKbd.addEventListener('click', () => {
+                altKbd.textContent = 'Not reassignable';
+                altKbd.classList.add('flash-conflict');
+                setTimeout(() => { altKbd.textContent = _keyDisplay(p.altKey, p.shift); altKbd.classList.remove('flash-conflict'); }, 1000);
+            });
+            keySpan.appendChild(altKbd);
+        }
+    });
+    row.appendChild(keySpan);
+    const descSpan = document.createElement('span');
+    descSpan.className = 'shortcut-desc';
+    descSpan.textContent = _pairedLabels[action.paired] || partners.map(p => p.label).join(' / ');
+    row.appendChild(descSpan);
+    return row;
+}
+
+function _buildSingleRow(action) {
+    const row = document.createElement('div');
+    row.className = 'shortcut-row';
+    if (action.id === 'fullscreen' && window.matchMedia('(display-mode: standalone)').matches) {
+        row.classList.add('disabled');
+        row.id = 'shortcutFullscreen';
+    }
+    const keySpan = document.createElement('span');
+    keySpan.className = 'shortcut-key';
+    keySpan.appendChild(_buildKbd(action));
+    if (_isCustomised(action.id)) keySpan.appendChild(_buildResetIcon(action));
+    if (action.altKey && !_isCustomised(action.id)) {
+        const altKbd = document.createElement('kbd');
+        altKbd.textContent = _keyDisplay(action.altKey, action.shift);
+        altKbd.className = 'shortcut-kbd-clickable';
+        altKbd.title = 'Alternate key (not reassignable)';
+        altKbd.addEventListener('click', () => {
+            altKbd.textContent = 'Not reassignable';
+            altKbd.classList.add('conflict-flash');
+            setTimeout(() => { altKbd.textContent = _keyDisplay(action.altKey, action.shift); altKbd.classList.remove('conflict-flash'); }, 1000);
+        });
+        keySpan.appendChild(altKbd);
+    }
+    row.appendChild(keySpan);
+    const descSpan = document.createElement('span');
+    descSpan.className = 'shortcut-desc';
+    descSpan.textContent = action.label;
+    if (action.id === 'fullscreen' && window.matchMedia('(display-mode: standalone)').matches) {
+        descSpan.innerHTML = 'Browser fullscreen <span class="shortcut-note">(N/A in app mode)</span>';
+    }
+    row.appendChild(descSpan);
+    return row;
+}
+
+function _buildKbd(action) {
+    const kbd = document.createElement('kbd');
+    kbd.textContent = _reassigningActionId === action.id ? 'Press a key…' : _keyDisplay(_actionKey(action.id), action.shift);
+    kbd.className = 'shortcut-kbd-clickable' + (_reassigningActionId === action.id ? ' reassigning' : '') + (_isCustomised(action.id) ? ' customised' : '');
+    kbd.title = 'Click to reassign';
+    kbd.dataset.actionId = action.id;
+    kbd.addEventListener('click', _startReassign);
+    return kbd;
+}
+
+function _buildResetIcon(action) {
+    const rst = document.createElement('span');
+    rst.className = 'shortcut-reset';
+    rst.textContent = '↺';
+    rst.title = 'Reset to default (' + _keyDisplay(action.defaultKey, action.shift) + ')';
+    rst.addEventListener('click', (ev) => { ev.stopPropagation(); _resetHotkey(action.id); });
+    return rst;
+}
+
+function _buildFixedRow(keyHtml, label) {
+    const row = document.createElement('div');
+    row.className = 'shortcut-row';
+    const keySpan = document.createElement('span');
+    keySpan.className = 'shortcut-key';
+    keySpan.innerHTML = keyHtml;
+    // Flash "not reassignable" on click
+    keySpan.querySelectorAll('kbd').forEach(kbd => {
+        kbd.className = 'shortcut-kbd-clickable';
+        kbd.style.cursor = 'pointer';
+        kbd.addEventListener('click', () => {
+            kbd.textContent = 'Not reassignable';
+            kbd.classList.add('conflict-flash');
+            setTimeout(() => {
+                kbd.classList.remove('conflict-flash');
+                kbd.textContent = 'Esc';
+            }, 1200);
+        });
+    });
+    row.appendChild(keySpan);
+    const descSpan = document.createElement('span');
+    descSpan.className = 'shortcut-desc';
+    descSpan.textContent = label;
+    row.appendChild(descSpan);
+    return row;
+}
+
+function _startReassign(ev) {
+    ev.stopPropagation();
+    const actionId = ev.currentTarget.dataset.actionId;
+    if (_reassigningActionId === actionId) {
+        // Cancel reassignment on second click
+        _reassigningActionId = null;
+        _renderShortcutsList();
+        return;
+    }
+    _reassigningActionId = actionId;
+    _renderShortcutsList();
+}
