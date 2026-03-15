@@ -1,0 +1,318 @@
+// Audio visualization primitives — waveform/spectrogram computation and rendering
+// Extracted from index.html; no app-state dependencies.
+
+// Minimal radix-2 FFT (in-place, complex interleaved)
+function fft(re, im) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) {
+            let tmp = re[i]; re[i] = re[j]; re[j] = tmp;
+            tmp = im[i]; im[i] = im[j]; im[j] = tmp;
+        }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+        const half = len >> 1;
+        const angle = -2 * Math.PI / len;
+        const wRe = Math.cos(angle), wIm = Math.sin(angle);
+        for (let i = 0; i < n; i += len) {
+            let curRe = 1, curIm = 0;
+            for (let j = 0; j < half; j++) {
+                const a = i + j, b = a + half;
+                const tRe = curRe * re[b] - curIm * im[b];
+                const tIm = curRe * im[b] + curIm * re[b];
+                re[b] = re[a] - tRe; im[b] = im[a] - tIm;
+                re[a] += tRe;        im[a] += tIm;
+                const nextRe = curRe * wRe - curIm * wIm;
+                curIm = curRe * wIm + curIm * wRe;
+                curRe = nextRe;
+            }
+        }
+    }
+}
+
+// Spectrogram color palettes (256 entries each)
+function buildPalette(fn) {
+    const p = new Array(256);
+    for (let i = 0; i < 256; i++) p[i] = fn(i / 255);
+    return p;
+}
+
+const spectrogramPalettes = {
+    viridis: buildPalette(t => [
+        Math.round(255 * Math.min(1, Math.max(0, -0.85 + 3.2 * t - 1.6 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, -0.1 + 1.4 * t - 0.3 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, 0.55 + 1.5 * t - 3.0 * t * t)))
+    ]),
+    magma: buildPalette(t => [
+        Math.round(255 * Math.min(1, Math.max(0, -0.2 + 3.6 * t - 2.8 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, -0.4 + 1.2 * t + 0.5 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, 0.1 + 2.0 * t - 2.5 * t * t)))
+    ]),
+    inferno: buildPalette(t => [
+        Math.round(255 * Math.min(1, Math.max(0, -0.1 + 3.2 * t - 2.2 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, -0.6 + 1.8 * t - 0.2 * t * t))),
+        Math.round(255 * Math.min(1, Math.max(0, 0.3 + 1.0 * t - 2.5 * t * t)))
+    ]),
+    grayscale: buildPalette(t => {
+        const v = Math.round(255 * t);
+        return [v, v, v];
+    }),
+    heat: buildPalette(t => [
+        Math.round(255 * Math.min(1, t * 2.5)),
+        Math.round(255 * Math.min(1, Math.max(0, (t - 0.4) * 2.5))),
+        Math.round(255 * Math.min(1, Math.max(0, (t - 0.75) * 4)))
+    ])
+};
+
+const paletteNames = Object.keys(spectrogramPalettes);
+
+// --- Waveform computation ---
+
+function computeWaveformChannel(channelData, numBuckets) {
+    const samplesPerBucket = Math.floor(channelData.length / numBuckets);
+    const result = new Float32Array(numBuckets * 2);
+    for (let i = 0; i < numBuckets; i++) {
+        let min = 1, max = -1;
+        const start = i * samplesPerBucket;
+        const end = Math.min(start + samplesPerBucket, channelData.length);
+        for (let j = start; j < end; j++) {
+            if (channelData[j] < min) min = channelData[j];
+            if (channelData[j] > max) max = channelData[j];
+        }
+        result[i * 2] = min;
+        result[i * 2 + 1] = max;
+    }
+    return result;
+}
+
+function computeWaveformData(audioBuffer, numBuckets) {
+    const L = computeWaveformChannel(audioBuffer.getChannelData(0), numBuckets);
+    const R = audioBuffer.numberOfChannels > 1
+        ? computeWaveformChannel(audioBuffer.getChannelData(1), numBuckets)
+        : null;
+    return { L, R };
+}
+
+// --- Spectrogram computation ---
+
+function runSTFT(channelData, fftSize, hop) {
+    const numFrames = Math.floor((channelData.length - fftSize) / hop) + 1;
+    if (numFrames <= 0) return null;
+
+    const win = new Float32Array(fftSize);
+    for (let i = 0; i < fftSize; i++) win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+
+    const halfBins = fftSize / 2;
+    const frames = new Array(numFrames);
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+
+    for (let f = 0; f < numFrames; f++) {
+        const offset = f * hop;
+        for (let i = 0; i < fftSize; i++) {
+            re[i] = (offset + i < channelData.length ? channelData[offset + i] : 0) * win[i];
+            im[i] = 0;
+        }
+        fft(re, im);
+        const magnitudes = new Uint8Array(halfBins);
+        for (let i = 0; i < halfBins; i++) {
+            const mag = Math.sqrt(re[i] * re[i] + im[i] * im[i]) / halfBins;
+            const db = 20 * Math.log10(Math.max(mag, 1e-10));
+            magnitudes[i] = Math.round(Math.max(0, Math.min(255, ((db + 100) / 100) * 255)));
+        }
+        frames[f] = magnitudes;
+    }
+
+    return { frames, halfBins };
+}
+
+function computeSpectrogramChannel(channelData, sampleRate) {
+    const hop = 128;
+    const loFFT = 8192;
+    const hiFFT = 2048;
+    const crossoverLoHz = 500;
+    const crossoverHiHz = 2000;
+
+    const lo = runSTFT(channelData, loFFT, hop);
+    const hi = runSTFT(channelData, hiFFT, hop);
+    if (!lo || !hi) return lo ? { frames: lo.frames, fftSize: loFFT } : null;
+
+    const outBins = loFFT / 2;
+    const binResLo = sampleRate / loFFT;
+    const binResHi = sampleRate / hiFFT;
+    const blendLoBin = Math.round(crossoverLoHz / binResLo);
+    const blendHiBin = Math.round(crossoverHiHz / binResLo);
+    const blendRange = blendHiBin - blendLoBin;
+
+    const loFrames = lo.frames;
+    const hiFrames = hi.frames;
+    const numFrames = loFrames.length;
+
+    const frames = new Array(numFrames);
+    for (let f = 0; f < numFrames; f++) {
+        const merged = new Uint8Array(outBins);
+        const loFrame = loFrames[f];
+        const hiIdx = Math.min(hiFrames.length - 1, Math.round(f * (hiFrames.length - 1) / (numFrames - 1 || 1)));
+        const hiFrame = hiFrames[hiIdx];
+
+        for (let b = 0; b < blendLoBin && b < outBins; b++) {
+            merged[b] = loFrame[b];
+        }
+        for (let b = blendLoBin; b < blendHiBin && b < outBins; b++) {
+            const t = (b - blendLoBin) / blendRange;
+            const freq = b * binResLo;
+            const hiBin = Math.min(hi.halfBins - 1, Math.round(freq / binResHi));
+            merged[b] = Math.round(loFrame[b] * (1 - t) + hiFrame[hiBin] * t);
+        }
+        for (let b = blendHiBin; b < outBins; b++) {
+            const freq = b * binResLo;
+            const hiBin = Math.min(hi.halfBins - 1, Math.round(freq / binResHi));
+            merged[b] = hiFrame[hiBin];
+        }
+        frames[f] = merged;
+    }
+    lo.frames = null;
+    hi.frames = null;
+
+    return { frames, fftSize: loFFT };
+}
+
+function computeSpectrogramData(audioBuffer) {
+    const sr = audioBuffer.sampleRate;
+    const L = computeSpectrogramChannel(audioBuffer.getChannelData(0), sr);
+    const R = audioBuffer.numberOfChannels > 1
+        ? computeSpectrogramChannel(audioBuffer.getChannelData(1), sr)
+        : null;
+    return { L, R, sampleRate: sr, duration: audioBuffer.duration };
+}
+
+// --- Waveform rendering ---
+
+const WAVEFORM_DB_CLIP = 0.99;
+const WAVEFORM_DB_1  = 0.891;
+const WAVEFORM_DB_6  = 0.501;
+const WAVEFORM_DB_12 = 0.251;
+
+const WAVEFORM_ZONES = [
+    { threshold: WAVEFORM_DB_CLIP, color: 'rgba(255, 50, 50, 1)' },
+    { threshold: WAVEFORM_DB_1,    color: 'rgba(255, 80, 60, 1)' },
+    { threshold: WAVEFORM_DB_6,    color: 'rgba(255, 200, 60, 1)' },
+    { threshold: 0,               color: null },
+];
+
+const WAVEFORM_DB_LEVELS = [
+    { db: -1,  amp: WAVEFORM_DB_1 },
+    { db: -6,  amp: WAVEFORM_DB_6 },
+    { db: -12, amp: WAVEFORM_DB_12 },
+    { db: -24, amp: 0.063 },
+];
+
+function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH) {
+    const numBuckets = data.length / 2;
+    if (numBuckets === 0) return;
+    const midY = topY + fullH / 2;
+    const halfH = fullH / 2;
+    const bucketW = drawW / numBuckets;
+
+    const minSpread = 1 / halfH;
+    const path = new Path2D();
+    let mn = data[0], mx = data[1];
+    if (mx - mn < minSpread) { mx += minSpread / 2; mn -= minSpread / 2; }
+    path.moveTo(0, midY - mx * halfH);
+    for (let i = 1; i < numBuckets; i++) {
+        mn = data[i * 2]; mx = data[i * 2 + 1];
+        if (mx - mn < minSpread) { mx += minSpread / 2; mn -= minSpread / 2; }
+        path.lineTo(i * bucketW, midY - mx * halfH);
+    }
+    for (let i = numBuckets - 1; i >= 0; i--) {
+        mn = data[i * 2]; mx = data[i * 2 + 1];
+        if (mx - mn < minSpread) { mn -= minSpread / 2; }
+        path.lineTo(i * bucketW, midY - mn * halfH);
+    }
+    path.closePath();
+
+    const grad = ctx.createLinearGradient(0, topY, 0, topY + fullH);
+    grad.addColorStop(0.0, 'rgba(30, 130, 30, 1)');
+    grad.addColorStop(0.5, 'rgba(100, 230, 100, 1)');
+    grad.addColorStop(1.0, 'rgba(30, 130, 30, 1)');
+    ctx.fillStyle = grad;
+    ctx.fill(path);
+
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(100, 230, 100, 0.35)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke(path);
+
+    for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
+        const zone = WAVEFORM_ZONES[z];
+        const t = zone.threshold;
+        const bandTopPos = midY - halfH;
+        const bandBotPos = midY - t * halfH;
+        const bandTopNeg = midY + t * halfH;
+        const bandBotNeg = midY + halfH;
+
+        ctx.save();
+        ctx.clip(path);
+        ctx.fillStyle = zone.color;
+        ctx.fillRect(0, bandTopPos, drawW, bandBotPos - bandTopPos);
+        ctx.fillRect(0, bandTopNeg, drawW, bandBotNeg - bandTopNeg);
+        ctx.restore();
+    }
+}
+
+function drawWaveformDbGrid(ctx, w, topY, halfH) {
+    const midY = topY + halfH;
+    for (const { amp } of WAVEFORM_DB_LEVELS) {
+        const yOff = amp * halfH;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(0, midY - yOff);
+        ctx.lineTo(w, midY - yOff);
+        ctx.moveTo(0, midY + yOff);
+        ctx.lineTo(w, midY + yOff);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+// --- Spectrogram rendering ---
+
+function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH, sampleRate, palette, logScale) {
+    const numFrames = frames.length;
+    const nyquist = sampleRate / 2;
+    const fMin = 20;
+    const logMin = Math.log(fMin);
+    const logMax = Math.log(nyquist);
+    const logRange = logMax - logMin;
+
+    for (let x = 0; x < canvasW; x++) {
+        const frameIdx = Math.min(numFrames - 1, Math.floor((x / canvasW) * numFrames));
+        const frame = frames[frameIdx];
+        for (let dy = 0; dy < regionH; dy++) {
+            const y = startY + dy;
+            const t = (regionH - 1 - dy) / regionH;
+            let binF;
+            if (logScale) {
+                const freq = Math.exp(logMin + t * logRange);
+                binF = freq / nyquist * numBins;
+            } else {
+                binF = t * numBins;
+            }
+            const b0 = Math.max(0, Math.min(numBins - 1, Math.floor(binF)));
+            const b1 = Math.min(numBins - 1, b0 + 1);
+            const frac = binF - b0;
+            const val = Math.round(frame[b0] * (1 - frac) + frame[b1] * frac);
+            const [r, g, b] = palette[val];
+            const idx = (y * canvasW + x) * 4;
+            pixels[idx] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+            pixels[idx + 3] = 255;
+        }
+    }
+}
