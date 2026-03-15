@@ -69,6 +69,10 @@
         .position-toggle:focus {
             outline: none;
         }
+        .position-toggle:focus-visible {
+            outline: 2px solid #f0a030;
+            outline-offset: 2px;
+        }
 
         .help-tooltip {
             position: absolute;
@@ -3515,6 +3519,7 @@
                 });
             }).catch(err => {
                 console.error('Audio decode error for slot ' + slot + ':', err);
+                showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);
             });
         }
 
@@ -3756,10 +3761,20 @@
             const isVideo = file.type.startsWith('video/');
             const isAudio = file.type.startsWith('audio/');
 
+            // Revoke any existing blob URL for this slot to prevent leaks
+            if (mediaData[slot] && mediaData[slot].src && mediaData[slot].src.startsWith('blob:')) {
+                URL.revokeObjectURL(mediaData[slot].src);
+                _blobUrls = _blobUrls.filter(u => u !== mediaData[slot].src);
+            }
+
             // Audio files: read as ArrayBuffer, create hidden <audio> for playback,
             // create canvas for waveform+spectrogram rendering.
             if (isAudio) {
                 const reader = new FileReader();
+                reader.onerror = function() {
+                    showLoadToast(`Failed to read ${file.name}`, true, 5000);
+                    checkAllLoaded();
+                };
                 reader.onload = function(e) {
                     const arrayBuffer = e.target.result;
                     const blob = new Blob([arrayBuffer], { type: file.type });
@@ -3929,7 +3944,10 @@
             }
 
             const reader = new FileReader();
-
+            reader.onerror = function() {
+                showLoadToast(`Failed to read ${file.name}`, true, 5000);
+                checkAllLoaded();
+            };
             reader.onload = function(e) {
                 const dataUrl = e.target.result;
 
