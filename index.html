@@ -2429,7 +2429,7 @@
         let splitZoomLevel = null; // null = fit-to-panel; 1 = cap at 100% actual pixels (compare modes)
         let splitStepZoom = 1.0; // multiplicative zoom for split modes (1.0 = no extra zoom)
         let _gridZoomWasCapped = false; // set by offset pre-pass; read by '1' key handler
-        let timecodeMode = 'time'; // 'time' or 'frames'
+        let timecodeMode = 'time'; // 'time', 'frames', or 'seconds'
         let videoFrameRates = {}; // Store framerate for each video
 
         // Audio visualization state
@@ -4422,29 +4422,38 @@
             const fps = videoFrameRates[video.src] || 30;
             if (timecodeMode === 'frames') {
                 const totalFrames = Math.floor(duration * fps + 0.01);
-                const currentFrame = Math.min(Math.floor(currentTime * fps + 0.01), totalFrames);
-                _elTimecode.textContent = `Frame ${currentFrame}`;
+                const currentFrame = Math.min(Math.floor(currentTime * fps + 0.01), totalFrames - 1);
+                _elTimecode.textContent = `Frame ${currentFrame + 1}`;
                 _elDuration.textContent = `${totalFrames}`;
+            } else if (timecodeMode === 'seconds') {
+                // Centiseconds mode: S.cc / M:SS.cc
+                const fmtCs = (t, showMin) => {
+                    const m = Math.floor(t / 60);
+                    const s = Math.floor(t % 60);
+                    const cs = Math.floor((t % 1) * 100);
+                    return showMin ? `${m}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`
+                                   : `${s}.${cs.toString().padStart(2, '0')}`;
+                };
+                const showMin = duration >= 60;
+                const durStr = fmtCs(duration, showMin);
+                // At the end, display duration values directly to avoid floating-point mismatch
+                const atEnd = duration - currentTime < 0.5 / fps;
+                _elTimecode.textContent = atEnd ? durStr : fmtCs(Math.min(currentTime, duration), showMin);
+                _elDuration.textContent = durStr;
             } else {
-                // Time mode: adaptive "15:22" or "2:35:18" (show minutes only when duration >= 60s)
-                const clampedTime = Math.min(currentTime, duration);
-                const totalMinutes = Math.floor(duration / 60);
-                const totalSeconds = Math.floor(duration % 60);
-                const totalFramesD = Math.floor((duration % 1) * fps);
-                const currentMinutes = Math.floor(clampedTime / 60);
-                const currentSeconds = Math.floor(clampedTime % 60);
-                const currentFrames = Math.min(Math.floor((clampedTime % 1) * fps + 0.01) % Math.floor(fps + 0.01), totalFramesD);
-                if (totalMinutes > 0) {
-                    _elTimecode.textContent =
-                        `${currentMinutes}:${currentSeconds.toString().padStart(2, '0')}:${currentFrames.toString().padStart(2, '0')}`;
-                    _elDuration.textContent =
-                        `${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}:${totalFramesD.toString().padStart(2, '0')}`;
-                } else {
-                    _elTimecode.textContent =
-                        `${currentSeconds}:${currentFrames.toString().padStart(2, '0')}`;
-                    _elDuration.textContent =
-                        `${totalSeconds}:${totalFramesD.toString().padStart(2, '0')}`;
-                }
+                // Time mode: adaptive "SS:FF" or "M:SS:FF" (show minutes when duration >= 60s)
+                const fmtTc = (t, showMin) => {
+                    const m = Math.floor(t / 60);
+                    const s = Math.floor(t % 60);
+                    const f = Math.floor((t % 1) * fps + 0.01) % Math.floor(fps + 0.01);
+                    return showMin ? `${m}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`
+                                   : `${s}:${f.toString().padStart(2, '0')}`;
+                };
+                const showMin = duration >= 60;
+                const durStr = fmtTc(duration, showMin);
+                const atEnd = duration - currentTime < 0.5 / fps;
+                _elTimecode.textContent = atEnd ? durStr : fmtTc(Math.min(currentTime, duration), showMin);
+                _elDuration.textContent = durStr;
             }
         }
 
@@ -4469,7 +4478,7 @@
         }
 
         function toggleTimecodeMode() {
-            timecodeMode = timecodeMode === 'time' ? 'frames' : 'time';
+            timecodeMode = timecodeMode === 'time' ? 'frames' : timecodeMode === 'frames' ? 'seconds' : 'time';
             // Update display immediately
             const activeLayer = document.querySelector('.asset-layer.active');
             if (activeLayer) {
