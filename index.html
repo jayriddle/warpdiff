@@ -2044,12 +2044,9 @@
         }
 
         // ── In/Out loop markers ──
-        // Disable native .loop on all media when custom loop points are active,
-        // re-enable when cleared. Prevents native loop restart at 0:00 conflicting
-        // with RAF-based loop-point enforcement.
-        function setNativeLoop(enabled) {
-            getAllPlayableMedia().forEach(m => { m.loop = enabled; });
-        }
+        // Native .loop is always false — coordinated looping handled in rAF updateLoop.
+        // setNativeLoop kept as no-op for any remaining call sites.
+        function setNativeLoop(enabled) { /* no-op */ }
 
         function setLoopPoint(type) {
             const media = getAllPlayableMedia()[0];
@@ -2089,7 +2086,6 @@
         function clearLoopMarkers(silent) {
             _loopInPoint = null;
             _loopOutPoint = null;
-            setNativeLoop(true);
             updateLoopMarkerUI();
             // Reset progress bar to normal mode
             getProgressEls();
@@ -3290,7 +3286,7 @@
         }
         function playAllMedia() {
             _bulkSyncActive = true;
-            getAllPlayableMedia().forEach(m => { m.loop = true; m.play().catch(() => {}); });
+            getAllPlayableMedia().forEach(m => { m.loop = false; m.play().catch(() => {}); });
             startProgressUpdateLoop();
             _updatePlayPauseBtn(true);
             setTimeout(() => { _bulkSyncActive = false; }, 50);
@@ -3316,6 +3312,9 @@
 
             audio.addEventListener('pause', function() {
                 if (isDragging || _bulkSyncActive) return;
+                // Don't propagate pause when audio ended naturally — coordinated
+                // looping in rAF updateLoop handles restart of all media together.
+                if (audio.ended) return;
                 syncMedia(audio, a => { if (!a.paused) a.pause(); });
             });
 
@@ -3905,7 +3904,7 @@
                 const audio = document.createElement('audio');
                 audio.src = blobUrl;
                 audio.controls = false;
-                audio.loop = true;
+                audio.loop = false;
                 audio.volume = _prefs.load('volume', 100) / 100;
                 audio.style.display = 'none';
                 mediaContainer.appendChild(audio);
@@ -4218,12 +4217,34 @@
                             }
                         }
                     }
+                    // Dim shorter videos that have ended while primary is still playing
+                    if (_loopInPoint === null || _loopOutPoint === null) {
+                        const all = getAllPlayableMedia();
+                        for (const m of all) {
+                            if (m === primary) continue;
+                            const layer = m.closest('.asset-layer');
+                            if (layer) layer.style.opacity = m.ended ? '0.7' : '';
+                        }
+                    }
                     if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
                     if (!hasAudios && videoScopesVisible) updateVideoScopes();
                     if (!hasAudios && _diffMode) drawDiffComposite();
                     globalAnimationId = requestAnimationFrame(updateLoop);
+                } else if (primary && primary.ended) {
+                    // Primary ended — restart all media from the top (coordinated looping).
+                    // This keeps A/B comparison in sync: the loop restarts when the video
+                    // you're watching ends, not when the longest video ends.
+                    updateMediaProgress(primary);
+                    const all = getAllPlayableMedia();
+                    for (const m of all) {
+                        m.currentTime = 0;
+                        const layer = m.closest('.asset-layer');
+                        if (layer) layer.style.opacity = '';
+                        m.play().catch(() => {});
+                    }
+                    globalAnimationId = requestAnimationFrame(updateLoop);
                 } else {
-                    // Final update so progress bar reaches 100% when video ends
+                    // User paused or no primary — stop loop
                     if (primary) updateMediaProgress(primary);
                     globalAnimationId = null;
                 }
@@ -4239,82 +4260,60 @@
             }
         }
 
-        // Serial fps detection queue — samples one video at a time to prevent
-        // play/pause sync from triggering on other videos during sampling.
-        const fpsDetectionQueue = [];
+        // Passive fps detection — collects frame timestamps during normal playback
+        // instead of playing each video at load time. Defaults to 30fps until detected.
+        const _FPS_STANDARD_RATES = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
+        const _FPS_SAMPLE_COUNT = 10;
 
-        function drainFpsQueue() {
-            if (fpsDetectionQueue.length === 0) return;
-            const { video, slot } = fpsDetectionQueue[0];
-
-            const SAMPLE_COUNT = 10;
-            const standardRates = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
-
-            function finalize(snapped) {
-                videoFrameRates[video.src] = snapped;
-                updateAssetInfoBar(slot, { fps: `${snapped} fps` });
-                updateDurationDisplay(slot, video.duration, snapped);
-                fpsDetectionQueue.shift();
-                drainFpsQueue(); // process next in queue
-                // If view activation was deferred waiting for fps, trigger it now
-                if (fpsDetectionQueue.length === 0 && pendingViewActivation) {
-                    pendingViewActivation = false;
-                    checkAllLoaded();
-                }
-            }
-
+        function _setupFpsDetection(video, slot) {
             if (typeof video.requestVideoFrameCallback !== 'function') {
-                finalize(30);
+                videoFrameRates[video.src] = 30;
+                updateAssetInfoBar(slot, { fps: '30 fps' });
+                updateDurationDisplay(slot, video.duration, 30);
                 return;
             }
-
+            // Mark as pending — will be detected on first playback
+            videoFrameRates[video.src] = 30; // default until detected
             const timestamps = [];
-            // Suppress sync handlers during sampling playback
-            video._samplingFps = true;
-            const prevMuted = video.muted;
-            video.muted = true;
+            let detecting = false;
 
             function onFrame(now, metadata) {
+                if (video.paused || video.ended) { detecting = false; return; }
                 timestamps.push(metadata.mediaTime);
-                if (timestamps.length <= SAMPLE_COUNT) {
+                if (timestamps.length <= _FPS_SAMPLE_COUNT) {
                     video.requestVideoFrameCallback(onFrame);
                 } else {
-                    // Done sampling — compute fps
-                    let total = 0;
-                    for (let i = 1; i < timestamps.length; i++) total += timestamps[i] - timestamps[i - 1];
-                    const rawFps = 1 / (total / SAMPLE_COUNT);
-                    const snapped = standardRates.reduce((a, b) =>
+                    // Compute fps from total span
+                    const span = timestamps[timestamps.length - 1] - timestamps[0];
+                    const rawFps = (timestamps.length - 1) / span;
+                    const snapped = _FPS_STANDARD_RATES.reduce((a, b) =>
                         Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a);
-
-                    video._samplingFps = false;
-                    video.pause();
-                    video.currentTime = 0;
-                    video.muted = prevMuted;
-                    finalize(snapped);
+                    videoFrameRates[video.src] = snapped;
+                    updateAssetInfoBar(slot, { fps: `${snapped} fps` });
+                    updateDurationDisplay(slot, video.duration, snapped);
+                    detecting = false;
                 }
             }
 
-            video.play().then(() => {
+            video.addEventListener('play', function startDetect() {
+                // Only detect once
+                if (videoFrameRates[video.src] !== 30 || detecting) return;
+                if (timestamps.length > _FPS_SAMPLE_COUNT) return;
+                detecting = true;
+                timestamps.length = 0;
                 video.requestVideoFrameCallback(onFrame);
-            }).catch(() => {
-                video._samplingFps = false;
-                video.muted = prevMuted;
-                finalize(30);
             });
         }
 
         function setupVideoHandlers(video, slot) {
-            // Enable native looping
-            video.loop = true;
+            // No native looping — coordinated looping handled in rAF updateLoop
+            video.loop = false;
 
-            // Queue fps sampling so only one video samples at a time,
-            // preventing play/pause sync from interfering across videos.
-            fpsDetectionQueue.push({ video, slot });
-            if (fpsDetectionQueue.length === 1) drainFpsQueue();
-            
+            // Passive fps detection — detects during first normal playback
+            _setupFpsDetection(video, slot);
+
             video.addEventListener('play', function() {
-                // Suppress sync while any video is being sampled for fps
-                if (fpsDetectionQueue.length > 0 || _bulkSyncActive) return;
+                if (_bulkSyncActive) return;
                 // Sync all videos when any video plays
                 syncVideos(video, v => {
                     v.play().catch(() => {});
@@ -4328,8 +4327,10 @@
             });
 
             video.addEventListener('pause', function() {
-                // Suppress sync while any video is being sampled for fps
-                if (fpsDetectionQueue.length > 0 || _bulkSyncActive) return;
+                if (_bulkSyncActive) return;
+                // Don't propagate pause when video ended naturally — coordinated
+                // looping in rAF updateLoop handles restart of all media together.
+                if (video.ended) return;
                 // Sync pause to all other videos
                 syncVideos(video, v => { if (!v.paused) v.pause(); });
             });
@@ -4653,17 +4654,17 @@
                 const rect = _scrubContainerRect;
                 const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
 
-                // Update bar immediately so it tracks the cursor
-                getProgressEls();
-                if (_elProgressBar) {
-                    const seekDurEst = hasAudios ? (_audioMaxDuration || 1) : (_scrubVideo?.duration || 1);
-                    updateProgressBarForLoop(pct * seekDurEst, seekDurEst);
-                }
-
                 const video = _scrubVideo;
                 if (!video || isNaN(video.duration)) return;
 
                 const seekDur = hasAudios ? (_audioMaxDuration || video.duration) : video.duration;
+
+                // Update bar immediately so it tracks the cursor
+                getProgressEls();
+                if (_elProgressBar) {
+                    updateProgressBarForLoop(pct * seekDur, seekDur);
+                }
+
                 // Clamp to half a frame before end so loop can't wrap to 0
                 const fps = videoFrameRates[video.src] || 30;
                 const endGuard = 0.5 / fps; // half a frame
@@ -4776,10 +4777,6 @@
                     wasPlaying = !_scrubVideo.paused;
                     if (wasPlaying) pauseAllMedia();
                 }
-                // Disable loop during scrub so seeking near the end can't wrap to 0.
-                // Loop is restored by playAllMedia() when playback resumes.
-                if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
-
                 if (e.shiftKey) {
                     _regionSelectStart = canvasXToTime(e, canvas);
                 } else {
@@ -4812,10 +4809,6 @@
                     wasPlaying = !_scrubVideo.paused;
                     if (wasPlaying) pauseAllMedia();
                 }
-                // Disable loop during scrub so seeking near the end can't wrap to 0.
-                // Loop is restored by playAllMedia() when playback resumes.
-                if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
-
                 if (e.shiftKey) {
                     _regionSelectStart = progressBarXToTime(e);
                 } else {
@@ -5228,10 +5221,9 @@
             if (_elTimecode) _elTimecode.textContent = '0:00';
             if (_elDuration) _elDuration.textContent = '0:00';
 
-            // Reset timecode display mode, stale fps cache, and sampling queue
+            // Reset timecode display mode and stale fps cache
             timecodeMode = 'time';
             videoFrameRates = {};
-            fpsDetectionQueue.length = 0;
 
             // Clean up audio visualization state
             audioNodes = {};
@@ -5267,7 +5259,6 @@
             document.body.classList.remove('fullscreen', 'single-asset', ...splitModeClasses);
             isGridMode = false;
             viewActivating = false;
-            pendingViewActivation = false;
             layoutMode = 'horizontal';
 
             // Restore all layers to visible for next load
@@ -5407,7 +5398,6 @@
 
         let isGridMode = false;
         let viewActivating = false;    // true while checkAllLoaded() activation is in progress for current load batch
-        let pendingViewActivation = false; // true when fps queue is still draining at the time checkAllLoaded() first completes
         let layoutMode = 'horizontal'; // 'horizontal' or 'vertical'
         let _ihwaMode = false; // true when assets loaded from IHWA
         let _taskType = null;  // IHWA task type: 'image-editing', 'image-generation', 'video-editing', 'video-generation', 'audio', or null
@@ -6527,13 +6517,6 @@
             });
             if (!allDimensionsReady) {
                 requestAnimationFrame(checkAllLoaded);
-                return;
-            }
-
-            // If fps detection is still running, defer view activation until the
-            // queue drains. finalize() will call checkAllLoaded() when it's done.
-            if (fpsDetectionQueue.length > 0) {
-                pendingViewActivation = true;
                 return;
             }
 
