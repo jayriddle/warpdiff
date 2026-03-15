@@ -1820,17 +1820,17 @@
                     <div class="audio-viz-row">
                         <div class="audio-viz-label"><span id="histogramLabel">RGB (log)</span></div>
                         <div class="audio-viz-canvas-wrap">
-                            <canvas id="histogramCanvas"></canvas>
+                            <canvas id="histogramCanvas" role="button" tabindex="0" aria-label="Histogram — click or press Enter to cycle mode"></canvas>
                         </div>
                     </div>
                     <div class="audio-viz-row">
                         <div class="audio-viz-label"><span>100</span><span>0</span></div>
                         <div class="audio-viz-canvas-wrap">
-                            <canvas id="waveformMonitorCanvas"></canvas>
+                            <canvas id="waveformMonitorCanvas" role="button" tabindex="0" aria-label="Waveform monitor — click or press Enter to cycle mode"></canvas>
                         </div>
                     </div>
                     <div class="vectorscope-col">
-                        <canvas id="vectorscopeCanvas"></canvas>
+                        <canvas id="vectorscopeCanvas" role="img" aria-label="Vectorscope"></canvas>
                     </div>
                 </div>
             </div>
@@ -1838,7 +1838,7 @@
                 <div class="audio-viz-row waveform-row">
                     <div class="audio-viz-label" id="waveformLabels"><span>L</span><span>R</span></div>
                     <div class="audio-viz-canvas-wrap">
-                        <canvas id="panelWaveformCanvas"></canvas>
+                        <canvas id="panelWaveformCanvas" role="img" aria-label="Audio waveform"></canvas>
                         <div class="spectrogram-cursor" id="waveformCursor"></div>
                     </div>
                     <div class="audio-viz-right"></div>
@@ -1852,7 +1852,7 @@
                         <span>100</span>
                     </div>
                     <div class="audio-viz-canvas-wrap">
-                        <canvas id="spectrogramCanvas"></canvas>
+                        <canvas id="spectrogramCanvas" role="img" aria-label="Audio spectrogram"></canvas>
                         <div class="spectrogram-cursor" id="spectrogramCursor"></div>
                     </div>
                     <div class="spectrogram-toggles">
@@ -1864,7 +1864,7 @@
             <div class="video-controls-row">
                 <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
                 <span class="video-timecode" id="videoTimecode" onclick="toggleTimecodeMode()" title="Click to toggle time/frame display">0:00</span>
-                <div class="video-progress-container" id="videoProgressContainer">
+                <div class="video-progress-container" id="videoProgressContainer" role="slider" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="video-progress-bar" id="videoProgressBar"></div>
                 </div>
                 <span class="video-duration" id="videoDuration">0:00</span>
@@ -3185,7 +3185,10 @@
             animateRelayout(350);
         }
 
-        // Scope click-to-cycle handlers
+        // Scope click-to-cycle handlers (also keyboard-accessible via Enter/Space)
+        function _cycleOnKeyboard(e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.target.click(); }
+        }
         document.addEventListener('DOMContentLoaded', () => {
             const wfmCanvas = document.getElementById('waveformMonitorCanvas');
             if (wfmCanvas) {
@@ -3196,6 +3199,7 @@
                     showToast('Waveform: ' + _waveformModeLabels[_waveformMode]);
                     if (videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 });
+                wfmCanvas.addEventListener('keydown', _cycleOnKeyboard);
             }
             const histCanvas = document.getElementById('histogramCanvas');
             if (histCanvas) {
@@ -3208,6 +3212,7 @@
                     showToast('Histogram: ' + _histogramModeLabels[_histogramMode]);
                     if (videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 });
+                histCanvas.addEventListener('keydown', _cycleOnKeyboard);
             }
         });
 
@@ -3289,6 +3294,8 @@
             };
             if (_elTimecode) _elTimecode.textContent = fmtTime(currentTime);
             if (_elDuration) _elDuration.textContent = fmtTime(maxDur);
+            const pc = document.getElementById('videoProgressContainer');
+            if (pc) { pc.setAttribute('aria-valuemax', maxDur); pc.setAttribute('aria-valuenow', currentTime); }
             updateAllAudioSlotCursors(media);
         }
 
@@ -3859,9 +3866,13 @@
                 const canvas = document.createElement('canvas');
                 canvas.className = 'audio-viz-slot-canvas';
                 canvas.dataset.slot = slot;
+                canvas.setAttribute('role', 'img');
+                canvas.setAttribute('aria-label', 'Audio waveform and spectrogram for ' + slotLabel(slot));
 
                 audio.addEventListener('loadedmetadata', function() {
                     updateDurationDisplay(slot, audio.duration);
+                    const pc = document.getElementById('videoProgressContainer');
+                    if (pc) { pc.setAttribute('aria-valuemax', audio.duration); pc.setAttribute('aria-valuenow', '0'); }
                     setupAudioHandlers(audio, slot);
                     checkAllLoaded();
                 });
@@ -3925,6 +3936,8 @@
                 if (mediaData[slot]) { mediaData[slot].w = video.videoWidth; mediaData[slot].h = video.videoHeight; }
                 updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
                 updateDurationDisplay(slot, video.duration);
+                const pc = document.getElementById('videoProgressContainer');
+                if (pc) { pc.setAttribute('aria-valuemax', video.duration); pc.setAttribute('aria-valuenow', '0'); }
                 setupVideoHandlers(video, slot);
                 checkAllLoaded();
                 positionLabelsToMediaDebounced();
@@ -4399,6 +4412,9 @@
             updateProgressBarForLoop(video.currentTime, duration);
             updateVideoProgressFromTime(video, video.currentTime);
             updateSpectrogramCursor(video);
+            // Update ARIA for screen readers
+            const pc = document.getElementById('videoProgressContainer');
+            if (pc) { pc.setAttribute('aria-valuemax', duration); pc.setAttribute('aria-valuenow', video.currentTime); }
         }
 
         function toggleTimecodeMode() {
@@ -7018,20 +7034,64 @@
             }
         });
 
+        // Focus trap helper — keeps Tab cycling within a container
+        function _trapFocus(container) {
+            function handler(e) {
+                if (e.key !== 'Tab') return;
+                const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                if (focusable.length === 0) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault(); last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault(); first.focus();
+                }
+            }
+            container.addEventListener('keydown', handler);
+            container._focusTrap = handler;
+        }
+        function _releaseFocusTrap(container) {
+            if (container._focusTrap) {
+                container.removeEventListener('keydown', container._focusTrap);
+                delete container._focusTrap;
+            }
+        }
+
+        let _lastFocusBeforePanel = null;
+
         function toggleShortcutsPanel() {
             const panel = document.getElementById('shortcutsPanel');
             const opening = !panel.classList.contains('open');
             panel.classList.toggle('open');
             document.getElementById('shortcutsBackdrop').classList.toggle('open');
             if (opening) {
+                _lastFocusBeforePanel = document.activeElement;
                 _reassigningActionId = null;
                 _renderShortcutsList();
+                _trapFocus(panel);
+                const first = panel.querySelector('button, [tabindex]:not([tabindex="-1"]), kbd');
+                if (first) first.focus();
+            } else {
+                _releaseFocusTrap(panel);
+                if (_lastFocusBeforePanel) { _lastFocusBeforePanel.focus(); _lastFocusBeforePanel = null; }
             }
         }
 
         function toggleManualPanel() {
-            document.getElementById('manualPanel').classList.toggle('open');
+            const panel = document.getElementById('manualPanel');
+            const opening = !panel.classList.contains('open');
+            panel.classList.toggle('open');
             document.getElementById('manualBackdrop').classList.toggle('open');
+            if (opening) {
+                _lastFocusBeforePanel = document.activeElement;
+                _trapFocus(panel);
+                const first = panel.querySelector('button, [tabindex]:not([tabindex="-1"]), a');
+                if (first) first.focus();
+            } else {
+                _releaseFocusTrap(panel);
+                if (_lastFocusBeforePanel) { _lastFocusBeforePanel.focus(); _lastFocusBeforePanel = null; }
+            }
         }
 
         // Expose read-only test API for Playwright (avoids brittle eval of let-scoped vars)
