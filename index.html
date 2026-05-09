@@ -4401,6 +4401,10 @@
 
             const source = ctx.createBufferSource();
             source.buffer = buf;
+            // Match the current playback rate so the scrub preview sounds like the
+            // user's selected speed rather than always playing at 1×.
+            const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
+            source.playbackRate.value = rate;
             source.connect(gain);
             source.start(0, offset, _SCRUB_SNIPPET_LEN);
             _scrubSource = source;
@@ -5267,6 +5271,7 @@
         let _opusSyncGains = {};       // { slot: GainNode }
         let _opusSyncStartCtx = {};    // { slot: number } — ctx.currentTime at source.start()
         let _opusSyncStartVideo = {};  // { slot: number } — video.currentTime used as offset
+        let _opusSyncRate = {};        // { slot: number } — playbackRate the source was started at
         let _opusSyncActive = false;
 
         const _OPUS_FADE = 0.015; // 15ms fade to avoid clicks on start/stop
@@ -5286,6 +5291,11 @@
             gain.gain.setValueAtTime(0, ctx.currentTime);
             gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + _OPUS_FADE);
             source.buffer = buf;
+            // Match the video element's playback rate so audio runs in sync at non-1× speeds
+            const layer = getLayer(slot);
+            const video = layer && layer.querySelector('video');
+            const rate = (video && video.playbackRate) || 1;
+            source.playbackRate.value = rate;
             source.connect(gain);
             gain.connect(ctx.destination);
             const offset = Math.max(0, Math.min(fromTime, buf.duration - 0.001));
@@ -5294,6 +5304,7 @@
             _opusSyncGains[slot] = gain;
             _opusSyncStartCtx[slot] = ctx.currentTime;
             _opusSyncStartVideo[slot] = offset;
+            _opusSyncRate[slot] = rate;
             source.onended = () => {
                 if (_opusSyncSources[slot] === source) {
                     _opusSyncSources[slot] = null;
@@ -5334,12 +5345,32 @@
                 const video = layer && layer.querySelector('video');
                 if (!video || video.paused) continue;
                 const ctx = getAudioContext();
+                const rate = _opusSyncRate[slot] || 1;
                 const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
-                const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed;
-                // Only restart if drift is significant — 150ms avoids frequent restarts
-                if (Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
+                const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
+                // Restart if the video's playback rate has changed (audio source can't
+                // change rate mid-stream without an audible glitch — restart gets us a
+                // fresh source running at the new rate) or if drift is significant.
+                if (Math.abs(rate - video.playbackRate) > 0.001 ||
+                    Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
                     _startOpusSyncAudio(slot, video.currentTime);
                 }
+            }
+        }
+
+        function _updateOpusSyncRate(rate) {
+            if (!_opusSyncActive) return;
+            const ctx = getAudioContext();
+            for (const slot of assetOrder) {
+                const src = _opusSyncSources[slot];
+                if (!src) continue;
+                // Re-anchor timeline at the new rate so drift math stays correct
+                const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+                const oldRate = _opusSyncRate[slot] || 1;
+                _opusSyncStartVideo[slot] = _opusSyncStartVideo[slot] + elapsed * oldRate;
+                _opusSyncStartCtx[slot] = ctx.currentTime;
+                src.playbackRate.value = rate;
+                _opusSyncRate[slot] = rate;
             }
         }
 
@@ -6882,7 +6913,8 @@
         }
         function playAllMedia() {
             _bulkSyncActive = true;
-            getAllPlayableMedia().forEach(m => { m.loop = true; m.play().catch(() => {}); });
+            const customLoopActive = (_loopInPoint !== null && _loopOutPoint !== null);
+            getAllPlayableMedia().forEach(m => { m.loop = !customLoopActive; m.play().catch(() => {}); });
             // Start Web Audio sync for Chrome Opus slots
             if (_opusSyncActive) {
                 for (const slot of assetOrder) {
@@ -7866,14 +7898,11 @@
                             if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
                         }
                     }
-                    // Resume RVFC chain once the seek completes and playback restarts
-                    video.addEventListener('playing', function reregister() {
-                        video.removeEventListener('playing', reregister);
-                        _startLoopRvfc(video);
-                    }, { once: true });
-                } else {
-                    video.requestVideoFrameCallback(onFrame);
                 }
+                // Always re-register: RVFC fires when the next frame is presented
+                // (after seek or buffering stall) — there's no need for a 'playing'
+                // fallback, and registering both creates duplicate parallel chains.
+                video.requestVideoFrameCallback(onFrame);
             }
             video.requestVideoFrameCallback(onFrame);
         }
@@ -7939,6 +7968,12 @@
             _setupFpsDetection(video, slot);
 
             video.addEventListener('play', function() {
+                // Frame-accurate loop enforcement runs even during bulk sync — the 'play'
+                // event fires after the transition to playing, so this is the correct
+                // moment to start the RVFC chain. Guarding it on _bulkSyncActive (as the
+                // sync logic below does) means playAllMedia's window blocks loop start.
+                if (_loopInPoint !== null && _loopOutPoint !== null) _startLoopRvfc(video);
+
                 if (_bulkSyncActive) return;
                 if (isDragging || _frameKicking) return; // _frameKick may trigger play during scrub; don't cascade
                 // Sync all videos when any video plays
@@ -7951,9 +7986,6 @@
 
                 // Start global progress update loop (only once)
                 startProgressUpdateLoop();
-
-                // Frame-accurate loop enforcement (Stack mode only; RVFC not available in Grid)
-                if (_loopInPoint !== null && _loopOutPoint !== null) _startLoopRvfc(video);
             });
 
             video.addEventListener('pause', function() {
@@ -9716,6 +9748,7 @@
             _opusSyncGains = {};
             _opusSyncStartCtx = {};
             _opusSyncStartVideo = {};
+            _opusSyncRate = {};
             _opusSyncActive = false;
             _videoAudioBuffers = {};
             audioFileBuffers = {};
@@ -11892,6 +11925,7 @@
                       playbackRateIndex--;
                       const rate = PLAYBACK_RATES[playbackRateIndex];
                       getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                      _updateOpusSyncRate(rate);
                       showToast('Speed ' + rate + '×');
                   }
               } },
@@ -11901,6 +11935,7 @@
                       playbackRateIndex++;
                       const rate = PLAYBACK_RATES[playbackRateIndex];
                       getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                      _updateOpusSyncRate(rate);
                       showToast('Speed ' + rate + '×');
                   }
               } },
