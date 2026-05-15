@@ -2823,7 +2823,7 @@
     <script src="js/scopes.js"></script>
     <script src="js/hotkeys.js"></script>
     <script>
-        const APP_VERSION = '3.10.15';
+        const APP_VERSION = '3.10.16';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -5410,6 +5410,12 @@
                 const ctx = getAudioContext();
                 const rate = _opusSyncRate[slot] || 1;
                 const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+                // Skip drift correction during the deferred-start window — `elapsed`
+                // is negative until the new source actually starts playing, and
+                // `video.currentTime` can briefly outpace the expected playback by
+                // up to _OPUS_FADE worth of real time, producing false drift readings
+                // that retrigger restarts and stack 15 ms gaps end-to-end (audible).
+                if (elapsed < 0) continue;
                 const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
                 // Restart if the video's playback rate has changed (audio source can't
                 // change rate mid-stream without an audible glitch — restart gets us a
@@ -8128,8 +8134,23 @@
                 if (video === activeVideo) {
                     updateVideoProgress(video);
                 }
-                // Restart Opus sync audio on seek/loop to keep it aligned
-                if (_opusSyncSlots[slot] && !video.paused) {
+                // Restart Opus sync audio on seek/loop only if drift is significant.
+                // The RVFC loop-wrap path and `_syncOpusAudioToVideo` already restart
+                // the source when needed; restarting unconditionally on every seek
+                // causes a second restart at every loop wrap that cuts off the first
+                // restart's fade-in mid-flight — audible as a remnant click after
+                // the deferred-start anti-crossfade fix.
+                if (_opusSyncSlots[slot] && !video.paused && _opusSyncSources[slot]) {
+                    const ctx = getAudioContext();
+                    const rate = _opusSyncRate[slot] || 1;
+                    const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+                    const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
+                    if (elapsed >= 0 && Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
+                        _startOpusSyncAudio(slot, video.currentTime);
+                    }
+                } else if (_opusSyncSlots[slot] && !video.paused) {
+                    // No source running — start one (rare path; normally sources are
+                    // managed by the play/wrap flow).
                     _startOpusSyncAudio(slot, video.currentTime);
                 }
                 // Refresh scopes after seek completes (frame is decoded)
@@ -12657,6 +12678,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.16</h3>
+            <ul>
+                <li><strong>Bug fix: residual audio crackling at loop wrap points (Chrome and Safari).</strong></li>
+            </ul>
             <h3>v3.10.15</h3>
             <ul>
                 <li><strong>Bug fix: audio crackling at loop wrap points (Opus videos).</strong></li>
