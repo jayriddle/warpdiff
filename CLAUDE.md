@@ -3,7 +3,7 @@
 A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 
 - **Repo**: https://github.com/jayriddle/warpdiff
-- **Architecture**: Single-file app — `index.html` is ~12,700 lines and contains all HTML, CSS, and JS. A few small modules live alongside in `js/` (see below).
+- **Architecture**: `index.html` holds all the HTML/CSS and the bulk of the JS (one `<style>` block top, one `<script>` block bottom), with cohesive subsystems progressively extracted into classic `<script>` files in `js/` (see below). The extracted files are **not ES modules** — they share one global scope with the inline script (top-level `let`/`const`/`function` are visible across all classic scripts in the realm), so an extracted function can read/write inline globals and vice versa, resolved at call time. This is the only viable split given the no-build-step constraint.
 - **PWA**: `manifest.json`, `sw.js`, `icon-192.png`, `icon-512.png` — installable, offline-capable.
 - **No build step**: vanilla HTML/CSS/JS only, served as static files.
 
@@ -13,9 +13,14 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 - `js/audio-viz.js` — waveform/spectrogram FFT, K-weighting biquads, EBU R128 LUFS/LRA/True-Peak computation, palette tables. Exports functions consumed by the script in `index.html`.
 - `js/scopes.js` — video scope rendering (waveform monitor, histogram, vectorscope). Uses `Uint16Array` hit-count buffers + `putImageData`; buffers cached across frames, reallocated on resize.
 - `js/hotkeys.js` — registry-based hotkey table + key→action lookup, with localStorage override for custom bindings.
+- `js/mp4-demux.js` — pure MP4/WebM audio demuxers (`_demuxMP4Audio` / `_demuxWebMAudio`): container bytes → `{chunks, sampleRate, channels, codec, description, preSkip, maxSamples}`. No app-state deps.
+- `js/audio-decode.js` — the three-tier audio decode pipeline: `decodeAndComputeAudioViz`, `decodeAndComputeAudioSlotViz`, `_decodeAudioWebCodecs`, `_decodeWithAudioDecoder`, `_finalizeAudioViz`, `_onAllDecodeFailed`. **Stateful** — reads/writes inline globals (`mediaData`, `_opusSync*`, `waveformData`, the two decode-generation counters) via shared global scope.
+- `js/transport.js` — playback/transport: `playAllMedia`/`pauseAllMedia`/`restartAllVideos`, `stepFrame`, `syncVideos`/`syncMedia`, frame-accurate loop enforcement (`_startLoopRvfc` + `_loopWrapTimer`), and video/audio handler binding (`setupVideoHandlers`/`setupAudioHandlers`/`_setupFpsDetection`). **Stateful** (shares globals). Holds the single-owner targets for the ownership guards.
 - `js/starfield.js` — landing-page background animation.
 - `ffmpeg/` — ffmpeg.wasm bundle (`ffmpeg-core.{js,wasm,worker.js}` + `ffmpeg.min.js`, ~24 MB). Loaded lazily, single-threaded (no `crossOriginIsolated` / `SharedArrayBuffer`).
-- `tests/` — Playwright suite. `tests/global-setup.ts` auto-generates the gitignored MP4/WAV/MP3 fixtures via `tests/fixtures/generate.sh` on first run (requires `ffmpeg` on PATH).
+- `tests/` — `warpdiff.spec.ts` (Playwright) + `ownership.test.mjs` (dependency-free Node harness; see Testing). `tests/global-setup.ts` auto-generates the gitignored MP4/WAV/MP3 fixtures via `tests/fixtures/generate.sh` on first run (requires `ffmpeg` on PATH).
+
+**When extracting more code into `js/`** (candidates: opus-sync engine, ffmpeg transcode orchestration, layout-geometry, timecode): keep the function definitions in the module, leave the call sites + a `// name → js/file.js` pointer comment in `index.html`, add a `<script src>` tag *before* the inline script, **and add the file to `sw.js` ASSETS** (guarded by the ownership harness). The harness reads concatenated sources, so its guards keep resolving moved functions without edits.
 
 ## Key Technical Patterns
 
@@ -114,14 +119,18 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 ## Coding Conventions
 
 - No build step, no dependencies — vanilla HTML/CSS/JS only.
-- Prefer editing `index.html` over creating new files.
-- CSS is in a single `<style>` block at the top; JS is in a single `<script>` block at the bottom.
-- Use `_prefixed` names for module-level private state (e.g., `_frameStepping`, `_audioSlotVizData`).
+- CSS is in a single `<style>` block at the top of `index.html`; most JS is in the single `<script>` block at the bottom. Cohesive subsystems are extracted into `js/*.js` classic scripts (see Files) — prefer extending an existing module when the code belongs to its subsystem; otherwise edit `index.html`.
+- Use `_prefixed` names for module-level private state (e.g., `_audioSlotVizData`, `_opusSyncSlots`). (Note: `_frameStepping` is referenced in some older comments but does not actually exist — the real suppression flags are `_bulkSyncActive` and `_frameKicking`.)
 - Debounced layout functions use the pattern `functionNameDebounced` wrapping `functionName`.
-- **`APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` must be kept in sync on every version bump.** The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
+- **Single-owner discipline**: each piece of stateful behavior should have ONE owner (one function that writes it; everyone else routes through it). The ownership harness (`tests/ownership.test.mjs`) enforces this for the audited cases — when adding/refactoring an owner, update the corresponding guard.
+- **`APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` must be kept in sync on every version bump** (now guarded by the ownership harness). The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
 - Add a "What's New" entry inside `#changelogPopup` (search for `<h3>v3.x.y</h3>`) on each version bump. The popup auto-shows on version change.
 
 ## Testing
+
+Two layers:
+- **Behavioral (Playwright)**: `npm test` / `npx playwright test`. Real headless Chromium; state inspected via `__testAPI`.
+- **Structural + pure-logic (`npm run test:ownership`)**: `node tests/ownership.test.mjs`, dependency-free, no browser. Reads concatenated sources (`index.html` + `js/*.js`) and asserts: single-owner guards (RVFC loop chain, video handler binding, decode generations, opus-sync restart, decode pipeline, transport cluster), build/version hygiene (`APP_VERSION` == `CACHE_NAME`; every `<script src=js/*>` is in `sw.js` ASSETS), inline-`<script>` syntax, and pure-function unit tests (incl. the MP4 demuxer against a real fixture). Guards use `countOf`/brace-balancing `extractFn`; each freezes a specific competing-owner bug and is verified to fail when its fix is reverted. Run both before pushing.
 
 - Playwright. `npm test` or `npx playwright test` runs the suite from project root.
 - `playwright.config.ts` declares `globalSetup: './tests/global-setup.ts'`, which auto-generates the gitignored MP4 / WAV / MP3 fixtures via `tests/fixtures/generate.sh` if `tests/fixtures/landscape_a.mp4` is missing. Requires `ffmpeg` on PATH; setup errors out with an install hint if it isn't.
