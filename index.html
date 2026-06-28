@@ -2823,7 +2823,7 @@
     <script src="js/scopes.js"></script>
     <script src="js/hotkeys.js"></script>
     <script>
-        const APP_VERSION = '3.10.17';
+        const APP_VERSION = '3.10.18';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -7652,11 +7652,7 @@
                 setupVideoHandlers(video, slot);
                 checkAllLoaded();
                 positionLabelsToMediaDebounced();
-                // Re-evaluate rows/cols once all assets have reported dimensions.
-                if (isGridMode && gridInlineMode && isTripartiteMode()) {
-                    const allDims = Object.values(mediaData).filter(m => m && m.w && m.h);
-                    if (allDims.length >= getLoadedSlotCount()) _swapGridSubLayout();
-                }
+                _reevalGridLayoutOnDims();
             });
 
             // If the browser can't load the file at all (unsupported container/codec),
@@ -7719,13 +7715,7 @@
                 // always has valid naturalWidth/naturalHeight.
                 checkAllLoaded();
                 positionLabelsToMediaDebounced();
-                // Re-evaluate rows/cols once all assets have reported dimensions.
-                // The initial pickBestGridLayout call may have run with incomplete dims;
-                // this corrects the layout once the full picture is available.
-                if (isGridMode && gridInlineMode && isTripartiteMode()) {
-                    const allDims = Object.values(mediaData).filter(m => m && m.w && m.h);
-                    if (allDims.length >= getLoadedSlotCount()) _swapGridSubLayout();
-                }
+                _reevalGridLayoutOnDims();
             });
             img.onerror = function() {
                 showLoadToast(`Failed to load ${file.name}`, true, 5000);
@@ -10872,45 +10862,66 @@
                     });
                 }
             } else {
-                // Vertical stack: anchor on the smallest longest-side, find shared fit scale.
-                const verticalRefLong = minLongestFromMeasured();
-                let verticalSharedScale = null;
-                if (verticalRefLong > 0) {
-                    slots.forEach(slot => {
-                        const m = measured.data[slot];
-                        if (!m) return;
-                        const longest = Math.max(m.nw, m.nh);
-                        const baseW = m.nw * (verticalRefLong / longest);
-                        const baseH = m.nh * (verticalRefLong / longest);
-                        const fitScale = Math.min(m.cw / baseW, m.availH / baseH);
-                        if (verticalSharedScale === null || fitScale < verticalSharedScale)
-                            verticalSharedScale = fitScale;
-                    });
-                    if (splitZoomLevel === 1 && verticalSharedScale !== null)
-                        verticalSharedScale = Math.min(verticalSharedScale, 1);
-                }
-                slots.forEach(slot => {
-                    const m = measured.data[slot];
-                    if (!m) return;
-                    let rw, rh;
-                    if (verticalSharedScale !== null && verticalRefLong > 0) {
-                        const longest = Math.max(m.nw, m.nh);
-                        const normScale = verticalRefLong / longest;
-                        rw = m.nw * normScale * verticalSharedScale * splitStepZoom;
-                        rh = m.nh * normScale * verticalSharedScale * splitStepZoom;
-                    } else {
-                        const fitScale = Math.min(m.cw / m.nw, m.availH / m.nh);
-                        const scale = splitZoomLevel === 1 ? Math.min(fitScale, 1) : fitScale;
-                        rw = m.nw * scale * splitStepZoom;
-                        rh = m.nh * scale * splitStepZoom;
+                // Vertical stack: equal-area sizing so every asset gets the same rendered
+                // screen area regardless of aspect ratio. (Previously anchored on the
+                // smallest longest-side, which gave two different-AR landscapes the same
+                // WIDTH and therefore unequal areas — the wider clip looked smaller.)
+                // For area A and ratio r = nw/nh: width = √(A·r), height = √(A/r).
+                //   stacked heights: Σ√(A/r_i) ≤ H_total → A ≤ (H_total / Σ√(1/r_i))²
+                //   each width ≤ W:  max√(A·r_i) ≤ W     → A ≤ W² / max(r_i)
+                // Mirrors the side-by-side equal-area block above, transposed. The
+                // fill-height post-pass then scales the group uniformly (preserves area).
+                const loadedSlots = slots.filter(s => measured.data[s]);
+                if (loadedSlots.length > 0) {
+                    const gap = 2;
+                    const W = loadedSlots.reduce((mn, s) => Math.min(mn, measured.data[s].cw), Infinity);
+                    const hTotal = loadedSlots.reduce((sum, s) => sum + measured.data[s].availH, 0)
+                                   - gap * (loadedSlots.length - 1);
+                    const ratios = {};
+                    loadedSlots.forEach(s => { const m = measured.data[s]; ratios[s] = m.nw / m.nh; });
+                    const sumSqrtInvR = loadedSlots.reduce((sum, s) => sum + Math.sqrt(1 / ratios[s]), 0);
+                    const maxR        = loadedSlots.reduce((mx, s)  => Math.max(mx, ratios[s]), 0);
+                    const aFromH = Math.pow(hTotal / sumSqrtInvR, 2);
+                    const aFromW = (W * W) / maxR;
+                    const fitArea = Math.min(aFromH, aFromW);
+
+                    let linearZoom = splitStepZoom;
+                    if (splitZoomLevel === 1) {
+                        // Scale so the smallest-area asset reaches native pixels.
+                        const minNative = loadedSlots.reduce((mn, s) => {
+                            const m = measured.data[s];
+                            return Math.min(mn, m.nw / Math.sqrt(fitArea * ratios[s]));
+                        }, Infinity);
+                        linearZoom = minNative * splitStepZoom;
                     }
-                    const tx = (m.cw - rw) / 2;
-                    const ty = m.ibH;
-                    slotGeometry[slot] = { rw: Math.round(rw), rh: Math.round(rh),
-                                           tx: Math.round(tx), ty: Math.round(ty),
-                                           zoom: rw / m.nw };
-                    slotRenderedH[slot] = Math.round(rh);
-                });
+                    let targetArea = fitArea * linearZoom * linearZoom;
+
+                    // Clamp so the stacked group doesn't overflow viewport height/width.
+                    const projH    = loadedSlots.reduce((sum, s) => sum + Math.sqrt(targetArea / ratios[s]), 0);
+                    const projMaxW = loadedSlots.reduce((mx, s)  => Math.max(mx, Math.sqrt(targetArea * ratios[s])), 0);
+                    if (projH > hTotal || projMaxW > W) {
+                        targetArea = fitArea;
+                        if (splitZoomLevel === 1) {
+                            const ns = loadedSlots.reduce((mn, s) => {
+                                const m = measured.data[s];
+                                return Math.min(mn, m.nw / Math.sqrt(fitArea * ratios[s]));
+                            }, Infinity);
+                            if (ns > 0) splitStepZoom = Math.min(splitStepZoom, 1 / ns);
+                        }
+                    }
+                    _gridZoomWasCapped = projH > hTotal || projMaxW > W;
+
+                    loadedSlots.forEach(slot => {
+                        const m = measured.data[slot];
+                        const r = ratios[slot];
+                        const rw = Math.round(Math.sqrt(targetArea * r));
+                        const rh = Math.round(Math.sqrt(targetArea / r));
+                        const tx = (m.cw - rw) / 2;
+                        slotGeometry[slot] = { rw, rh, tx: Math.round(tx), ty: Math.round(m.ibH),
+                                               zoom: rw / m.nw };
+                        slotRenderedH[slot] = rh;
+                    });
+                }
             }
 
             // ── DOM write pass: apply computed geometry to video wrappers ──
@@ -11280,6 +11291,24 @@
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => positionLabelsToMedia(10));
             });
+        }
+
+        // Re-evaluate the grid layout axis once all loaded assets have reported their
+        // dimensions. The initial pick at load can run before async image/video dims
+        // arrive (pickBestGridLayout defers to 'horizontal' when dims < n), so without
+        // this a pair could stay stuck on the wrong axis — e.g. two landscapes left
+        // side-by-side instead of stacked. Covers both the 3-up (inline rows/cols) and
+        // the 2-asset (side-by-side / vertical-stack) cases.
+        function _reevalGridLayoutOnDims() {
+            if (!isGridMode) return;
+            const allDims = Object.values(mediaData).filter(m => m && m.w && m.h);
+            if (allDims.length < getLoadedSlotCount()) return; // not all dimensions in yet
+            if (isTripartiteMode()) {
+                if (gridInlineMode) _swapGridSubLayout();
+            } else if (getLoadedSlotCount() === 2) {
+                const best = pickBestGridLayout(2);
+                if (best !== layoutMode) setViewMode(best);
+            }
         }
 
         // Show/hide and sync active state of the static Inline/Offset buttons.
@@ -12709,6 +12738,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.18</h3>
+            <ul>
+                <li><strong>Bug fix: Grid mode sizes stacked clips by equal area.</strong> Two landscape clips with different aspect ratios stacked vertically now get the same on-screen area (the wider one rendered wider-and-shorter) instead of being forced to the same width. Also fixes an intermittent case where two landscapes didn't stack vertically.</li>
+            </ul>
             <h3>v3.10.17</h3>
             <ul>
                 <li><strong>Bug fix: loop playback no longer audibly overshoots the out-point.</strong> The wrap is now scheduled for the exact out-point time when the last in-region frame presents, instead of waiting for a frame past the boundary (up to a full frame of audio late).</li>

@@ -108,6 +108,7 @@ function ensureFixtures() {
     { name: 'fourth.png', buf: makeSizedPng(100, 100, 4) },
     { name: 'tall.png', buf: makeSizedPng(150, 300, 5) },
     { name: 'wide.png', buf: makeSizedPng(300, 150, 6) },
+    { name: 'wider.png', buf: makeSizedPng(400, 150, 7) }, // AR≈2.67, distinct from wide.png (AR 2.0)
   ];
 
   for (const { name, buf } of images) {
@@ -519,10 +520,12 @@ test.describe('Grid Layout Direction', () => {
     // wide.png is 300×150 (AR=2, landscape). Stacking vertically lets each image span
     // full viewport width, giving more rendered area than halving width side-by-side.
     await loadImages(page, ['wide.png', 'wide.png']);
-    // Allow rAF cycles for the deferred layout re-evaluation to settle
+    // Wait for the deferred layout re-evaluation to SETTLE on its final value.
+    // (Waiting on `layoutMode !== undefined` was flaky: it passed on the initial
+    // pre-re-eval value before the dimension-aware swap to vertical landed.)
     await page.waitForFunction(() => {
       const api = (window as any).__testAPI;
-      return api?.isGridMode === true && api?.layoutMode !== undefined;
+      return api?.isGridMode === true && api?.layoutMode === 'vertical';
     }, {}, { timeout: 5000 });
     const layout = await getVar(page, 'layoutMode');
     expect(layout).toBe('vertical');
@@ -535,7 +538,7 @@ test.describe('Grid Layout Direction', () => {
     await loadImages(page, ['tall.png', 'tall.png']);
     await page.waitForFunction(() => {
       const api = (window as any).__testAPI;
-      return api?.isGridMode === true && api?.layoutMode !== undefined;
+      return api?.isGridMode === true && api?.layoutMode === 'horizontal';
     }, {}, { timeout: 5000 });
     const layout = await getVar(page, 'layoutMode');
     expect(layout).toBe('horizontal');
@@ -549,9 +552,42 @@ test.describe('Grid Layout Direction', () => {
     await page.keyboard.press('s'); // Switch to Stack
     expect(await getVar(page, 'isGridMode')).toBe(false);
     await page.keyboard.press('g'); // Back to Grid
-    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode === true, {}, { timeout: 3000 });
+    await page.waitForFunction(() => {
+      const api = (window as any).__testAPI;
+      return api?.isGridMode === true && api?.layoutMode === 'horizontal';
+    }, {}, { timeout: 3000 });
     const layout = await getVar(page, 'layoutMode');
     expect(layout).toBe('horizontal');
+  });
+
+  test('two different-AR landscapes (vertical stack) are sized for EQUAL AREA, not equal width', async ({ page }) => {
+    await page.goto('/');
+    // wide.png 300×150 (AR=2.0) and wider.png 400×150 (AR≈2.67) — both clearly
+    // landscape, so Grid picks vertical stacking. Equal-area => the wider clip is
+    // wider+shorter and the less-wide one narrower+taller, but both occupy the SAME
+    // screen area. The old "same longest-side" sizing gave them equal WIDTH (and thus
+    // unequal area) — the bug.
+    await loadImages(page, ['wide.png', 'wider.png']);
+    await page.waitForFunction(() => {
+      const api = (window as any).__testAPI;
+      return api?.isGridMode === true && api?.layoutMode === 'vertical';
+    }, {}, { timeout: 5000 });
+    // Let the layout + fill-height post-pass settle.
+    await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+
+    const dims = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-container .video-wrapper'))
+        .map(w => ({ w: (w as HTMLElement).offsetWidth, h: (w as HTMLElement).offsetHeight }))
+        .filter(d => d.w > 1 && d.h > 1));
+
+    expect(dims.length).toBe(2);
+    const [a, b] = dims;
+    const areaA = a.w * a.h, areaB = b.w * b.h;
+    // Equal area: areas within ~8% (rounding of integer px dims).
+    expect(Math.abs(areaA - areaB) / Math.max(areaA, areaB)).toBeLessThan(0.08);
+    // NOT equal width: the different ARs must produce clearly different widths
+    // (the regression signature — old behavior forced both to the same width).
+    expect(Math.min(a.w, b.w) / Math.max(a.w, b.w)).toBeLessThan(0.95);
   });
 });
 
