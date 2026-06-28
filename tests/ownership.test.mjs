@@ -149,6 +149,28 @@ function extractFn(name, src = SRC) {
   }
 }
 
+// (F) Decode pipeline ownership: each decode function has exactly one definition,
+//     _onAllDecodeFailed is the sole decode-failure → transcode router, and the
+//     pipeline lives in js/audio-decode.js (index.html keeps only pointers + call
+//     sites). Locks in the step-3 extraction.
+{
+  for (const fn of ['decodeAndComputeAudioViz', 'decodeAndComputeAudioSlotViz',
+                    '_decodeAudioWebCodecs', '_decodeWithAudioDecoder',
+                    '_finalizeAudioViz', '_onAllDecodeFailed']) {
+    check(`one-owner[decode]: ${fn} defined once (got ${countOf(SRC, 'function ' + fn + '(')})`,
+          countOf(SRC, 'function ' + fn + '(') === 1);
+  }
+  const adjs = JS_FILES.includes('audio-decode.js')
+    ? readFileSync(new URL('js/audio-decode.js', ROOT), 'utf8') : '';
+  check('one-owner[decode]: pipeline lives in js/audio-decode.js',
+        adjs.includes('function decodeAndComputeAudioViz(') &&
+        adjs.includes('function decodeAndComputeAudioSlotViz(') &&
+        adjs.includes('function _onAllDecodeFailed('));
+  check('one-owner[decode]: index.html no longer defines the decoders (pointer only)',
+        !HTML.includes('async function decodeAndComputeAudioViz(') &&
+        HTML.includes('decodeAndComputeAudioViz → js/audio-decode.js'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
