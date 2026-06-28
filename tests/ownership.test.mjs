@@ -171,6 +171,26 @@ function extractFn(name, src = SRC) {
         HTML.includes('decodeAndComputeAudioViz → js/audio-decode.js'));
 }
 
+// (G) Transport ownership: the playback-control cluster has one definition each
+//     and lives in js/transport.js (index.html keeps only pointers + call sites).
+//     This is where the A/B/D guard targets now live — those guards (above) still
+//     resolve them via concatenated SRC. Locks in the step-4 extraction.
+{
+  for (const fn of ['playAllMedia', 'pauseAllMedia', 'restartAllVideos', 'stepFrame',
+                    'syncVideos', 'syncMedia', 'setupVideoHandlers', 'setupAudioHandlers',
+                    '_setupFpsDetection', '_startLoopRvfc', '_startOpusSyncForPlayingSlots']) {
+    check(`one-owner[transport]: ${fn} defined once (got ${countOf(SRC, 'function ' + fn + '(')})`,
+          countOf(SRC, 'function ' + fn + '(') === 1);
+  }
+  const tjs = JS_FILES.includes('transport.js')
+    ? readFileSync(new URL('js/transport.js', ROOT), 'utf8') : '';
+  check('one-owner[transport]: cluster lives in js/transport.js',
+        tjs.includes('function setupVideoHandlers(') && tjs.includes('function playAllMedia(') &&
+        tjs.includes('function _startLoopRvfc('));
+  check('one-owner[transport]: index.html no longer defines them (pointer only)',
+        !HTML.includes('function setupVideoHandlers(') && HTML.includes('setupVideoHandlers → js/transport.js'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
