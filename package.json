@@ -4,7 +4,8 @@
   "description": "A browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side, stacked, or in overlay mode.",
   "main": "index.js",
   "scripts": {
-    "test": "npx playwright test"
+    "test": "npx playwright test",
+    "test:ownership": "node tests/ownership.test.mjs"
   },
   "repository": {
     "type": "git",
