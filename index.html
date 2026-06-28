@@ -896,6 +896,7 @@
         /* Asset info bar styling */
         .asset-info-bar {
             display: none; /* Hidden by default in overlay; shown in split modes and active overlay layer */
+            position: relative; /* positioning context for the active-audio accent ::after */
             flex-direction: row;
             align-items: center;
             gap: 10px;
@@ -1247,9 +1248,16 @@
         #layerEditA    .asset-info-bar { background: var(--slot-editA-bar); }
         #layerEditB    .asset-info-bar { background: var(--slot-editB-bar); }
 
-        #layerOriginal.active-audio .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-original-bg); }
-        #layerEditA.active-audio    .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-editA-bg); }
-        #layerEditB.active-audio    .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-editB-bg); }
+        /* Active-audio accent: a 1px slot-colored line on the info bar's top edge,
+           inset from the rounded corners. Drawn as ::after (a full-width box-shadow
+           can't be inset horizontally, so it reached into the rounded corners). */
+        #layerOriginal.active-audio .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-original-bg); }
+        #layerEditA.active-audio    .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editA-bg); }
+        #layerEditB.active-audio    .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editB-bg); }
+        .asset-layer.active-audio .asset-info-bar::after {
+            content: ''; position: absolute; top: 0; left: 7px; right: 7px; height: 1px;
+            background: var(--ib-accent); pointer-events: none;
+        }
 
         body:not(.grid-mode) .asset-layer.active .asset-info-bar {
             display: flex;
@@ -1273,7 +1281,7 @@
             z-index: 5;
         }
 
-        /* active-audio: background unchanged; 2px top accent handled by per-slot selectors above */
+        /* active-audio: background unchanged; 1px inset top accent (::after) handled by selectors above */
 
         /* Per-slot active-audio pill colors are set above via #layerX.active-audio selectors */
 
@@ -2573,9 +2581,9 @@
             position: relative !important;
             bottom: auto !important;
         }
-        #layerOriginal.active-audio .audio-slot-group > .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-original-bg); }
-        #layerEditA.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-editA-bg); }
-        #layerEditB.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: inset 0 2px 0 var(--slot-editB-bg); }
+        #layerOriginal.active-audio .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-original-bg); }
+        #layerEditA.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editA-bg); }
+        #layerEditB.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editB-bg); }
         .audio-canvas-wrap {
             position: relative;
             flex: 1;
@@ -2782,7 +2790,7 @@
                         <div class="spectrogram-cursor" id="spectrogramCursor"></div>
                     </div>
                     <div class="spectrogram-toggles">
-                        <div class="spectrogram-scale-toggle" id="spectrogramPaletteToggle" onclick="cycleSpectrogramPalette()" title="Cycle color palette">VIRIDIS</div>
+                        <div class="spectrogram-scale-toggle" id="spectrogramPaletteToggle" onclick="cycleSpectrogramPalette()" title="Cycle color palette">INFERNO</div>
                         <div class="spectrogram-scale-toggle" id="spectrogramScaleToggle" onclick="toggleSpectrogramScale()" title="Toggle linear/log frequency scale (Shift+W)">LIN</div>
                     </div>
                 </div>
@@ -2826,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.18';
+        const APP_VERSION = '3.10.20';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -4430,7 +4438,7 @@
         }
 
         // fft, buildPalette, spectrogramPalettes, paletteNames → js/audio-viz.js
-        let currentPaletteIndex = _prefs.load('paletteIndex', 0);
+        let currentPaletteIndex = _prefs.load('paletteIndex', paletteNames.indexOf('inferno'));
         let spectrogramPalette = spectrogramPalettes[paletteNames[currentPaletteIndex]] || spectrogramPalettes.viridis;
 
         // computeWaveformChannel, computeWaveformData, runSTFT, computeSpectrogramChannel,
@@ -8816,7 +8824,7 @@
             const scaleBtn = document.getElementById('spectrogramScaleToggle');
             if (scaleBtn) scaleBtn.textContent = 'LIN';
             const palBtn = document.getElementById('spectrogramPaletteToggle');
-            if (palBtn) palBtn.textContent = 'VIRIDIS';
+            if (palBtn) palBtn.textContent = (paletteNames[currentPaletteIndex] || 'inferno').toUpperCase();
             const vizControls = document.getElementById('videoControls');
             if (vizControls) vizControls.classList.remove('audio-viz-active');
             document.body.classList.remove('fullscreen', 'single-asset', ...splitModeClasses);
@@ -11112,7 +11120,7 @@
             const scaleBtn = document.getElementById('spectrogramScaleToggle');
             if (scaleBtn) scaleBtn.textContent = spectrogramLogScale ? 'LOG' : 'LIN';
             const paletteBtn = document.getElementById('spectrogramPaletteToggle');
-            if (paletteBtn) paletteBtn.textContent = (paletteNames[currentPaletteIndex] || 'viridis').toUpperCase();
+            if (paletteBtn) paletteBtn.textContent = (paletteNames[currentPaletteIndex] || 'inferno').toUpperCase();
             // Apply persisted magnifier size to all loupe elements
             _magnifierEls.forEach(id => {
                 const el = document.getElementById(id);
@@ -11530,6 +11538,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.20</h3>
+            <ul>
+                <li><strong>Spectrogram now defaults to the Inferno palette.</strong> Cycle palettes from the W panel's palette toggle; your choice is remembered.</li>
+                <li><strong>Refined the active-audio info-bar accent</strong> — the colored top line is now thinner (1px) and sits inside the rounded corners.</li>
+            </ul>
             <h3>v3.10.18</h3>
             <ul>
                 <li><strong>Bug fix: eliminated duplicate playback handlers.</strong> Loop enforcement now runs a single frame-callback chain per video instead of accumulating one per pause/play cycle, and transcoded files (Dolby/DTS) no longer attach a second set of play/pause/seek handlers — removing loop-wrap stutter and double audio triggers.</li>
