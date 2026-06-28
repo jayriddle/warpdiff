@@ -2826,7 +2826,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.16';
+        const APP_VERSION = '3.10.18';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3146,6 +3146,7 @@
         function clearLoopMarkers(silent) {
             _loopInPoint = null;
             _loopOutPoint = null;
+            _cancelLoopWrapTimer();
             setNativeLoop(true);
             updateLoopMarkerUI();
             // Reset progress bar to normal mode
@@ -5315,6 +5316,12 @@
                 const ctx = getAudioContext();
                 const rate = _opusSyncRate[slot] || 1;
                 const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+                // Skip drift correction during the deferred-start window — `elapsed`
+                // is negative until the new source actually starts playing, and
+                // `video.currentTime` can briefly outpace the expected playback by
+                // up to _OPUS_FADE worth of real time, producing false drift readings
+                // that retrigger restarts and stack 15 ms gaps end-to-end (audible).
+                if (elapsed < 0) continue;
                 const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
                 // Restart if the video's playback rate has changed (audio source can't
                 // change rate mid-stream without an audible glitch — restart gets us a
@@ -11523,10 +11530,18 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
-            <h3>v3.10.16</h3>
+            <h3>v3.10.18</h3>
             <ul>
                 <li><strong>Bug fix: eliminated duplicate playback handlers.</strong> Loop enforcement now runs a single frame-callback chain per video instead of accumulating one per pause/play cycle, and transcoded files (Dolby/DTS) no longer attach a second set of play/pause/seek handlers — removing loop-wrap stutter and double audio triggers.</li>
                 <li><strong>Bug fix: audio reliability when switching clips quickly.</strong> A slow audio decode from a previous clip can no longer overwrite the newly loaded one, and the Restart (R) key now keeps Opus audio in sync instead of dropping or desyncing it.</li>
+            </ul>
+            <h3>v3.10.17</h3>
+            <ul>
+                <li><strong>Bug fix: loop playback no longer audibly overshoots the out-point.</strong> The wrap is now scheduled for the exact out-point time when the last in-region frame presents, instead of waiting for a frame past the boundary (up to a full frame of audio late).</li>
+            </ul>
+            <h3>v3.10.16</h3>
+            <ul>
+                <li><strong>Bug fix: residual audio crackling at loop wrap points (Chrome and Safari).</strong></li>
             </ul>
             <h3>v3.10.15</h3>
             <ul>

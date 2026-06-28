@@ -72,6 +72,18 @@ function setupAudioHandlers(audio, slot) {
     });
 }
 
+let _loopWrapTimer = null;   // pending exact-out-point wrap (scheduled in onFrame)
+function _cancelLoopWrapTimer() {
+    if (_loopWrapTimer !== null) { clearTimeout(_loopWrapTimer); _loopWrapTimer = null; }
+}
+function _loopWrapToInPoint() {
+    getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
+    if (_opusSyncActive) {
+        for (const s of assetOrder) {
+            if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
+        }
+    }
+}
 function _startLoopRvfc(video) {
     if (isGridMode) return;
     if (typeof video.requestVideoFrameCallback !== 'function') return;
@@ -87,11 +99,12 @@ function _startLoopRvfc(video) {
 
     function onFrame(now, metadata) {
         // Any of these ends this chain — release ownership so a later
-        // _startLoopRvfc can start a clean one.
+        // _startLoopRvfc can start a clean one. Cancel any pending wrap too.
         if (video.paused || video.ended ||
             _loopInPoint === null || _loopOutPoint === null ||   // loop cleared
             isGridMode ||                                        // mode switched
             video !== primaryVideoRef) {                        // no longer primary
+            _cancelLoopWrapTimer();
             video._loopRvfcActive = false;
             return;
         }
@@ -99,11 +112,29 @@ function _startLoopRvfc(video) {
 
         const t = metadata.mediaTime;
         if (t >= _loopOutPoint || t < _loopInPoint - 0.05) {
-            getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
-            if (_opusSyncActive) {
-                for (const s of assetOrder) {
-                    if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
-                }
+            // Safety net: a frame at/past the out-point was already presented
+            // (long seek landing, stall, or a cancelled schedule below).
+            _cancelLoopWrapTimer();
+            _loopWrapToInPoint();
+        } else {
+            // mediaTime is quantized to the frame grid, so waiting for a frame
+            // PAST the out-point lets up to a full frame of AUDIO (~42ms at
+            // 24fps, plus seek latency) play beyond the boundary — audibly.
+            // Instead, when the LAST in-region frame presents, schedule the
+            // wrap for the exact out-point time.
+            const frameDur = 1 / (videoFrameRates[video.src] || 30);
+            if (t >= _loopOutPoint - frameDur * 1.25 && _loopWrapTimer === null) {
+                const rate = video.playbackRate || 1;
+                const delayMs = Math.max(0, ((_loopOutPoint - t) / rate) * 1000 - 2);
+                _loopWrapTimer = setTimeout(() => {
+                    _loopWrapTimer = null;
+                    // Re-validate: the loop may have been cleared, playback paused,
+                    // or the user may have seeked back since this was scheduled.
+                    if (_loopInPoint === null || _loopOutPoint === null) return;
+                    if (video.paused || isDragging) return;
+                    if (video.currentTime < _loopOutPoint - frameDur * 1.5) return;
+                    _loopWrapToInPoint();
+                }, delayMs);
             }
         }
         // Always re-register: RVFC fires when the next frame is presented
@@ -253,8 +284,23 @@ function setupVideoHandlers(video, slot) {
         if (video === activeVideo) {
             updateVideoProgress(video);
         }
-        // Restart Opus sync audio on seek/loop to keep it aligned
-        if (_opusSyncSlots[slot] && !video.paused) {
+        // Restart Opus sync audio on seek/loop only if drift is significant.
+        // The RVFC loop-wrap path and `_syncOpusAudioToVideo` already restart
+        // the source when needed; restarting unconditionally on every seek
+        // causes a second restart at every loop wrap that cuts off the first
+        // restart's fade-in mid-flight — audible as a remnant click after
+        // the deferred-start anti-crossfade fix.
+        if (_opusSyncSlots[slot] && !video.paused && _opusSyncSources[slot]) {
+            const ctx = getAudioContext();
+            const rate = _opusSyncRate[slot] || 1;
+            const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+            const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
+            if (elapsed >= 0 && Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
+                _startOpusSyncAudio(slot, video.currentTime);
+            }
+        } else if (_opusSyncSlots[slot] && !video.paused) {
+            // No source running — start one (rare path; normally sources are
+            // managed by the play/wrap flow).
             _startOpusSyncAudio(slot, video.currentTime);
         }
         // Refresh scopes after seek completes (frame is decoded)
