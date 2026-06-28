@@ -62,6 +62,24 @@ function extractFn(name, src = SRC) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 0b. BUILD / VERSION HYGIENE — footguns CLAUDE.md calls out; cheap to gate.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const SW = readFileSync(new URL('sw.js', ROOT), 'utf8');
+  const appVer = (HTML.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+  const cacheVer = (SW.match(/const CACHE_NAME = 'warpdiff-v([^']+)'/) || [])[1];
+  check(`version-sync: APP_VERSION (${appVer}) === sw.js CACHE_NAME (${cacheVer})`,
+        appVer && cacheVer && appVer === cacheVer);
+
+  // Every js/*.js the page loads must be in the SW precache, or offline PWA breaks.
+  const loaded = [...HTML.matchAll(/<script src="(js\/[^"]+\.js)"/g)].map(m => m[1]);
+  const missing = loaded.filter(src => !SW.includes(`'${src}'`));
+  check(`sw-assets: all ${loaded.length} <script src=js/*> are in sw.js ASSETS` +
+        (missing.length ? ` (missing: ${missing.join(', ')})` : ''),
+        missing.length === 0);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 1. SINGLE-OWNER GUARDS (multi-owner audit 2026-06-27, findings A–E)
 // ══════════════════════════════════════════════════════════════════════════════
 
