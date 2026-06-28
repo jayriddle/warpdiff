@@ -2822,8 +2822,11 @@
     <script src="js/audio-viz.js"></script>
     <script src="js/scopes.js"></script>
     <script src="js/hotkeys.js"></script>
+    <script src="js/mp4-demux.js"></script>
+    <script src="js/audio-decode.js"></script>
+    <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.17';
+        const APP_VERSION = '3.10.18';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3076,19 +3079,10 @@
         }
 
         // Runs an action on every <video> except the source video.
-        function syncVideos(sourceVideo, action) {
-            document.querySelectorAll('video').forEach(v => {
-                if (v !== sourceVideo) action(v);
-            });
-        }
+        // syncVideos → js/transport.js
 
         // Shared media sync — works for both video and audio modes
-        function syncMedia(source, action) {
-            const tag = hasAudios ? '.asset-layer audio' : 'video';
-            document.querySelectorAll(tag).forEach(el => {
-                if (el !== source) action(el);
-            });
-        }
+        // syncMedia → js/transport.js
 
         // Shared progress display — delegates to audio or video format
         function updateMediaProgress(media) {
@@ -4621,80 +4615,7 @@
             drawSpectrogram(slot);
         }
 
-        async function decodeAndComputeAudioViz(slot, source) {
-            // Read file once upfront — avoid re-reading in the catch path
-            const arrayBuffer = source instanceof File
-                ? await source.arrayBuffer()
-                : source;
-
-            // Detect Opus from file bytes — needed to activate Chrome sync correction.
-            // Scan first and last 64KB for 'Opus' (MP4) or 'A_OPUS' (WebM).
-            const bytes = new Uint8Array(arrayBuffer);
-            let isOpus = false;
-            const scanRegions = [
-                [0, Math.min(bytes.length, 65536)],
-                [Math.max(0, bytes.length - 65536), bytes.length]
-            ];
-            for (const [s, e] of scanRegions) {
-                for (let i = s; i < e - 3; i++) {
-                    if (bytes[i] === 0x4F && bytes[i+1] === 0x70 && bytes[i+2] === 0x75 && bytes[i+3] === 0x73) { isOpus = true; break; }
-                }
-                if (isOpus) break;
-            }
-            if (_isChrome && isOpus) _opusSyncPending[slot] = true;
-
-            // Byte-scan for unsupported codec signatures — used as a tiebreaker when
-            // both decodeAudioData and AudioDecoder fail. Only triggers transcode on
-            // combined failure, so false positives on multi-track files are harmless.
-            const _byteCodecKeys = Object.keys(_UNSUPPORTED_CODEC_LABELS);
-            const _byteCodecBytes = {
-                'ac-3': [0x61,0x63,0x2D,0x33], 'ec-3': [0x65,0x63,0x2D,0x33],
-                'dtsc': [0x64,0x74,0x73,0x63], 'dtse': [0x64,0x74,0x73,0x65],
-                'dtsh': [0x64,0x74,0x73,0x68], 'dtsl': [0x64,0x74,0x73,0x6C],
-                'mlpa': [0x6D,0x6C,0x70,0x61]
-            };
-            delete _byteScannedCodec[slot];
-            outer: for (const [rs, re] of scanRegions) {
-                for (let i = rs; i < re - 3; i++) {
-                    for (const k of _byteCodecKeys) {
-                        const b = _byteCodecBytes[k];
-                        if (bytes[i]===b[0] && bytes[i+1]===b[1] && bytes[i+2]===b[2] && bytes[i+3]===b[3]) {
-                            _byteScannedCodec[slot] = k;
-                            break outer;
-                        }
-                    }
-                }
-            }
-
-            // For Opus on Chrome, always use WebCodecs — decodeAudioData succeeds but
-            // produces wrong timing. For Safari, decodeAudioData hangs on Opus so the
-            // timeout catches it. For non-Opus, decodeAudioData works correctly.
-            if (_isChrome && isOpus && typeof AudioDecoder !== 'undefined') {
-                _decodeAudioWebCodecs(slot, arrayBuffer);
-                return;
-            }
-
-            try {
-                const ctx = getAudioContext();
-                const decodePromise = ctx.decodeAudioData(arrayBuffer.slice(0));
-                const hasWebCodecs = typeof AudioDecoder !== 'undefined';
-                const audioBuffer = await Promise.race([
-                    decodePromise,
-                    new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
-                ]);
-                _finalizeAudioViz(slot, audioBuffer);
-            } catch (e) {
-                if (typeof AudioDecoder !== 'undefined') {
-                    console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
-                    _opusSyncPending[slot] = true;
-                    _decodeAudioWebCodecs(slot, arrayBuffer);
-                } else {
-                    console.warn('Audio decode failed for', slot, e);
-                    _onAllDecodeFailed(slot);
-                }
-            }
-        }
+        // decodeAndComputeAudioViz → js/audio-decode.js
 
         let _videoAudioBuffers = {}; // { slot: AudioBuffer } — for video scrub audio
 
@@ -4740,23 +4661,7 @@
         // identifies the actual codec from the bitstream regardless.
         // `audioConfirmed` — true when the demuxer already extracted audio packets
         // (we know there IS audio, the codec is just undecodable in-browser).
-        function _onAllDecodeFailed(slot, audioConfirmed) {
-            if (_ffmpegCommands[slot]) return; // already registered
-            const filename = mediaData[slot] && mediaData[slot].name;
-            if (!filename) return;
-            const codec = _byteScannedCodec[slot] || 'unknown';
-            // For video files with no detected unsupported codec AND no demuxed
-            // audio packets, decode failure means there's actually no audio track.
-            // If audioConfirmed is true (WebCodecs got packets but couldn't decode
-            // them — e.g. AAC with malformed AudioSpecificConfig, weird HE-AAC
-            // variant, or corrupt frames), fall through to transcode — ffmpeg
-            // routinely handles streams that WebCodecs rejects.
-            if (mediaData[slot] && mediaData[slot].type === 'video' && codec === 'unknown' && !audioConfirmed) {
-                _markSlotNoAudio(slot);
-                return;
-            }
-            _registerFfmpegCommand(slot, filename, codec);
-        }
+        // _onAllDecodeFailed → js/audio-decode.js
 
         // Called from the MP4 demuxer when it identifies an unsupported primary track codec.
         // `codec` is one of the _UNSUPPORTED_CODEC_LABELS keys.
@@ -5510,73 +5415,7 @@
             _updateStackInfoStrip();
         }
 
-        function _finalizeAudioViz(slot, audioBuffer) {
-            waveformData[slot] = computeWaveformData(audioBuffer, 600);
-            spectrogramData[slot] = computeSpectrogramData(audioBuffer);
-            const _mf = computeAudioMetrics(audioBuffer);
-            audioMetrics[slot] = _mf;
-            // Propagate envelope data to the slot viz data if it already exists (no-video mode)
-            if (_audioSlotVizData[slot]) _audioSlotVizData[slot].lufsEnvelope = _mf ? _mf.stBlks : null;
-            _updateMetricSpans(slot);
-
-            // If this slot just finished a transcode, advance toast to 'done' now
-            if (_ffmpegTranscoding[slot] && _ffmpegTranscoding[slot].phase === 'computing') {
-                _ffmpegTranscoding[slot] = { phase: 'done' };
-                _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
-                setTimeout(() => { delete _ffmpegTranscoding[slot]; }, 3000);
-            }
-            delete audioFileBuffers[slot];
-
-            // Store AudioBuffer for scrub audio.
-            // Opus sync slots (Chrome) need full quality for correct A/V playback.
-            // All other slots get a mono 22050 Hz copy — saves ~8× memory.
-            // decodeAudioData returns a real AudioBuffer; the WebCodecs path
-            // returns a fake object — normalize it first via createBuffer + copyToChannel.
-            try {
-                let buf;
-                if (audioBuffer instanceof AudioBuffer) {
-                    buf = audioBuffer;
-                } else {
-                    const ctx = getAudioContext();
-                    const nCh = audioBuffer.numberOfChannels || 1;
-                    buf = ctx.createBuffer(nCh, audioBuffer.length, audioBuffer.sampleRate);
-                    for (let c = 0; c < nCh; c++) buf.copyToChannel(audioBuffer.getChannelData(c), c);
-                }
-                _videoAudioBuffers[slot] = (_isChrome && _opusSyncPending[slot])
-                    ? buf                        // full quality — needed for Opus A/V sync
-                    : _downsampleForScrub(buf);  // mono 22050 Hz — scrub preview only
-            } catch (_) {} // non-critical — scrub audio just won't work
-
-            // Activate Chrome Opus sync only for slots that used WebCodecs
-            // (meaning decodeAudioData failed/timed out — i.e. Opus in Safari,
-            // or the fake buffer path). For Chrome, _opusSyncPending marks slots
-            // that should use Web Audio replacement.
-            if (_isChrome && _opusSyncPending[slot] && _videoAudioBuffers[slot] && hasVideos) {
-                _opusSyncSlots[slot] = true;
-                _opusSyncActive = true;
-                _opusSyncDuration[slot] = _videoAudioBuffers[slot].duration;
-                const layer = getLayer(slot);
-                const video = layer && layer.querySelector('video');
-                if (video) video.muted = true;
-                // Refresh the info bar duration — it was rendered with the inflated
-                // raw video.duration at load time, before _opusSyncDuration was known.
-                updateDurationDisplay(slot, _opusSyncDuration[slot], videoFrameRates[video && video.src] || null);
-                // If video is already playing, start sync audio immediately
-                if (video && !video.paused) _startOpusSyncAudio(slot, video.currentTime);
-            }
-
-            // Draw if this is the currently active/visible slot
-            const activeSlot = assetOrder[currentAssetIndex];
-            if (slot === activeSlot || slot === currentAudioSource) {
-                updateAudioVisForSlot(slot);
-            }
-
-            // If no-video mode is active, populate viz data and draw canvas now
-            if (_noVideoMode && hasVideos) {
-                _populateNoVideoSlotData(slot);
-                drawAudioSlotCanvas(slot);
-            }
-        }
+        // _finalizeAudioViz → js/audio-decode.js
 
         // Fallback for browsers where decodeAudioData fails (e.g. Safari + Opus).
         // Parses MP4 or WebM container to extract Opus audio packets, then
@@ -5594,702 +5433,12 @@
             }
         }
 
-        function _decodeAudioWebCodecs(slot, arrayBuffer) {
-            if (typeof AudioDecoder === 'undefined') {
-                console.warn('WebCodecs AudioDecoder not available for', slot);
-                return;
-            }
-            _webcodecsStarted();
+        // _decodeAudioWebCodecs → js/audio-decode.js
 
-            const bytes = new Uint8Array(arrayBuffer);
-
-            // Detect container format from first bytes
-            const isMP4 = bytes.length > 7 &&
-                bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70; // 'ftyp'
-            const isWebM = bytes.length > 3 &&
-                bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3; // EBML
-
-            let extracted = null;
-            if (isMP4) {
-                extracted = _demuxMP4Audio(bytes);
-            } else if (isWebM) {
-                extracted = _demuxWebMAudio(bytes);
-            } else {
-                console.warn('Unknown container format for', slot);
-                _onAllDecodeFailed(slot);
-                _webcodecsFinished();
-                return;
-            }
-
-            if (!extracted || extracted.chunks.length === 0) {
-                console.warn('No audio packets extracted for', slot);
-                // For video files with no unsupported codec detected, empty chunks means
-                // no audio track — not a codec problem. Avoid triggering ffmpeg.
-                if (mediaData[slot] && mediaData[slot].type === 'video' && !_byteScannedCodec[slot]) {
-                    _markSlotNoAudio(slot);
-                } else {
-                    _onAllDecodeFailed(slot);
-                }
-                _webcodecsFinished();
-                return;
-            }
-
-            console.log('[webcodecs] ' + slot + ': found ' + extracted.chunks.length + ' packets, ' +
-                'rate=' + extracted.sampleRate + ', ch=' + extracted.channels +
-                ', codec=' + extracted.codec + ', container=' + (isMP4 ? 'mp4' : 'webm'));
-
-            // If the demuxer found an unsupported primary codec, register for transcode
-            // and bail — don't pass it to AudioDecoder which will just error.
-            // extracted.codec is the raw stsd box type (e.g. 'ec-3', 'ac-3', 'dtsc')
-            // which maps directly to _UNSUPPORTED_CODEC_LABELS keys.
-            const _demuxedCodec = extracted.codec || '';
-            if (_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(_demuxedCodec)) {
-                console.warn('[webcodecs] ' + slot + ': primary codec ' + _demuxedCodec + ' is unsupported — registering for transcode');
-                const filename = mediaData[slot] && mediaData[slot].name;
-                if (filename) _registerFfmpegCommand(slot, filename, _demuxedCodec);
-                _webcodecsFinished();
-                return;
-            }
-
-            _decodeWithAudioDecoder(slot, extracted);
-        }
-
-        // --- MP4 demuxer ---
-        function _demuxMP4Audio(data) {
-            const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-            let sampleRate = 48000, channels = 2;
-            let codecPrivate = null;
-            let preSkip = 0;
-            let audioCodec = 'opus'; // updated from stsd entry type
-            let audioTrackId = -1;
-            let timescale = 1;
-            let mediaStartTime = -1; // from edit list, in timescale units
-            let segmentDuration = -1; // from edit list, in movie timescale units
-            let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
-            const sampleTable = { sizes: [], offsets: [], durations: [] };
-            const chunks = [];
-
-            function readStr(off, len) {
-                let s = '';
-                for (let i = 0; i < len; i++) s += String.fromCharCode(data[off + i]);
-                return s;
-            }
-
-            // Walk MP4 boxes. containerEnd bounds the current container.
-            function walkBoxes(start, end, path) {
-                let off = start;
-                while (off + 8 <= end) {
-                    let size = view.getUint32(off);
-                    const type = readStr(off + 4, 4);
-                    let headerLen = 8;
-                    if (size === 1 && off + 16 <= end) {
-                        // 64-bit extended size
-                        size = Number(view.getBigUint64(off + 8));
-                        headerLen = 16;
-                    } else if (size === 0) {
-                        size = end - off; // box extends to end
-                    }
-                    if (size < headerLen || off + size > end) break;
-
-                    const boxStart = off + headerLen;
-                    const boxEnd = off + size;
-                    const fullPath = path + '/' + type;
-
-                    // Container boxes — recurse
-                    if (type === 'moov' || type === 'trak' || type === 'mdia' ||
-                        type === 'minf' || type === 'stbl' || type === 'udta' ||
-                        type === 'edts') {
-                        walkBoxes(boxStart, boxEnd, fullPath);
-                    } else if (type === 'mvhd') {
-                        parseMvhd(boxStart, boxEnd);
-                    } else if (type === 'mdhd') {
-                        parseMdhd(boxStart, boxEnd);
-                    } else if (type === 'hdlr') {
-                        parseHdlr(boxStart, boxEnd);
-                    } else if (type === 'stsd') {
-                        parseStsd(boxStart, boxEnd);
-                    } else if (type === 'stsz') {
-                        parseStsz(boxStart, boxEnd);
-                    } else if (type === 'stco') {
-                        parseStco(boxStart, boxEnd);
-                    } else if (type === 'co64') {
-                        parseCo64(boxStart, boxEnd);
-                    } else if (type === 'stsc') {
-                        parseStsc(boxStart, boxEnd);
-                    } else if (type === 'stts') {
-                        parseStts(boxStart, boxEnd);
-                    } else if (type === 'tkhd') {
-                        parseTkhd(boxStart, boxEnd);
-                    } else if (type === 'elst') {
-                        parseElst(boxStart, boxEnd);
-                    }
-
-                    off = boxEnd;
-                }
-            }
-
-            let _currentTrackIsAudio = false;
-            let _stscEntries = [];
-            let _lastElstMediaTime = -1; // elst from current trak, resolved after hdlr
-            let _lastElstSegDuration = -1;
-            let _lastMdhdTimescale = 0;  // mdhd from current trak; promoted to `timescale`
-                                         // only when hdlr confirms this trak is audio.
-                                         // Without per-track scoping, the data/subtitle
-                                         // track's mdhd (often 1000) overwrites the audio
-                                         // track's mdhd (usually = sample rate, e.g. 48000)
-                                         // and corrupts the elst skipSamples calculation.
-
-            function parseTkhd(start, end) {
-                if (end - start < 8) return;
-                _lastElstMediaTime = -1; // reset for each new trak
-                _lastElstSegDuration = -1;
-                _lastMdhdTimescale = 0; // also reset per-track — see parseMdhd
-                _currentTrackIsAudio = false;
-                const version = data[start];
-                audioTrackId = version === 1
-                    ? view.getUint32(start + 20)
-                    : view.getUint32(start + 12);
-            }
-
-            function parseElst(start, end) {
-                // Edit list — tells us where in the media timeline playback starts
-                // and how long the segment lasts.
-                // Stored temporarily; assigned when hdlr confirms audio.
-                if (end - start < 8) return;
-                const version = data[start];
-                const entryCount = view.getUint32(start + 4);
-                let off = start + 8;
-                for (let i = 0; i < entryCount; i++) {
-                    if (version === 1) {
-                        if (off + 20 > end) break;
-                        const sd = Number(view.getBigUint64(off));
-                        const mt = Number(view.getBigInt64(off + 8));
-                        if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
-                        off += 20;
-                    } else {
-                        if (off + 12 > end) break;
-                        const sd = view.getUint32(off);
-                        const mt = view.getInt32(off + 4);
-                        if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
-                        off += 12;
-                    }
-                }
-            }
-
-            function parseMvhd(start, end) {
-                if (end - start < 4) return;
-                const version = data[start];
-                // version 0: timescale at offset 12; version 1: at offset 20
-                if (version === 1 && end - start >= 24) {
-                    movieTimescale = view.getUint32(start + 20);
-                } else if (end - start >= 16) {
-                    movieTimescale = view.getUint32(start + 12);
-                }
-            }
-
-            function parseMdhd(start, end) {
-                if (end - start < 4) return;
-                const version = data[start];
-                // Store the timescale locally; promote to the audio-track-scoped
-                // `timescale` only when parseHdlr confirms this trak is audio.
-                if (version === 1 && end - start >= 28) {
-                    _lastMdhdTimescale = view.getUint32(start + 20);
-                } else if (end - start >= 16) {
-                    _lastMdhdTimescale = view.getUint32(start + 12);
-                }
-            }
-
-            function parseHdlr(start, end) {
-                // version(4) + predefined(4) + handler_type(4)
-                if (end - start < 12) return;
-                const handlerType = readStr(start + 8, 4);
-                _currentTrackIsAudio = (handlerType === 'soun');
-                if (_currentTrackIsAudio) {
-                    // Promote this trak's mdhd timescale to the demuxer-wide variable.
-                    // Previously the global `timescale` was overwritten by every track,
-                    // so a data/subtitle track parsed after the audio track (with
-                    // timescale=1000) would corrupt the audio elst calculation, making
-                    // 16512-sample (=344ms) priming offsets look like 16.5-second skips.
-                    if (_lastMdhdTimescale > 0) timescale = _lastMdhdTimescale;
-                    if (_lastElstMediaTime >= 0) {
-                        mediaStartTime = _lastElstMediaTime;
-                        segmentDuration = _lastElstSegDuration;
-                    }
-                }
-            }
-
-            function parseStsd(start, end) {
-                if (!_currentTrackIsAudio) return;
-                // version(1) + flags(3) + entry_count(4)
-                if (end - start < 8) return;
-                const entryStart = start + 8;
-                if (entryStart + 8 > end) return;
-                let entrySize = view.getUint32(entryStart);
-                const entryType = readStr(entryStart + 4, 4);
-
-                // AudioSampleEntry layout after 8-byte box header:
-                //   6 reserved + 2 data_ref_index = 8 bytes
-                //   8 reserved
-                //   2 channel_count (offset +16 from entry data start)
-                //   2 sample_size
-                //   2 compression_id + 2 packet_size
-                //   4 sample_rate (16.16 fixed point)
-                // Total: 28 bytes, sub-boxes start after
-                const entryDataStart = entryStart + 8; // past box header
-                const audioStart = entryDataStart + 28; // sub-boxes start here
-                // Map stsd entry type to WebCodecs codec string
-                if (entryType === 'Opus') audioCodec = 'opus';
-                else if (entryType === 'mp4a') audioCodec = 'mp4a.40.2';
-                else audioCodec = entryType;
-                if (entryDataStart + 28 <= end) {
-                    channels = view.getUint16(entryDataStart + 16);
-                    sampleRate = view.getUint16(entryDataStart + 24); // upper 16 bits of fixed-point
-                }
-
-                // Look for 'dOps' (Opus) or 'Opus' sub-boxes inside the sample entry
-                if (audioStart < entryStart + entrySize) {
-                    let bOff = audioStart;
-                    const bEnd = entryStart + entrySize;
-                    while (bOff + 8 <= bEnd) {
-                        const bSize = view.getUint32(bOff);
-                        const bType = readStr(bOff + 4, 4);
-                        if (bSize < 8 || bOff + bSize > bEnd) break;
-                        if (bType === 'dOps') {
-                            // dOps box: version(1) + outputChannelCount(1) + preSkip(2) +
-                            //           inputSampleRate(4) + outputGain(2) + mappingFamily(1) ...
-                            codecPrivate = data.slice(bOff + 8, bOff + bSize);
-                            if (codecPrivate.length >= 2) {
-                                channels = codecPrivate[1]; // outputChannelCount — authoritative
-                            }
-                            if (codecPrivate.length >= 4) {
-                                preSkip = (codecPrivate[2] << 8) | codecPrivate[3]; // big-endian in dOps
-                            }
-                        }
-                        bOff += bSize;
-                    }
-                }
-            }
-
-            function parseStsz(start, end) {
-                if (!_currentTrackIsAudio || end - start < 12) return;
-                const defaultSize = view.getUint32(start + 4);
-                const count = view.getUint32(start + 8);
-                if (defaultSize > 0) {
-                    for (let i = 0; i < count; i++) sampleTable.sizes.push(defaultSize);
-                } else {
-                    for (let i = 0; i < count && start + 12 + i * 4 + 4 <= end; i++) {
-                        sampleTable.sizes.push(view.getUint32(start + 12 + i * 4));
-                    }
-                }
-            }
-
-            function parseStco(start, end) {
-                if (!_currentTrackIsAudio || end - start < 8) return;
-                const count = view.getUint32(start + 4);
-                for (let i = 0; i < count && start + 8 + i * 4 + 4 <= end; i++) {
-                    sampleTable.offsets.push(view.getUint32(start + 8 + i * 4));
-                }
-            }
-
-            function parseCo64(start, end) {
-                if (!_currentTrackIsAudio || end - start < 8) return;
-                const count = view.getUint32(start + 4);
-                for (let i = 0; i < count && start + 8 + i * 8 + 8 <= end; i++) {
-                    sampleTable.offsets.push(Number(view.getBigUint64(start + 8 + i * 8)));
-                }
-            }
-
-            function parseStsc(start, end) {
-                if (!_currentTrackIsAudio || end - start < 8) return;
-                const count = view.getUint32(start + 4);
-                _stscEntries = [];
-                for (let i = 0; i < count && start + 8 + i * 12 + 12 <= end; i++) {
-                    _stscEntries.push({
-                        firstChunk: view.getUint32(start + 8 + i * 12),
-                        samplesPerChunk: view.getUint32(start + 8 + i * 12 + 4),
-                        descIdx: view.getUint32(start + 8 + i * 12 + 8)
-                    });
-                }
-            }
-
-            function parseStts(start, end) {
-                if (!_currentTrackIsAudio || end - start < 8) return;
-                const count = view.getUint32(start + 4);
-                for (let i = 0; i < count && start + 8 + i * 8 + 8 <= end; i++) {
-                    const sampleCount = view.getUint32(start + 8 + i * 8);
-                    const sampleDelta = view.getUint32(start + 8 + i * 8 + 4);
-                    sampleTable.durations.push({ count: sampleCount, delta: sampleDelta });
-                }
-            }
-
-            // Parse
-            walkBoxes(0, data.length, '');
-
-            if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
-                console.warn('[mp4-parse] no audio samples found');
-                return null;
-            }
-
-            // Build sample-to-offset mapping using stsc (sample-to-chunk) + stco (chunk offsets)
-            // stsc tells us how many samples are in each chunk
-            const numSamples = sampleTable.sizes.length;
-            const sampleOffsets = new Array(numSamples);
-            let sampleIdx = 0;
-
-            for (let chunkIdx = 0; chunkIdx < sampleTable.offsets.length && sampleIdx < numSamples; chunkIdx++) {
-                // Find how many samples in this chunk from stsc
-                let samplesInChunk = 1;
-                const chunkNum = chunkIdx + 1; // 1-based
-                for (let s = _stscEntries.length - 1; s >= 0; s--) {
-                    if (chunkNum >= _stscEntries[s].firstChunk) {
-                        samplesInChunk = _stscEntries[s].samplesPerChunk;
-                        break;
-                    }
-                }
-
-                let offset = sampleTable.offsets[chunkIdx];
-                for (let s = 0; s < samplesInChunk && sampleIdx < numSamples; s++) {
-                    sampleOffsets[sampleIdx] = offset;
-                    offset += sampleTable.sizes[sampleIdx];
-                    sampleIdx++;
-                }
-            }
-
-            // Build timestamps from stts (time-to-sample)
-            let ts = 0;
-            let tsIdx = 0;
-            for (const entry of sampleTable.durations) {
-                for (let i = 0; i < entry.count && tsIdx < numSamples; i++) {
-                    const timestampUs = Math.round(ts * 1000000 / timescale);
-                    const sampleSize = sampleTable.sizes[tsIdx];
-                    const sampleOff = sampleOffsets[tsIdx];
-                    if (sampleOff !== undefined && sampleOff + sampleSize <= data.length) {
-                        chunks.push({
-                            timestamp: timestampUs,
-                            data: data.slice(sampleOff, sampleOff + sampleSize)
-                        });
-                    }
-                    ts += entry.delta;
-                    tsIdx++;
-                }
-            }
-
-            // Edit list media_time supersedes preSkip (it includes encoder delay).
-            // Convert to samples at the audio sample rate.
-            const skipSamples = mediaStartTime >= 0
-                ? Math.round(mediaStartTime * sampleRate / timescale)
-                : preSkip;
-
-            // segmentDuration (in movie timescale) tells us how long to play.
-            // Convert to samples to trim trailing audio past the video end.
-            const maxSamples = (segmentDuration > 0 && movieTimescale > 0)
-                ? Math.round(segmentDuration / movieTimescale * sampleRate)
-                : 0; // 0 = no limit
-
-            console.log('[mp4-parse] ' + chunks.length + ' audio samples, timescale=' + timescale +
-                ', rate=' + sampleRate + ', ch=' + channels +
-                ', elst_media_time=' + mediaStartTime + ', skipSamples=' + skipSamples +
-                ', segDur=' + segmentDuration + ', movieTs=' + movieTimescale +
-                ', maxSamples=' + maxSamples);
-
-            return {
-                chunks: chunks,
-                sampleRate: sampleRate,
-                channels: channels,
-                codec: audioCodec,
-                description: codecPrivate,
-                preSkip: skipSamples,
-                maxSamples: maxSamples
-            };
-        }
-
-        // --- WebM demuxer ---
-        function _demuxWebMAudio(data) {
-            let audioTrackNum = -1;
-            let codecPrivate = null;
-            let sampleRate = 48000;
-            let channels = 2;
-            let timestampScale = 1000000;
-            const chunks = [];
-
-            function readVint(d, offset) {
-                if (offset >= d.length) return null;
-                let first = d[offset], len = 1, mask = 0x80;
-                while (len <= 8 && !(first & mask)) { len++; mask >>= 1; }
-                if (len > 8) return null;
-                let value = first & (mask - 1);
-                for (let i = 1; i < len; i++) {
-                    if (offset + i >= d.length) return null;
-                    value = value * 256 + d[offset + i];
-                }
-                return { value: value, length: len };
-            }
-
-            function readElementId(d, offset) {
-                if (offset >= d.length) return null;
-                let first = d[offset], len;
-                if (first & 0x80) len = 1;
-                else if (first & 0x40) len = 2;
-                else if (first & 0x20) len = 3;
-                else if (first & 0x10) len = 4;
-                else return null;
-                let id = 0;
-                for (let i = 0; i < len; i++) {
-                    if (offset + i >= d.length) return null;
-                    id = id * 256 + d[offset + i];
-                }
-                return { id: id, length: len };
-            }
-
-            function readEl(d, offset) {
-                const idI = readElementId(d, offset);
-                if (!idI) return null;
-                const szI = readVint(d, offset + idI.length);
-                if (!szI) return null;
-                const hLen = idI.length + szI.length;
-                return { id: idI.id, headerLen: hLen, dataSize: szI.value, dataOffset: offset + hLen };
-            }
-
-            function readUint(d, off, sz) {
-                let v = 0; for (let i = 0; i < sz; i++) v = v * 256 + d[off + i]; return v;
-            }
-            function readFloat(d, off, sz) {
-                const dv = new DataView(d.buffer, d.byteOffset + off, sz);
-                return sz === 4 ? dv.getFloat32(0) : dv.getFloat64(0);
-            }
-            function readString(d, off, sz) {
-                let s = ''; for (let i = 0; i < sz; i++) s += String.fromCharCode(d[off + i]); return s;
-            }
-
-            const ID = {
-                Segment: 0x18538067, Tracks: 0x1654AE6B, TrackEntry: 0xAE,
-                TrackNumber: 0xD7, TrackType: 0x83, CodecID: 0x86, CodecPrivate: 0x63A2,
-                Audio: 0xE1, SampleRate: 0xB5, Channels: 0x9F,
-                Cluster: 0x1F43B675, Timecode: 0xE7, SimpleBlock: 0xA3,
-                Info: 0x1549A966, TimestampScale: 0x2AD7B1
-            };
-
-            function parseSegment(d, start, end) {
-                let off = start;
-                while (off < end) {
-                    const el = readEl(d, off);
-                    if (!el) break;
-                    const dEnd = Math.min(el.dataOffset + el.dataSize, end);
-                    if (el.id === ID.Info) {
-                        let o = el.dataOffset;
-                        while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TimestampScale) timestampScale = readUint(d, e2.dataOffset, e2.dataSize); o = e2.dataOffset + e2.dataSize; }
-                    } else if (el.id === ID.Tracks) {
-                        let o = el.dataOffset;
-                        while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TrackEntry) parseTrackEntry(d, e2.dataOffset, e2.dataOffset + e2.dataSize); o = e2.dataOffset + e2.dataSize; }
-                    } else if (el.id === ID.Cluster && audioTrackNum >= 0) {
-                        parseCluster(d, el.dataOffset, dEnd);
-                    }
-                    off = dEnd;
-                }
-            }
-
-            function parseTrackEntry(d, start, end) {
-                let num = -1, type = -1, codec = '', priv = null, sr = 48000, ch = 2;
-                let off = start;
-                while (off < end) {
-                    const el = readEl(d, off); if (!el) break;
-                    const dEnd = el.dataOffset + el.dataSize;
-                    if (el.id === ID.TrackNumber) num = readUint(d, el.dataOffset, el.dataSize);
-                    else if (el.id === ID.TrackType) type = readUint(d, el.dataOffset, el.dataSize);
-                    else if (el.id === ID.CodecID) codec = readString(d, el.dataOffset, el.dataSize);
-                    else if (el.id === ID.CodecPrivate) priv = d.slice(el.dataOffset, dEnd);
-                    else if (el.id === ID.Audio) {
-                        let ao = el.dataOffset;
-                        while (ao < dEnd) { const ae = readEl(d, ao); if (!ae) break; if (ae.id === ID.SampleRate) sr = readFloat(d, ae.dataOffset, ae.dataSize); else if (ae.id === ID.Channels) ch = readUint(d, ae.dataOffset, ae.dataSize); ao = ae.dataOffset + ae.dataSize; }
-                    }
-                    off = dEnd;
-                }
-                if (type === 2 && (codec === 'A_OPUS' || codec === 'A_VORBIS')) {
-                    audioTrackNum = num; codecPrivate = priv; sampleRate = sr; channels = ch;
-                }
-            }
-
-            function parseCluster(d, start, end) {
-                let clusterTs = 0; let off = start;
-                while (off < end) {
-                    const el = readEl(d, off); if (!el) break;
-                    const dEnd = Math.min(el.dataOffset + el.dataSize, end);
-                    if (el.id === ID.Timecode) clusterTs = readUint(d, el.dataOffset, el.dataSize);
-                    else if (el.id === ID.SimpleBlock) {
-                        const tv = readVint(d, el.dataOffset); if (!tv || tv.value !== audioTrackNum) { off = dEnd; continue; }
-                        const tsOff = el.dataOffset + tv.length;
-                        const rel = (d[tsOff] << 8 | d[tsOff + 1]); const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
-                        const frameStart = tsOff + 3;
-                        if (frameStart < el.dataOffset + el.dataSize) {
-                            const tsMs = (clusterTs + relSigned) * timestampScale / 1000000;
-                            chunks.push({ timestamp: Math.round(tsMs * 1000), data: d.slice(frameStart, el.dataOffset + el.dataSize) });
-                        }
-                    }
-                    off = dEnd;
-                }
-            }
-
-            // Walk top-level
-            let off = 0;
-            while (off < data.length) {
-                const el = readEl(data, off); if (!el) break;
-                if (el.id === ID.Segment) { parseSegment(data, el.dataOffset, Math.min(el.dataOffset + el.dataSize, data.length)); break; }
-                off = el.dataOffset + el.dataSize;
-            }
-
-            if (chunks.length === 0) return null;
-            // OpusHead pre-skip is at bytes 10-11, little-endian
-            let preSkip = 0;
-            if (codecPrivate && codecPrivate.length >= 12) {
-                preSkip = codecPrivate[10] | (codecPrivate[11] << 8);
-            }
-            return {
-                chunks: chunks,
-                sampleRate: sampleRate,
-                channels: channels,
-                codec: 'opus',
-                description: codecPrivate ? codecPrivate.buffer.slice(codecPrivate.byteOffset, codecPrivate.byteOffset + codecPrivate.byteLength) : null,
-                preSkip: preSkip
-            };
-        }
+        // _demuxMP4Audio, _demuxWebMAudio → js/mp4-demux.js
 
         // --- AudioDecoder (shared by both demuxers) ---
-        function _decodeWithAudioDecoder(slot, extracted) {
-            const decodedChunks = [];
-            let decodeError = false;
-
-            const decoder = new AudioDecoder({
-                output: function(audioData) {
-                    const chData = [];
-                    for (let c = 0; c < audioData.numberOfChannels; c++) {
-                        const buf = new Float32Array(audioData.numberOfFrames);
-                        audioData.copyTo(buf, { planeIndex: c, format: 'f32-planar' });
-                        chData.push(buf);
-                    }
-                    decodedChunks.push({ timestamp: audioData.timestamp, samples: chData });
-                    audioData.close();
-                },
-                error: function(err) {
-                    console.warn('AudioDecoder error for', slot, err);
-                    decodeError = true;
-                }
-            });
-
-            const config = {
-                codec: extracted.codec,
-                sampleRate: extracted.sampleRate,
-                numberOfChannels: extracted.channels
-            };
-            if (extracted.description) {
-                config.description = extracted.description instanceof ArrayBuffer
-                    ? extracted.description
-                    : extracted.description.buffer
-                        ? extracted.description.buffer.slice(extracted.description.byteOffset, extracted.description.byteOffset + extracted.description.byteLength)
-                        : extracted.description;
-            }
-
-            try {
-                decoder.configure(config);
-            } catch (err) {
-                console.warn('AudioDecoder configure failed for', slot, err);
-                _onAllDecodeFailed(slot, true); // audio packets were already demuxed
-                _webcodecsFinished();
-                return;
-            }
-
-            for (let i = 0; i < extracted.chunks.length; i++) {
-                if (decodeError) break;
-                const chunk = extracted.chunks[i];
-                decoder.decode(new EncodedAudioChunk({
-                    type: 'key',  // Opus frames are all independent
-                    timestamp: chunk.timestamp,
-                    data: chunk.data
-                }));
-            }
-
-            decoder.flush().then(() => {
-                try { decoder.close(); } catch (_) {}
-                if (decodeError || decodedChunks.length === 0) {
-                    // If some chunks decoded before the error, use what we have
-                    if (decodedChunks.length === 0) {
-                        console.warn('WebCodecs decode produced no output for', slot);
-                        _onAllDecodeFailed(slot, true); // audio packets were demuxed
-                        _webcodecsFinished();
-                        return;
-                    }
-                }
-
-                decodedChunks.sort((a, b) => a.timestamp - b.timestamp);
-                const numChannels = decodedChunks[0].samples.length || 1;
-                const rawFrames = decodedChunks.reduce((sum, c) => sum + c.samples[0].length, 0);
-                const rawBuffers = [];
-                for (let c = 0; c < numChannels; c++) rawBuffers.push(new Float32Array(rawFrames));
-                let writeOffset = 0;
-                for (const chunk of decodedChunks) {
-                    for (let c = 0; c < numChannels; c++) {
-                        rawBuffers[c].set(chunk.samples[c] || chunk.samples[0], writeOffset);
-                    }
-                    writeOffset += chunk.samples[0].length;
-                }
-
-                // Trim Opus pre-skip (encoder priming samples) from the start
-                const skip = extracted.preSkip || 0;
-                let channelBuffers = skip > 0
-                    ? rawBuffers.map(buf => buf.subarray(Math.min(skip, buf.length)))
-                    : rawBuffers;
-                // Trim trailing audio to match edit list segment duration
-                const maxLen = extracted.maxSamples || 0;
-                if (maxLen > 0 && channelBuffers[0].length > maxLen) {
-                    channelBuffers = channelBuffers.map(buf => buf.subarray(0, maxLen));
-                }
-                const totalFrames = channelBuffers[0].length;
-
-                const duration = totalFrames / extracted.sampleRate;
-                const fakeBuffer = {
-                    numberOfChannels: numChannels,
-                    sampleRate: extracted.sampleRate,
-                    duration: duration,
-                    length: totalFrames,
-                    getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
-                };
-                console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
-                    totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
-                _finalizeAudioViz(slot, fakeBuffer);
-                _webcodecsFinished();
-            }).catch(err => {
-                console.warn('AudioDecoder flush failed for', slot, err);
-                try { decoder.close(); } catch (_) {}
-                if (decodedChunks.length === 0) _onAllDecodeFailed(slot, true); // audio packets were demuxed
-                // If some chunks decoded before the error, use what we got
-                if (decodedChunks.length > 0) {
-                    // Re-enter the success path with partial data
-                    const numChannels = decodedChunks[0].samples.length || 1;
-                    const rawFrames = decodedChunks.reduce((sum, c) => sum + c.samples[0].length, 0);
-                    const rawBuffers = [];
-                    for (let c = 0; c < numChannels; c++) rawBuffers.push(new Float32Array(rawFrames));
-                    let wo = 0;
-                    for (const chunk of decodedChunks) {
-                        for (let c = 0; c < numChannels; c++) rawBuffers[c].set(chunk.samples[c] || chunk.samples[0], wo);
-                        wo += chunk.samples[0].length;
-                    }
-                    const skip = extracted.preSkip || 0;
-                    let channelBuffers = skip > 0 ? rawBuffers.map(buf => buf.subarray(Math.min(skip, buf.length))) : rawBuffers;
-                    const maxLen = extracted.maxSamples || 0;
-                    if (maxLen > 0 && channelBuffers[0].length > maxLen) {
-                        channelBuffers = channelBuffers.map(buf => buf.subarray(0, maxLen));
-                    }
-                    const totalFrames = channelBuffers[0].length;
-                    const duration = totalFrames / extracted.sampleRate;
-                    console.log('[webcodecs] ' + slot + ': partial decode ' + duration.toFixed(1) + 's (' + decodedChunks.length + '/' + extracted.chunks.length + ' chunks)');
-                    _finalizeAudioViz(slot, {
-                        numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
-                        duration: duration, length: totalFrames,
-                        getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
-                    });
-                }
-                _webcodecsFinished();
-            });
-        }
+        // _decodeWithAudioDecoder → js/audio-decode.js
 
         // Run re-layout continuously for durationMs using rAF.
         // Used when a panel slides open/closed so media resizes smoothly.
@@ -6981,7 +6130,12 @@
         // ── Audio File Comparison ──────────────────────────────────────────
 
         let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
-        let _audioDecodeGen = {};    // { slot: number } — incremented on each decode start; guards stale completions
+        let _audioDecodeGen = {};    // { slot: number } — audio-only (decodeAndComputeAudioSlotViz) decode generation; guards stale completions
+        // Separate generation for the video/W-panel decode path (decodeAndComputeAudioViz →
+        // _finalizeAudioViz). MUST be distinct from _audioDecodeGen: for audio-only slots BOTH
+        // decoders run (SlotViz at load + Viz lazily via _ensureAudioVizDecoded), so a shared
+        // counter would let one decoder's bump invalidate the other's in-flight completion.
+        let _videoAudioDecodeGen = {};
         let _lastPrimaryAudioTime = 0;
         let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
@@ -7001,53 +6155,16 @@
             const btn = document.getElementById('playPauseBtn');
             if (btn) btn.textContent = playing ? '❚ ❚' : '▶';
         }
-        function playAllMedia() {
-            _bulkSyncActive = true;
-            const customLoopActive = (_loopInPoint !== null && _loopOutPoint !== null);
-            getAllPlayableMedia().forEach(m => { m.loop = !customLoopActive; m.play().catch(() => {}); });
-            // Start Web Audio sync for Chrome Opus slots
-            if (_opusSyncActive) {
-                for (const slot of assetOrder) {
-                    if (!_opusSyncSlots[slot]) continue;
-                    const layer = getLayer(slot);
-                    const video = layer && layer.querySelector('video');
-                    if (video) _startOpusSyncAudio(slot, video.currentTime);
-                }
-            }
-            startProgressUpdateLoop();
-            _updatePlayPauseBtn(true);
-            setTimeout(() => { _bulkSyncActive = false; }, 50);
-        }
-        function pauseAllMedia() {
-            _bulkSyncActive = true;
-            getAllPlayableMedia().forEach(m => m.pause());
-            _stopAllOpusSyncAudio();
-            _updatePlayPauseBtn(false);
-            _bulkSyncActive = false;
-        }
+        // Single owner for (re)starting Web Audio sync on every Chrome Opus slot.
+        // Both playAllMedia and restartAllVideos route through this so the two transports
+        // can't diverge — restartAllVideos previously omitted it, leaving Opus audio
+        // orphaned/desynced on the R key (audit finding D). timeForSlot(video) yields the
+        // position each slot's audio should start from.
+        // _startOpusSyncForPlayingSlots → js/transport.js
+        // playAllMedia → js/transport.js
+        // pauseAllMedia → js/transport.js
 
-        function setupAudioHandlers(audio, slot) {
-            audio.addEventListener('play', function() {
-                if (isDragging || _bulkSyncActive) return;
-                syncMedia(audio, a => {
-                    a.play().catch(() => {});
-                    if (Math.abs(a.currentTime - audio.currentTime) > 0.1) {
-                        a.currentTime = audio.currentTime;
-                    }
-                });
-                startProgressUpdateLoop();
-            });
-
-            audio.addEventListener('pause', function() {
-                if (isDragging || _bulkSyncActive) return;
-                syncMedia(audio, a => { if (!a.paused) a.pause(); });
-            });
-
-            audio.addEventListener('seeked', function() {
-                if (isDragging || _bulkSyncActive) return;
-                updateMediaProgress(audio);
-            });
-        }
+        // setupAudioHandlers → js/transport.js
 
         function updateAudioProgress(media) {
             const duration = media.duration;
@@ -7164,56 +6281,7 @@
             _updateMetricSpans(slot);
         }
 
-        function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
-            _audioDecodeGen[slot] = (_audioDecodeGen[slot] || 0) + 1;
-            const gen = _audioDecodeGen[slot];
-            const ctx = getAudioContext();
-            ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
-                if (_audioDecodeGen[slot] !== gen) return;
-                updateLoadingStatus('Computing waveforms…');
-                const dpr = window.devicePixelRatio || 1;
-                const maxPx = Math.round(window.innerWidth * dpr);
-                const numBuckets = Math.min(Math.ceil(audioBuffer.duration * 1000), maxPx);
-                const waveform = computeWaveformData(audioBuffer, numBuckets);
-                const spectrogram = computeSpectrogramData(audioBuffer);
-                const _m = computeAudioMetrics(audioBuffer);
-                audioMetrics[slot] = _m;
-                _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer, lufsEnvelope: _m ? _m.stBlks : null };
-                _updateMetricSpans(slot);
-                delete audioFileBuffers[slot];
-
-                // Update info bar with audio metadata
-                updateAudioInfoBar(slot, audioBuffer, arrayBuffer);
-
-                // Recompute max duration across all loaded audio slots
-                _audioMaxDuration = 0;
-                assetOrder.forEach(s => {
-                    if (_audioSlotVizData[s]) {
-                        _audioMaxDuration = Math.max(_audioMaxDuration, _audioSlotVizData[s].audioBuffer.duration);
-                    }
-                });
-
-                // Redraw all canvases with uniform time scale
-                assetOrder.forEach(s => {
-                    if (_audioSlotVizData[s]) drawAudioSlotCanvas(s);
-                });
-
-                // Update duration display using decoded duration as a fallback in case
-                // the <audio> element's loadedmetadata event is slow (e.g. service worker
-                // intercepting the blob URL). This is idempotent — loadedmetadata will
-                // overwrite it with the same value when it eventually fires.
-                updateDurationDisplay(slot, audioBuffer.duration);
-
-                // Activate the view if it hasn't been activated yet (i.e. loadedmetadata
-                // hasn't fired). This unblocks the loading screen when the <audio> element
-                // is slow to fire loadedmetadata. The viewActivating guard in
-                // checkAllLoaded() prevents a double-activation when loadedmetadata later fires.
-                if (!viewActivating) checkAllLoaded();
-            }).catch(err => {
-                console.error('Audio decode error for slot ' + slot + ':', err);
-                showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);
-            });
-        }
+        // decodeAndComputeAudioSlotViz → js/audio-decode.js
 
         function drawAudioSlotCanvas(slot, _retries) {
             const canvas = document.querySelector(`.audio-viz-slot-canvas[data-slot="${slot}"]`);
@@ -7972,224 +7040,16 @@
         // Frame-accurate loop-point enforcement via requestVideoFrameCallback.
         // Replaces the rAF-based out-point check in updateLoop for Stack mode so the
         // seek-back fires at the exact frame presentation time instead of up to 16ms late.
-        let _loopWrapTimer = null;   // pending exact-out-point wrap (scheduled in onFrame)
-        function _cancelLoopWrapTimer() {
-            if (_loopWrapTimer !== null) { clearTimeout(_loopWrapTimer); _loopWrapTimer = null; }
-        }
-        function _loopWrapToInPoint() {
-            getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
-            if (_opusSyncActive) {
-                for (const s of assetOrder) {
-                    if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
-                }
-            }
-        }
-        function _startLoopRvfc(video) {
-            if (isGridMode) return;
-            if (typeof video.requestVideoFrameCallback !== 'function') return;
-            if (video.paused || video.ended) return;
-            if (_loopInPoint === null || _loopOutPoint === null) return;
-
-            function onFrame(now, metadata) {
-                if (_loopInPoint === null || _loopOutPoint === null) return; // loop cleared; chain ends
-                if (isGridMode) return;                                      // mode switched; chain ends
-                if (video !== primaryVideoRef) return;                       // no longer primary; chain ends
-                if (isDragging) { video.requestVideoFrameCallback(onFrame); return; }
-
-                const t = metadata.mediaTime;
-                if (t >= _loopOutPoint || t < _loopInPoint - 0.05) {
-                    // Safety net: a frame at/past the out-point was already presented
-                    // (long seek landing, stall, or a cancelled schedule below).
-                    _cancelLoopWrapTimer();
-                    _loopWrapToInPoint();
-                } else {
-                    // mediaTime is quantized to the frame grid, so waiting for a frame
-                    // PAST the out-point lets up to a full frame of AUDIO (~42ms at
-                    // 24fps, plus seek latency) play beyond the boundary — audibly.
-                    // Instead, when the LAST in-region frame presents, schedule the
-                    // wrap for the exact out-point time.
-                    const frameDur = 1 / (videoFrameRates[video.src] || 30);
-                    if (t >= _loopOutPoint - frameDur * 1.25 && _loopWrapTimer === null) {
-                        const rate = video.playbackRate || 1;
-                        const delayMs = Math.max(0, ((_loopOutPoint - t) / rate) * 1000 - 2);
-                        _loopWrapTimer = setTimeout(() => {
-                            _loopWrapTimer = null;
-                            // Re-validate: the loop may have been cleared, playback paused,
-                            // or the user may have seeked back since this was scheduled.
-                            if (_loopInPoint === null || _loopOutPoint === null) return;
-                            if (video.paused || isDragging) return;
-                            if (video.currentTime < _loopOutPoint - frameDur * 1.5) return;
-                            _loopWrapToInPoint();
-                        }, delayMs);
-                    }
-                }
-                // Always re-register: RVFC fires when the next frame is presented
-                // (after seek or buffering stall) — there's no need for a 'playing'
-                // fallback, and registering both creates duplicate parallel chains.
-                video.requestVideoFrameCallback(onFrame);
-            }
-            video.requestVideoFrameCallback(onFrame);
-        }
+        // _startLoopRvfc → js/transport.js
 
         // Passive fps detection — collects frame timestamps during normal playback
         // instead of playing each video at load time. Defaults to 30fps until detected.
         const _FPS_STANDARD_RATES = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
         const _FPS_SAMPLE_COUNT = 30;
 
-        function _setupFpsDetection(video, slot) {
-            if (typeof video.requestVideoFrameCallback !== 'function') {
-                videoFrameRates[video.src] = 30;
-                return;
-            }
-            videoFrameRates[video.src] = 30; // default until detected
-            const timestamps = [];
-            let detected = false;
+        // _setupFpsDetection → js/transport.js
 
-            function onFrame(now, metadata) {
-                if (detected || video.paused || video.ended) return;
-                timestamps.push(metadata.mediaTime);
-                if (timestamps.length <= _FPS_SAMPLE_COUNT) {
-                    video.requestVideoFrameCallback(onFrame);
-                } else {
-                    detected = true;
-                    // Compute all intervals between consecutive frames
-                    const intervals = [];
-                    for (let i = 1; i < timestamps.length; i++) {
-                        const dt = timestamps[i] - timestamps[i - 1];
-                        if (dt > 0) intervals.push(dt);
-                    }
-                    // Find minimum interval (true frame duration — drops only create larger gaps)
-                    const minInterval = Math.min(...intervals);
-                    // Filter out dropped frames (interval > 1.5x the minimum)
-                    const threshold = minInterval * 1.5;
-                    const good = intervals.filter(dt => dt <= threshold);
-                    // Average the good intervals for precision to distinguish 23.976 vs 24
-                    const avgInterval = good.length > 0
-                        ? good.reduce((a, b) => a + b, 0) / good.length
-                        : minInterval;
-                    const rawFps = 1 / avgInterval;
-                    const snapped = _FPS_STANDARD_RATES.reduce((a, b) =>
-                        Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a);
-                    console.log(`[fps] ${slot}: raw=${rawFps.toFixed(4)} → snapped=${snapped} (${good.length}/${intervals.length} good intervals)`);
-                    videoFrameRates[video.src] = snapped;
-                    updateAssetInfoBar(slot, { fps: `${snapped} fps` });
-                    updateDurationDisplay(slot, video.duration, snapped);
-                }
-            }
-
-            video.addEventListener('play', function() {
-                if (detected) return;
-                timestamps.length = 0;
-                video.requestVideoFrameCallback(onFrame);
-            });
-        }
-
-        function setupVideoHandlers(video, slot) {
-            // Enable native looping
-            video.loop = true;
-
-            // Passive fps detection — detects during first normal playback
-            _setupFpsDetection(video, slot);
-
-            video.addEventListener('play', function() {
-                // Frame-accurate loop enforcement runs even during bulk sync — the 'play'
-                // event fires after the transition to playing, so this is the correct
-                // moment to start the RVFC chain. Guarding it on _bulkSyncActive (as the
-                // sync logic below does) means playAllMedia's window blocks loop start.
-                if (_loopInPoint !== null && _loopOutPoint !== null) _startLoopRvfc(video);
-
-                if (_bulkSyncActive) return;
-                if (isDragging || _frameKicking) return; // _frameKick may trigger play during scrub; don't cascade
-                // Sync all videos when any video plays
-                syncVideos(video, v => {
-                    v.play().catch(() => {});
-                    if (Math.abs(v.currentTime - video.currentTime) > 0.5) {
-                        v.currentTime = video.currentTime;
-                    }
-                });
-
-                // Start global progress update loop (only once)
-                startProgressUpdateLoop();
-            });
-
-            video.addEventListener('pause', function() {
-                if (_bulkSyncActive) return;
-                // Sync pause to all other videos
-                syncVideos(video, v => { if (!v.paused) v.pause(); });
-            });
-
-            video.addEventListener('ended', function() {
-                // When custom loop points are active we set m.loop = false (so the
-                // native end-of-video restart from 0 doesn't fight our RVFC seek-back).
-                // The RVFC out-point check fires on mediaTime >= _loopOutPoint, but
-                // the last frame's mediaTime is typically one frame short of duration
-                // — so when _loopOutPoint sits at the video's effective end, the check
-                // never trips and the video ends instead. Handle that here.
-                if (isGridMode) return;
-                if (_loopInPoint === null || _loopOutPoint === null) return;
-                getAllPlayableMedia().forEach(m => {
-                    m.currentTime = _loopInPoint;
-                    m.play().catch(() => {});
-                });
-                if (_opusSyncActive) {
-                    for (const s of assetOrder) {
-                        if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
-                    }
-                }
-            });
-            
-            video.addEventListener('seeked', function() {
-                if (isDragging && !isGridMode) {
-                    // Reactive seek: previous decode finished.
-                    // Wait one rAF so the compositor can display this frame before we
-                    // issue the next seek — issuing immediately can clear the AVFoundation
-                    // buffer before the frame ever appears on screen.
-                    _scrubSeekPending = false;
-                    requestAnimationFrame(() => {
-                        if (!isDragging || isGridMode) return;
-                        if (_scrubNextTime !== null && !isNaN(video.duration)) {
-                            _scrubSeekPending = true;
-                            const _nt = _scrubNextTime;
-                            _scrubNextTime = null;
-                            video.currentTime = _nt;
-                        }
-                    });
-                    return;
-                }
-                if (isDragging) return; // grid scrub manages its own progress updates
-                // Only the active video updates progress — prevents duration cycling
-                // when scrub seeks all videos and their seeked events fire asynchronously
-                const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
-                const activeLayer = getLayer(activeSlot);
-                const activeVideo = activeLayer ? activeLayer.querySelector('video') : null;
-                if (video === activeVideo) {
-                    updateVideoProgress(video);
-                }
-                // Restart Opus sync audio on seek/loop only if drift is significant.
-                // The RVFC loop-wrap path and `_syncOpusAudioToVideo` already restart
-                // the source when needed; restarting unconditionally on every seek
-                // causes a second restart at every loop wrap that cuts off the first
-                // restart's fade-in mid-flight — audible as a remnant click after
-                // the deferred-start anti-crossfade fix.
-                if (_opusSyncSlots[slot] && !video.paused && _opusSyncSources[slot]) {
-                    const ctx = getAudioContext();
-                    const rate = _opusSyncRate[slot] || 1;
-                    const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
-                    const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
-                    if (elapsed >= 0 && Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
-                        _startOpusSyncAudio(slot, video.currentTime);
-                    }
-                } else if (_opusSyncSlots[slot] && !video.paused) {
-                    // No source running — start one (rare path; normally sources are
-                    // managed by the play/wrap flow).
-                    _startOpusSyncAudio(slot, video.currentTime);
-                }
-                // Refresh scopes after seek completes (frame is decoded)
-                if (videoScopesVisible) updateVideoScopes();
-                if (_diffMode) requestAnimationFrame(drawDiffComposite);
-                if (_noVideoMode) updateAllAudioSlotCursors(video);
-            });
-        }
+        // setupVideoHandlers → js/transport.js
 
         let currentAudioSource = 'original';
         let audioMuteStates = {
@@ -9917,6 +8777,7 @@
             audioMetrics = {};
             _audioSlotVizData = {};
             _audioDecodeGen = {};
+            _videoAudioDecodeGen = {};
             _audioMaxDuration = 0;
             _audioVizDecodeStarted = false;
             // audioVizVisible persists across loads (saved in localStorage)
@@ -10070,49 +8931,9 @@
             if (els[0].paused) playAllMedia(); else pauseAllMedia();
         }
 
-        function restartAllVideos() {
-            _bulkSyncActive = true;
-            const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
-            getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play().catch(() => {}); });
-            startProgressUpdateLoop();
-            setTimeout(() => { _bulkSyncActive = false; }, 50);
-        }
+        // restartAllVideos → js/transport.js
 
-        function stepFrame(direction) {
-            const videos = getAllVideos();
-            if (videos.length === 0) return;
-            // Pause all videos first — frame stepping only makes sense when paused
-            videos.forEach(v => { if (!v.paused) v.pause(); });
-            videos.forEach(v => {
-                const fps = videoFrameRates[v.src] || 30;
-                // Small epsilon (0.01 frames) handles IEEE 754 rounding at
-                // frame boundaries without overshooting from frame midpoints.
-                const currentFrame = Math.floor(v.currentTime * fps + 0.01);
-                const totalFrames = Math.floor(v.duration * fps + 0.01);
-                const targetFrame = (currentFrame + direction + totalFrames) % totalFrames;
-                // Seek to the midpoint of the target frame to avoid landing on
-                // a frame boundary where IEEE 754 rounding leaves us in the
-                // wrong frame (e.g. 1/24 = 0.04166...64, just short of frame 1).
-                const target = Math.min((targetFrame + 0.5) / fps, v.duration - 0.001);
-                v.currentTime = target;
-            });
-            // Update progress display after seek completes (seeked event handles
-            // the visual update). Also update optimistically for responsive feel.
-            const primary = videos[0];
-            if (primary) updateVideoProgressFromTime(primary, primary.currentTime);
-            // Refresh magnifier after seek so loupe shows the new frame
-            if (magnifierEnabled && _lastMouseEvent) {
-                requestAnimationFrame(() => updateMagnifier(_lastMouseEvent));
-            }
-            // Refresh video scopes after frame step
-            if (videoScopesVisible) {
-                requestAnimationFrame(() => updateVideoScopes());
-            }
-            // Refresh difference overlay after frame step
-            if (_diffMode) {
-                requestAnimationFrame(() => drawDiffComposite());
-            }
-        }
+        // stepFrame → js/transport.js
 
         let isGridMode = false;
         let viewActivating = false;    // true while checkAllLoaded() activation is in progress for current load batch
@@ -12709,6 +11530,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.18</h3>
+            <ul>
+                <li><strong>Bug fix: eliminated duplicate playback handlers.</strong> Loop enforcement now runs a single frame-callback chain per video instead of accumulating one per pause/play cycle, and transcoded files (Dolby/DTS) no longer attach a second set of play/pause/seek handlers — removing loop-wrap stutter and double audio triggers.</li>
+                <li><strong>Bug fix: audio reliability when switching clips quickly.</strong> A slow audio decode from a previous clip can no longer overwrite the newly loaded one, and the Restart (R) key now keeps Opus audio in sync instead of dropping or desyncing it.</li>
+            </ul>
             <h3>v3.10.17</h3>
             <ul>
                 <li><strong>Bug fix: loop playback no longer audibly overshoots the out-point.</strong> The wrap is now scheduled for the exact out-point time when the last in-region frame presents, instead of waiting for a frame past the boundary (up to a full frame of audio late).</li>

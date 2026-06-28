@@ -1119,6 +1119,69 @@ test.describe('Grid layout recalculation on window resize', () => {
   });
 });
 
+// Real rendering + cross-load hygiene — the W-panel/spectrogram paths were only
+// covered by proxy checks (canvas count, flag value) before. These assert the
+// canvas actually drew (exercises decode → waveformData/spectrogramData → render,
+// i.e. the extracted js/audio-decode.js pipeline) and that a new load clears stale
+// state (finding H class).
+test.describe('Audio viz rendering (W panel) + load hygiene', () => {
+  // True when the canvas has at least one pixel differing from its top-left pixel
+  // (i.e. something was actually drawn, not a blank/uniform fill).
+  const CANVAS_DREW = (sel: string) => {
+    const c = document.querySelector(sel) as HTMLCanvasElement | null;
+    if (!c || !c.width || !c.height) return false;
+    try {
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      for (let i = 4; i < d.length; i += 4)
+        if (d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2]) return true;
+      return false;
+    } catch { return false; }
+  };
+
+  test('spectrogram canvas actually renders pixels for a video with audio', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.keyboard.press('w');
+    await expect(page.locator('#spectrogramPanel')).toBeVisible();
+    // Wait for decode + render to actually paint the spectrogram.
+    await page.waitForFunction(CANVAS_DREW, '#spectrogramCanvas', { timeout: 15000 });
+  });
+
+  test('audio-only slot canvas actually renders pixels', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['stereo.wav', 'mono.wav']);
+    // Audio-only viz lives in the main view; assert at least one slot canvas drew.
+    await page.waitForFunction(() => {
+      const cs = Array.from(document.querySelectorAll('canvas.audio-viz-slot-canvas')) as HTMLCanvasElement[];
+      return cs.some(c => {
+        if (!c.width || !c.height) return false;
+        try {
+          const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+          for (let i = 4; i < d.length; i += 4)
+            if (d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2]) return true;
+          return false;
+        } catch { return false; }
+      });
+    }, {}, { timeout: 15000 });
+  });
+
+  test('loading a new set clears stale loop points and resets the spectrogram cursor', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.keyboard.press('i'); // set loop in-point
+    await page.waitForFunction(() => (window as any).__testAPI?._loopInPoint !== null, {}, { timeout: 3000 });
+    expect(await getVar(page, '_loopInPoint')).not.toBeNull();
+    await page.keyboard.press('w'); // open viz so the cursor element is in play
+    // Fresh load must run clearAllMedia and wipe prior state.
+    await loadMedia(page, ['red.png', 'green.png']);
+    expect(await getVar(page, '_loopInPoint')).toBeNull();
+    expect(await getVar(page, '_loopOutPoint')).toBeNull();
+    const cursorLeft = await page.evaluate(() =>
+      (document.getElementById('spectrogramCursor') as HTMLElement | null)?.style.left ?? '');
+    expect(['', '0', '0px']).toContain(cursorLeft);
+  });
+});
+
 test.afterEach(async ({ page }) => {
   // Clean up any open popups or state
   await page.evaluate(() => {
