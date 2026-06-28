@@ -40,6 +40,17 @@ function buildPalette(fn) {
     return p;
 }
 
+// True matplotlib Inferno control points (same stops WarpCap uses), linearly
+// interpolated — replaces the earlier polynomial approximation.
+const _INFERNO_STOPS = [[0,0,4],[40,11,84],[101,21,110],[159,42,99],[212,72,66],[245,125,21],[250,193,39],[252,255,164]];
+function _infernoStop(t) {
+    const n = _INFERNO_STOPS.length - 1;
+    const x = Math.min(1, Math.max(0, t)) * n;
+    const j = Math.min(n - 1, Math.floor(x)), f = x - j;
+    const a = _INFERNO_STOPS[j], b = _INFERNO_STOPS[j + 1];
+    return [Math.round(a[0] + (b[0]-a[0])*f), Math.round(a[1] + (b[1]-a[1])*f), Math.round(a[2] + (b[2]-a[2])*f)];
+}
+
 const spectrogramPalettes = {
     viridis: buildPalette(t => [
         Math.round(255 * Math.min(1, Math.max(0, -0.85 + 3.2 * t - 1.6 * t * t))),
@@ -51,11 +62,7 @@ const spectrogramPalettes = {
         Math.round(255 * Math.min(1, Math.max(0, -0.4 + 1.2 * t + 0.5 * t * t))),
         Math.round(255 * Math.min(1, Math.max(0, 0.1 + 2.0 * t - 2.5 * t * t)))
     ]),
-    inferno: buildPalette(t => [
-        Math.round(255 * Math.min(1, Math.max(0, -0.1 + 3.2 * t - 2.2 * t * t))),
-        Math.round(255 * Math.min(1, Math.max(0, -0.6 + 1.8 * t - 0.2 * t * t))),
-        Math.round(255 * Math.min(1, Math.max(0, 0.3 + 1.0 * t - 2.5 * t * t)))
-    ]),
+    inferno: buildPalette(_infernoStop),
     grayscale: buildPalette(t => {
         const v = Math.round(255 * t);
         return [v, v, v];
@@ -109,6 +116,7 @@ function runSTFT(channelData, fftSize, hop) {
     const frames = new Array(numFrames);
     const re = new Float32Array(fftSize);
     const im = new Float32Array(fftSize);
+    let maxDb = -Infinity;
 
     for (let f = 0; f < numFrames; f++) {
         const offset = f * hop;
@@ -117,16 +125,19 @@ function runSTFT(channelData, fftSize, hop) {
             im[i] = 0;
         }
         fft(re, im);
-        const magnitudes = new Uint8Array(halfBins);
+        // Store raw dB; the dB→palette-index baking is deferred to computeSpectrogramData
+        // so it can use a clip-relative window (ceil − 70 dB) shared across channels.
+        const mags = new Float32Array(halfBins);
         for (let i = 0; i < halfBins; i++) {
             const mag = Math.sqrt(re[i] * re[i] + im[i] * im[i]) / halfBins;
             const db = 20 * Math.log10(Math.max(mag, 1e-10));
-            magnitudes[i] = Math.round(Math.max(0, Math.min(255, ((db + 100) / 100) * 255)));
+            mags[i] = db;
+            if (db > maxDb) maxDb = db;
         }
-        frames[f] = magnitudes;
+        frames[f] = mags;
     }
 
-    return { frames, halfBins };
+    return { frames, halfBins, maxDb };
 }
 
 function computeSpectrogramChannel(channelData, sampleRate) {
@@ -138,7 +149,7 @@ function computeSpectrogramChannel(channelData, sampleRate) {
 
     const lo = runSTFT(channelData, loFFT, hop);
     const hi = runSTFT(channelData, hiFFT, hop);
-    if (!lo || !hi) return lo ? { frames: lo.frames, fftSize: loFFT } : null;
+    if (!lo || !hi) return lo ? { frames: lo.frames, fftSize: loFFT, maxDb: lo.maxDb } : null;
 
     const outBins = loFFT / 2;
     const binResLo = sampleRate / loFFT;
@@ -152,8 +163,9 @@ function computeSpectrogramChannel(channelData, sampleRate) {
     const numFrames = loFrames.length;
 
     const frames = new Array(numFrames);
+    let maxDb = -Infinity;
     for (let f = 0; f < numFrames; f++) {
-        const merged = new Uint8Array(outBins);
+        const merged = new Float32Array(outBins);  // raw dB; baked to palette indices later
         const loFrame = loFrames[f];
         const hiIdx = Math.min(hiFrames.length - 1, Math.round(f * (hiFrames.length - 1) / (numFrames - 1 || 1)));
         const hiFrame = hiFrames[hiIdx];
@@ -165,19 +177,37 @@ function computeSpectrogramChannel(channelData, sampleRate) {
             const t = (b - blendLoBin) / blendRange;
             const freq = b * binResLo;
             const hiBin = Math.min(hi.halfBins - 1, Math.round(freq / binResHi));
-            merged[b] = Math.round(loFrame[b] * (1 - t) + hiFrame[hiBin] * t);
+            merged[b] = loFrame[b] * (1 - t) + hiFrame[hiBin] * t;
         }
         for (let b = blendHiBin; b < outBins; b++) {
             const freq = b * binResLo;
             const hiBin = Math.min(hi.halfBins - 1, Math.round(freq / binResHi));
             merged[b] = hiFrame[hiBin];
         }
+        for (let b = 0; b < outBins; b++) if (merged[b] > maxDb) maxDb = merged[b];
         frames[f] = merged;
     }
     lo.frames = null;
     hi.frames = null;
 
-    return { frames, fftSize: loFFT };
+    return { frames, fftSize: loFFT, maxDb };
+}
+
+// Bake a channel's raw-dB Float32 frames into the 0–255 palette indices the renderer
+// expects, using a clip-relative window [floorDb, floorDb+rangeDb]. Mutates in place.
+function _bakeSpectrogramChannel(ch, floorDb, rangeDb) {
+    if (!ch || !ch.frames) return;
+    const inv = 255 / rangeDb;
+    const frames = ch.frames;
+    for (let f = 0; f < frames.length; f++) {
+        const src = frames[f];
+        const dst = new Uint8Array(src.length);
+        for (let i = 0; i < src.length; i++) {
+            const v = (src[i] - floorDb) * inv;
+            dst[i] = v < 0 ? 0 : v > 255 ? 255 : (v + 0.5) | 0;
+        }
+        frames[f] = dst;
+    }
 }
 
 function computeSpectrogramData(audioBuffer) {
@@ -186,7 +216,19 @@ function computeSpectrogramData(audioBuffer) {
     const R = audioBuffer.numberOfChannels > 1
         ? computeSpectrogramChannel(audioBuffer.getChannelData(1), sr)
         : null;
-    return { L, R, sampleRate: sr, duration: audioBuffer.duration };
+    // Clip-relative coloring (matches WarpCap): map a 70 dB window below the clip's
+    // loudest bin onto the palette, instead of a fixed −100…0 dBFS window — so quiet
+    // clips still use the full color range. ceil is shared across L/R so the two
+    // channels stay directly comparable.
+    const RANGE_DB = 70;
+    let ceilDb = -Infinity;
+    if (L && L.maxDb > ceilDb) ceilDb = L.maxDb;
+    if (R && R.maxDb > ceilDb) ceilDb = R.maxDb;
+    if (!isFinite(ceilDb)) ceilDb = 0;
+    const floorDb = ceilDb - RANGE_DB;
+    _bakeSpectrogramChannel(L, floorDb, RANGE_DB);
+    _bakeSpectrogramChannel(R, floorDb, RANGE_DB);
+    return { L, R, sampleRate: sr, duration: audioBuffer.duration, ceilDb, floorDb };
 }
 
 // --- Waveform rendering ---
