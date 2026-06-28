@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.20';
+        const APP_VERSION = '3.10.21';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11567,6 +11567,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.21</h3>
+            <ul>
+                <li><strong>Spectrogram coloring overhaul.</strong> Now uses a true Inferno colormap and auto-scales contrast to each clip (a 70&nbsp;dB window below the loudest point) instead of a fixed scale — quiet clips are far more legible.</li>
+            </ul>
             <h3>v3.10.20</h3>
             <ul>
                 <li><strong>Spectrogram now defaults to the Inferno palette.</strong> Cycle palettes from the W panel's palette toggle; your choice is remembered.</li>
