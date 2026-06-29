@@ -11588,6 +11588,10 @@
             <ul>
                 <li><strong>Audio panel robustness.</strong> Hardened the waveform/spectrogram panel layout so the two displays can't mis-size or overlap if a redraw races the panel layout on load, and sanitized saved panel dimensions against bad values.</li>
             </ul>
+            <h3>v3.10.21</h3>
+            <ul>
+                <li><strong>Spectrogram coloring overhaul.</strong> Now uses a true Inferno colormap and auto-scales contrast to each clip (a 70&nbsp;dB window below the loudest point) instead of a fixed scale — quiet clips are far more legible.</li>
+            </ul>
             <h3>v3.10.20</h3>
             <ul>
                 <li><strong>Spectrogram now defaults to the Inferno palette.</strong> Cycle palettes from the W panel's palette toggle; your choice is remembered.</li>
