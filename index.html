@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.21';
+        const APP_VERSION = '3.10.22';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -4528,6 +4528,10 @@
             const wrap = canvas.parentElement;
             const w = wrap.offsetWidth;
             const h = wrap.offsetHeight;
+            // Don't size/draw against a collapsed or not-yet-laid-out wrapper (panel
+            // closed or mid-transition) — a later updateAudioVisForSlot redraws once
+            // the row has its real height. Matches drawWaveformToCanvas's guard.
+            if (w === 0 || h === 0) return;
             canvas.width = w * (window.devicePixelRatio || 1);
             canvas.height = h * (window.devicePixelRatio || 1);
             const ctx = canvas.getContext('2d');
@@ -4615,6 +4619,12 @@
 
         function updateAudioVisForSlot(slot) {
             const panel = document.getElementById('spectrogramPanel');
+            // Size the panel rows BEFORE the canvases measure their wrapper heights.
+            // A draw that races ahead of the layout pass (e.g. on a fast two-video
+            // load) would otherwise read a stale/zero row height and the waveform and
+            // spectrogram could mis-size or overlap. _applyAudioVizLayout(false) is
+            // cheap and idempotent, so doing it here makes the draw order-independent.
+            if (audioVizVisible) _applyAudioVizLayout(false);
             // Show placeholder when this slot has no audio but at least one other slot does.
             const slotHasAudio = !!(waveformData[slot]);
             const anyHasAudio = assetOrder.some(s => !!waveformData[s]);
@@ -5477,6 +5487,13 @@
         function _applyAudioVizLayout(redrawAfter) {
             const panel = document.getElementById('spectrogramPanel');
             if (!panel) return;
+
+            // Sanitize persisted state — corrupted localStorage (NaN / out of range)
+            // must not yield invalid row heights ("NaNpx", or a >1 split overflowing
+            // one row into the other). Clamp before computing.
+            if (!Number.isFinite(_audioVizHeight)) _audioVizHeight = 200;
+            if (!Number.isFinite(_audioVizSplit))  _audioVizSplit  = 0.40;
+            _audioVizSplit = Math.max(0.1, Math.min(0.9, _audioVizSplit));
 
             const totalRows = Math.max(_AUDIO_VIZ_MIN_TOTAL, Math.min(_AUDIO_VIZ_MAX_TOTAL, _audioVizHeight));
             const waveH = Math.max(_AUDIO_VIZ_MIN_ROW, Math.round(totalRows * _audioVizSplit));
@@ -11567,6 +11584,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.22</h3>
+            <ul>
+                <li><strong>Audio panel robustness.</strong> Hardened the waveform/spectrogram panel layout so the two displays can't mis-size or overlap if a redraw races the panel layout on load, and sanitized saved panel dimensions against bad values.</li>
+            </ul>
             <h3>v3.10.21</h3>
             <ul>
                 <li><strong>Spectrogram coloring overhaul.</strong> Now uses a true Inferno colormap and auto-scales contrast to each clip (a 70&nbsp;dB window below the loudest point) instead of a fixed scale — quiet clips are far more legible.</li>
