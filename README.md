@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.10.12
+**Current version:** 3.10.22
 
 ---
 
@@ -50,7 +50,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 **Analysis**
 - `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Source–A, Source–B, A–B)
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
-- `W` audio waveform with dB color coding + spectrogram
+- `W` audio waveform with dB color coding + spectrogram (Inferno palette by default, contrast auto-scaled per clip)
 - `Shift+W` toggle linear/log frequency, `P` cycle spectrogram palettes
 
 **Keyboard-first**
@@ -78,10 +78,10 @@ Files auto-sort oldest → newest by timestamp. See [MANUAL.md](MANUAL.md) for f
 
 ### Architecture
 
-- **Single-file app** — all UI, logic, and styling in `index.html` (~12,600 lines). No build step, no framework, no runtime dependencies.
-- **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release.
-- **Scopes module** — `js/scopes.js` handles waveform monitor, vectorscope, and histogram. Hot path uses cached typed-array buffers and `putImageData` to keep rendering off the GC.
-- **Tests** — Playwright suite covering loop in/out, diff modes, pan bounds, hotkey reassignment, grid resize, and other regression-prone areas.
+- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS (~11,700 lines), with cohesive subsystems extracted into classic `<script>` files under `js/`: `audio-viz.js` (waveform/spectrogram + EBU R128), `scopes.js` (video scopes), `hotkeys.js`, `mp4-demux.js` (pure MP4/WebM audio demuxers), `audio-decode.js` (three-tier decode pipeline), `transport.js` (playback/sync/loop ownership), and `starfield.js`. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
+- **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release (enforced by the ownership test harness, which also checks every `js/*.js` is in the service-worker precache).
+- **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
+- **Two test layers** — a Playwright suite (real headless Chromium) covering loop in/out, diff modes, pan bounds, hotkey reassignment, grid layout, and audio-viz rendering; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, build/version hygiene, and pure-function logic without a browser.
 
 ### Design principles
 
@@ -101,7 +101,8 @@ These are the right starting points if you want to understand how the project is
 
 ```bash
 npm install
-npx playwright test
+npx playwright test          # behavioral suite (headless Chromium)
+npm run test:ownership       # structural + pure-logic guards (no browser)
 ```
 
 ---
