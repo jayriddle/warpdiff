@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.23';
+        const APP_VERSION = '3.10.24';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -5246,21 +5246,13 @@
         let _opusSyncStartCtx = {};    // { slot: number } — scheduled source.start() time (up to _OPUS_FADE in the future during the deferred-start window)
         let _opusSyncStartVideo = {};  // { slot: number } — video.currentTime used as offset
         let _opusSyncRate = {};        // { slot: number } — playbackRate the source was started at
+        let _opusSyncFadeUntil = {};   // { slot: number } — ctx time until which the previous source's fade-out is audible
         let _opusSyncActive = false;
 
         const _OPUS_FADE = 0.015; // 15ms fade to avoid clicks on start/stop
 
         function _startOpusSyncAudio(slot, fromTime) {
             const ctx = getAudioContext();
-            // Was a source already audible? If so, we'll defer the new source's start
-            // until the old one has finished fading out — overlapping the two creates
-            // a linear crossfade between uncorrelated audio chunks (different points
-            // in the buffer), which sums to audible phase artifacts especially on
-            // loud sections at loop wraps. Brief silence is preferable to a click.
-            // A source still inside its own deferred-start window has produced no
-            // audio (it gets cancelled silently, no fade-out) — no gap needed for it.
-            const hadPrevious = !!_opusSyncSources[slot] &&
-                _opusSyncStartCtx[slot] <= ctx.currentTime;
             _stopOpusSyncAudio(slot);
             const buf = _videoAudioBuffers[slot];
             if (!buf) return;
@@ -5270,11 +5262,15 @@
             const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
             const vol = isCurrent && !audioMuteStates[slot]
                 ? (_prefs.load('volume', 100) / 100) : 0;
-            // Schedule the new source to begin after the previous one has finished
-            // fading out — gap is _OPUS_FADE (15 ms), below the perceptual threshold
-            // for audio gaps but above the crossfade-artifact threshold for loud,
-            // uncorrelated waveforms.
-            const startTime = ctx.currentTime + (hadPrevious ? _OPUS_FADE : 0);
+            // Begin only once any previous fade-out has gone silent — overlapping
+            // the two creates a linear crossfade between uncorrelated audio chunks
+            // (different points in the buffer), which sums to audible phase
+            // artifacts especially on loud sections at loop wraps. Brief silence
+            // is preferable to a click. _stopOpusSyncAudio stamps _opusSyncFadeUntil
+            // whenever it fades an audible source, so this covers external
+            // stop→start sequences (e.g. pause→play) as well as replacement, and
+            // collapses to "now" when nothing is fading.
+            const startTime = Math.max(ctx.currentTime, _opusSyncFadeUntil[slot] || 0);
             // Fade in from 0 to vol over _OPUS_FADE, starting at startTime
             gain.gain.setValueAtTime(0, startTime);
             gain.gain.linearRampToValueAtTime(vol, startTime + _OPUS_FADE);
@@ -5286,7 +5282,13 @@
             source.playbackRate.value = rate;
             source.connect(gain);
             gain.connect(ctx.destination);
-            const offset = Math.max(0, Math.min(fromTime, buf.duration - 0.001));
+            // The source begins at startTime, not now — the video keeps advancing
+            // through the gap, so start the buffer at the sample that will be
+            // current then. Starting at fromTime's sample would play it late and
+            // bake a permanent (startTime − now)·rate lag into the drift anchors,
+            // which are self-consistent with the audio and never correct it.
+            const compensated = fromTime + (startTime - ctx.currentTime) * rate;
+            const offset = Math.max(0, Math.min(compensated, buf.duration - 0.001));
             source.start(startTime, offset);
             _opusSyncSources[slot] = source;
             _opusSyncGains[slot] = gain;
@@ -5323,6 +5325,10 @@
                     gain.gain.cancelScheduledValues(ctx.currentTime);
                     gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
                     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + _OPUS_FADE);
+                    // Tell the next _startOpusSyncAudio when this fade goes silent.
+                    // Pending cancels (branch above) and natural ends produce no
+                    // fade, so they leave the stamp alone.
+                    _opusSyncFadeUntil[slot] = ctx.currentTime + _OPUS_FADE;
                     const s = source;
                     setTimeout(() => { try { s.stop(); } catch (_) {} }, _OPUS_FADE * 1000 + 5);
                 } else {
@@ -8820,6 +8826,7 @@
             _opusSyncStartCtx = {};
             _opusSyncStartVideo = {};
             _opusSyncRate = {};
+            _opusSyncFadeUntil = {};
             _opusSyncActive = false;
             _videoAudioBuffers = {};
             audioFileBuffers = {};
@@ -11618,6 +11625,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.24</h3>
+            <ul>
+                <li><strong>Tighter A/V sync at loop wraps (Opus videos).</strong> Audio restarts now compensate for their brief anti-click gap instead of playing ~15 ms behind the video afterward, the gap only lasts as long as the previous fade actually needs, and quick pause→play no longer risks a momentary crossfade artifact.</li>
+            </ul>
             <h3>v3.10.23</h3>
             <ul>
                 <li><strong>Bug fixes: audio glitches when pausing, muting, or changing speed right at a loop wrap (Opus videos).</strong> A restart's brief crossfade-avoidance gap could let a click through if playback was stopped in that instant, undo a mute, or skew A/V sync after a speed change.</li>
