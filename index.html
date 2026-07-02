@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.22';
+        const APP_VERSION = '3.10.23';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -5243,7 +5243,7 @@
         let _opusSyncDuration = {};    // { slot: number } — corrected duration from decoded buffer
         let _opusSyncSources = {};     // { slot: AudioBufferSourceNode }
         let _opusSyncGains = {};       // { slot: GainNode }
-        let _opusSyncStartCtx = {};    // { slot: number } — ctx.currentTime at source.start()
+        let _opusSyncStartCtx = {};    // { slot: number } — scheduled source.start() time (up to _OPUS_FADE in the future during the deferred-start window)
         let _opusSyncStartVideo = {};  // { slot: number } — video.currentTime used as offset
         let _opusSyncRate = {};        // { slot: number } — playbackRate the source was started at
         let _opusSyncActive = false;
@@ -5251,16 +5251,19 @@
         const _OPUS_FADE = 0.015; // 15ms fade to avoid clicks on start/stop
 
         function _startOpusSyncAudio(slot, fromTime) {
-            // Was a source already playing? If so, we'll defer the new source's start
+            const ctx = getAudioContext();
+            // Was a source already audible? If so, we'll defer the new source's start
             // until the old one has finished fading out — overlapping the two creates
             // a linear crossfade between uncorrelated audio chunks (different points
             // in the buffer), which sums to audible phase artifacts especially on
             // loud sections at loop wraps. Brief silence is preferable to a click.
-            const hadPrevious = !!_opusSyncSources[slot];
+            // A source still inside its own deferred-start window has produced no
+            // audio (it gets cancelled silently, no fade-out) — no gap needed for it.
+            const hadPrevious = !!_opusSyncSources[slot] &&
+                _opusSyncStartCtx[slot] <= ctx.currentTime;
             _stopOpusSyncAudio(slot);
             const buf = _videoAudioBuffers[slot];
             if (!buf) return;
-            const ctx = getAudioContext();
             if (ctx.state === 'suspended') ctx.resume();
             const source = ctx.createBufferSource();
             const gain = ctx.createGain();
@@ -5304,9 +5307,19 @@
             const source = _opusSyncSources[slot];
             const gain = _opusSyncGains[slot];
             if (source) {
-                if (gain) {
+                const ctx = getAudioContext();
+                if (gain && _opusSyncStartCtx[slot] > ctx.currentTime) {
+                    // Source is scheduled but hasn't started (deferred-start window).
+                    // All its gain automation is in the future, so gain.gain.value
+                    // still reads the GainNode default 1.0 — a value-anchored fade
+                    // here would let the source start un-faded at near-full volume
+                    // for the few ms until the delayed stop(). Nothing is audible
+                    // yet, so cancel the scheduled start outright instead.
+                    gain.gain.cancelScheduledValues(0);
+                    gain.gain.setValueAtTime(0, ctx.currentTime);
+                    try { source.stop(); } catch (_) {}
+                } else if (gain) {
                     // Fade out then stop to avoid click
-                    const ctx = getAudioContext();
                     gain.gain.cancelScheduledValues(ctx.currentTime);
                     gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
                     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + _OPUS_FADE);
@@ -5357,11 +5370,18 @@
             for (const slot of assetOrder) {
                 const src = _opusSyncSources[slot];
                 if (!src) continue;
-                // Re-anchor timeline at the new rate so drift math stays correct
+                // Re-anchor timeline at the new rate so drift math stays correct.
+                // Skip re-anchoring during the deferred-start window (elapsed < 0):
+                // the anchors already describe the scheduled start, and adding the
+                // negative elapsed would drag startVideo backward and detach
+                // startCtx from the moment the source actually begins. The rate
+                // assignment below still takes effect when the source starts.
                 const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
-                const oldRate = _opusSyncRate[slot] || 1;
-                _opusSyncStartVideo[slot] = _opusSyncStartVideo[slot] + elapsed * oldRate;
-                _opusSyncStartCtx[slot] = ctx.currentTime;
+                if (elapsed >= 0) {
+                    const oldRate = _opusSyncRate[slot] || 1;
+                    _opusSyncStartVideo[slot] = _opusSyncStartVideo[slot] + elapsed * oldRate;
+                    _opusSyncStartCtx[slot] = ctx.currentTime;
+                }
                 src.playbackRate.value = rate;
                 _opusSyncRate[slot] = rate;
             }
@@ -5370,11 +5390,25 @@
         function _updateOpusSyncGains() {
             if (!_opusSyncActive) return;
             const vol = _prefs.load('volume', 100) / 100;
+            const ctx = getAudioContext();
             for (const slot of assetOrder) {
                 const g = _opusSyncGains[slot];
                 if (!g) continue;
                 const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
-                g.gain.value = (!isMuted && isCurrent && !audioMuteStates[slot]) ? vol : 0;
+                const target = (!isMuted && isCurrent && !audioMuteStates[slot]) ? vol : 0;
+                const startTime = _opusSyncStartCtx[slot];
+                if (startTime > ctx.currentTime) {
+                    // The slot's fade-in is still scheduled in the future
+                    // (deferred-start window). A bare .value write would be
+                    // overridden when that automation fires — a just-muted slot
+                    // would ramp back up to the stale volume. Re-schedule the
+                    // fade-in toward the new target instead.
+                    g.gain.cancelScheduledValues(0);
+                    g.gain.setValueAtTime(0, startTime);
+                    g.gain.linearRampToValueAtTime(target, startTime + _OPUS_FADE);
+                } else {
+                    g.gain.value = target;
+                }
             }
         }
 
@@ -11584,6 +11618,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.23</h3>
+            <ul>
+                <li><strong>Bug fixes: audio glitches when pausing, muting, or changing speed right at a loop wrap (Opus videos).</strong> A restart's brief crossfade-avoidance gap could let a click through if playback was stopped in that instant, undo a mute, or skew A/V sync after a speed change.</li>
+            </ul>
             <h3>v3.10.22</h3>
             <ul>
                 <li><strong>Audio panel robustness.</strong> Hardened the waveform/spectrogram panel layout so the two displays can't mis-size or overlap if a redraw races the panel layout on load, and sanitized saved panel dimensions against bad values.</li>
