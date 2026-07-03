@@ -675,13 +675,16 @@
         }
 
         /* WebCodecs scrub overlay — covers the video exactly during timeline drags.
-           The wrapper is already sized to the asset's aspect ratio, so stretching
-           the canvas to 100% matches the video's object-fit:contain rendering. */
+           object-fit:contain (not a plain stretch): the wrapper is JS-sized to the
+           asset aspect but rounded to whole pixels, and the <video> letterboxes the
+           fractional remainder via its own object-fit — a stretched canvas would be
+           ~0.1% wider than the video content, a visible snap at mousedown/mouseup. */
         .video-wrapper .scrub-overlay-canvas {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
+            object-fit: contain;
             pointer-events: none;
             z-index: 3;
         }
