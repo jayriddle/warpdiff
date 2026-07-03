@@ -48,20 +48,43 @@ function _createScrubVideoSession(bytes) {
     let nextFeed = -1;      // next decode index to feed (-1 = no active run)
     let targetIdx = -1;     // decode index of the current target sample
     let targetPts = -1;     // seconds
+    let paintFloor = -1;    // frames with pts ≤ this are closed unpainted (backward runs
+                            // paint only the target — no flash-rewind through the GOP)
     let lastPaintedPts = -1;
     let framesPainted = 0;  // total painted (test/diagnostic surface)
+    let pendingFrame = null; // newest paintable frame awaiting the next rAF
+    let rafId = 0;
+
+    // Paint at most once per display frame. Decode can outrun the display by an
+    // order of magnitude (a whole GOP decodes in a burst); painting every output
+    // synchronously floods the main thread with drawImage calls and starves the
+    // drag's mousemove handling — the stutter this replaced.
+    function paintPending() {
+        rafId = 0;
+        const f = pendingFrame;
+        pendingFrame = null;
+        if (!f) return;
+        if (!dead && ctx2d) {
+            ctx2d.drawImage(f, 0, 0, canvas.width, canvas.height);
+            lastPaintedPts = f.timestamp / 1e6;
+            framesPainted++;
+        }
+        f.close();
+    }
 
     const decoder = new VideoDecoder({
         output(frame) {
             // reset() discards pending outputs, so anything arriving here belongs
-            // to the current run. Paint progressively up to the target; close past it.
+            // to the current run. Retain the newest frame at/below the target;
+            // the rAF tick paints it. Superseded frames close immediately.
             const ptsS = frame.timestamp / 1e6;
-            if (!dead && ctx2d && ptsS <= targetPts + frameDur * 0.5) {
-                ctx2d.drawImage(frame, 0, 0, canvas.width, canvas.height);
-                lastPaintedPts = ptsS;
-                framesPainted++;
+            if (dead || !ctx2d || ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
+                frame.close();
+                return;
             }
-            frame.close();
+            if (pendingFrame) pendingFrame.close();
+            pendingFrame = frame;
+            if (!rafId) rafId = requestAnimationFrame(paintPending);
         },
         error() { dead = true; try { decoder.close(); } catch (_) {} }
     });
@@ -142,27 +165,47 @@ function _createScrubVideoSession(bytes) {
             if (dead || decoder.state !== 'configured') return;
             const idx = targetForTime(t);
             const key = keyBefore(idx);
-            targetPts = samples[idx].pts;
-            if (nextFeed >= 0 && key === curKey && idx >= targetIdx) {
-                // Same GOP, at/ahead of the current target — extend the run forward.
+            const pts = samples[idx].pts;
+            if (nextFeed >= 0 && key === curKey && idx + REORDER_MARGIN >= nextFeed) {
+                // Same GOP, at/ahead of decode progress — retarget and keep the
+                // run. This covers forward extension AND backward wobbles whose
+                // frame hasn't been decoded yet (target 10s, decode at 5s, wobble
+                // to 9.9s) — no reset needed, the run just stops sooner.
+                targetPts = pts;
                 targetIdx = idx;
                 pump();
-            } else {
-                // New GOP, or backward within the GOP — restart from the keyframe.
-                // reset() discards queued work and unconfigures; reconfigure explicitly.
-                try {
-                    decoder.reset();
-                    decoder.configure(config);
-                } catch (_) { dead = true; return; }
-                curKey = key;
-                nextFeed = key;
-                targetIdx = idx;
-                pump();
+                return;
             }
+            // Backward-jitter tolerance: real drags constantly wobble a few pixels
+            // backward. If we're already showing (approximately) the requested
+            // frame, do nothing — a reset here would re-decode the whole GOP on
+            // every wobble, which reads as stutter.
+            if (nextFeed >= 0 && key === curKey &&
+                pts >= lastPaintedPts - 2 * frameDur && pts <= lastPaintedPts + frameDur) {
+                return;
+            }
+            // Genuine backward jump or new GOP — restart from the keyframe.
+            // reset() discards queued work and unconfigures; reconfigure explicitly.
+            try {
+                decoder.reset();
+                decoder.configure(config);
+            } catch (_) { dead = true; return; }
+            // Backward runs paint only the target frame (intermediates from the
+            // keyframe are the PAST — painting them flashes a rewind). Forward
+            // cross-GOP runs keep the progressive fast-forward feel.
+            paintFloor = pts < lastPaintedPts ? pts - frameDur : lastPaintedPts;
+            if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+            targetPts = pts;
+            curKey = key;
+            nextFeed = key;
+            targetIdx = idx;
+            pump();
         },
 
         close() {
             dead = true;
+            if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+            if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             try { decoder.close(); } catch (_) {}
             canvas = null;
             ctx2d = null;

@@ -7583,7 +7583,10 @@
                 if (_scrubRelayoutRaf || isGridMode) return;
                 function tick() {
                     if (isDragging && !isGridMode) {
-                        applyZoom();
+                        // Skip the compositor nudge while the WebCodecs overlay is
+                        // painting — the <video> isn't being seeked then, and the
+                        // per-frame style writes just compete with overlay paints.
+                        if (!_scrubOverlaySession) applyZoom();
                         _scrubRelayoutRaf = requestAnimationFrame(tick);
                     } else {
                         _scrubRelayoutRaf = null;
