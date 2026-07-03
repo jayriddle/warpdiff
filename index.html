@@ -4017,6 +4017,11 @@
                     if (!canvasEl) {
                         canvasEl = document.createElement('canvas');
                         canvasEl.className = 'scrub-overlay-canvas';
+                        // Match Chrome-on-macOS's <video> transfer treatment —
+                        // measured per-channel table, see #scrubOverlayColorFix.
+                        if (/Mac/.test(navigator.platform)) {
+                            canvasEl.style.filter = 'url(#scrubOverlayColorFix)';
+                        }
                         _scrubOverlayCanvases[slot] = canvasEl;
                     }
                     session.attach(canvasEl);
@@ -11873,6 +11878,22 @@
     <canvas id="stackMiniMap" title="Navigator — drag to pan, click to jump"></canvas>
 
     <div class="quick-start-backdrop" id="changelogBackdrop"></div>
+<!-- Scrub-overlay color correction (macOS Chrome). Chrome's video pipeline on
+     macOS renders <video> through a BT.709-style transfer treatment that canvas
+     content doesn't get — the same frame drawn via WebCodecs reads darker in the
+     mids (up to ~12/255 codes) with a small opposite shift in the deep shadows,
+     so no gamma/linear filter can match it. This per-channel table was measured
+     empirically (2026-07-02, luma-ramp flicker calibration: CDP captures of the
+     hardware-composited window; residual after correction ≤2/255 codes).
+     Applied to .scrub-overlay-canvas on macOS only — see _scrubOverlayBegin. -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="scrubOverlayColorFix" color-interpolation-filters="sRGB">
+      <feComponentTransfer>
+        <feFuncR type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
+        <feFuncG type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
+        <feFuncB type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
+      </feComponentTransfer>
+    </filter></svg>
+
     <div class="changelog-popup" id="changelogPopup">
         <div class="quick-start-header">
             <h2>What's New <span class="version-badge" id="changelogVersion"></span></h2>
@@ -11881,7 +11902,7 @@
         <div class="quick-start-body">
             <h3>v3.10.28</h3>
             <ul>
-                <li><strong>Smooth scrubbing, phase 2.</strong> Revisited positions now paint instantly from a decoded-frame cache (back-and-forth A/B scrubbing, backward jumps), and the smooth-scrub overlay works in Grid mode (all slots paint during a drag) and on waveform/spectrogram panel drags.</li>
+                <li><strong>Smooth scrubbing, phase 2.</strong> Revisited positions now paint instantly from a decoded-frame cache (back-and-forth A/B scrubbing, backward jumps), and the smooth-scrub overlay works in Grid mode (all slots paint during a drag) and on waveform/spectrogram panel drags. Scrub frames are also color-matched to Chrome's video rendering on macOS (previously the image dimmed slightly while scrubbing), and frame timing now honors MP4 edit lists so the scrubbed frame matches the player exactly.</li>
             </ul>
             <h3>v3.10.27</h3>
             <ul>
