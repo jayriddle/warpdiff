@@ -1343,6 +1343,58 @@ test.describe('WebCodecs scrub decoder', () => {
     expect(stateAfter).toBe('ready');
   });
 
+  test('revisiting a decoded position is served from the frame cache', async ({ page }) => {
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+
+    // First probe decodes 0 → 2.5s and caches every emitted frame
+    const probe1 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2.5));
+    test.skip(probe1 === null || probe1.dead, 'slot not scrubbable in this environment');
+
+    const stats1 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.cacheStats('editA'));
+    expect(stats1.frames).toBeGreaterThan(30); // ~60 frames decoded on the way to 2.5s
+    expect(stats1.hits).toBe(0);
+
+    // Revisiting 1.0s (backward, already decoded) must hit the cache
+    const probe2 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 1.0));
+    const stats2 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.cacheStats('editA'));
+    expect(stats2.hits).toBeGreaterThanOrEqual(1);
+    expect(probe2.lastPaintedPts).toBeGreaterThan(0.8);
+    expect(probe2.lastPaintedPts).toBeLessThanOrEqual(1.1);
+  });
+
+  test('Grid-mode drag engages an overlay per video slot', async ({ page }) => {
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+    const probe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 0.2));
+    test.skip(probe === null || probe.dead, 'slot not scrubbable in this environment');
+
+    // 2 files default to Grid mode already; confirm
+    expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(true);
+
+    const bar = page.locator('#videoProgressContainer');
+    const box = await bar.boundingBox();
+    expect(box).toBeTruthy();
+    const y = box!.y + box!.height / 2;
+    await page.mouse.move(box!.x + box!.width * 0.1, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(box!.x + box!.width * (0.1 + 0.0875 * i), y);
+      await page.waitForTimeout(30);
+    }
+
+    // Both video slots get a live overlay with an attached canvas
+    await page.waitForFunction(() => (window as any).__testAPI.scrubVideo.overlayCount() === 2, {}, { timeout: 3000 });
+    expect(await page.locator('.scrub-overlay-canvas').count()).toBe(2);
+
+    await page.mouse.up();
+    await page.waitForFunction(
+      () => document.querySelectorAll('.scrub-overlay-canvas').length === 0,
+      {}, { timeout: 2000 }
+    );
+    expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayCount())).toBe(0);
+  });
+
   test('Stack-mode drag engages the overlay canvas and tears it down on mouseup', async ({ page }) => {
     const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
     test.skip(!supported, 'VideoDecoder not available in this browser build');
@@ -1351,7 +1403,7 @@ test.describe('WebCodecs scrub decoder', () => {
     const probe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 0.2));
     test.skip(probe === null || probe.dead, 'slot not scrubbable in this environment');
 
-    // Stack mode (overlay is Stack-only in phase 1)
+    // Stack mode (Grid engagement is covered by the Grid-mode test above)
     await page.keyboard.press('s');
     await page.waitForFunction(() => !(window as any).__testAPI.isGridMode);
 

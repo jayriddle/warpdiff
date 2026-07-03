@@ -13,8 +13,9 @@
 // pending output and returns it to "unconfigured") and reconfigure from the new
 // keyframe.
 //
-// Memory note (spike): the session retains the full file bytes and closes every
-// VideoFrame immediately after drawImage — no frame cache yet (phase 2).
+// Memory: the session retains the full file bytes (sample chunks are subarray
+// views into them). Decoded frames close immediately after paint/caching; the
+// revisit cache holds display-capped ImageBitmaps under a ~96 MB budget.
 //
 // Globals consumed by index.html:
 //   _scrubVideoSupported()          — feature gate
@@ -41,6 +42,53 @@ function _createScrubVideoSession(bytes) {
     if (info.codedWidth)  config.codedWidth  = info.codedWidth;
     if (info.codedHeight) config.codedHeight = info.codedHeight;
     if (info.description) config.description = info.description;
+
+    // ── Decoded-frame cache ──────────────────────────────────────────────
+    // Every frame the decoder emits is cached as a display-capped ImageBitmap
+    // so revisiting a position (backward jumps, back-and-forth A/B scrubbing)
+    // paints instantly with no re-decode. Bitmaps are capped at 1280px wide
+    // (scrub preview quality; a 4K frame would be ~33 MB raw) and the cache
+    // holds ~96 MB, evicting the entries farthest from the current target.
+    const CACHE_BUDGET = 96 * 1024 * 1024;
+    const cacheScale = Math.min(1, 1280 / (info.codedWidth || 1280));
+    const cacheW = Math.max(2, Math.round((info.codedWidth || 640) * cacheScale));
+    const cacheH = Math.max(2, Math.round((info.codedHeight || 360) * cacheScale));
+    const cacheFrameBytes = cacheW * cacheH * 4;
+    const cache = new Map();          // decode idx → { bm: ImageBitmap, pts }
+    let cacheBytes = 0;
+    let cacheHits = 0;
+    // decode idx from an output frame's µs timestamp
+    const idxByTs = new Map(samples.map((s, i) => [Math.round(s.pts * 1e6), i]));
+
+    function cacheEvictFor(centerPts) {
+        while (cacheBytes + cacheFrameBytes > CACHE_BUDGET && cache.size) {
+            let worstKey = -1, worstDist = -1;
+            for (const [k, v] of cache) {
+                const d = Math.abs(v.pts - centerPts);
+                if (d > worstDist) { worstDist = d; worstKey = k; }
+            }
+            const evicted = cache.get(worstKey);
+            cache.delete(worstKey);
+            cacheBytes -= cacheFrameBytes;
+            evicted.bm.close();
+        }
+    }
+
+    function cacheStore(frame) {
+        const idx = idxByTs.get(frame.timestamp);
+        if (idx === undefined || cache.has(idx) || dead) { return; }
+        let clone;
+        try { clone = frame.clone(); } catch (_) { return; }
+        cacheEvictFor(frame.timestamp / 1e6);
+        createImageBitmap(clone, { resizeWidth: cacheW, resizeHeight: cacheH })
+            .then(bm => {
+                clone.close();
+                if (dead || cache.has(idx)) { bm.close(); return; }
+                cache.set(idx, { bm: bm, pts: samples[idx].pts });
+                cacheBytes += cacheFrameBytes;
+            })
+            .catch(() => { try { clone.close(); } catch (_) {} });
+    }
 
     let canvas = null, ctx2d = null;
     let dead = false;
@@ -75,8 +123,11 @@ function _createScrubVideoSession(bytes) {
     const decoder = new VideoDecoder({
         output(frame) {
             // reset() discards pending outputs, so anything arriving here belongs
-            // to the current run. Retain the newest frame at/below the target;
-            // the rAF tick paints it. Superseded frames close immediately.
+            // to the current run. Cache EVERY emitted frame (even ones that won't
+            // paint — they're positions the user may revisit), then retain the
+            // newest paintable one; the rAF tick paints it. Superseded frames
+            // close immediately.
+            cacheStore(frame);
             const ptsS = frame.timestamp / 1e6;
             if (dead || !ctx2d || ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
                 frame.close();
@@ -153,6 +204,7 @@ function _createScrubVideoSession(bytes) {
         get framesPainted() { return framesPainted; },
         get lastPaintedPts() { return lastPaintedPts; },
         get dead() { return dead; },
+        get cacheStats() { return { frames: cache.size, bytes: cacheBytes, hits: cacheHits }; },
 
         attach(canvasEl) {
             canvas = canvasEl;
@@ -166,6 +218,20 @@ function _createScrubVideoSession(bytes) {
             const idx = targetForTime(t);
             const key = keyBefore(idx);
             const pts = samples[idx].pts;
+            // Cache hit — paint instantly, no decode. Neutralize any in-flight
+            // run's painting (its outputs keep caching but stop painting) by
+            // moving the target/floor to the served frame.
+            const hit = cache.get(idx);
+            if (hit && ctx2d) {
+                ctx2d.drawImage(hit.bm, 0, 0, canvas.width, canvas.height);
+                cacheHits++;
+                framesPainted++;
+                lastPaintedPts = pts;
+                targetPts = pts;
+                paintFloor = pts - frameDur * 0.5;
+                if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+                return;
+            }
             if (nextFeed >= 0 && key === curKey && idx + REORDER_MARGIN >= nextFeed) {
                 // Same GOP, at/ahead of decode progress — retarget and keep the
                 // run. This covers forward extension AND backward wobbles whose
@@ -206,6 +272,9 @@ function _createScrubVideoSession(bytes) {
             dead = true;
             if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+            for (const v of cache.values()) v.bm.close();
+            cache.clear();
+            cacheBytes = 0;
             try { decoder.close(); } catch (_) {}
             canvas = null;
             ctx2d = null;
