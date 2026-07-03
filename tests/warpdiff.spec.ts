@@ -1372,6 +1372,12 @@ test.describe('WebCodecs scrub decoder', () => {
     // 2 files default to Grid mode already; confirm
     expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(true);
 
+    // Open the audio-viz panel so the waveform/spectrogram time cursor is live —
+    // it must keep tracking the drag even though overlay scrubs skip <video>
+    // seeks (regression: cursor froze because it read stale video.currentTime).
+    await page.keyboard.press('w');
+    await page.locator('#spectrogramPanel.active').waitFor({ state: 'visible', timeout: 5000 });
+
     const bar = page.locator('#videoProgressContainer');
     const box = await bar.boundingBox();
     expect(box).toBeTruthy();
@@ -1386,6 +1392,16 @@ test.describe('WebCodecs scrub decoder', () => {
     // Both video slots get a live overlay with an attached canvas
     await page.waitForFunction(() => (window as any).__testAPI.scrubVideo.overlayCount() === 2, {}, { timeout: 3000 });
     expect(await page.locator('.scrub-overlay-canvas').count()).toBe(2);
+
+    // Mid-drag (cursor at ~80% of the bar): progress fill and spectrogram time
+    // cursor must both track the drag position, not the un-seeked video's time
+    const midDrag = await page.evaluate(() => ({
+      barPct: parseFloat((document.getElementById('videoProgressBar') as HTMLElement).style.width),
+      cursorLeft: parseFloat((document.getElementById('spectrogramCursor') as HTMLElement).style.left),
+      wrapW: (document.getElementById('spectrogramCursor') as HTMLElement).parentElement!.offsetWidth,
+    }));
+    expect(midDrag.barPct).toBeGreaterThan(60);
+    expect(midDrag.cursorLeft / midDrag.wrapW).toBeGreaterThan(0.6);
 
     await page.mouse.up();
     await page.waitForFunction(

@@ -4752,11 +4752,15 @@
             }
         }
 
-        function updateSpectrogramCursor(video) {
+        function updateSpectrogramCursor(video, timeOverride) {
             const panel = document.getElementById('spectrogramPanel');
             if (!panel || !panel.classList.contains('active')) return;
             if (!video || !video.duration) return;
-            const pct = video.currentTime / _getEffectiveDuration(video);
+            // timeOverride: during WebCodecs-overlay scrubs the <video> is not
+            // being seeked, so video.currentTime is stale — callers pass the
+            // drag time instead.
+            const t = timeOverride !== undefined ? timeOverride : video.currentTime;
+            const pct = t / _getEffectiveDuration(video);
             // Move both cursors (waveform + spectrogram)
             ['spectrogramCursor', 'waveformCursor'].forEach(id => {
                 const cursor = document.getElementById(id);
@@ -7709,12 +7713,13 @@
                     }
                 }
 
-                // Update timecode and waveform cursor from seek target
+                // Update timecode and waveform cursor from the seek TARGET, not
+                // video.currentTime — during overlay scrubs the video isn't seeked.
                 if (hasAudios) {
                     updateAudioProgress(video);
                 } else {
                     updateVideoProgressFromTime(video, t);
-                    updateSpectrogramCursor(video);
+                    updateSpectrogramCursor(video, t);
                 }
                 playScrubSnippet(t);
             }
@@ -7790,7 +7795,7 @@
                     updateAudioProgress(media);
                 } else {
                     updateVideoProgressFromTime(media, t);
-                    updateSpectrogramCursor(media);
+                    updateSpectrogramCursor(media, t); // t, not stale currentTime (overlay scrubs skip seeks)
                     if (_noVideoMode) updateAllAudioSlotCursors(media);
                 }
                 playScrubSnippet(t);
