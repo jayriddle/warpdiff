@@ -33,6 +33,15 @@ make_video "$OUT/landscape_a.mp4" 960 540 24 red    green   blue
 make_video "$OUT/landscape_b.mp4" 960 540 24 yellow magenta cyan  white
 make_video "$OUT/portrait.mp4"    540 960 24 orange purple  teal  gray pink
 
+# HDR-tagged clip (BT.2020 + PQ colr box) — the scrub decoder must REFUSE these
+# (Chrome tone-maps HDR <video>; canvas drawImage doesn't) and fall back to
+# native scrubbing. Content is SDR testsrc; only the tagging matters.
+ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=s=320x180:d=1:r=24" \
+    -vf "setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc,format=yuv420p" \
+    -c:v libx264 \
+    -color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc \
+    -movflags +write_colr "$OUT/pq_hdr.mp4"
+
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=3" -ac 2 -c:a pcm_s16le  "$OUT/stereo.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=880:sample_rate=22050:duration=3" -ac 1 -c:a pcm_s16le  "$OUT/mono.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:sample_rate=44100:duration=3" -ac 2 -c:a libmp3lame -b:a 128k "$OUT/track.mp3"
@@ -40,3 +49,4 @@ ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:sample_ra
 touch -t 202401010000 "$OUT/landscape_a.mp4" "$OUT/stereo.wav"
 touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav"
 touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
+touch -t 202401040000 "$OUT/pq_hdr.mp4"

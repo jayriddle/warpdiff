@@ -29,6 +29,13 @@ function _createScrubVideoSession(bytes) {
     if (!_scrubVideoSupported()) return null;
     const info = _demuxMP4Video(bytes);
     if (!info || !info.codec || info.samples.length === 0) return null;
+    // Refuse HDR content (PQ transfer=16, HLG=18 in the colr box): Chrome
+    // tone-maps HDR <video> for display; drawImage of the decoded frames gets
+    // no tone mapping, so the overlay would paint drastically darker. Falling
+    // back to native <video> scrubbing is correct for these files. (Streams
+    // tagged only in the bitstream, with no colr box, are caught by the
+    // first-frame guard in the output callback below.)
+    if (info.colr && (info.colr.transfer === 16 || info.colr.transfer === 18)) return null;
 
     const samples = info.samples;               // decode order
     const nSamples = samples.length;
@@ -128,14 +135,25 @@ function _createScrubVideoSession(bytes) {
             // paint — they're positions the user may revisit), then retain the
             // newest paintable one; the rAF tick paints it. Superseded frames
             // close immediately.
-            cacheStore(frame);
             if (!_lastFrameColorSpace && frame.colorSpace) {
                 const cs = frame.colorSpace;
                 _lastFrameColorSpace = {
                     primaries: cs.primaries, transfer: cs.transfer,
                     matrix: cs.matrix, fullRange: cs.fullRange
                 };
+                // Late HDR guard for streams tagged only in the bitstream (no
+                // colr box): kill the session before painting un-tone-mapped
+                // frames and clear anything already on the canvas so the
+                // <video> shows through; the controller falls back to seeks.
+                if (cs.transfer === 'pq' || cs.transfer === 'hlg') {
+                    dead = true;
+                    if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+                    frame.close();
+                    try { decoder.close(); } catch (_) {}
+                    return;
+                }
             }
+            cacheStore(frame);
             const ptsS = frame.timestamp / 1e6;
             if (dead || !ctx2d || ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
                 frame.close();

@@ -653,6 +653,16 @@ function _demuxMP4Video(data) {
             } else if (cType === 'hvcC' && (fourcc === 'hvc1' || fourcc === 'hev1')) {
                 t.description = data.slice(off + 8, off + cSize);
                 t.codec = _hevcCodecString(t.description);
+            } else if (cType === 'colr' && readStr(off + 8, 4) === 'nclx' && off + 19 <= entryEnd) {
+                // Color description — lets the scrub decoder refuse HDR content
+                // (PQ transfer=16, HLG=18): Chrome tone-maps HDR <video> for
+                // display, which a canvas drawImage doesn't replicate.
+                t.colr = {
+                    primaries: view.getUint16(off + 12),
+                    transfer: view.getUint16(off + 14),
+                    matrix: view.getUint16(off + 16),
+                    fullRange: (data[off + 18] & 0x80) !== 0
+                };
             }
             off += cSize;
         }
@@ -733,6 +743,7 @@ function _demuxMP4Video(data) {
         codedWidth: video.width || 0,
         codedHeight: video.height || 0,
         timescale: ts,
+        colr: video.colr || null,
         samples: samples
     };
 }

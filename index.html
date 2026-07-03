@@ -2852,7 +2852,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.29';
+        const APP_VERSION = '3.10.30';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11638,6 +11638,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.30</h3>
+            <ul>
+                <li><strong>Bug fix: HDR videos (PQ/HLG) darkened dramatically while scrubbing on Chrome.</strong> HDR content now falls back to native scrubbing — Chrome tone-maps HDR video for display in a way the smooth-scrub overlay can't reproduce.</li>
+            </ul>
             <h3>v3.10.29</h3>
             <ul>
                 <li><strong>Internal.</strong> Code organization: the Opus audio-sync engine and timecode formatters moved into their own modules. No user-facing changes.</li>

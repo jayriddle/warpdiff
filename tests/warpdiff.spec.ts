@@ -1347,20 +1347,23 @@ test.describe('WebCodecs scrub decoder', () => {
     const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
     test.skip(!supported, 'VideoDecoder not available in this browser build');
 
-    // First probe decodes 0 → 2.5s and caches every emitted frame
+    // First probe decodes from the preceding keyframe up to 2.5s, caching every
+    // emitted frame. (Keyframe placement depends on the fixture encoder — the
+    // current fixtures carry one per 1s segment — so only the frames from the
+    // last keyframe are guaranteed decoded; revisit WITHIN that span.)
     const probe1 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2.5));
     test.skip(probe1 === null || probe1.dead, 'slot not scrubbable in this environment');
 
     const stats1 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.cacheStats('editA'));
-    expect(stats1.frames).toBeGreaterThan(30); // ~60 frames decoded on the way to 2.5s
+    expect(stats1.frames).toBeGreaterThan(8); // ≥ the 2.0→2.5s run at 24fps
     expect(stats1.hits).toBe(0);
 
-    // Revisiting 1.0s (backward, already decoded) must hit the cache
-    const probe2 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 1.0));
+    // Revisiting 2.2s (backward, inside the decoded span) must hit the cache
+    const probe2 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2.2));
     const stats2 = await page.evaluate(() => (window as any).__testAPI.scrubVideo.cacheStats('editA'));
     expect(stats2.hits).toBeGreaterThanOrEqual(1);
-    expect(probe2.lastPaintedPts).toBeGreaterThan(0.8);
-    expect(probe2.lastPaintedPts).toBeLessThanOrEqual(1.1);
+    expect(probe2.lastPaintedPts).toBeGreaterThan(2.0);
+    expect(probe2.lastPaintedPts).toBeLessThanOrEqual(2.3);
   });
 
   test('Grid-mode drag engages an overlay per video slot', async ({ page }) => {
@@ -1409,6 +1412,25 @@ test.describe('WebCodecs scrub decoder', () => {
       {}, { timeout: 2000 }
     );
     expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayCount())).toBe(0);
+  });
+
+  test('HDR (PQ) content is refused — falls back to native scrubbing', async ({ page }) => {
+    // Load fresh with an HDR-tagged file: landscape_a (oldest mtime) → editA,
+    // pq_hdr (newest) → editB. The overlay must never engage for the HDR slot —
+    // Chrome tone-maps HDR <video>, the canvas path doesn't (major darkening).
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'pq_hdr.mp4']);
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+
+    const hdrProbe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editB', 0.2));
+    expect(hdrProbe).toBeNull();
+    expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.sessionState('editB'))).toBe('failed');
+
+    // The SDR slot in the same set still gets a working session
+    const sdrProbe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 0.2));
+    test.skip(sdrProbe === null, 'SDR slot not scrubbable in this environment');
+    expect(sdrProbe.dead).toBe(false);
   });
 
   test('Stack-mode drag engages the overlay canvas and tears it down on mouseup', async ({ page }) => {

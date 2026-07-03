@@ -283,6 +283,29 @@ function extractFn(name, src = SRC) {
     // (a raw min pts of ~0.083s means the overlay paints the wrong frame).
     check('demux[mp4video]: elst applied — presentation starts at 0', r &&
           Math.min(...r.samples.map(s => s.pts)) < 1e-9);
+    check('demux[mp4video]: SDR fixture has no colr (or non-HDR transfer)',
+          r && (!r.colr || (r.colr.transfer !== 16 && r.colr.transfer !== 18)));
+  }
+}
+
+// HDR detection — the scrub decoder must refuse PQ/HLG content (Chrome
+// tone-maps HDR <video> for display; canvas drawImage doesn't, so the overlay
+// would paint drastically darker). pq_hdr.mp4 carries a BT.2020/PQ colr box.
+{
+  const fixture = new URL('fixtures/pq_hdr.mp4', import.meta.url);
+  if (!existsSync(fixture)) {
+    console.log('  ⊘ demux[hdr]: skipped — run `npm test` once to generate tests/fixtures/*.mp4');
+  } else {
+    const { _demuxMP4Video } = new Function(extractFn('_demuxMP4Video') + '\nreturn { _demuxMP4Video };')();
+    const r = _demuxMP4Video(new Uint8Array(readFileSync(fixture)));
+    check('demux[hdr]: colr box parsed', r && r.colr && typeof r.colr.transfer === 'number');
+    check('demux[hdr]: PQ transfer (16) detected', r && r.colr && r.colr.transfer === 16);
+    check('demux[hdr]: BT.2020 primaries (9) detected', r && r.colr && r.colr.primaries === 9);
+    // The refusal itself lives in _createScrubVideoSession — assert the guard
+    // exists in shipped source so a refactor can't silently drop it.
+    const src = extractFn('_createScrubVideoSession');
+    check('scrub[hdr]: session factory refuses PQ/HLG transfers',
+          src.includes('transfer === 16') && src.includes('transfer === 18'));
   }
 }
 
