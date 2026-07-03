@@ -210,7 +210,18 @@ function _createScrubVideoSession(bytes) {
             canvas = canvasEl;
             canvas.width = info.codedWidth || 640;
             canvas.height = info.codedHeight || 360;
-            ctx2d = canvas.getContext('2d');
+            // On wide-gamut (P3) displays, macOS composites <video> through a
+            // BT.709→P3 mapping that an sRGB canvas doesn't get — the overlay
+            // reads darker than the video it covers (same issue that forced the
+            // pixel magnifier to use a cloned <video>; see CLAUDE.md). Painting
+            // into a display-p3 canvas keeps the conversion in the same gamut.
+            let ctx = null;
+            try {
+                if (window.matchMedia && matchMedia('(color-gamut: p3)').matches) {
+                    ctx = canvas.getContext('2d', { colorSpace: 'display-p3' });
+                }
+            } catch (_) { /* colorSpace unsupported — fall through */ }
+            ctx2d = ctx || canvas.getContext('2d');
         },
 
         request(t) {

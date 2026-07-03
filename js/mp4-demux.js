@@ -541,10 +541,11 @@ function _demuxMP4Video(data) {
             if (size < headerLen || off + size > end) break;
             const s = off + headerLen, e = off + size;
 
-            if (type === 'moov' || type === 'mdia' || type === 'minf' || type === 'stbl') {
+            if (type === 'moov' || type === 'mdia' || type === 'minf' || type === 'stbl' ||
+                type === 'edts') {
                 walk(s, e);
             } else if (type === 'trak') {
-                t = { handler: null, timescale: 1 };
+                t = { handler: null, timescale: 1, elstMediaTime: 0 };
                 walk(s, e);
                 if (!video && t.handler === 'vide' && t.codec && t.sizes && t.chunkOffsets && t.dtsDeltas) {
                     video = t;
@@ -552,6 +553,23 @@ function _demuxMP4Video(data) {
                 t = null;
             } else if (!t) {
                 // outside a trak — skip
+            } else if (type === 'elst') {
+                // Edit list — scoped per trak (same invariant as the audio demuxer:
+                // never let another track's elst clobber the video track's). The
+                // first entry with media_time >= 0 shifts the presentation
+                // timeline: the <video> element applies it, so raw sample pts run
+                // ahead by media_time/timescale (e.g. the 2-frame x264 B-frame
+                // lead). Without this shift the overlay paints the wrong frame.
+                const version = data[s];
+                const n = view.getUint32(s + 4);
+                let eOff = s + 8;
+                for (let i = 0; i < n && eOff + (version === 1 ? 20 : 12) <= e; i++) {
+                    const mt = version === 1
+                        ? Number(view.getBigInt64(eOff + 8))
+                        : view.getInt32(eOff + 4);
+                    eOff += version === 1 ? 20 : 12;
+                    if (mt >= 0) { t.elstMediaTime = mt; break; }
+                }
             } else if (type === 'mdhd') {
                 const version = data[s];
                 t.timescale = view.getUint32(version === 1 ? s + 20 : s + 12);
@@ -684,8 +702,9 @@ function _demuxMP4Video(data) {
         if (sample < nSamples) return null; // malformed chunk map
     }
 
-    // stts → dts; ctts → pts
+    // stts → dts; ctts → pts; elst shifts pts onto the element's timeline
     const ts = video.timescale || 1;
+    const ptsShift = (video.elstMediaTime || 0) / ts;
     const samples = new Array(nSamples);
     let dts = 0, di = 0, dRemain = video.dtsDeltas.length ? video.dtsDeltas[0].count : 0;
     let ci2 = 0, cRemain = video.ctts && video.ctts.length ? video.ctts[0].count : 0;
@@ -699,7 +718,7 @@ function _demuxMP4Video(data) {
             offset: offsets[i],
             size: video.sizes[i],
             dts: dts / ts,
-            pts: (dts + ctsOffset) / ts,
+            pts: (dts + ctsOffset) / ts - ptsShift,
             key: video.syncSamples ? video.syncSamples.has(i + 1) : true
         };
         if (di < video.dtsDeltas.length) {

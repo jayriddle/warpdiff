@@ -278,6 +278,11 @@ function extractFn(name, src = SRC) {
     check('demux[mp4video]: sample byte ranges are in-bounds', r && r.samples.every(s =>
       s.offset > 0 && s.size > 0 && s.offset + s.size <= bytes.length));
     check('demux[mp4video]: last pts ≈ 3s', r && Math.abs(r.samples[r.samples.length - 1].pts - 3) < 0.25);
+    // elst shift: x264 B-frame files carry a 2-frame edit-list lead; the <video>
+    // element applies it, so demuxed presentation pts must start at 0 to match
+    // (a raw min pts of ~0.083s means the overlay paints the wrong frame).
+    check('demux[mp4video]: elst applied — presentation starts at 0', r &&
+          Math.min(...r.samples.map(s => s.pts)) < 1e-9);
   }
 }
 
