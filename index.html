@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.24';
+        const APP_VERSION = '3.10.25';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11361,6 +11361,32 @@
             get _savedFitPanY() { return _savedFitPanY; },
             get _customKeys() { return _customKeys; },
             get _keymap() { return _keymap; },
+            // Opus deferred-start window hooks (see CLAUDE.md "Deferred-start
+            // window"). installTestBuffer swaps in a silent decoded buffer so the
+            // scheduling invariants can be exercised without an Opus fixture —
+            // they are pure Web Audio timing math, independent of codec.
+            opus: {
+                installTestBuffer(slot, seconds = 2) {
+                    const ctx = getAudioContext();
+                    _videoAudioBuffers[slot] = ctx.createBuffer(2, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+                    _opusSyncSlots[slot] = true;
+                    _opusSyncActive = true;
+                },
+                state(slot) {
+                    return {
+                        hasSource: !!_opusSyncSources[slot],
+                        startCtx: _opusSyncStartCtx[slot],
+                        startVideo: _opusSyncStartVideo[slot],
+                        rate: _opusSyncRate[slot],
+                        fadeUntil: _opusSyncFadeUntil[slot] || 0,
+                    };
+                },
+                ctxTime() { return getAudioContext().currentTime; },
+                fade() { return _OPUS_FADE; },
+                start(slot, fromTime) { _startOpusSyncAudio(slot, fromTime); },
+                stop(slot) { _stopOpusSyncAudio(slot); },
+                updateRate(rate) { _updateOpusSyncRate(rate); },
+            },
         };
 
     </script>
@@ -11625,6 +11651,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.25</h3>
+            <ul>
+                <li><strong>Internal hardening.</strong> Regression tests now lock in the recent Opus audio-sync timing fixes; no user-facing changes.</li>
+            </ul>
             <h3>v3.10.24</h3>
             <ul>
                 <li><strong>Tighter A/V sync at loop wraps (Opus videos).</strong> Audio restarts now compensate for their brief anti-click gap instead of playing ~15 ms behind the video afterward, the gap only lasts as long as the previous fade actually needs, and quick pause→play no longer risks a momentary crossfade artifact.</li>
