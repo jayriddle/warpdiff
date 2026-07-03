@@ -2834,7 +2834,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.25';
+        const APP_VERSION = '3.10.26';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -5086,7 +5086,7 @@
             if (existing && existing.phase !== 'error' && existing.phase !== 'queued') return;
 
             const srcFile = audioFileBuffers[slot];
-            if (!(srcFile instanceof File)) { showToast('Source file unavailable — reload and retry', true); return; }
+            if (!(srcFile instanceof File)) { showToast('Source file unavailable — reload and retry', 4000); return; }
 
             const ext        = (info.filename.match(/(\.[^.]+)$/) || ['', '.mp4'])[1];
             const base       = info.filename.slice(0, info.filename.length - ext.length);
@@ -11651,6 +11651,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.26</h3>
+            <ul>
+                <li><strong>Bug fix: a transcode error message ("Source file unavailable") vanished after 1 ms instead of displaying for 4 seconds.</strong></li>
+            </ul>
             <h3>v3.10.25</h3>
             <ul>
                 <li><strong>Internal hardening.</strong> Regression tests now lock in the recent Opus audio-sync timing fixes; no user-facing changes.</li>
