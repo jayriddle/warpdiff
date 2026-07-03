@@ -254,6 +254,33 @@ function extractFn(name, src = SRC) {
   }
 }
 
+// MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.
+// landscape_a.mp4 is 3 s of 24 fps H.264 with default (sparse) GOP: one keyframe.
+{
+  const fixture = new URL('fixtures/landscape_a.mp4', import.meta.url);
+  if (!existsSync(fixture)) {
+    console.log('  ⊘ demux[mp4video]: skipped — run `npm test` once to generate tests/fixtures/*.mp4');
+  } else {
+    const { _demuxMP4Video } = new Function(extractFn('_demuxMP4Video') + '\nreturn { _demuxMP4Video };')();
+    const bytes = new Uint8Array(readFileSync(fixture));
+    const r = _demuxMP4Video(bytes);
+    check('demux[mp4video]: returns a track object', r && typeof r === 'object');
+    check('demux[mp4video]: avc1 codec string', r && /^avc1\.[0-9a-f]{6}$/.test(r.codec));
+    check('demux[mp4video]: avcC description present', r && r.description && r.description.length > 6);
+    check('demux[mp4video]: coded dims match fixture', r && r.codedWidth === 960 && r.codedHeight === 540);
+    check('demux[mp4video]: ~72 samples for 3s @ 24fps', r && r.samples.length >= 70 && r.samples.length <= 74);
+    check('demux[mp4video]: first sample is a keyframe', r && r.samples[0].key === true);
+    check('demux[mp4video]: pts monotonic over presentation order', r && (() => {
+      const pts = r.samples.map(s => s.pts).sort((a, b) => a - b);
+      for (let i = 1; i < pts.length; i++) if (pts[i] <= pts[i - 1] - 1e-9) return false;
+      return true;
+    })());
+    check('demux[mp4video]: sample byte ranges are in-bounds', r && r.samples.every(s =>
+      s.offset > 0 && s.size > 0 && s.offset + s.size <= bytes.length));
+    check('demux[mp4video]: last pts ≈ 3s', r && Math.abs(r.samples[r.samples.length - 1].pts - 3) < 0.25);
+  }
+}
+
 // ── summary ───────────────────────────────────────────────────────────────────
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

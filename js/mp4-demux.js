@@ -502,3 +502,218 @@ function _demuxWebMAudio(data) {
         preSkip: preSkip
     };
 }
+
+// --- MP4 video demuxer (WebCodecs scrub path) ---
+// Extracts the first video track's sample table for direct VideoDecoder feeding.
+// Pure: takes a Uint8Array container, returns null (no parseable video track) or
+//   { codec,            // WebCodecs codec string ("avc1.64001f", "hvc1.1.6.L120.B0", …)
+//     description,      // Uint8Array avcC/hvcC payload for VideoDecoder config, or null
+//     codedWidth, codedHeight,
+//     timescale,        // media timescale (per-track mdhd — same scoping invariant as audio)
+//     samples: [{ offset, size, dts, pts, key }] }  // dts/pts in SECONDS, decode order
+// Used by js/scrub-video.js. See docs/scrub-proxy-spike-2026-05.md for why scrubbing
+// decodes original samples instead of driving a second <video> element.
+function _demuxMP4Video(data) {
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+
+    function readStr(off, len) {
+        let s = '';
+        for (let i = 0; i < len; i++) s += String.fromCharCode(data[off + i]);
+        return s;
+    }
+
+    // Per-trak temp state, committed at trak end only for the first 'vide' track.
+    let t = null;      // current trak accumulator
+    let video = null;  // committed video track
+
+    function walk(start, end) {
+        let off = start;
+        while (off + 8 <= end) {
+            let size = view.getUint32(off);
+            const type = readStr(off + 4, 4);
+            let headerLen = 8;
+            if (size === 1 && off + 16 <= end) {
+                size = Number(view.getBigUint64(off + 8));
+                headerLen = 16;
+            } else if (size === 0) {
+                size = end - off;
+            }
+            if (size < headerLen || off + size > end) break;
+            const s = off + headerLen, e = off + size;
+
+            if (type === 'moov' || type === 'mdia' || type === 'minf' || type === 'stbl') {
+                walk(s, e);
+            } else if (type === 'trak') {
+                t = { handler: null, timescale: 1 };
+                walk(s, e);
+                if (!video && t.handler === 'vide' && t.codec && t.sizes && t.chunkOffsets && t.dtsDeltas) {
+                    video = t;
+                }
+                t = null;
+            } else if (!t) {
+                // outside a trak — skip
+            } else if (type === 'mdhd') {
+                const version = data[s];
+                t.timescale = view.getUint32(version === 1 ? s + 20 : s + 12);
+            } else if (type === 'hdlr') {
+                t.handler = readStr(s + 8, 4);
+            } else if (type === 'stsd') {
+                parseStsdVideo(s, e);
+            } else if (type === 'stss') {
+                const n = view.getUint32(s + 4);
+                t.syncSamples = new Set();
+                for (let i = 0; i < n && s + 8 + i * 4 + 4 <= e; i++) {
+                    t.syncSamples.add(view.getUint32(s + 8 + i * 4)); // 1-based
+                }
+            } else if (type === 'stsz') {
+                const uniform = view.getUint32(s + 4);
+                const n = view.getUint32(s + 8);
+                t.sizes = new Array(n);
+                for (let i = 0; i < n; i++) {
+                    t.sizes[i] = uniform || view.getUint32(s + 12 + i * 4);
+                }
+            } else if (type === 'stsc') {
+                const n = view.getUint32(s + 4);
+                t.stsc = [];
+                for (let i = 0; i < n; i++) {
+                    const b = s + 8 + i * 12;
+                    t.stsc.push({ firstChunk: view.getUint32(b), perChunk: view.getUint32(b + 4) });
+                }
+            } else if (type === 'stco' || type === 'co64') {
+                const n = view.getUint32(s + 4);
+                t.chunkOffsets = new Array(n);
+                for (let i = 0; i < n; i++) {
+                    t.chunkOffsets[i] = type === 'stco'
+                        ? view.getUint32(s + 8 + i * 4)
+                        : Number(view.getBigUint64(s + 8 + i * 8));
+                }
+            } else if (type === 'stts') {
+                const n = view.getUint32(s + 4);
+                t.dtsDeltas = [];
+                for (let i = 0; i < n; i++) {
+                    const b = s + 8 + i * 8;
+                    t.dtsDeltas.push({ count: view.getUint32(b), delta: view.getUint32(b + 4) });
+                }
+            } else if (type === 'ctts') {
+                const version = data[s];
+                const n = view.getUint32(s + 4);
+                t.ctts = [];
+                for (let i = 0; i < n; i++) {
+                    const b = s + 8 + i * 8;
+                    t.ctts.push({
+                        count: view.getUint32(b),
+                        offset: version === 1 ? view.getInt32(b + 4) : view.getUint32(b + 4)
+                    });
+                }
+            }
+            off = e;
+        }
+    }
+
+    function parseStsdVideo(s, e) {
+        // stsd: version+flags(4) entry_count(4) then sample entries
+        const entryStart = s + 8;
+        if (entryStart + 8 > e) return;
+        const entrySize = view.getUint32(entryStart);
+        const fourcc = readStr(entryStart + 4, 4);
+        if (fourcc !== 'avc1' && fourcc !== 'avc3' && fourcc !== 'hvc1' && fourcc !== 'hev1') return;
+        const entryEnd = Math.min(entryStart + entrySize, e);
+        // VisualSampleEntry: width/height at +32/+34 from entry box start,
+        // child boxes (avcC/hvcC/…) start at +86.
+        t.width = view.getUint16(entryStart + 32);
+        t.height = view.getUint16(entryStart + 34);
+        let off = entryStart + 86;
+        while (off + 8 <= entryEnd) {
+            const cSize = view.getUint32(off);
+            const cType = readStr(off + 4, 4);
+            if (cSize < 8 || off + cSize > entryEnd) break;
+            if (cType === 'avcC' && (fourcc === 'avc1' || fourcc === 'avc3')) {
+                t.description = data.slice(off + 8, off + cSize);
+                // avc1.PPCCLL from avcC profile / compat / level bytes
+                const hex = b => b.toString(16).padStart(2, '0');
+                t.codec = 'avc1.' + hex(t.description[1]) + hex(t.description[2]) + hex(t.description[3]);
+            } else if (cType === 'hvcC' && (fourcc === 'hvc1' || fourcc === 'hev1')) {
+                t.description = data.slice(off + 8, off + cSize);
+                t.codec = _hevcCodecString(t.description);
+            }
+            off += cSize;
+        }
+    }
+
+    // Build the RFC 6381 codec string from an hvcC payload.
+    function _hevcCodecString(c) {
+        const profileSpace = (c[1] >> 6) & 0x3;
+        const tierFlag = (c[1] >> 5) & 0x1;
+        const profileIdc = c[1] & 0x1f;
+        const compat = (c[2] << 24 | c[3] << 16 | c[4] << 8 | c[5]) >>> 0;
+        // profile compatibility flags: bit-reversed 32-bit value, hex, no padding
+        let rev = 0;
+        for (let i = 0; i < 32; i++) rev = (rev << 1 | (compat >> i) & 1) >>> 0;
+        const levelIdc = c[12];
+        let constraints = '';
+        for (let i = 11; i >= 6; i--) {
+            if (c[i] || constraints) constraints = c[i].toString(16).padStart(2, '0') + constraints;
+        }
+        return 'hvc1.' + (profileSpace ? String.fromCharCode(64 + profileSpace) : '') + profileIdc +
+               '.' + rev.toString(16).toUpperCase() +
+               '.' + (tierFlag ? 'H' : 'L') + levelIdc +
+               (constraints ? '.' + constraints.replace(/(00)+$/, '') || '' : '.B0');
+    }
+
+    walk(0, data.length);
+    if (!video || !video.sizes.length) return null;
+
+    // Expand chunk map → per-sample file offsets (decode order = file order).
+    const nSamples = video.sizes.length;
+    const offsets = new Array(nSamples);
+    {
+        const stsc = video.stsc || [{ firstChunk: 1, perChunk: nSamples }];
+        let sample = 0;
+        for (let ci = 0; ci < video.chunkOffsets.length && sample < nSamples; ci++) {
+            // samples-per-chunk for chunk ci+1 (1-based): last stsc entry with firstChunk <= ci+1
+            let per = stsc[0].perChunk;
+            for (let k = 0; k < stsc.length; k++) {
+                if (stsc[k].firstChunk <= ci + 1) per = stsc[k].perChunk; else break;
+            }
+            let pos = video.chunkOffsets[ci];
+            for (let j = 0; j < per && sample < nSamples; j++, sample++) {
+                offsets[sample] = pos;
+                pos += video.sizes[sample];
+            }
+        }
+        if (sample < nSamples) return null; // malformed chunk map
+    }
+
+    // stts → dts; ctts → pts
+    const ts = video.timescale || 1;
+    const samples = new Array(nSamples);
+    let dts = 0, di = 0, dRemain = video.dtsDeltas.length ? video.dtsDeltas[0].count : 0;
+    let ci2 = 0, cRemain = video.ctts && video.ctts.length ? video.ctts[0].count : 0;
+    for (let i = 0; i < nSamples; i++) {
+        let ctsOffset = 0;
+        if (video.ctts && ci2 < video.ctts.length) {
+            ctsOffset = video.ctts[ci2].offset;
+            if (--cRemain <= 0 && ci2 + 1 < video.ctts.length) { ci2++; cRemain = video.ctts[ci2].count; }
+        }
+        samples[i] = {
+            offset: offsets[i],
+            size: video.sizes[i],
+            dts: dts / ts,
+            pts: (dts + ctsOffset) / ts,
+            key: video.syncSamples ? video.syncSamples.has(i + 1) : true
+        };
+        if (di < video.dtsDeltas.length) {
+            dts += video.dtsDeltas[di].delta;
+            if (--dRemain <= 0 && di + 1 < video.dtsDeltas.length) { di++; dRemain = video.dtsDeltas[di].count; }
+        }
+    }
+
+    return {
+        codec: video.codec,
+        description: video.description || null,
+        codedWidth: video.width || 0,
+        codedHeight: video.height || 0,
+        timescale: ts,
+        samples: samples
+    };
+}

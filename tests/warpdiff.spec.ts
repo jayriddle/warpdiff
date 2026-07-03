@@ -1304,6 +1304,83 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
   });
 });
 
+test.describe('WebCodecs scrub decoder', () => {
+  // Drives the full session cycle (fetch → demux → configure → decode GOP →
+  // paint) via __testAPI.scrubVideo.decodeProbe. landscape_a.mp4 has a single
+  // keyframe, so probing t=2.5s forces a ~60-frame forward decode — exactly the
+  // sparse-GOP case the feature exists for. Skips (loudly) when the environment
+  // can't decode H.264 via VideoDecoder.
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  });
+
+  test('decodes a sparse-GOP target and paints frames up to it', async ({ page }) => {
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+
+    const probe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2.5));
+    test.skip(probe === null, 'slot not scrubbable in this environment (demux/codec)');
+    test.skip(probe.dead && probe.framesPainted === 0, 'H.264 VideoDecoder config unsupported in this build');
+
+    expect(probe.codec).toMatch(/^avc1\./);
+    expect(probe.samples).toBeGreaterThan(60);
+    // Progressive paint: many frames on the way to the target, ending near it
+    expect(probe.framesPainted).toBeGreaterThan(10);
+    expect(probe.lastPaintedPts).toBeGreaterThan(2.0);
+    expect(probe.lastPaintedPts).toBeLessThanOrEqual(2.6);
+  });
+
+  test('session is cached per slot and cleared on reset', async ({ page }) => {
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+
+    const probe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 0.5));
+    test.skip(probe === null, 'slot not scrubbable in this environment');
+
+    const stateAfter = await page.evaluate(() => (window as any).__testAPI.scrubVideo.sessionState('editA'));
+    expect(stateAfter).toBe('ready');
+  });
+
+  test('Stack-mode drag engages the overlay canvas and tears it down on mouseup', async ({ page }) => {
+    const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
+    test.skip(!supported, 'VideoDecoder not available in this browser build');
+    // Pre-warm the session so the overlay can engage without racing drag timing,
+    // and skip if this environment can't decode the fixture at all.
+    const probe = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 0.2));
+    test.skip(probe === null || probe.dead, 'slot not scrubbable in this environment');
+
+    // Stack mode (overlay is Stack-only in phase 1)
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI.isGridMode);
+
+    const bar = page.locator('#videoProgressContainer');
+    const box = await bar.boundingBox();
+    expect(box).toBeTruthy();
+    const y = box!.y + box!.height / 2;
+
+    // Drag from 10% to 80% in steps, like a real scrub
+    await page.mouse.move(box!.x + box!.width * 0.1, y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++) {
+      await page.mouse.move(box!.x + box!.width * (0.1 + 0.0875 * i), y);
+      await page.waitForTimeout(30);
+    }
+
+    // Overlay must be live with its canvas attached inside the active wrapper
+    await page.waitForFunction(() => (window as any).__testAPI.scrubVideo.overlayLive(), {}, { timeout: 3000 });
+    expect(await page.locator('.asset-layer.active .scrub-overlay-canvas').count()).toBe(1);
+
+    await page.mouse.up();
+    // Canvas is removed after the final seek paints (or the 400ms fallback)
+    await page.waitForFunction(
+      () => document.querySelectorAll('.scrub-overlay-canvas').length === 0,
+      {}, { timeout: 2000 }
+    );
+    expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayLive())).toBe(false);
+  });
+});
+
 test.afterEach(async ({ page }) => {
   // Clean up any open popups or state
   await page.evaluate(() => {

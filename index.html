@@ -674,6 +674,18 @@
             object-fit: contain;
         }
 
+        /* WebCodecs scrub overlay — covers the video exactly during timeline drags.
+           The wrapper is already sized to the asset's aspect ratio, so stretching
+           the canvas to 100% matches the video's object-fit:contain rendering. */
+        .video-wrapper .scrub-overlay-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 3;
+        }
+
         /* Info bar: CSS child of video-wrapper, always flush above it via bottom:100% */
         .video-wrapper > .asset-info-bar {
             position: absolute;
@@ -2831,10 +2843,11 @@
     <script src="js/scopes.js"></script>
     <script src="js/hotkeys.js"></script>
     <script src="js/mp4-demux.js"></script>
+    <script src="js/scrub-video.js"></script>
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.26';
+        const APP_VERSION = '3.10.27';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3925,6 +3938,107 @@
         let _scrubCachedControlsH = null; // controlsH cached at drag-start
         let _scrubSeekPending = false;   // true while a reactive seek is in flight (Stack mode drag)
         let _scrubNextTime    = null;    // latest queued seek target while _scrubSeekPending
+
+        // ── WebCodecs scrub overlay (Chrome smooth-scrub, see js/scrub-video.js) ──
+        let _scrubVideoSessions = {};    // { slot: session | 'failed' | Promise<session|null> }
+        let _scrubOverlaySession = null; // live session painting the overlay during a drag
+        let _scrubOverlayCanvasEl = null;
+        let _scrubOverlayLastT = null;   // latest drag time (replayed when a session becomes ready mid-drag)
+        let _scrubOverlayDragToken = 0;  // invalidates async session init from a previous drag
+
+        // Gate: Chrome is the only engine lacking fastSeek AND the only one that
+        // won't paint paused sparse-keyframe seeks promptly (same gate the
+        // scrub-proxy spike used). Audio mode scrubs <audio> — no frames to paint.
+        function _scrubUseDecoder() {
+            return _scrubVideoSupported() && !HTMLMediaElement.prototype.fastSeek && !hasAudios;
+        }
+
+        // Resolve (and cache) a slot's decode session. 'failed' is sticky — one
+        // demux/configure attempt per slot per load.
+        function _scrubOverlayGetSession(slot) {
+            const cached = _scrubVideoSessions[slot];
+            if (cached === 'failed') return Promise.resolve(null);
+            if (cached) return Promise.resolve(cached);
+            const md = mediaData[slot];
+            if (!md || md.type !== 'video') return Promise.resolve(null);
+            const p = fetch(md.src)
+                .then(r => r.arrayBuffer())
+                .then(buf => {
+                    const session = _createScrubVideoSession(new Uint8Array(buf));
+                    if (!session) throw new Error('not scrubbable');
+                    return session.ready.then(ok => {
+                        if (!ok) { session.close(); throw new Error('unsupported codec'); }
+                        _scrubVideoSessions[slot] = session;
+                        return session;
+                    });
+                })
+                .catch(() => { _scrubVideoSessions[slot] = 'failed'; return null; });
+            _scrubVideoSessions[slot] = p;
+            return p;
+        }
+
+        function _invalidateScrubSession(slot) {
+            const s = _scrubVideoSessions[slot];
+            if (s && typeof s.close === 'function') s.close();
+            delete _scrubVideoSessions[slot];
+        }
+
+        // Kick off session init for the active slot at drag start (async; the
+        // overlay appears whenever the session is ready, possibly mid-drag).
+        function _scrubOverlayBegin(slot) {
+            if (!_scrubUseDecoder()) return;
+            const token = ++_scrubOverlayDragToken;
+            _scrubOverlayGetSession(slot).then(session => {
+                if (!session || session.dead) return;
+                if (token !== _scrubOverlayDragToken || !isDragging) return;
+                _scrubOverlaySession = session;
+                const layer = getLayer(slot);
+                const wrapper = layer && layer.querySelector('.video-wrapper');
+                if (!wrapper) { _scrubOverlaySession = null; return; }
+                if (!_scrubOverlayCanvasEl) {
+                    _scrubOverlayCanvasEl = document.createElement('canvas');
+                    _scrubOverlayCanvasEl.className = 'scrub-overlay-canvas';
+                }
+                session.attach(_scrubOverlayCanvasEl);
+                wrapper.appendChild(_scrubOverlayCanvasEl);
+                if (_scrubOverlayLastT !== null) session.request(_scrubOverlayLastT);
+            });
+        }
+
+        // Record the drag time and paint if a session is live. Returns true when
+        // the overlay is painting (caller then skips <video> seeks — they'd
+        // compete with WebCodecs for the hardware decoder).
+        function _scrubOverlayRequest(t) {
+            _scrubOverlayLastT = t;
+            if (_scrubOverlaySession && !_scrubOverlaySession.dead) {
+                _scrubOverlaySession.request(t);
+                return true;
+            }
+            return false;
+        }
+
+        // End-of-drag: keep the last decoded frame visible until the <video> has
+        // painted its final seek (or 400 ms), then remove — no stale-frame flash.
+        function _scrubOverlayEnd(video) {
+            _scrubOverlayDragToken++;
+            const wasLive = !!_scrubOverlaySession;
+            _scrubOverlaySession = null;
+            _scrubOverlayLastT = null;
+            const el = _scrubOverlayCanvasEl;
+            if (!wasLive || !el || !el.parentNode) return;
+            let removed = false;
+            const remove = () => {
+                if (removed) return;
+                removed = true;
+                if (el.parentNode) el.parentNode.removeChild(el);
+            };
+            if (video) {
+                video.addEventListener('seeked', remove, { once: true });
+                setTimeout(remove, 400);
+            } else {
+                remove();
+            }
+        }
         let isPanning = false;
         let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
         let panStartX = 0;
@@ -5037,6 +5151,7 @@
             delete _videoAudioBuffers[slot];
             delete _audioSlotVizData[slot];
             delete _byteScannedCodec[slot];
+            _invalidateScrubSession(slot); // scrub session holds the OLD file's bytes
 
             // Clear Opus sync state — the transcoded file is AAC, not Opus.
             // If left set, _finalizeAudioViz would mute the video and replace
@@ -7513,7 +7628,11 @@
                 // keyframes where decode takes longer than a fixed throttle interval.
                 // Grid mode and mouseup use the fixed-throttle path for multi-video sync.
                 const now = performance.now();
-                if (!isGridMode && isDragging) {
+                if (!isGridMode && isDragging && _scrubOverlayRequest(t)) {
+                    // WebCodecs overlay is painting decoded frames — skip <video>
+                    // seeks during the drag (they'd compete for the hardware
+                    // decoder); the final position is seeked on mouseup.
+                } else if (!isGridMode && isDragging) {
                     _scrubNextTime = t;
                     if (!_scrubSeekPending) {
                         _scrubSeekPending = true;
@@ -7766,6 +7885,12 @@
                 } else {
                     _regionSelectStart = null;
                 }
+                // Stack-mode video drags: engage the WebCodecs scrub overlay for the
+                // VISIBLE asset (not currentAudioSource — that's who provides audio,
+                // and can differ from the slot being viewed). Async — the overlay
+                // appears once the session is ready. Grid mode and loop-marker
+                // drags keep the <video>-seek path.
+                if (!isGridMode) _scrubOverlayBegin(assetOrder[currentAssetIndex]);
                 scrubToPosition(e);
             });
 
@@ -7868,6 +7993,9 @@
                     if (_scrubAllVideos && _scrubMutedStates) {
                         _scrubAllVideos.forEach((v, i) => { v.muted = _scrubMutedStates[i]; });
                     }
+                    // Tear down the WebCodecs scrub overlay (waits for the final
+                    // <video> seek to paint before removing the canvas)
+                    _scrubOverlayEnd(_scrubVideo);
                     _scrubVideo = null;
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
@@ -8828,6 +8956,11 @@
             _opusSyncRate = {};
             _opusSyncFadeUntil = {};
             _opusSyncActive = false;
+            for (const k in _scrubVideoSessions) {
+                const s = _scrubVideoSessions[k];
+                if (s && typeof s.close === 'function') s.close();
+            }
+            _scrubVideoSessions = {};
             _videoAudioBuffers = {};
             audioFileBuffers = {};
             audioMetrics = {};
@@ -11387,6 +11520,34 @@
                 stop(slot) { _stopOpusSyncAudio(slot); },
                 updateRate(rate) { _updateOpusSyncRate(rate); },
             },
+            // WebCodecs scrub-decoder hooks (js/scrub-video.js). decodeProbe drives
+            // a full demux → configure → decode-GOP → paint cycle on a throwaway
+            // canvas and reports what got painted — null when the environment
+            // lacks VideoDecoder or can't decode the slot's codec.
+            scrubVideo: {
+                supported() { return _scrubVideoSupported(); },
+                sessionState(slot) {
+                    const s = _scrubVideoSessions[slot];
+                    if (!s) return 'none';
+                    if (s === 'failed') return 'failed';
+                    return typeof s.close === 'function' ? 'ready' : 'pending';
+                },
+                overlayLive() { return !!_scrubOverlaySession; },
+                async decodeProbe(slot, t) {
+                    const s = await _scrubOverlayGetSession(slot);
+                    if (!s) return null;
+                    s.attach(document.createElement('canvas'));
+                    s.request(t);
+                    await new Promise(r => setTimeout(r, 1500));
+                    return {
+                        codec: s.codec,
+                        samples: s.sampleCount,
+                        framesPainted: s.framesPainted,
+                        lastPaintedPts: s.lastPaintedPts,
+                        dead: s.dead
+                    };
+                },
+            },
         };
 
     </script>
@@ -11651,6 +11812,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.27</h3>
+            <ul>
+                <li><strong>Smooth timeline scrubbing on Chrome (experimental).</strong> Stack-mode drags now decode frames directly via WebCodecs and paint them live, so videos with sparse keyframes (AI-generated clips, web downloads) scrub with Safari-like responsiveness. Falls back to the previous behavior in Grid mode and for non-MP4/unsupported codecs.</li>
+            </ul>
             <h3>v3.10.26</h3>
             <ul>
                 <li><strong>Bug fix: a transcode error message ("Source file unavailable") vanished after 1 ms instead of displaying for 4 seconds.</strong></li>
