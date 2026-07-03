@@ -102,6 +102,7 @@ function _createScrubVideoSession(bytes) {
     let framesPainted = 0;  // total painted (test/diagnostic surface)
     let pendingFrame = null; // newest paintable frame awaiting the next rAF
     let rafId = 0;
+    let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
 
     // Paint at most once per display frame. Decode can outrun the display by an
     // order of magnitude (a whole GOP decodes in a burst); painting every output
@@ -128,6 +129,13 @@ function _createScrubVideoSession(bytes) {
             // newest paintable one; the rAF tick paints it. Superseded frames
             // close immediately.
             cacheStore(frame);
+            if (!_lastFrameColorSpace && frame.colorSpace) {
+                const cs = frame.colorSpace;
+                _lastFrameColorSpace = {
+                    primaries: cs.primaries, transfer: cs.transfer,
+                    matrix: cs.matrix, fullRange: cs.fullRange
+                };
+            }
             const ptsS = frame.timestamp / 1e6;
             if (dead || !ctx2d || ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
                 frame.close();
@@ -205,8 +213,9 @@ function _createScrubVideoSession(bytes) {
         get lastPaintedPts() { return lastPaintedPts; },
         get dead() { return dead; },
         get cacheStats() { return { frames: cache.size, bytes: cacheBytes, hits: cacheHits }; },
+        get frameColorSpace() { return _lastFrameColorSpace; },
 
-        attach(canvasEl) {
+        attach(canvasEl, colorSpaceOverride) {
             canvas = canvasEl;
             canvas.width = info.codedWidth || 640;
             canvas.height = info.codedHeight || 360;
@@ -215,12 +224,14 @@ function _createScrubVideoSession(bytes) {
             // reads darker than the video it covers (same issue that forced the
             // pixel magnifier to use a cloned <video>; see CLAUDE.md). Painting
             // into a display-p3 canvas keeps the conversion in the same gamut.
+            // colorSpaceOverride ('srgb' | 'display-p3') is a calibration hook.
+            const mode = colorSpaceOverride ||
+                ((window.matchMedia && matchMedia('(color-gamut: p3)').matches) ? 'display-p3' : 'srgb');
             let ctx = null;
-            try {
-                if (window.matchMedia && matchMedia('(color-gamut: p3)').matches) {
-                    ctx = canvas.getContext('2d', { colorSpace: 'display-p3' });
-                }
-            } catch (_) { /* colorSpace unsupported — fall through */ }
+            if (mode === 'display-p3') {
+                try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); }
+                catch (_) { /* colorSpace unsupported — fall through */ }
+            }
             ctx2d = ctx || canvas.getContext('2d');
         },
 
