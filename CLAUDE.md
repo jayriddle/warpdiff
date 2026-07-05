@@ -133,8 +133,15 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 - Use `_prefixed` names for module-level private state (e.g., `_audioSlotVizData`, `_opusSyncSlots`). (Note: `_frameStepping` is referenced in some older comments but does not actually exist — the real suppression flags are `_bulkSyncActive` and `_frameKicking`.)
 - Debounced layout functions use the pattern `functionNameDebounced` wrapping `functionName`.
 - **Single-owner discipline**: each piece of stateful behavior should have ONE owner (one function that writes it; everyone else routes through it). The ownership harness (`tests/ownership.test.mjs`) enforces this for the audited cases — when adding/refactoring an owner, update the corresponding guard.
-- **`APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` must be kept in sync on every version bump** (now guarded by the ownership harness). The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
-- Add a "What's New" entry inside `#changelogPopup` (search for `<h3>v3.x.y</h3>`) on each version bump. The popup auto-shows on version change.
+
+### Release checklist (every version bump)
+
+Do **all** of these on every version bump — they are one atomic unit, not optional extras:
+
+1. **Bump `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together** (guarded by the ownership harness — they must match). The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
+2. **Add a "What's New" entry inside `#changelogPopup`** (search for `<h3>v3.x.y</h3>`). The popup auto-shows on version change.
+3. **Update the docs for any user-facing change**, and always update `README.md`'s **`**Current version:**`** line to the new number (now guarded by the ownership harness — it must equal `APP_VERSION`). Sweep `README.md` / `FEATURES.md` / `MANUAL.md` for any behavior the release changed (a new feature, a changed default, a new/rebound hotkey) and keep them accurate — stale docs are a release bug.
+4. **After pushing to `master`, verify GitHub Pages actually published it.** The Pages *deploy* step (`actions/deploy-pages`) intermittently fails with `Deployment failed, try again later` even when the Jekyll *build* succeeds — a silent failure that leaves the live site on the previous version. Check the latest `pages build and deployment` run for the pushed SHA; if the deploy job failed, **re-run failed jobs** (Actions tab, or `rerun_failed_jobs`) and confirm the live site serves the new `APP_VERSION` before calling the release done.
 
 ## Testing
 

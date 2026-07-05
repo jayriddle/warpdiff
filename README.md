@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.10.22
+**Current version:** 3.10.31
 
 ---
 
@@ -31,7 +31,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Synced playback across all assets
+- Sync-locked playback across all assets — with 2+ videos, they loop together over the shortest clip and stay frame-aligned (within half a frame) in both Stack and Grid mode, so A/B comparison holds across loop passes
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)
 - Per-source audio switching (GT/A/B) with individual mute
@@ -48,7 +48,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Gallery clears when new media is loaded
 
 **Analysis**
-- `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Source–A, Source–B, A–B)
+- `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Source–A, Source–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default, contrast auto-scaled per clip)
 - `Shift+W` toggle linear/log frequency, `P` cycle spectrogram palettes

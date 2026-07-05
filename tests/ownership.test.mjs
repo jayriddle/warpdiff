@@ -71,6 +71,14 @@ function extractFn(name, src = SRC) {
   check(`version-sync: APP_VERSION (${appVer}) === sw.js CACHE_NAME (${cacheVer})`,
         appVer && cacheVer && appVer === cacheVer);
 
+  // README's "Current version:" line must track APP_VERSION — it lives outside
+  // the app so nothing else catches it, and it silently rotted 9 versions behind
+  // before this guard existed. Part of the release checklist in CLAUDE.md.
+  const README = readFileSync(new URL('README.md', ROOT), 'utf8');
+  const readmeVer = (README.match(/\*\*Current version:\*\*\s*([0-9]+\.[0-9]+\.[0-9]+)/) || [])[1];
+  check(`version-sync: README Current version (${readmeVer}) === APP_VERSION (${appVer})`,
+        readmeVer && appVer && readmeVer === appVer);
+
   // Every js/*.js the page loads must be in the SW precache, or offline PWA breaks.
   const loaded = [...HTML.matchAll(/<script src="(js\/[^"]+\.js)"/g)].map(m => m[1]);
   const missing = loaded.filter(src => !SW.includes(`'${src}'`));
