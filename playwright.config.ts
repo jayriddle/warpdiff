@@ -12,7 +12,12 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium',
-        launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] }
+        launchOptions: {
+          args: ['--autoplay-policy=no-user-gesture-required'],
+          // Escape hatch for environments with a system-provided Chromium
+          // (e.g. sandboxed CI images that block playwright install).
+          ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+        }
     } },
   ],
   webServer: {

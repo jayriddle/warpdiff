@@ -209,10 +209,126 @@ function extractFn(name, src = SRC) {
         !HTML.includes('function setupVideoHandlers(') && HTML.includes('setupVideoHandlers → js/transport.js'));
 }
 
+// (H) Multi-video sync-lock owners (2026-07 synced-looping work):
+//     _applyNativeLoopPolicy is the SOLE writer of the managed .loop flag —
+//     playAllMedia previously wrote m.loop itself, and a second writer brings
+//     back the independent-native-wrap desync (each video restarting at 0 on
+//     its own clock). _getLoopBounds is the single source of truth for the
+//     loop region; _driftLockTick is the only follower-rate writer and must
+//     stand down during scrub/bulk-sync/frame-kick windows. The RVFC chain
+//     must run in BOTH view modes (no isGridMode bail).
+{
+  for (const fn of ['_getLoopBounds', '_applyNativeLoopPolicy', '_driftLockTick']) {
+    check(`one-owner[sync-lock]: ${fn} defined once (got ${countOf(SRC, 'function ' + fn + '(')})`,
+          countOf(SRC, 'function ' + fn + '(') === 1);
+  }
+  check('one-owner[sync-lock]: _applyNativeLoopPolicy is the sole managed .loop writer',
+        countOf(SRC, '.loop = native') === 1);
+  for (const fn of ['playAllMedia', 'setupVideoHandlers']) {
+    const b = extractFn(fn);
+    check(`one-owner[sync-lock]: ${fn} routes .loop through the policy owner`,
+          b.includes('_applyNativeLoopPolicy(') && !b.includes('.loop = '));
+  }
+  const rvfc = extractFn('_startLoopRvfc');
+  check('one-owner[sync-lock]: RVFC loop chain runs in Grid mode too (no isGridMode bail)',
+        !rvfc.includes('isGridMode'));
+  check('one-owner[sync-lock]: RVFC chain resolves the region via _getLoopBounds',
+        rvfc.includes('_getLoopBounds()'));
+  const drift = extractFn('_driftLockTick');
+  check('one-owner[sync-lock]: drift lock stands down during scrub/bulk-sync/frame-kick',
+        drift.includes('isDragging') && drift.includes('_bulkSyncActive') && drift.includes('_frameKicking'));
+  check('one-owner[sync-lock]: drift lock never touches the primary (clock master)',
+        drift.includes('if (v === primary) continue;'));
+  check('one-owner[sync-lock]: diff composite gates on matched frames',
+        extractFn('drawDiffComposite').includes('_diffFramesMismatched('));
+  // Wrap-at-natural-end storm guards: reaching the end fires 'pause' then
+  // 'ended'; without these, the pause cascades to the other videos and the
+  // ended-wrap's play() calls re-sync against mid-wrap clocks — a feedback
+  // storm of stale forward-seeks (seen live: videos ping-ponging 0 ↔ ~3s).
+  const svh = extractFn('setupVideoHandlers');
+  check('one-owner[sync-lock]: end-of-media pause does not cascade under a managed loop',
+        svh.includes('if (video.ended && _getLoopBounds() !== null) return;'));
+  check('one-owner[sync-lock]: ended-wrap is bulk-synced like the other transports',
+        /addEventListener\('ended'[\s\S]*?_bulkSyncActive = true;[\s\S]*?addEventListener\('seeked'/.test(svh));
+  check('one-owner[sync-lock]: drift lock waits for in-flight seeks (v.seeking)',
+        drift.includes('if (v.seeking) continue;'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
 // ══════════════════════════════════════════════════════════════════════════════
+
+// _getLoopBounds — the loop-region resolver. Globals are injected so the
+// extracted shipped function runs pure: custom points win, audio mode and
+// single-video are native (null), multi-video resolves to [0, shortest],
+// and not-ready metadata (NaN duration) defers to native.
+{
+  const boundsWith = (inP, outP, hasAud, durations) => new Function(
+    '_loopInPoint', '_loopOutPoint', 'hasAudios', 'getAllVideos', '_getEffectiveDuration',
+    extractFn('_getLoopBounds') + '\nreturn _getLoopBounds();'
+  )(inP, outP, hasAud, () => durations.map(d => ({ d })), v => v.d);
+  check('loop-bounds: custom in/out points win', (() => {
+    const b = boundsWith(0.5, 2.0, false, [3, 4]);
+    return b && b.inP === 0.5 && b.outP === 2.0;
+  })());
+  check('loop-bounds: audio mode → null (native loop)', boundsWith(null, null, true, [3, 4]) === null);
+  check('loop-bounds: single video → null (native loop)', boundsWith(null, null, false, [3]) === null);
+  check('loop-bounds: 2 videos → [0, shortest]', (() => {
+    const b = boundsWith(null, null, false, [4, 3]);
+    return b && b.inP === 0 && b.outP === 3;
+  })());
+  check('loop-bounds: metadata not ready (NaN) → null', boundsWith(null, null, false, [3, NaN]) === null);
+}
+
+// _driftLockTick — follower convergence policy, run against fake video objects.
+// Stack mode (hidden followers): hard-seek past half a frame. Grid mode:
+// rate-nudge, re-asserted after a J/K overwrite, released on convergence.
+{
+  // Pull the shipped threshold consts along with the function so the test
+  // tracks their real values.
+  const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE']
+    .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
+  const runTick = (primary, followers, grid) => {
+    const ctx = {
+      hasAudios: false, isDragging: false, _bulkSyncActive: false, _frameKicking: false,
+      isGridMode: grid, videoFrameRates: { p: 24 },
+      getAllVideos: () => [primary, ...followers],
+    };
+    new Function(...Object.keys(ctx), 'primary',
+      driftConsts + '\n' + extractFn('_driftLockTick') + '\n_driftLockTick(primary);'
+    )(...Object.values(ctx), primary);
+  };
+  const vid = t => ({ currentTime: t, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'p' });
+  {
+    const p = vid(1.0), f = vid(1.05); // 50ms ahead, stack mode
+    runTick(p, [f], false);
+    check('drift-lock[stack]: hidden follower hard-seeks onto the primary clock', f.currentTime === 1.0);
+  }
+  {
+    const p = vid(1.0), f = vid(1.05); // 50ms ahead, grid mode
+    runTick(p, [f], true);
+    check('drift-lock[grid]: visible follower nudges (slows) instead of seeking',
+          f.currentTime === 1.05 && f._driftNudge === -1 && f.playbackRate < 1);
+    f.playbackRate = 1; // J/K overwrote the nudge mid-episode
+    runTick(p, [f], true);
+    check('drift-lock[grid]: nudge re-asserted after a rate overwrite', f.playbackRate < 1);
+    f.currentTime = 1.001; // converged
+    runTick(p, [f], true);
+    check('drift-lock[grid]: nudge released on convergence', f._driftNudge === 0 && f.playbackRate === 1);
+  }
+  {
+    const p = vid(1.0), f = vid(1.3); // past the hard-seek threshold, grid mode
+    runTick(p, [f], true);
+    check('drift-lock[grid]: big drift hard-seeks even when visible', f.currentTime === 1.0);
+  }
+  {
+    const p = vid(1.0), f = vid(1.05);
+    const ctxRun = () => runTick(p, [f], false);
+    p.paused = true; ctxRun();
+    check('drift-lock: paused primary → no-op', f.currentTime === 1.05);
+  }
+}
 
 // formatFileSize
 {

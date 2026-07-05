@@ -40,6 +40,8 @@ Press `Shift+G` to grab the current frame from the active slot and pin it to a g
 
 All videos play in sync with shared transport controls. Scrub, frame-step with `,`/`.`, and restart together. Per-source audio switching lets you listen to any asset's audio track independently.
 
+With two or more videos loaded, playback is **sync-locked**: all videos loop together over the shortest clip's duration (rather than each restarting on its own clock), and a continuous drift lock holds every video on the active one's clock — within half a frame — in both Stack and Grid mode.
+
 - `J`/`K` cycle playback speed slower/faster (0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 2×)
 - `I`/`O` set loop in/out points; Shift+drag on the progress bar to select a loop region
 - Loop markers shown as orange triangles on the progress bar

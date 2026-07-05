@@ -153,6 +153,8 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 
 **Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Clear by setting new points or reloading.
 
+**Sync-locked looping:** With two or more videos loaded, playback loops all of them together over the shortest clip's duration, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Custom loop points take precedence when set.
+
 ---
 
 ## Audio Visualization
@@ -227,7 +229,7 @@ Press **D** in Stack mode to overlay a pixel-difference composite of the current
 
 With 2 files loaded there is one pair (A–B). With 3 files there are three pairs — use **Shift+D** or the arrow keys to cycle through them. A toast shows the active pair label each time you switch.
 
-Difference mode uses the canvas `difference` composite operation for hardware-accelerated rendering — no manual per-pixel loops. It updates live during video playback and on frame step, and follows zoom and pan. The overlay is automatically removed when you switch to Grid mode or press **D** again.
+Difference mode uses the canvas `difference` composite operation for hardware-accelerated rendering — no manual per-pixel loops. It updates live during video playback and on frame step, and follows zoom and pan. During playback the composite only updates when both videos are on the same frame — a transient one-frame offset briefly holds the last matched diff instead of flashing false motion ghosting. The overlay is automatically removed when you switch to Grid mode or press **D** again.
 
 ---
 

@@ -2852,7 +2852,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.30';
+        const APP_VERSION = '3.10.31';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3120,12 +3120,10 @@
         }
 
         // ── In/Out loop markers ──
-        // Disable native .loop on all media when custom loop points are active,
-        // re-enable when cleared. Prevents native loop restart at 0:00 conflicting
-        // with RAF-based loop-point enforcement.
-        function setNativeLoop(enabled) {
-            getAllPlayableMedia().forEach(m => { m.loop = enabled; });
-        }
+        // Native .loop is managed by _applyNativeLoopPolicy → js/transport.js:
+        // disabled whenever a managed loop region is active (custom in/out points
+        // OR the multi-video sync loop), so the native restart-at-0:00 can't
+        // fight the synchronized seek-back.
 
         function setLoopPoint(type) {
             const media = getAllPlayableMedia()[0];
@@ -3150,7 +3148,7 @@
                 showToast('Out: ' + formatLoopTime(t));
             }
             if (_loopInPoint !== null && _loopOutPoint !== null) {
-                setNativeLoop(false);
+                _applyNativeLoopPolicy();
                 // Start frame-accurate RVFC loop detection if a video is already playing
                 if (primaryVideoRef && !primaryVideoRef.paused) _startLoopRvfc(primaryVideoRef);
             }
@@ -3173,7 +3171,7 @@
             _loopInPoint = null;
             _loopOutPoint = null;
             _cancelLoopWrapTimer();
-            setNativeLoop(true);
+            _applyNativeLoopPolicy();
             updateLoopMarkerUI();
             // Reset progress bar to normal mode
             getProgressEls();
@@ -5937,6 +5935,24 @@
             document.body.appendChild(_diffCanvas);
         }
 
+        // Matched-pair gate for the difference composite: never blend two videos
+        // whose clocks sit on different frames — a one-frame offset renders as
+        // motion ghosting that reads like codec error. When mismatched, the last
+        // matched composite is simply held (a one-frame hold at 24 fps content is
+        // a 42 ms freeze; a wrong diff is worse). Clock-based on purpose:
+        // drawImage samples the element's current decoded frame, which tracks
+        // currentTime rather than the compositor — and RVFC never fires for the
+        // display:none follower in Stack mode, so presented-time gating is not
+        // an option here. While both are paused (frame stepping, scrub landing)
+        // always draw: seeks are synchronized, and holding a stale composite on
+        // a paused timeline would look like a dead UI.
+        function _diffFramesMismatched(a, b) {
+            if (!a || !b || a.tagName !== 'VIDEO' || b.tagName !== 'VIDEO') return false;
+            if (a.paused && b.paused) return false;
+            const f = Math.max(videoFrameRates[a.src] || 30, videoFrameRates[b.src] || 30);
+            return Math.abs(a.currentTime - b.currentTime) >= 0.5 / f;
+        }
+
         function drawDiffComposite() {
             if (!_diffMode) return;
             const pairs = _getDiffPairs();
@@ -5949,6 +5965,7 @@
             const mediaA = layerA && layerA.querySelector('img, video');
             const mediaB = layerB && layerB.querySelector('img, video');
             if (!mediaA || !mediaB) return;
+            if (_diffFramesMismatched(mediaA, mediaB)) return;
 
             const { w: wA, h: hA } = mediaDims(mediaA);
             const { w: wB, h: hB } = mediaDims(mediaB);
@@ -6926,20 +6943,24 @@
                         }
                         _lastPrimaryAudioTime = t;
                     }
-                    // In/out point loop enforcement
-                    if (_loopInPoint !== null && _loopOutPoint !== null) {
+                    // Managed loop region enforcement — custom in/out points, or the
+                    // multi-video sync loop over [0, shortest duration]
+                    const _plBounds = _getLoopBounds();
+                    if (_plBounds !== null) {
                         const t = primary.currentTime;
-                        // Stack mode: _startLoopRvfc handles out-point detection at frame
-                        // presentation time. Fall back to rAF for Grid mode and browsers
-                        // without requestVideoFrameCallback support.
-                        const rvfcHandling = !isGridMode &&
-                            typeof primary.requestVideoFrameCallback === 'function';
-                        if (!rvfcHandling && (t >= _loopOutPoint || t < _loopInPoint - 0.05)) {
-                            getAllPlayableMedia().forEach(m => { m.currentTime = _loopInPoint; });
+                        // _startLoopRvfc detects the out-point at frame presentation time
+                        // in BOTH view modes. It's idempotent (per-video ownership flag),
+                        // so re-arming every tick keeps the chain attached to the current
+                        // primary across asset switches and mode changes — those don't
+                        // re-fire 'play'. Fall back to rAF for browsers without RVFC.
+                        const rvfcHandling = typeof primary.requestVideoFrameCallback === 'function';
+                        if (rvfcHandling && !hasAudios) _startLoopRvfc(primary);
+                        if (!rvfcHandling && (t >= _plBounds.outP || t < _plBounds.inP - 0.05)) {
+                            getAllPlayableMedia().forEach(m => { m.currentTime = _plBounds.inP; });
                             // Restart sync audio at loop point
                             if (_opusSyncActive) {
                                 for (const s of assetOrder) {
-                                    if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _loopInPoint);
+                                    if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _plBounds.inP);
                                 }
                             }
                         } else if (hasAudios && !isDragging) {
@@ -6954,9 +6975,16 @@
                             }
                         }
                     }
+                    // Video-to-video drift lock: hold followers on the primary's clock
+                    // (see _driftLockTick → js/transport.js)
+                    if (!hasAudios) _driftLockTick(primary);
                     // Force loop at effective duration for ALL Opus sync slots
-                    // (native video.duration is longer than trimmed audio)
-                    if (_opusSyncActive && _loopInPoint === null) {
+                    // (native video.duration is longer than trimmed audio). Skipped
+                    // when a managed loop region is active — _loopWrapToInPoint
+                    // already wraps every video together (outP is the min effective
+                    // duration, which includes Opus-corrected durations); wrapping a
+                    // single slot here would desync it from the others.
+                    if (_opusSyncActive && _loopInPoint === null && _getLoopBounds() === null) {
                         for (const s of assetOrder) {
                             if (!_opusSyncDuration[s]) continue;
                             const layer = getLayer(s);
@@ -6990,10 +7018,11 @@
             }
         }
 
-        // Frame-accurate loop-point enforcement via requestVideoFrameCallback.
-        // Replaces the rAF-based out-point check in updateLoop for Stack mode so the
-        // seek-back fires at the exact frame presentation time instead of up to 16ms late.
-        // _startLoopRvfc → js/transport.js
+        // Frame-accurate loop-point enforcement via requestVideoFrameCallback (both
+        // view modes) — the seek-back fires at the exact frame presentation time
+        // instead of up to 16ms late; updateLoop's rAF check remains as the fallback
+        // for browsers without RVFC.
+        // _getLoopBounds / _applyNativeLoopPolicy / _startLoopRvfc / _driftLockTick → js/transport.js
 
         // Passive fps detection — collects frame timestamps during normal playback
         // instead of playing each video at load time. Defaults to 30fps until detected.
@@ -7270,12 +7299,11 @@
                 if (saved) {
                     _loopInPoint = saved.inPoint;
                     _loopOutPoint = saved.outPoint;
-                    setNativeLoop(false);
                 } else {
                     _loopInPoint = null;
                     _loopOutPoint = null;
-                    setNativeLoop(true);
                 }
+                _applyNativeLoopPolicy();
                 updateLoopMarkerUI();
                 // Force progress bar to reflect new loop bounds
                 const newLayer = getLayer(assetKey);
@@ -7752,7 +7780,7 @@
                     isDragging = false;
                     if (_draggingLoopMarker) {
                         _draggingLoopMarker = null;
-                        setNativeLoop(false);
+                        _applyNativeLoopPolicy();
                         showToast('Loop: ' + formatLoopTime(_loopInPoint) + ' \u2192 ' + formatLoopTime(_loopOutPoint));
                         return;
                     }
@@ -7768,6 +7796,7 @@
                                 _loopOutPoint = null;
                             }
                             updateLoopMarkerUI();
+                            _applyNativeLoopPolicy();
                             if (_scrubCanvas) redrawAudioSlotCanvases();
                             if (_loopInPoint !== null) {
                                 showToast('Loop: ' + formatLoopTime(_loopInPoint) + ' → ' + formatLoopTime(_loopOutPoint));
@@ -11287,6 +11316,15 @@
             get timecopyFmt() { return _prefs.load('timecopyFmt', 'hms'); },
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
+            // Multi-video sync-lock state: effective loop region + per-video
+            // clock/rate/nudge/native-loop snapshot (order = getAllVideos order)
+            get _loopBounds() { return _getLoopBounds(); },
+            get _driftLock() {
+                return getAllVideos().map(v => ({
+                    t: v.currentTime, rate: v.playbackRate,
+                    nudge: v._driftNudge || 0, nativeLoop: v.loop,
+                }));
+            },
             get _diffPair() {
                 const pairs = _getDiffPairs();
                 return pairs.length === 0 ? null : pairs[_diffPairIndex % pairs.length];
@@ -11638,6 +11676,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.31</h3>
+            <ul>
+                <li><strong>Videos now loop and play in sync lock.</strong> With two or more videos loaded, playback loops all of them together over the shortest clip's duration (previously each video restarted on its own clock and drifted apart every loop), and a continuous drift lock holds every video on the active one's clock — within half a frame — in both Stack and Grid mode. Frame-accurate loop enforcement now also runs in Grid mode.</li>
+                <li><strong>Difference mode never blends mismatched frames.</strong> While playing, the difference composite only updates when both videos are on the same frame — a transient one-frame offset now briefly holds the last matched diff instead of flashing false motion ghosting.</li>
+            </ul>
             <h3>v3.10.30</h3>
             <ul>
                 <li><strong>Bug fix: HDR videos (PQ/HLG) darkened dramatically while scrubbing on Chrome.</strong> HDR content now falls back to native scrubbing — Chrome tone-maps HDR video for display in a way the smooth-scrub overlay can't reproduce.</li>

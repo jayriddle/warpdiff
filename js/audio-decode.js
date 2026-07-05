@@ -238,10 +238,10 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         return;
     }
 
-    _decodeWithAudioDecoder(slot, extracted);
+    _decodeWithAudioDecoder(slot, extracted, gen);
 }
 
-function _decodeWithAudioDecoder(slot, extracted) {
+function _decodeWithAudioDecoder(slot, extracted, gen) {
     const decodedChunks = [];
     let decodeError = false;
 

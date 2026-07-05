@@ -971,6 +971,108 @@ test.describe('Loop in/out points', () => {
   });
 });
 
+// ===========================================================================
+// Multi-video sync-lock (v3.10.31) — synchronized looping + drift lock.
+// landscape_a.mp4 is 3 s and landscape_b.mp4 is 4 s (both 24 fps), so the
+// sync loop region must resolve to [0, ~3] and playback must wrap BOTH
+// videos together at the shortest duration instead of each native-looping
+// on its own clock.
+// ===========================================================================
+
+test.describe('Multi-video sync-lock', () => {
+  /** Videos in DOM order [original, editA]; read clocks straight off the elements. */
+  const videoTimes = (page: Page) => page.evaluate(() => {
+    const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+    return vids.map(v => ({ t: v.currentTime, paused: v.paused }));
+  });
+
+  test('2 videos → sync loop bounds [0, shortest] and native loop disabled', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    // Bounds resolve once both videos' metadata is in (policy runs at loadedmetadata)
+    await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
+      {}, { timeout: 5000 });
+    const bounds = await getVar(page, '_loopBounds');
+    expect(bounds.inP).toBe(0);
+    expect(bounds.outP).toBeCloseTo(3, 0); // shortest clip (landscape_a, 3 s)
+    const vids = await getVar(page, '_driftLock');
+    expect(vids.length).toBe(2);
+    for (const v of vids) expect(v.nativeLoop).toBe(false);
+  });
+
+  test('single video keeps plain native looping (no managed region)', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4']);
+    expect(await getVar(page, '_loopBounds')).toBeNull();
+    const vids = await getVar(page, '_driftLock');
+    expect(vids.length).toBe(1);
+    expect(vids[0].nativeLoop).toBe(true);
+  });
+
+  test('videos wrap together at the shortest duration and come out in sync', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
+      {}, { timeout: 5000 });
+    await seekVideos(page, 2.5); // just before the 3 s wrap point
+    await page.evaluate(() => (window as any).playAllMedia());
+    // Wait for the synchronized wrap: the primary comes back below 1 s while playing
+    await page.waitForFunction(() => {
+      const v = document.querySelector('.asset-layer video') as HTMLVideoElement | null;
+      return !!v && !v.paused && v.currentTime < 1.0;
+    }, {}, { timeout: 10000 });
+    // Give the drift lock a couple of ticks to settle post-wrap, then sample
+    await page.waitForTimeout(300);
+    const [a, b] = await videoTimes(page);
+    expect(a.paused).toBe(false);
+    expect(b.paused).toBe(false);
+    expect(b.t).toBeLessThan(2.0); // the 4 s clip wrapped with the 3 s clip, not at its own end
+    expect(Math.abs(a.t - b.t)).toBeLessThan(0.15);
+  });
+
+  test('drift lock re-syncs a follower knocked off the primary clock', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForFunction(() => {
+      const v = document.querySelector('.asset-layer video') as HTMLVideoElement | null;
+      return !!v && !v.paused && v.currentTime > 0.2;
+    }, {}, { timeout: 5000 });
+    // Knock the follower (editA) 300 ms ahead — past the hard-seek threshold
+    await page.evaluate(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      vids[1].currentTime = Math.min(vids[1].currentTime + 0.3, 2.5);
+    });
+    await page.waitForFunction(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return vids.length >= 2 && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.05;
+    }, {}, { timeout: 5000 });
+    const [a, b] = await videoTimes(page);
+    expect(Math.abs(a.t - b.t)).toBeLessThan(0.05);
+  });
+
+  test('custom loop points are enforced in Grid mode', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    // Default view after loading 2 videos is Grid — set a 0.5→1.5 loop region
+    expect(await getVar(page, 'isGridMode')).toBe(true);
+    await seekVideos(page, 0.5);
+    await page.keyboard.press('i');
+    await seekVideos(page, 1.5);
+    await page.keyboard.press('o');
+    await page.evaluate(() => (window as any).playAllMedia());
+    // Play through more than one full loop pass (region is 1 s long)
+    await page.waitForTimeout(2500);
+    const [a, b] = await videoTimes(page);
+    expect(a.paused).toBe(false);
+    // Both clocks stay inside the region (small margin for the wrap moment)
+    expect(a.t).toBeGreaterThan(0.35);
+    expect(a.t).toBeLessThan(1.65);
+    expect(b.t).toBeGreaterThan(0.35);
+    expect(b.t).toBeLessThan(1.65);
+  });
+});
+
 test.describe('Difference mode (video)', () => {
   /** Switch to Stack mode and wait for it to settle. Required before diff toggle. */
   async function enterStack(page: Page) {
