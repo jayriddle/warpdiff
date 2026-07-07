@@ -208,7 +208,16 @@ function _driftLockTick(primary) {
     if (isDragging || _bulkSyncActive || _frameKicking) return;
     const videos = getAllVideos();
     if (videos.length < 2) return;
-    const base = primary.playbackRate || 1;
+    // The clock master's true base is the USER-selected rate, not
+    // primary.playbackRate: if this element was a mid-nudge FOLLOWER a tick ago
+    // (an asset switch promoted it to primary while its rate was base·(1±2%)),
+    // reading its rate would treat the skew as the base and every follower would
+    // sync to a permanently 2%-off clock — a global tempo error until J/K. Read
+    // the intended rate directly and force the primary back onto it.
+    const base = (typeof PLAYBACK_RATES !== 'undefined' &&
+                  PLAYBACK_RATES[playbackRateIndex]) || primary.playbackRate || 1;
+    primary._driftNudge = 0;
+    if (Math.abs((primary.playbackRate || 1) - base) > 1e-6) primary.playbackRate = base;
     const engage = 0.5 / (videoFrameRates[primary.src] || 30); // half a frame
     for (const v of videos) {
         if (v === primary) continue;

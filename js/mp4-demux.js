@@ -225,7 +225,11 @@ function _demuxMP4Audio(data) {
         const defaultSize = view.getUint32(start + 4);
         const count = view.getUint32(start + 8);
         if (defaultSize > 0) {
-            for (let i = 0; i < count; i++) sampleTable.sizes.push(defaultSize);
+            // Clamp: a valid file can't declare more samples than it has bytes.
+            // Without this, sample_count = 0xFFFFFFFF fills a ~4.3B-entry array
+            // (OOM / main-thread hang) from a tiny crafted file.
+            const n = Math.min(count, data.length);
+            for (let i = 0; i < n; i++) sampleTable.sizes.push(defaultSize);
         } else {
             for (let i = 0; i < count && start + 12 + i * 4 + 4 <= end; i++) {
                 sampleTable.sizes.push(view.getUint32(start + 12 + i * 4));
@@ -397,11 +401,20 @@ function _demuxWebMAudio(data) {
         const szI = readVint(d, offset + idI.length);
         if (!szI) return null;
         const hLen = idI.length + szI.length;
-        return { id: idI.id, headerLen: hLen, dataSize: szI.value, dataOffset: offset + hLen };
+        const dataOffset = offset + hLen;
+        // Clamp the declared data size to the bytes actually present. An EBML VINT
+        // can encode a size up to 2^56, which a truncated/crafted file uses to
+        // drive readUint/readString/slice into multi-billion-iteration spins and
+        // multi-GB allocations. A valid element never runs past EOF. Callers that
+        // care about container bounds still Math.min against their own `end`.
+        const dataSize = Math.min(szI.value, Math.max(0, d.length - dataOffset));
+        return { id: idI.id, headerLen: hLen, dataSize: dataSize, dataOffset: dataOffset };
     }
 
     function readUint(d, off, sz) {
-        let v = 0; for (let i = 0; i < sz; i++) v = v * 256 + d[off + i]; return v;
+        // EBML integers are ≤8 bytes; cap the width so a bogus element size can't
+        // spin this into a long loop (readEl already clamps sz to EOF anyway).
+        let v = 0; const n = Math.min(sz, 8); for (let i = 0; i < n; i++) v = v * 256 + d[off + i]; return v;
     }
     function readFloat(d, off, sz) {
         const dv = new DataView(d.buffer, d.byteOffset + off, sz);
@@ -586,8 +599,16 @@ function _demuxMP4Video(data) {
             } else if (type === 'stsz') {
                 const uniform = view.getUint32(s + 4);
                 const n = view.getUint32(s + 8);
-                t.sizes = new Array(n);
-                for (let i = 0; i < n; i++) {
+                // Clamp the count: a uniform-size table (no per-entry bytes) is
+                // bounded by the file's byte count; a per-entry table by the box.
+                // Otherwise sample_count = 0xFFFFFFFF fills a ~4.3B-entry array
+                // (OOM / hang) — the `uniform || …` short-circuit means the
+                // uniform case never even throws past the buffer to self-limit.
+                const cnt = uniform
+                    ? Math.min(n, data.length)
+                    : Math.min(n, Math.max(0, Math.floor((e - (s + 12)) / 4)));
+                t.sizes = new Array(cnt);
+                for (let i = 0; i < cnt; i++) {
                     t.sizes[i] = uniform || view.getUint32(s + 12 + i * 4);
                 }
             } else if (type === 'stsc') {

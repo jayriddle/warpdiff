@@ -301,6 +301,7 @@ function extractFn(name, src = SRC) {
     const ctx = {
       hasAudios: false, isDragging: false, _bulkSyncActive: false, _frameKicking: false,
       isGridMode: grid, videoFrameRates: { p: 24 },
+      PLAYBACK_RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2], playbackRateIndex: 3,
       getAllVideos: () => [primary, ...followers],
     };
     new Function(...Object.keys(ctx), 'primary',
@@ -336,6 +337,55 @@ function extractFn(name, src = SRC) {
     p.paused = true; ctxRun();
     check('drift-lock: paused primary → no-op', f.currentTime === 1.05);
   }
+  {
+    // C1 (2026-07 concurrency audit): a follower promoted to primary mid-nudge
+    // must not strand the whole cluster at ±2% — the primary is forced back onto
+    // the user-selected base rate and its nudge flag cleared each tick.
+    const p = vid(1.0), f = vid(1.0);
+    p.playbackRate = 1.02; p._driftNudge = -1;  // stranded from a prior nudge
+    runTick(p, [f], true);
+    check('drift-lock[C1]: primary normalized to base rate + nudge cleared (no global tempo skew)',
+          Math.abs(p.playbackRate - 1) < 1e-9 && !p._driftNudge);
+  }
+}
+
+// Demuxer hardening (2026-07 security audit): a count/size read from file bytes
+// must be clamped to the buffer before it drives a loop or allocation, or a tiny
+// crafted file OOMs/hangs the tab on load.
+{
+  // WebM helpers are extractable pure functions → executable tests.
+  const { readEl, readUint } = new Function(
+    extractFn('readVint') + '\n' + extractFn('readElementId') + '\n' +
+    extractFn('readUint') + '\n' + extractFn('readEl') +
+    '\nreturn { readEl, readUint };'
+  )();
+  // readUint caps width at 8 (EBML ints are ≤8 bytes). Without the cap, a bogus
+  // size walks into undefined reads → NaN.
+  check('demux[webm]: readUint caps width at 8 bytes',
+        Number.isFinite(readUint(new Uint8Array(8), 0, 1000)) &&
+        readUint(new Uint8Array([0,0,0,0,0,0,0,1, 9,9]), 0, 1000) === 1);
+  // readEl clamps a declared VINT size to the remaining buffer. Element =
+  // id(0x80) + 8-byte size VINT declaring ~2^56 + 3 data bytes → dataSize clamps
+  // to 3, not 2^56.
+  const buf = new Uint8Array([0x80, 0x01,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF, 1,2,3]);
+  const el = readEl(buf, 0);
+  check('demux[webm]: readEl clamps declared element size to remaining bytes',
+        el && el.dataOffset === 9 && el.dataSize === buf.length - el.dataOffset);
+
+  // MP4 stsz clamps live in closures (parseStsz / walk) — assert the guard is in
+  // the shipped demuxers so a revert fails here.
+  const audioDemux = extractFn('_demuxMP4Audio');
+  const videoDemux = extractFn('_demuxMP4Video');
+  check('demux[mp4]: audio stsz default-size branch clamps count to data.length',
+        audioDemux.includes('Math.min(count, data.length)'));
+  check('demux[mp4]: video stsz clamps count (uniform → data.length)',
+        videoDemux.includes('Math.min(n, data.length)') && videoDemux.includes('const cnt'));
+
+  // R1 (2026-07 resource audit): scrub session init is generation-guarded so a
+  // stale in-flight session is closed rather than published for the next file.
+  const getSession = extractFn('_scrubOverlayGetSession');
+  check('scrub[session]: in-flight init generation-guarded (no stale publish/leak)',
+        getSession.includes('gen !== _scrubSessionGen') && getSession.includes('session.close()'));
 }
 
 // formatFileSize
