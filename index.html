@@ -2852,7 +2852,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.32';
+        const APP_VERSION = '3.10.33';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3629,7 +3629,11 @@
                 // Get or create the clone video
                 let clone = state.clone;
                 if (!clone || clone._cloneSrc !== media.src) {
-                    if (clone) { clone.pause(); clone.remove(); }
+                    // Clear src before removing so the old clone's media resource
+                    // (a live decode pipeline on a blob URL) is released rather than
+                    // lingering until GC — matches the clearAllMedia teardown. This
+                    // fires on mid-session src swaps (e.g. _applyTranscodedFile).
+                    if (clone) { clone.pause(); clone.src = ''; clone.remove(); }
                     clone = document.createElement('video');
                     clone.muted = true;
                     clone.playsInline = true;
@@ -3850,7 +3854,6 @@
         let _loopPointsPerSlot = {}; // { slot: { inPoint, outPoint } } — saved per asset
         let _lastEscTime = 0;     // timestamp of last Esc press for double-tap detection
         let isDragging = false;   // true during progress bar or canvas scrub
-        let _frameKicking = false; // true while _frameKick's async play/pause cycle is in flight
         let _scrubCachedHeaderH  = null; // headerH cached at drag-start to avoid offsetHeight reads per-frame
         let _scrubCachedControlsH = null; // controlsH cached at drag-start
         let _scrubSeekPending = false;   // true while a reactive seek is in flight (Stack mode drag)
@@ -7417,16 +7420,6 @@
                 _scrubRelayoutRaf = requestAnimationFrame(tick);
             }
 
-            // Force Chrome to render a frame on a muted+paused video by briefly
-            // playing then immediately pausing. Without this, Chrome skips frame
-            // decoding for muted paused videos on seek.
-            function _frameKick(video) {
-                if (!_isChrome || !video.muted || !video.paused || _frameKicking) return;
-                _frameKicking = true;
-                video.play().then(() => { video.pause(); _frameKicking = false; }).catch(() => { _frameKicking = false; });
-            }
-
-
             // Seek all videos to the position under the cursor and update the UI.
             // Direct synchronous currentTime assignment — no rAF needed; browsers
             // coalesce rapid seeks internally, and this eliminates races with the
@@ -7471,7 +7464,6 @@
                         if (isDragging) _activeLastSeekTime = now;
                         if (!(isDragging && _scrubOverlayVideoIsLive(video))) {
                             video.currentTime = t;
-                            _frameKick(video);
                             if (!isGridMode) applyZoom();
                         }
                     }
@@ -7489,7 +7481,6 @@
                             if (isDragging && _scrubOverlayVideoIsLive(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
                             v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            _frameKick(v);
                         }
                     }
                 }
@@ -7551,7 +7542,6 @@
                         if (isDragging) _activeLastSeekTime = now;
                         if (!(isDragging && _scrubOverlayVideoIsLive(media))) {
                             media.currentTime = t;
-                            _frameKick(media);
                             if (!isGridMode) applyZoom();
                         }
                     }
@@ -7567,7 +7557,6 @@
                             if (isDragging && _scrubOverlayVideoIsLive(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
                             v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            _frameKick(v);
                         }
                     }
                 }
@@ -8740,6 +8729,7 @@
             // Reset difference mode
             _diffMode = false;
             _diffPairIndex = 0;
+            _diffOffscreen = null;   // release the native-resolution compositing canvas (up to ~33 MB at 4K)
             if (_diffCanvas) { _diffCanvas.style.display = 'none'; }
             zoomLevel = 1;
             splitZoomLevel = null;
@@ -11687,6 +11677,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.10.33</h3>
+            <ul>
+                <li><strong>Stability &amp; robustness sweep.</strong> A batch of smaller reliability fixes: additional bounds checks in the media parsers, tighter scrub-preview memory use, more resilient A/V sync during clip switches and loop wraps, and cleanup of leftover video resources. No changes to how you use the app.</li>
+            </ul>
             <h3>v3.10.32</h3>
             <ul>
                 <li><strong>Robustness &amp; security hardening.</strong> Malformed or malicious media files can no longer hang or crash the tab on load — the MP4/WebM parsers now clamp sample counts and element sizes to the actual file bytes instead of trusting declared values. Also fixed a scrubbing bug where loading new files mid-scrub could leak memory or briefly show the previous file's frames, and a rare case where switching the active clip mid-playback could leave everything running ~2% fast or slow.</li>

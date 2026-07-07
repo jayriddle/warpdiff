@@ -87,14 +87,21 @@ function _createScrubVideoSession(bytes) {
         let clone;
         try { clone = frame.clone(); } catch (_) { return; }
         cacheEvictFor(frame.timestamp / 1e6);
+        // Reserve the budget synchronously, BEFORE the async createImageBitmap.
+        // A whole GOP decodes in one burst — output() fires for dozens of frames
+        // before any bitmap resolves — so counting bytes only on resolve let the
+        // eviction check pass every frame against a stale cacheBytes and land N
+        // bitmaps at once (~2× budget peak). Reserving now makes each burst
+        // frame's cacheEvictFor see the ones already in flight. Refunded on any
+        // path that doesn't end up storing a live bitmap.
+        cacheBytes += cacheFrameBytes;
         createImageBitmap(clone, { resizeWidth: cacheW, resizeHeight: cacheH })
             .then(bm => {
                 clone.close();
-                if (dead || cache.has(idx)) { bm.close(); return; }
+                if (dead || cache.has(idx)) { bm.close(); cacheBytes -= cacheFrameBytes; return; }
                 cache.set(idx, { bm: bm, pts: samples[idx].pts });
-                cacheBytes += cacheFrameBytes;
             })
-            .catch(() => { try { clone.close(); } catch (_) {} });
+            .catch(() => { cacheBytes -= cacheFrameBytes; try { clone.close(); } catch (_) {} });
     }
 
     let canvas = null, ctx2d = null;

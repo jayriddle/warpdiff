@@ -79,7 +79,10 @@ function pauseAllMedia() {
     getAllPlayableMedia().forEach(m => m.pause());
     _stopAllOpusSyncAudio();
     _updatePlayPauseBtn(false);
-    _bulkSyncActive = false;
+    // Release async, like playAllMedia/restartAllVideos: 'pause' events fire as
+    // queued tasks, so a synchronous reset lets the per-element pause handlers
+    // run with the guard already cleared and cascade needlessly.
+    setTimeout(() => { _bulkSyncActive = false; }, 50);
 }
 
 function setupAudioHandlers(audio, slot) {
@@ -112,12 +115,18 @@ function _cancelLoopWrapTimer() {
 function _loopWrapToInPoint() {
     const bounds = _getLoopBounds();
     if (bounds === null) return;
+    // Suppress the per-element play/pause sync handlers + drift lock while every
+    // element is seeked back, same as the 'ended' wrap: if any element ended a
+    // hair early (unequal-duration sync loop), the seek can surface a pause/play
+    // the handlers would otherwise cascade against a mid-wrap clock.
+    _bulkSyncActive = true;
     getAllPlayableMedia().forEach(m => { m.currentTime = bounds.inP; });
     if (_opusSyncActive) {
         for (const s of assetOrder) {
             if (_opusSyncSlots[s]) _startOpusSyncAudio(s, bounds.inP);
         }
     }
+    setTimeout(() => { _bulkSyncActive = false; }, 50);
 }
 function _startLoopRvfc(video) {
     if (typeof video.requestVideoFrameCallback !== 'function') return;
@@ -205,7 +214,7 @@ const _DRIFT_NUDGE = 0.02;     // ±2% rate trim (imperceptible on muted video)
 
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
-    if (isDragging || _bulkSyncActive || _frameKicking) return;
+    if (isDragging || _bulkSyncActive) return;
     const videos = getAllVideos();
     if (videos.length < 2) return;
     // The clock master's true base is the USER-selected rate, not
@@ -218,13 +227,18 @@ function _driftLockTick(primary) {
                   PLAYBACK_RATES[playbackRateIndex]) || primary.playbackRate || 1;
     primary._driftNudge = 0;
     if (Math.abs((primary.playbackRate || 1) - base) > 1e-6) primary.playbackRate = base;
-    const engage = 0.5 / (videoFrameRates[primary.src] || 30); // half a frame
+    const primaryFps = videoFrameRates[primary.src] || 30;
     for (const v of videos) {
         if (v === primary) continue;
         if (v.paused || v.ended || v.readyState < 2) continue;
         // A correction seek is still in flight — let it land before measuring
         // again, or a stalled follower gets a fresh seek every rAF (seek storm).
         if (v.seeking) continue;
+        // Engage/hard-seek at half a frame of the COARSER of the two grids: a
+        // low-fps follower can only land on its own (coarser) grid, so measuring
+        // it against a high-fps primary's finer grid would re-seek it every tick
+        // (thrash). Per-pair, mirroring the diff gate's fps convention.
+        const engage = 0.5 / Math.min(primaryFps, videoFrameRates[v.src] || 30);
         const drift = v.currentTime - primary.currentTime; // >0 → follower ahead
         const mag = Math.abs(drift);
         if (mag > _DRIFT_HARD_SEEK || (!isGridMode && mag > engage)) {
@@ -259,14 +273,20 @@ function _setupFpsDetection(video, slot) {
     videoFrameRates[video.src] = 30; // default until detected
     const timestamps = [];
     let detected = false;
+    let detecting = false;   // single-chain guard: at most one detection RVFC in flight
 
     function onFrame(now, metadata) {
-        if (detected || video.paused || video.ended) return;
+        if (detected) { detecting = false; return; }
+        // Chain ended before enough samples (pause/seek/ended) — release the
+        // guard so the next 'play' can start a clean pass instead of two chains
+        // racing the same timestamps array + its mid-stream reset (wrong snap).
+        if (video.paused || video.ended) { detecting = false; return; }
         timestamps.push(metadata.mediaTime);
         if (timestamps.length <= _FPS_SAMPLE_COUNT) {
             video.requestVideoFrameCallback(onFrame);
         } else {
             detected = true;
+            detecting = false;
             // Compute all intervals between consecutive frames
             const intervals = [];
             for (let i = 1; i < timestamps.length; i++) {
@@ -293,7 +313,8 @@ function _setupFpsDetection(video, slot) {
     }
 
     video.addEventListener('play', function() {
-        if (detected) return;
+        if (detected || detecting) return;
+        detecting = true;
         timestamps.length = 0;
         video.requestVideoFrameCallback(onFrame);
     });
@@ -327,7 +348,7 @@ function setupVideoHandlers(video, slot) {
         if (_getLoopBounds() !== null) _startLoopRvfc(video);
 
         if (_bulkSyncActive) return;
-        if (isDragging || _frameKicking) return; // _frameKick may trigger play during scrub; don't cascade
+        if (isDragging) return;
         // Sync all videos when any video plays
         syncVideos(video, v => {
             v.play().catch(() => {});
@@ -384,6 +405,13 @@ function setupVideoHandlers(video, slot) {
     
     video.addEventListener('seeked', function() {
         if (isDragging && !isGridMode) {
+            // Only the active (scrubbed) video drives the reactive-seek chain. A
+            // stray 'seeked' from a non-active element (a late-landing seek queued
+            // before the drag, an opus/loop seek) must not consume the shared
+            // _scrubNextTime / _scrubSeekPending and seek the wrong element.
+            const _asSlot = currentAudioSource || assetOrder[currentAssetIndex];
+            const _asLayer = getLayer(_asSlot);
+            if (video !== (_asLayer && _asLayer.querySelector('video'))) return;
             // Reactive seek: previous decode finished.
             // Wait one rAF so the compositor can display this frame before we
             // issue the next seek — issuing immediately can clear the AVFoundation

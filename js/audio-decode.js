@@ -279,6 +279,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         decoder.configure(config);
     } catch (err) {
         console.warn('AudioDecoder configure failed for', slot, err);
+        try { decoder.close(); } catch (_) {}  // sole decode exit that skipped close()
         _onAllDecodeFailed(slot, true); // audio packets were already demuxed
         _webcodecsFinished();
         return;

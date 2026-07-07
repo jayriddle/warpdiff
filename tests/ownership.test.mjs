@@ -243,8 +243,8 @@ function extractFn(name, src = SRC) {
   check('one-owner[sync-lock]: RVFC chain resolves the region via _getLoopBounds',
         rvfc.includes('_getLoopBounds()'));
   const drift = extractFn('_driftLockTick');
-  check('one-owner[sync-lock]: drift lock stands down during scrub/bulk-sync/frame-kick',
-        drift.includes('isDragging') && drift.includes('_bulkSyncActive') && drift.includes('_frameKicking'));
+  check('one-owner[sync-lock]: drift lock stands down during scrub / bulk-sync',
+        drift.includes('isDragging') && drift.includes('_bulkSyncActive'));
   check('one-owner[sync-lock]: drift lock never touches the primary (clock master)',
         drift.includes('if (v === primary) continue;'));
   check('one-owner[sync-lock]: diff composite gates on matched frames',
@@ -299,8 +299,8 @@ function extractFn(name, src = SRC) {
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
   const runTick = (primary, followers, grid) => {
     const ctx = {
-      hasAudios: false, isDragging: false, _bulkSyncActive: false, _frameKicking: false,
-      isGridMode: grid, videoFrameRates: { p: 24 },
+      hasAudios: false, isDragging: false, _bulkSyncActive: false,
+      isGridMode: grid, videoFrameRates: { p: 24, hi: 60, lo: 24 },
       PLAYBACK_RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2], playbackRateIndex: 3,
       getAllVideos: () => [primary, ...followers],
     };
@@ -347,6 +347,17 @@ function extractFn(name, src = SRC) {
     check('drift-lock[C1]: primary normalized to base rate + nudge cleared (no global tempo skew)',
           Math.abs(p.playbackRate - 1) < 1e-9 && !p._driftNudge);
   }
+  {
+    // C2 (2026-07 audit): engage threshold is per-follower at the COARSER grid.
+    // 60fps primary + 24fps follower, drift 15ms: > half a 60fps frame (8.3ms)
+    // but < half a 24fps frame (20.8ms). The follower is on its own grid — it
+    // must NOT be corrected (using the primary's fps would thrash-seek it).
+    const p = { currentTime: 1.0, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'hi' };
+    const f = { currentTime: 1.015, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'lo' };
+    runTick(p, [f], false);  // stack mode: coarse follower would hard-seek if mis-thresholded
+    check('drift-lock[C2]: coarse follower within its own half-frame is left alone (no thrash)',
+          f.currentTime === 1.015 && !f._driftNudge);
+  }
 }
 
 // Demuxer hardening (2026-07 security audit): a count/size read from file bytes
@@ -386,6 +397,60 @@ function extractFn(name, src = SRC) {
   const getSession = extractFn('_scrubOverlayGetSession');
   check('scrub[session]: in-flight init generation-guarded (no stale publish/leak)',
         getSession.includes('gen !== _scrubSessionGen') && getSession.includes('session.close()'));
+}
+
+// Audit sweep (2026-07 medium/low findings). These fixes are async/DOM-coupled,
+// so they're locked in as source-guards rather than executed.
+{
+  // S4: video sample-table loops (stsc/stco/stts/ctts) clamp their entry count
+  // to the box bytes, like the audio demuxer — defense in depth vs OOB reads.
+  const videoDemux = extractFn('_demuxMP4Video');
+  check('sweep[S4]: video stsc/stco/stts/ctts clamp entry count to box bytes',
+        videoDemux.includes('(e - (s + 8)) / 12') && videoDemux.includes('(e - (s + 8)) / entry') &&
+        countOf(videoDemux, '(e - (s + 8)) / 8') === 2);
+
+  // C4: reactive-scrub 'seeked' handler only acts for the active scrubbed video.
+  const svh = extractFn('setupVideoHandlers');
+  check('sweep[C4]: reactive-scrub seeked handler gates on the active video',
+        svh.includes("_asLayer && _asLayer.querySelector('video')") &&
+        svh.indexOf('_asLayer') < svh.indexOf('_scrubSeekPending = false'));
+
+  // C5: passive fps detection uses a single-chain guard.
+  const fps = extractFn('_setupFpsDetection');
+  check('sweep[C5]: fps detection guarded against concurrent chains (detecting flag)',
+        fps.includes('let detecting = false') && fps.includes('detected || detecting'));
+
+  // C6: the RVFC exact-time loop wrap suppresses handlers under _bulkSyncActive.
+  const wrap = extractFn('_loopWrapToInPoint');
+  check('sweep[C6]: loop-wrap seeks under _bulkSyncActive suppression',
+        wrap.includes('_bulkSyncActive = true') &&
+        wrap.includes('setTimeout(() => { _bulkSyncActive = false; }'));
+
+  // C7: pauseAllMedia releases the bulk-sync guard asynchronously (like the others).
+  const pause = extractFn('pauseAllMedia');
+  check('sweep[C7]: pauseAllMedia releases _bulkSyncActive on a timeout, not synchronously',
+        pause.includes('setTimeout(() => { _bulkSyncActive = false; }') &&
+        !/_bulkSyncActive = false;(?!\s*\}, 50)/.test(pause.replace(/setTimeout\(\(\) => \{ _bulkSyncActive = false; \}, 50\);/, '')));
+
+  // R2: scrub cache reserves budget synchronously before the async bitmap create.
+  const cacheStore = extractFn('cacheStore');
+  check('sweep[R2]: scrub cache reserves cacheBytes before createImageBitmap, refunds on bail',
+        cacheStore.indexOf('cacheBytes += cacheFrameBytes') < cacheStore.indexOf('createImageBitmap(clone') &&
+        countOf(cacheStore, 'cacheBytes -= cacheFrameBytes') === 2);
+
+  // R3: AudioDecoder is closed on the synchronous configure-throw path.
+  const dwad = extractFn('_decodeWithAudioDecoder');
+  check('sweep[R3]: AudioDecoder closed on configure() throw',
+        dwad.includes('sole decode exit that skipped close') || dwad.includes('try { decoder.close(); } catch (_) {}'));
+
+  // R4: magnifier clone src cleared before removal on a mid-session src swap.
+  check('sweep[R4]: magnifier clone src cleared before remove on src swap',
+        HTML.includes("clone.pause(); clone.src = ''; clone.remove();"));
+
+  // R5: the native-res diff compositing canvas is released on clearAllMedia.
+  const clearAll = extractFn('clearAllMedia');
+  check('sweep[R5]: _diffOffscreen released in clearAllMedia',
+        clearAll.includes('_diffOffscreen = null'));
 }
 
 // formatFileSize

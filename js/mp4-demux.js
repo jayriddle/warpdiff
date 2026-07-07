@@ -612,14 +612,17 @@ function _demuxMP4Video(data) {
                     t.sizes[i] = uniform || view.getUint32(s + 12 + i * 4);
                 }
             } else if (type === 'stsc') {
-                const n = view.getUint32(s + 4);
+                // Clamp entry count to the box bytes (12 per entry) — defense in
+                // depth so a bogus count can't drive an out-of-bounds getUint32.
+                const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 12)));
                 t.stsc = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 12;
                     t.stsc.push({ firstChunk: view.getUint32(b), perChunk: view.getUint32(b + 4) });
                 }
             } else if (type === 'stco' || type === 'co64') {
-                const n = view.getUint32(s + 4);
+                const entry = type === 'stco' ? 4 : 8;
+                const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / entry)));
                 t.chunkOffsets = new Array(n);
                 for (let i = 0; i < n; i++) {
                     t.chunkOffsets[i] = type === 'stco'
@@ -627,7 +630,7 @@ function _demuxMP4Video(data) {
                         : Number(view.getBigUint64(s + 8 + i * 8));
                 }
             } else if (type === 'stts') {
-                const n = view.getUint32(s + 4);
+                const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 8)));
                 t.dtsDeltas = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 8;
@@ -635,7 +638,7 @@ function _demuxMP4Video(data) {
                 }
             } else if (type === 'ctts') {
                 const version = data[s];
-                const n = view.getUint32(s + 4);
+                const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 8)));
                 t.ctts = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 8;
