@@ -45,7 +45,7 @@ With two or more videos loaded, playback is **sync-locked**: all videos loop tog
 - `J`/`K` cycle playback speed slower/faster (0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 2×)
 - `I`/`O` set loop in/out points; Shift+drag on the progress bar to select a loop region. Loop points are **shared across all clips** (one region applies to every clip and stays put when you switch the active clip)
 - Loop markers shown as orange triangles on the progress bar
-- **Loop range for different-length clips** (`Shift+L`, or the `Loop:` button on the transport bar): **Sync** (default) wraps at the shortest clip so every frame has a counterpart to compare; **Full** wraps at the longest — each clip plays its full length, shorter clips hold on their last frame during the tail, and all restart together. Loading clips of different lengths shows a one-time heads-up
+- **Loop range for different-length clips** (`Shift+L`, or the `Loop:` button on the transport bar): **Full** plays each clip to its full length — shorter clips hold on their last frame during the tail, and all restart together; **Sync** wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. Clips of **different lengths default to Full** (so nothing is hidden); equal-length clips use Sync. When they differ, WarpDiff flags it and highlights the Loop control
 
 ## Difference mode
 

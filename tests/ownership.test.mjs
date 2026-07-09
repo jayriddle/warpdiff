@@ -471,6 +471,14 @@ function extractFn(name, src = SRC) {
   // The wrap must resume frozen (ended) clips — seek AND play.
   check('loop-range: _loopWrapToInPoint resumes frozen clips (play)',
         extractFn('_loopWrapToInPoint').includes('m.play()'));
+  // Clips of different lengths DEFAULT to Full (see everything) rather than
+  // silently looping the shortest; the notifier flips the mode + draws attention.
+  const notify = extractFn('_notifyDurationMismatch');
+  check('loop-range: differing-length clips default to Full mode',
+        notify.includes("_loopRangeMode = 'full'"));
+  // Excluded-tail cue is drawn on the progress bar (updateLoopMarkerUI).
+  check('loop-range: excluded-tail band rendered for the multi-clip loop',
+        extractFn('updateLoopMarkerUI').includes('loopTailBand'));
 }
 
 // formatFileSize

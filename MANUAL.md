@@ -156,7 +156,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 
 **Sync-locked looping:** With two or more videos loaded, playback loops all of them together, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Custom loop points take precedence when set.
 
-**Loop range for clips of different lengths** (**Shift+L**, or the **Loop:** button on the transport bar): **Sync** (default) wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. **Full** wraps at the longest clip so you can review each in full — a shorter clip holds on its last frame while the longest plays out its tail, then all restart together. When you load clips of different lengths, a one-time message points this out.
+**Loop range for clips of different lengths** (**Shift+L**, or the **Loop:** button on the transport bar): **Full** wraps at the longest clip so you can review each in full — a shorter clip holds on its last frame while the longest plays out its tail, then all restart together. **Sync** wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. When you load clips of **different lengths they default to Full** (so nothing is hidden) and the Loop button is highlighted; press **Shift+L** to switch to Sync for tight frame comparison. Equal-length clips use Sync. In Sync mode, any part of a clip that runs past the loop is shown hatched on the progress bar.
 
 ---
 

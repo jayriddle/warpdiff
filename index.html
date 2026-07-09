@@ -214,6 +214,21 @@
             display: none;
         }
 
+        /* Excluded-tail cue: the part of the active clip past the multi-clip loop's
+           out-point (Sync mode with a longer active clip) — hatched + dashed edge to
+           read as "content here that isn't in the loop." */
+        #loopTailBand {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: repeating-linear-gradient(-45deg,
+                rgba(255, 255, 255, 0.11) 0 4px, rgba(255, 255, 255, 0.02) 4px 8px);
+            border-left: 1px dashed rgba(255, 255, 255, 0.4);
+            z-index: 1;
+            pointer-events: none;
+            display: none;
+        }
+
         .video-timecode:hover {
             color: #fff;
         }
@@ -1068,6 +1083,30 @@
             background: rgba(240, 160, 48, 0.1);
         }
         body.grid-mode #stackSubOptions { display: none !important; }
+
+        /* Loop-range toggle on the transport bar — legible always (it's in neither
+           mode group, so it needs its own colors) and pulses when clips differ. */
+        #loopRangeBtn {
+            color: rgba(240, 160, 48, 0.85);
+            border-color: rgba(240, 160, 48, 0.5);
+            background: rgba(240, 160, 48, 0.08);
+            margin: 0 4px;
+        }
+        #loopRangeBtn:hover {
+            background: rgba(240, 160, 48, 0.22);
+            border-color: rgba(240, 160, 48, 0.75);
+            color: #f0a030;
+        }
+        #loopRangeBtn.active {
+            color: #ffb84d;
+            border-color: rgba(240, 160, 48, 0.75);
+            background: rgba(240, 160, 48, 0.16);
+        }
+        #loopRangeBtn.attention { animation: loopBtnPulse 1s ease-in-out 0s 5; }
+        @keyframes loopBtnPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(240, 160, 48, 0); }
+            50%      { box-shadow: 0 0 0 3px rgba(240, 160, 48, 0.55); border-color: #f0a030; }
+        }
 
         #stackMiniMap {
             position: fixed;
@@ -2853,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.0';
+        const APP_VERSION = '3.11.1';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3149,17 +3188,20 @@
             btn.textContent = _loopRangeMode === 'full' ? 'Loop: Full' : 'Loop: Sync';
             btn.classList.toggle('active', _loopRangeMode === 'full');
         }
-        // One-time awareness when loaded videos differ in length: without it the
-        // default shortest-clip loop silently hides the longer clips' tails.
+        // When loaded videos differ in length, DEFAULT to Full range (review each
+        // clip in full) rather than silently looping the shortest and hiding the
+        // longer tails, and surface a one-time heads-up pointing at the control.
         function _notifyDurationMismatch() {
-            _updateLoopRangeBtn();
-            if (_durMismatchNotified || hasAudios) return;
+            if (_durMismatchNotified || hasAudios) { _updateLoopRangeBtn(); return; }
             const vids = getAllVideos();
-            if (vids.length < 2) return;
+            if (vids.length < 2) { _updateLoopRangeBtn(); return; }
             const durs = vids.map(v => _getEffectiveDuration(v));
-            if (durs.some(d => !d || !isFinite(d))) return; // metadata not ready yet
-            if (Math.max(...durs) - Math.min(...durs) < 0.1) return; // effectively equal
+            if (durs.some(d => !d || !isFinite(d))) { _updateLoopRangeBtn(); return; } // metadata not ready
+            if (Math.max(...durs) - Math.min(...durs) < 0.1) { _updateLoopRangeBtn(); return; } // effectively equal
             _durMismatchNotified = true;
+            _loopRangeMode = 'full'; // clips differ → play each in full by default
+            _updateLoopRangeBtn();
+            updateLoopMarkerUI();
             const parts = assetOrder
                 .filter(s => mediaData[s] && mediaData[s].type === 'video')
                 .map(s => {
@@ -3167,8 +3209,11 @@
                     const v = layer && layer.querySelector('video');
                     return v ? slotLabel(s) + ' ' + _getEffectiveDuration(v).toFixed(1) + 's' : null;
                 }).filter(Boolean);
-            showToast('Clips differ in length — ' + parts.join(' · ') +
-                '. Looping the shortest; use “Loop: Full” to review each in full.', 5000);
+            showToast('Clips differ in length (' + parts.join(' · ') +
+                ') — playing each in full. Press Shift+L (or the Loop button) for frame-locked comparison.', 6000);
+            // Briefly draw the eye to the control the toast refers to.
+            const btn = document.getElementById('loopRangeBtn');
+            if (btn) { btn.classList.add('attention'); setTimeout(() => btn.classList.remove('attention'), 6000); }
         }
 
         function setLoopPoint(type) {
@@ -3505,6 +3550,28 @@
                 region.style.width = ((_loopOutPoint - _loopInPoint) / duration * 100) + '%';
             } else {
                 region.style.display = 'none';
+            }
+
+            // Excluded-tail cue for the default multi-clip loop: when no custom
+            // points are set and the ACTIVE clip runs past the loop's out-point
+            // (Sync mode + a clip longer than the shortest), hatch the tail so it's
+            // visible that content past it isn't being looped. (Full mode wraps at
+            // the longest, so the active clip never exceeds the loop → no band.)
+            let tailBand = document.getElementById('loopTailBand');
+            if (!tailBand) {
+                tailBand = document.createElement('div');
+                tailBand.id = 'loopTailBand';
+                container.appendChild(tailBand);
+            }
+            const autoBounds = (_loopInPoint === null || _loopOutPoint === null) ? _getLoopBounds() : null;
+            if (autoBounds && duration && isFinite(duration) && duration > autoBounds.outP + 0.05) {
+                const leftPct = Math.max(0, Math.min(100, autoBounds.outP / duration * 100));
+                tailBand.style.display = 'block';
+                tailBand.style.left = leftPct + '%';
+                tailBand.style.width = (100 - leftPct) + '%';
+                tailBand.title = 'Not looped in Sync mode — press Shift+L for Full to review this tail';
+            } else {
+                tailBand.style.display = 'none';
             }
         }
 
@@ -11737,6 +11804,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.1</h3>
+            <ul>
+                <li><strong>Different-length clips now default to Full.</strong> Load clips of different lengths and WarpDiff plays each in full by default (instead of quietly looping only the shortest) — with a clearer heads-up and the highlighted <strong>Loop</strong> button pulsing so it's obvious how to switch. Press <strong>Shift+L</strong> for frame-locked comparison (Sync). In Sync mode, any part of a clip past the loop is now shown hatched on the progress bar.</li>
+            </ul>
             <h3>v3.11.0</h3>
             <ul>
                 <li><strong>Compare clips of different lengths.</strong> New <strong>Loop: Full</strong> mode (Shift+L, or the Loop button on the transport bar) plays every clip to its full length — a shorter clip holds on its last frame while the longest plays out, then all restart together. The default <strong>Loop: Sync</strong> still frame-locks to the shortest clip for A/B comparison. And when you load clips of different lengths, WarpDiff now tells you.</li>
