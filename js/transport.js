@@ -46,13 +46,20 @@ function _getLoopBounds() {
     if (hasAudios) return null;
     const videos = getAllVideos();
     if (videos.length < 2) return null;
-    let minDur = Infinity;
+    // Default range (no custom points) depends on _loopRangeMode:
+    //   'sync' → wrap at the SHORTEST clip, so every frame has a counterpart to
+    //            compare (frame-locked A/B — the default).
+    //   'full' → wrap at the LONGEST clip, so each clip can be reviewed in full;
+    //            shorter clips freeze on their last frame during the tail and
+    //            everyone re-wraps together when all have ended.
+    let minDur = Infinity, maxDur = 0;
     for (const v of videos) {
         const d = _getEffectiveDuration(v);
         if (!d || !isFinite(d)) return null;
         if (d < minDur) minDur = d;
+        if (d > maxDur) maxDur = d;
     }
-    return { inP: 0, outP: minDur };
+    return { inP: 0, outP: _loopRangeMode === 'full' ? maxDur : minDur };
 }
 
 // Single owner of the native .loop flag: native looping only when no managed
@@ -119,8 +126,12 @@ function _loopWrapToInPoint() {
     // element is seeked back, same as the 'ended' wrap: if any element ended a
     // hair early (unequal-duration sync loop), the seek can surface a pause/play
     // the handlers would otherwise cascade against a mid-wrap clock.
+    _cancelLoopWrapTimer();
     _bulkSyncActive = true;
-    getAllPlayableMedia().forEach(m => { m.currentTime = bounds.inP; });
+    // seek AND play: in Full mode the shorter clips are frozen (ended/paused) on
+    // their last frame during the tail, so they must be resumed, not just seeked.
+    // In Sync mode every clip is already playing, so play() is a harmless no-op.
+    getAllPlayableMedia().forEach(m => { m.currentTime = bounds.inP; m.play().catch(() => {}); });
     if (_opusSyncActive) {
         for (const s of assetOrder) {
             if (_opusSyncSlots[s]) _startOpusSyncAudio(s, bounds.inP);
@@ -384,6 +395,12 @@ function setupVideoHandlers(video, slot) {
         // durations, the shortest video ends first and drags the rest back).
         const bounds = _getLoopBounds();
         if (bounds === null) return;
+        // Full mode: a clip that reaches its own end HOLDS on its last frame —
+        // wrap only once EVERY clip has ended (the longest finishing is the
+        // trigger). Purely event-driven: no per-frame currentTime race. Sync mode
+        // is unchanged — the out-point is the shortest clip, so the first 'ended'
+        // is the wrap point (the RVFC chain usually beats it; this is the backstop).
+        if (_loopRangeMode === 'full' && !getAllVideos().every(v => v.ended)) return;
         // Atomic wrap, same shape as playAllMedia/restartAllVideos: suppress
         // the per-video play/pause sync handlers while every element is seeked
         // and (re)started, and drop any pending exact-time wrap — otherwise the

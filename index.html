@@ -2817,6 +2817,7 @@
                     <span class="video-time-sep">/</span>
                     <span class="video-duration" id="videoDuration">0:00</span>
                 </span>
+                <button class="mode-sub-btn" id="loopRangeBtn" onclick="_toggleLoopRangeMode(); this.blur();" style="display:none;" title="Loop range for clips of different lengths — Sync (wrap at shortest, frame-locked) / Full (wrap at longest, review each in full)">Loop: Sync</button>
                 <div class="video-progress-container" id="videoProgressContainer" role="slider" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="video-progress-bar" id="videoProgressBar"></div>
                 </div>
@@ -2852,7 +2853,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.10.33';
+        const APP_VERSION = '3.11.0';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3124,6 +3125,51 @@
         // disabled whenever a managed loop region is active (custom in/out points
         // OR the multi-video sync loop), so the native restart-at-0:00 can't
         // fight the synchronized seek-back.
+
+        // ── Multi-clip loop range mode (Sync ↔ Full) ──
+        // Sync (default): loop wraps at the shortest clip — frame-locked A/B.
+        // Full: wraps at the longest clip — each clip plays its full length,
+        // shorter clips freeze on their last frame during the tail, all re-wrap
+        // together when the longest ends. Owned by _getLoopBounds (js/transport.js).
+        let _durMismatchNotified = false;
+        function _toggleLoopRangeMode() {
+            if (hasAudios || getAllVideos().length < 2) { showToast('Load 2 or more videos first'); return; }
+            _loopRangeMode = _loopRangeMode === 'sync' ? 'full' : 'sync';
+            updateLoopMarkerUI();
+            _updateLoopRangeBtn();
+            showToast(_loopRangeMode === 'full'
+                ? 'Loop: Full — each clip plays its full length (shorter clips hold at their end)'
+                : 'Loop: Sync — frame-locked to the shortest clip');
+        }
+        function _updateLoopRangeBtn() {
+            const btn = document.getElementById('loopRangeBtn');
+            if (!btn) return;
+            const show = !hasAudios && getAllVideos().length >= 2;
+            btn.style.display = show ? '' : 'none';
+            btn.textContent = _loopRangeMode === 'full' ? 'Loop: Full' : 'Loop: Sync';
+            btn.classList.toggle('active', _loopRangeMode === 'full');
+        }
+        // One-time awareness when loaded videos differ in length: without it the
+        // default shortest-clip loop silently hides the longer clips' tails.
+        function _notifyDurationMismatch() {
+            _updateLoopRangeBtn();
+            if (_durMismatchNotified || hasAudios) return;
+            const vids = getAllVideos();
+            if (vids.length < 2) return;
+            const durs = vids.map(v => _getEffectiveDuration(v));
+            if (durs.some(d => !d || !isFinite(d))) return; // metadata not ready yet
+            if (Math.max(...durs) - Math.min(...durs) < 0.1) return; // effectively equal
+            _durMismatchNotified = true;
+            const parts = assetOrder
+                .filter(s => mediaData[s] && mediaData[s].type === 'video')
+                .map(s => {
+                    const layer = getLayer(s);
+                    const v = layer && layer.querySelector('video');
+                    return v ? slotLabel(s) + ' ' + _getEffectiveDuration(v).toFixed(1) + 's' : null;
+                }).filter(Boolean);
+            showToast('Clips differ in length — ' + parts.join(' · ') +
+                '. Looping the shortest; use “Loop: Full” to review each in full.', 5000);
+        }
 
         function setLoopPoint(type) {
             const media = getAllPlayableMedia()[0];
@@ -3850,8 +3896,8 @@
         const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
         let playbackRateIndex = 3; // default 1×
         let _loopInPoint = null;   // in-point time (seconds) for sub-region looping
-        let _loopOutPoint = null;  // out-point time (seconds) for sub-region looping
-        let _loopPointsPerSlot = {}; // { slot: { inPoint, outPoint } } — saved per asset
+        let _loopOutPoint = null;  // out-point time (seconds) for sub-region looping — SHARED across all clips
+        let _loopRangeMode = 'sync'; // default multi-clip loop range: 'sync' (wrap at shortest, frame-locked) | 'full' (wrap at longest, review full length)
         let _lastEscTime = 0;     // timestamp of last Esc press for double-tap detection
         let isDragging = false;   // true during progress bar or canvas scrub
         let _scrubCachedHeaderH  = null; // headerH cached at drag-start to avoid offsetHeight reads per-frame
@@ -6942,6 +6988,19 @@
                     }
                 }
 
+                // Full-mode tail: if the active primary has ended but a longer clip
+                // is still playing out past the shortest, drive progress from the
+                // still-playing clip so the bar and the loop keep running through
+                // the tail (and survive to the 'ended' all-ended wrap). This is
+                // progress keep-alive only — the wrap itself is event-driven (the
+                // 'ended' handler); the RVFC re-arm below is skipped here since its
+                // chain ownership is keyed to the true primaryVideoRef.
+                let _loopTail = false;
+                if ((!primary || primary.paused) && !hasAudios && _getLoopBounds() !== null) {
+                    const _pv = getAllVideos().find(v => !v.paused && !v.ended);
+                    if (_pv) { primary = _pv; _loopTail = true; }
+                }
+
                 if (primary && !primary.paused) {
                     updateMediaProgress(primary);
                     if (_noVideoMode) updateAllAudioSlotCursors(primary);
@@ -6967,15 +7026,17 @@
                         // primary across asset switches and mode changes — those don't
                         // re-fire 'play'. Fall back to rAF for browsers without RVFC.
                         const rvfcHandling = typeof primary.requestVideoFrameCallback === 'function';
-                        if (rvfcHandling && !hasAudios) _startLoopRvfc(primary);
-                        if (!rvfcHandling && (t >= _plBounds.outP || t < _plBounds.inP - 0.05)) {
-                            getAllPlayableMedia().forEach(m => { m.currentTime = _plBounds.inP; });
-                            // Restart sync audio at loop point
-                            if (_opusSyncActive) {
-                                for (const s of assetOrder) {
-                                    if (_opusSyncSlots[s]) _startOpusSyncAudio(s, _plBounds.inP);
-                                }
-                            }
+                        // RVFC drives the frame-accurate wrap on the true primary
+                        // (Sync + custom loops, and Full mode when the longest clip is
+                        // active). Skipped while substituting a tail driver — its chain
+                        // ownership is keyed to primaryVideoRef, and the Full-mode tail
+                        // wrap is handled by the 'ended' all-ended handler instead.
+                        if (rvfcHandling && !hasAudios && !_loopTail) _startLoopRvfc(primary);
+                        if (!rvfcHandling && !hasAudios && (t >= _plBounds.outP || t < _plBounds.inP - 0.05)) {
+                            // Non-RVFC fallback wrap — seek+play all (resumes any frozen
+                            // Full-mode clips). RVFC browsers use the RVFC chain or the
+                            // 'ended' handler.
+                            _loopWrapToInPoint();
                         } else if (hasAudios && !isDragging) {
                             // Keep non-primary audio tracks in sync within the loop.
                             // Skip during scrub (isDragging) — the scrub handler owns
@@ -7300,23 +7361,13 @@
                 return;
             }
 
-            // Save current slot's loop points, restore new slot's
+            // Loop in/out points are SHARED across all clips — a single region
+            // applies to every clip (the typical A/B need), and switching the
+            // active asset keeps the same region rather than swapping a per-slot
+            // one. Only the marker / progress UI is recomputed against the new
+            // clip's timeline (same seconds, different % positions per duration).
             const prevSlot = assetOrder[currentAssetIndex];
             if (prevSlot !== assetKey) {
-                if (_loopInPoint !== null && _loopOutPoint !== null) {
-                    _loopPointsPerSlot[prevSlot] = { inPoint: _loopInPoint, outPoint: _loopOutPoint };
-                } else {
-                    delete _loopPointsPerSlot[prevSlot];
-                }
-                const saved = _loopPointsPerSlot[assetKey];
-                if (saved) {
-                    _loopInPoint = saved.inPoint;
-                    _loopOutPoint = saved.outPoint;
-                } else {
-                    _loopInPoint = null;
-                    _loopOutPoint = null;
-                }
-                _applyNativeLoopPolicy();
                 updateLoopMarkerUI();
                 // Force progress bar to reflect new loop bounds
                 const newLayer = getLayer(assetKey);
@@ -8757,7 +8808,10 @@
             // Reset global mute toggle, playback speed, loop markers, and button label
             isMuted = false;
             playbackRateIndex = 3;
+            _loopRangeMode = 'sync';        // fresh comparison defaults to frame-locked
+            _durMismatchNotified = false;
             clearLoopMarkers(true);
+            _updateLoopRangeBtn();
             const muteBtn = document.getElementById('muteBtn');
             if (muteBtn) muteBtn.innerHTML = _SVG_VOL_ON;
 
@@ -8771,7 +8825,6 @@
             videoFrameRates = {};
 
             // Clean up loop and audio visualization state
-            _loopPointsPerSlot = {};
             audioNodes = {};
             waveformData = {};
             spectrogramData = {};
@@ -10535,6 +10588,9 @@
 
                 function startFadeIn() {
                     hideLoading();
+                    // Surface the loop-range control + warn if clips differ in length
+                    // (durations are available by now — metadata precedes fade-in).
+                    _notifyDurationMismatch();
                     // Apply saved audio viz row heights before decode starts so that if
                     // decode completes before the setTimeout(100) panel-open path fires,
                     // drawWaveformToCanvas reads the correct container height.
@@ -10989,6 +11045,8 @@
               fn: () => { if (hasVideos || hasAudios) setLoopPoint('in'); } },
             { id: 'loopOut', defaultKey: 'o', label: 'Loop out point', section: 'transport', paired: 'loopPoints',
               fn: () => { if (hasVideos || hasAudios) setLoopPoint('out'); } },
+            { id: 'loopRange', defaultKey: 'l', shift: true, label: 'Loop range: Sync / Full', section: 'transport',
+              fn: () => _toggleLoopRangeMode() },
             { id: 'copyTimecode', defaultKey: 'c', label: 'Copy timecode range', section: 'transport', paired: 'copyTc',
               fn: () => { if (hasVideos || hasAudios) _copyTimecodeRange(); } },
             { id: 'timecopyFormat', defaultKey: 'c', shift: true, label: 'Timecode copy format', section: 'transport', paired: 'copyTc',
@@ -11320,6 +11378,8 @@
             // Multi-video sync-lock state: effective loop region + per-video
             // clock/rate/nudge/native-loop snapshot (order = getAllVideos order)
             get _loopBounds() { return _getLoopBounds(); },
+            get _loopRangeMode() { return _loopRangeMode; },
+            toggleLoopRange() { _toggleLoopRangeMode(); },
             get _driftLock() {
                 return getAllVideos().map(v => ({
                     t: v.currentTime, rate: v.playbackRate,
@@ -11677,6 +11737,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.0</h3>
+            <ul>
+                <li><strong>Compare clips of different lengths.</strong> New <strong>Loop: Full</strong> mode (Shift+L, or the Loop button on the transport bar) plays every clip to its full length — a shorter clip holds on its last frame while the longest plays out, then all restart together. The default <strong>Loop: Sync</strong> still frame-locks to the shortest clip for A/B comparison. And when you load clips of different lengths, WarpDiff now tells you.</li>
+                <li><strong>Loop points are shared across clips.</strong> Setting an in/out loop region now applies to every clip and stays put when you switch the active clip (previously each clip kept its own separate region).</li>
+            </ul>
             <h3>v3.10.33</h3>
             <ul>
                 <li><strong>Stability &amp; robustness sweep.</strong> A batch of smaller reliability fixes: additional bounds checks in the media parsers, tighter scrub-preview memory use, more resilient A/V sync during clip switches and loop wraps, and cleanup of leftover video resources. No changes to how you use the app.</li>

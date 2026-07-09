@@ -269,22 +269,26 @@ function extractFn(name, src = SRC) {
 
 // _getLoopBounds — the loop-region resolver. Globals are injected so the
 // extracted shipped function runs pure: custom points win, audio mode and
-// single-video are native (null), multi-video resolves to [0, shortest],
-// and not-ready metadata (NaN duration) defers to native.
+// single-video are native (null); multi-video resolves to [0, shortest] in Sync
+// mode and [0, longest] in Full mode; not-ready metadata (NaN) defers to native.
 {
-  const boundsWith = (inP, outP, hasAud, durations) => new Function(
-    '_loopInPoint', '_loopOutPoint', 'hasAudios', 'getAllVideos', '_getEffectiveDuration',
+  const boundsWith = (inP, outP, hasAud, durations, mode = 'sync') => new Function(
+    '_loopInPoint', '_loopOutPoint', 'hasAudios', 'getAllVideos', '_getEffectiveDuration', '_loopRangeMode',
     extractFn('_getLoopBounds') + '\nreturn _getLoopBounds();'
-  )(inP, outP, hasAud, () => durations.map(d => ({ d })), v => v.d);
+  )(inP, outP, hasAud, () => durations.map(d => ({ d })), v => v.d, mode);
   check('loop-bounds: custom in/out points win', (() => {
     const b = boundsWith(0.5, 2.0, false, [3, 4]);
     return b && b.inP === 0.5 && b.outP === 2.0;
   })());
   check('loop-bounds: audio mode → null (native loop)', boundsWith(null, null, true, [3, 4]) === null);
   check('loop-bounds: single video → null (native loop)', boundsWith(null, null, false, [3]) === null);
-  check('loop-bounds: 2 videos → [0, shortest]', (() => {
-    const b = boundsWith(null, null, false, [4, 3]);
+  check('loop-bounds: 2 videos, Sync → [0, shortest]', (() => {
+    const b = boundsWith(null, null, false, [4, 3], 'sync');
     return b && b.inP === 0 && b.outP === 3;
+  })());
+  check('loop-bounds: 2 videos, Full → [0, longest]', (() => {
+    const b = boundsWith(null, null, false, [4, 3], 'full');
+    return b && b.inP === 0 && b.outP === 4;
   })());
   check('loop-bounds: metadata not ready (NaN) → null', boundsWith(null, null, false, [3, NaN]) === null);
 }
@@ -451,6 +455,22 @@ function extractFn(name, src = SRC) {
   const clearAll = extractFn('clearAllMedia');
   check('sweep[R5]: _diffOffscreen released in clearAllMedia',
         clearAll.includes('_diffOffscreen = null'));
+}
+
+// Multi-clip loop overhaul (2026-07): shared in/out points + Full-length mode.
+{
+  // Shared loops: the per-slot loop store is gone entirely — one in/out region
+  // applies to every clip and persists across asset switches.
+  check('loop-range: per-slot loop store removed (loops are shared)',
+        !SRC.includes('_loopPointsPerSlot'));
+  // Full mode: the 'ended' handler holds a clip on its last frame and wraps only
+  // once EVERY clip has ended — event-driven, no racy per-frame currentTime math.
+  const svh = extractFn('setupVideoHandlers');
+  check('loop-range: Full-mode ended-wrap gates on all clips ended',
+        svh.includes("_loopRangeMode === 'full'") && svh.includes('every(v => v.ended)'));
+  // The wrap must resume frozen (ended) clips — seek AND play.
+  check('loop-range: _loopWrapToInPoint resumes frozen clips (play)',
+        extractFn('_loopWrapToInPoint').includes('m.play()'));
 }
 
 // formatFileSize

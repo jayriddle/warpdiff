@@ -145,15 +145,18 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **R** | Restart from beginning |
 | **J** | Slower (cycle: 0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 2×) |
 | **K** | Faster (cycle in reverse) |
-| **I** | Set loop in-point at current time |
-| **O** | Set loop out-point at current time |
+| **I** | Set loop in-point at current time (shared across all clips) |
+| **O** | Set loop out-point at current time (shared across all clips) |
+| **Shift+L** | Loop range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute |
 
 **Audio source selector:** Only one audio track plays at a time. Click GT, A, or B to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
 
-**Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Clear by setting new points or reloading.
+**Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Loop points are **shared across all clips** — one region applies to every clip and stays put when you switch the active clip. Clear by setting new points or reloading.
 
-**Sync-locked looping:** With two or more videos loaded, playback loops all of them together over the shortest clip's duration, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Custom loop points take precedence when set.
+**Sync-locked looping:** With two or more videos loaded, playback loops all of them together, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Custom loop points take precedence when set.
+
+**Loop range for clips of different lengths** (**Shift+L**, or the **Loop:** button on the transport bar): **Sync** (default) wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. **Full** wraps at the longest clip so you can review each in full — a shorter clip holds on its last frame while the longest plays out its tail, then all restart together. When you load clips of different lengths, a one-time message points this out.
 
 ---
 
