@@ -262,6 +262,36 @@ function extractFn(name, src = SRC) {
         drift.includes('if (v.seeking) continue;'));
 }
 
+// (I) Scrub-session lifecycle (2026-07 three-video scrub fix):
+//     _releaseScrubSessions is the SOLE owner of the "close every retained scrub
+//     VideoDecoder" sweep — a second copy of that loop (the old inline one in
+//     clearAllMedia) would drift out of sync with the invalidation-generation
+//     bump. playAllMedia routes through it to free decoders before playback
+//     (idle scrub decoders starve 2–3 playing <video>s → chunky frames), and
+//     the skip-the-<video>-seek decision must gate on _scrubOverlayEffective
+//     (real paint progress), not mere liveness — a silently stalled overlay
+//     that still counted as "live" froze one slot in a 3-up Grid scrub.
+{
+  check(`one-owner[scrub-session]: _releaseScrubSessions defined once (got ${countOf(SRC, 'function _releaseScrubSessions(')})`,
+        countOf(SRC, 'function _releaseScrubSessions(') === 1);
+  check('one-owner[scrub-session]: the release-all sweep lives only in _releaseScrubSessions',
+        countOf(SRC, 'for (const k in _scrubVideoSessions)') === 1);
+  check('one-owner[scrub-session]: clearAllMedia routes through the owner (no inline sweep)',
+        extractFn('clearAllMedia').includes('_releaseScrubSessions()'));
+  check('one-owner[scrub-session]: playAllMedia frees scrub decoders before playback',
+        extractFn('playAllMedia').includes('_releaseScrubSessions()'));
+  check(`one-owner[scrub-session]: _scrubOverlayEffective defined once (got ${countOf(SRC, 'function _scrubOverlayEffective(')})`,
+        countOf(SRC, 'function _scrubOverlayEffective(') === 1);
+  // The skip-<video>-seek sites must trust paint progress, not liveness. The old
+  // _scrubOverlayVideoIsLive is gone; its return-true-when-merely-live behavior
+  // is exactly the freeze bug.
+  check('one-owner[scrub-session]: skip-seek gates on paint progress, not the retired liveness check',
+        !SRC.includes('_scrubOverlayVideoIsLive'));
+  const eff = extractFn('_scrubOverlayEffective');
+  check('one-owner[scrub-session]: effectiveness check hides the canvas when stalled (so the <video> shows through)',
+        eff.includes('.style.visibility') && eff.includes('framesPainted'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).

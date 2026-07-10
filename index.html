@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.1';
+        const APP_VERSION = '3.11.2';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3980,6 +3980,8 @@
         let _scrubSlotByVideo = null;    // Map<video el → slot>, built at drag start
         let _scrubOverlayLastT = null;   // latest drag time (replayed when a session becomes ready mid-drag)
         let _scrubOverlayDragToken = 0;  // invalidates async session init from a previous drag
+        let _scrubOverlayPaint = {};     // { slot: {count, at, started} } — per-slot paint-progress tracker (stall detection)
+        const _SCRUB_OVERLAY_STALL_MS = 350; // no paint progress for this long while dragging ⇒ overlay stalled, fall back to <video> seek
 
         // Gate: Chrome is the only engine lacking fastSeek AND the only one that
         // won't paint paused sparse-keyframe seeks promptly (same gate the
@@ -4027,6 +4029,22 @@
             delete _scrubVideoSessions[slot];
         }
 
+        // Close every retained scrub session (VideoDecoder + decoded-frame cache)
+        // and cancel any in-flight init. Called on playback start: an idle but
+        // still-configured VideoDecoder holds a hardware decode pipeline, and with
+        // 2–3 <video> elements playing the extra scrub decoders starve playback
+        // (chunky frames). Sessions are cheap to lazily recreate on the next drag.
+        // Sole owner of the release-all sweep (clearAllMedia and playback start
+        // both route through it; callers guard on isDragging where needed).
+        function _releaseScrubSessions() {
+            for (const k in _scrubVideoSessions) {
+                const s = _scrubVideoSessions[k];
+                if (s && typeof s.close === 'function') s.close();
+            }
+            _scrubSessionGen++;   // invalidate any in-flight session init (see _scrubOverlayGetSession)
+            _scrubVideoSessions = {};
+        }
+
         // The video slots the overlay should engage for this drag: all visible
         // video slots in Grid mode, just the visible asset in Stack mode.
         function _scrubOverlaySlots() {
@@ -4043,6 +4061,7 @@
         function _scrubOverlayBegin(slots) {
             if (!_scrubUseDecoder() || !slots.length) return;
             const token = ++_scrubOverlayDragToken;
+            _scrubOverlayPaint = {};   // fresh stall tracking per drag
             _scrubSlotByVideo = new Map();
             for (const slot of slots) {
                 const layer = getLayer(slot);
@@ -4068,6 +4087,7 @@
                         _scrubOverlayCanvases[slot] = canvasEl;
                     }
                     session.attach(canvasEl);
+                    canvasEl.style.visibility = ''; // may have been hidden by a prior stalled drag (canvases are reused)
                     wrapper.appendChild(canvasEl);
                     _scrubOverlayLive[slot] = session;
                     if (_scrubOverlayLastT !== null) session.request(_scrubOverlayLastT);
@@ -4089,10 +4109,31 @@
             return !!(slot && _scrubOverlayLive[slot] && !_scrubOverlayLive[slot].dead);
         }
 
-        // Is this <video> element's slot being painted by an overlay? (Callers
-        // skip its seeks then — they'd compete with WebCodecs for the decoder.)
-        function _scrubOverlayVideoIsLive(videoEl) {
-            return !!(_scrubSlotByVideo && _scrubOverlayIsLive(_scrubSlotByVideo.get(videoEl)));
+        // Is this <video>'s overlay actually PAINTING (not just live)? A per-slot
+        // scrub decoder can silently stall — configure succeeds, no error fires,
+        // but no frames are ever emitted (hardware-decoder contention with 3-up
+        // Grid: 3 playback decoders + 3 scrub decoders). A live-but-stalled overlay
+        // would skip the <video> seek (below) yet paint nothing, freezing that slot.
+        // We gate skip-seek on real paint progress: framesPainted must advance
+        // within _SCRUB_OVERLAY_STALL_MS. If it stalls, hide the overlay canvas so
+        // the <video> shows through and let the caller seek it as the fallback.
+        // (Each drag move issues a request → a healthy overlay paints a fresh frame
+        // or a cache hit — both bump framesPainted — so lack of progress under an
+        // active drag is a genuine stall, not just a held-still cursor.)
+        function _scrubOverlayEffective(videoEl) {
+            if (!_scrubSlotByVideo) return false;
+            const slot = _scrubSlotByVideo.get(videoEl);
+            if (!_scrubOverlayIsLive(slot)) return false;
+            const session = _scrubOverlayLive[slot];
+            const now = performance.now();
+            const fp = session.framesPainted;
+            let rec = _scrubOverlayPaint[slot];
+            if (!rec) rec = _scrubOverlayPaint[slot] = { count: fp, at: now, started: fp > 0 };
+            if (fp > rec.count) { rec.count = fp; rec.at = now; rec.started = true; }
+            const effective = (now - rec.at) < _SCRUB_OVERLAY_STALL_MS;
+            const canvasEl = _scrubOverlayCanvases[slot];
+            if (canvasEl) canvasEl.style.visibility = effective ? '' : 'hidden';
+            return effective;
         }
 
         // End-of-drag: keep each slot's last decoded frame visible until its
@@ -4103,6 +4144,7 @@
             const liveSlots = Object.keys(_scrubOverlayLive);
             _scrubOverlayLive = {};
             _scrubOverlayLastT = null;
+            _scrubOverlayPaint = {};
             _scrubSlotByVideo = null;
             for (const slot of liveSlots) {
                 const el = _scrubOverlayCanvases[slot];
@@ -7565,7 +7607,7 @@
                 // Grid mode and mouseup use the fixed-throttle path for multi-video sync.
                 const now = performance.now();
                 if (isDragging) _scrubOverlayRequestAll(t); // paints all live overlays; records t
-                if (!isGridMode && isDragging && _scrubOverlayVideoIsLive(video)) {
+                if (!isGridMode && isDragging && _scrubOverlayEffective(video)) {
                     // WebCodecs overlay is painting decoded frames — skip <video>
                     // seeks during the drag (they'd compete for the hardware
                     // decoder); the final position is seeked on mouseup.
@@ -7580,7 +7622,7 @@
                     const seekActive = !isDragging || now - _activeLastSeekTime >= 100;
                     if (seekActive) {
                         if (isDragging) _activeLastSeekTime = now;
-                        if (!(isDragging && _scrubOverlayVideoIsLive(video))) {
+                        if (!(isDragging && _scrubOverlayEffective(video))) {
                             video.currentTime = t;
                             if (!isGridMode) applyZoom();
                         }
@@ -7596,7 +7638,7 @@
                         const v = _scrubAllVideos[i];
                         if (v !== video && !isNaN(v.duration)) {
                             if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayVideoIsLive(v)) continue;
+                            if (isDragging && _scrubOverlayEffective(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
                             v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
                         }
@@ -7644,7 +7686,7 @@
                 const t = Math.min(pct * seekDur, seekDur - endGuard);
                 const now = performance.now();
                 if (isDragging) _scrubOverlayRequestAll(t); // paints all live overlays; records t
-                if (!isGridMode && isDragging && _scrubOverlayVideoIsLive(media)) {
+                if (!isGridMode && isDragging && _scrubOverlayEffective(media)) {
                     // WebCodecs overlay is painting — skip <video> seeks (see
                     // scrubToPosition); final position seeked on mouseup.
                 } else if (!isGridMode && isDragging) {
@@ -7658,7 +7700,7 @@
                     const seekActive = !isDragging || now - _activeLastSeekTime >= 100;
                     if (seekActive) {
                         if (isDragging) _activeLastSeekTime = now;
-                        if (!(isDragging && _scrubOverlayVideoIsLive(media))) {
+                        if (!(isDragging && _scrubOverlayEffective(media))) {
                             media.currentTime = t;
                             if (!isGridMode) applyZoom();
                         }
@@ -7672,7 +7714,7 @@
                         const v = _scrubAllVideos[i];
                         if (v !== media && !isNaN(v.duration)) {
                             if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayVideoIsLive(v)) continue;
+                            if (isDragging && _scrubOverlayEffective(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
                             v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
                         }
@@ -8907,12 +8949,7 @@
             _opusSyncRate = {};
             _opusSyncFadeUntil = {};
             _opusSyncActive = false;
-            for (const k in _scrubVideoSessions) {
-                const s = _scrubVideoSessions[k];
-                if (s && typeof s.close === 'function') s.close();
-            }
-            _scrubSessionGen++;   // invalidate any in-flight session init (see _scrubOverlayGetSession)
-            _scrubVideoSessions = {};
+            _releaseScrubSessions();   // close VideoDecoders + frame caches; invalidate in-flight init
             _scrubOverlayLive = {};
             _scrubOverlayCanvases = {}; // elements die with their layers
             _scrubSlotByVideo = null;
@@ -11804,6 +11841,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.2</h3>
+            <ul>
+                <li><strong>Fixed scrubbing with three videos.</strong> When scrubbing three videos side-by-side, one slot could freeze while the other two moved. WarpDiff now detects when a slot's smooth-scrub preview isn't keeping up and falls back to seeking that video directly, so all three track together. Playback after scrubbing is smoother too — the scrub decoders are now released when you press play, freeing them up for the videos.</li>
+            </ul>
             <h3>v3.11.1</h3>
             <ul>
                 <li><strong>Different-length clips now default to Full.</strong> Load clips of different lengths and WarpDiff plays each in full by default (instead of quietly looping only the shortest) — with a clearer heads-up and the highlighted <strong>Loop</strong> button pulsing so it's obvious how to switch. Press <strong>Shift+L</strong> for frame-locked comparison (Sync). In Sync mode, any part of a clip past the loop is now shown hatched on the progress bar.</li>

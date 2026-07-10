@@ -73,6 +73,10 @@ function _applyNativeLoopPolicy() {
 
 function playAllMedia() {
     _bulkSyncActive = true;
+    // Free retained scrub VideoDecoders before playback: idle-but-configured
+    // decoders hold hardware pipelines and starve 2–3 playing <video> elements
+    // (chunky frames). Skip mid-drag (the overlay is using them). See index.html.
+    if (!isDragging) _releaseScrubSessions();
     _applyNativeLoopPolicy();
     getAllPlayableMedia().forEach(m => { m.play().catch(() => {}); });
     _startOpusSyncForPlayingSlots(v => v.currentTime);
