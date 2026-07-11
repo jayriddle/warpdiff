@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.3';
+        const APP_VERSION = '3.11.4';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11890,6 +11890,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.4</h3>
+            <ul>
+                <li><strong>Pause always lands on the same frame.</strong> Stopping synced playback (spacebar) now snaps every video to the exact same frame, closing a rare edge case where two clips could land a frame apart even though they were tightly synced during playback.</li>
+            </ul>
             <h3>v3.11.3</h3>
             <ul>
                 <li><strong>Cleaner clip switching and clicking.</strong> Flipping between two clips (arrow keys) no longer flashes the frame backward at the switch — the newly-shown clip repaints its exact frame immediately. And clicking a spot on the timeline while paused now jumps straight to that frame instead of briefly fast-forwarding through the frames in between.</li>

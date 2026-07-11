@@ -323,6 +323,28 @@ function extractFn(name, src = SRC) {
         rep.includes('Math.abs(t - v.currentTime) > 1e-4'));
 }
 
+// (K) Pause-time frame snap (2026-07): the drift lock holds synced videos
+//     within tolerance (half a frame in Stack, ~5ms converged in Grid) during
+//     playback, but that's not "the same frame" — a clip a few ms off can
+//     straddle a frame boundary and round to N vs N+1 at the exact instant
+//     pause() lands. pauseAllMedia is the SOLE owner of the post-pause snap;
+//     it quantizes every video to ITS OWN frame grid at the reference clip's
+//     paused time (not the reference's frame NUMBER — clips can differ in fps).
+{
+  check(`one-owner[pause-snap]: _snapAllVideosToFrame defined once (got ${countOf(SRC, 'function _snapAllVideosToFrame(')})`,
+        countOf(SRC, 'function _snapAllVideosToFrame(') === 1);
+  check('one-owner[pause-snap]: pauseAllMedia is the sole caller (only after every video is paused)',
+        countOf(SRC, '_snapAllVideosToFrame()') === 2); // definition line + the one call site
+  const pam = extractFn('pauseAllMedia');
+  check('one-owner[pause-snap]: pauseAllMedia snaps AFTER pausing every video (not before)',
+        pam.indexOf('.forEach(m => m.pause())') < pam.indexOf('_snapAllVideosToFrame()'));
+  const snap = extractFn('_snapAllVideosToFrame');
+  check('pause-snap: audio mode is a no-op (video-only concern)',
+        /\{\s*if \(hasAudios\) return;/.test(snap));
+  check('pause-snap: quantizes each follower to its OWN fps, not the reference frame number',
+        snap.includes('videoFrameRates[v.src]') && snap.includes('refTime'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).

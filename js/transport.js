@@ -88,12 +88,44 @@ function playAllMedia() {
 function pauseAllMedia() {
     _bulkSyncActive = true;
     getAllPlayableMedia().forEach(m => m.pause());
+    _snapAllVideosToFrame();
     _stopAllOpusSyncAudio();
     _updatePlayPauseBtn(false);
     // Release async, like playAllMedia/restartAllVideos: 'pause' events fire as
     // queued tasks, so a synchronous reset lets the per-element pause handlers
     // run with the guard already cleared and cascade needlessly.
     setTimeout(() => { _bulkSyncActive = false; }, 50);
+}
+
+// Snap every video onto its own frame grid at the REFERENCE clip's paused
+// instant, so a spacebar-stop always lands all synced videos on "the same
+// frame" — not just within the drift lock's tolerance. The drift lock holds
+// followers within half a frame (Stack, hidden) or ~5ms (Grid, converged
+// nudge), which is normally imperceptible, but a clip a few ms off can straddle
+// a frame boundary and round to frame N vs N+1 at the exact instant pause()
+// lands. Reference is the primary (playing) clip's currentTime, NOT its frame
+// NUMBER — clips can have different fps, so each follower is quantized to its
+// OWN frame grid at that shared point in time (mirrors stepFrame's midpoint-
+// seek math). No-op for audio mode or fewer than 2 videos.
+function _snapAllVideosToFrame() {
+    if (hasAudios) return;
+    const videos = getAllVideos();
+    if (videos.length < 2) return;
+    let ref = primaryVideoRef;
+    if (!ref || ref.isConnected === false || !videos.includes(ref)) {
+        const activeSlot = (typeof currentAudioSource !== 'undefined' && currentAudioSource) || assetOrder[currentAssetIndex];
+        const activeLayer = getLayer(activeSlot);
+        ref = (activeLayer && activeLayer.querySelector('video')) || videos[0];
+    }
+    if (!ref || isNaN(ref.duration)) return;
+    const refTime = ref.currentTime;
+    for (const v of videos) {
+        if (isNaN(v.duration)) continue;
+        const fps = videoFrameRates[v.src] || 30;
+        const frame = Math.floor(refTime * fps + 0.01);
+        const target = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
+        if (Math.abs(v.currentTime - target) > 1e-4) v.currentTime = target;
+    }
 }
 
 function setupAudioHandlers(audio, slot) {
