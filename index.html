@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.2';
+        const APP_VERSION = '3.11.3';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3979,6 +3979,7 @@
         let _scrubOverlayCanvases = {};  // { slot: canvas } — reused across drags
         let _scrubSlotByVideo = null;    // Map<video el → slot>, built at drag start
         let _scrubOverlayLastT = null;   // latest drag time (replayed when a session becomes ready mid-drag)
+        let _scrubOverlayLastDirect = true; // was the latest request a discrete seek (paint target only, no fast-forward)?
         let _scrubOverlayDragToken = 0;  // invalidates async session init from a previous drag
         let _scrubOverlayPaint = {};     // { slot: {count, at, started} } — per-slot paint-progress tracker (stall detection)
         const _SCRUB_OVERLAY_STALL_MS = 350; // no paint progress for this long while dragging ⇒ overlay stalled, fall back to <video> seek
@@ -4090,18 +4091,22 @@
                     canvasEl.style.visibility = ''; // may have been hidden by a prior stalled drag (canvases are reused)
                     wrapper.appendChild(canvasEl);
                     _scrubOverlayLive[slot] = session;
-                    if (_scrubOverlayLastT !== null) session.request(_scrubOverlayLastT);
+                    // Replay the current position when a session comes online mid-drag.
+                    // Honor direct-ness: a click that lands before the session is
+                    // ready must NOT fast-forward-flash when it finally paints.
+                    if (_scrubOverlayLastT !== null) session.request(_scrubOverlayLastT, _scrubOverlayLastDirect);
                 });
             });
         }
 
         // Record the drag time and paint every live overlay. Sessions clamp the
         // target to their own last sample, so differing durations are safe.
-        function _scrubOverlayRequestAll(t) {
+        function _scrubOverlayRequestAll(t, direct) {
             _scrubOverlayLastT = t;
+            _scrubOverlayLastDirect = !!direct;
             for (const slot in _scrubOverlayLive) {
                 const s = _scrubOverlayLive[slot];
-                if (s && !s.dead) s.request(t);
+                if (s && !s.dead) s.request(t, direct);
             }
         }
 
@@ -7458,6 +7463,31 @@
             }
         }
 
+        // Force the newly-shown <video> to re-present its CURRENT frame when
+        // flipping the active asset in Stack mode while PAUSED. An inactive slot's
+        // wrapper is display:none (removed from the compositor — see the black-A-
+        // slot CSS note), so unhiding it briefly shows the frame from when it was
+        // last visible before repainting to its real currentTime — reads as a jump
+        // backward. A same-frame nudge to currentTime fires a seek that forces a
+        // fresh decode+present without changing which frame is shown. Repaints the
+        // element's OWN frame (not the outgoing clip's) so different fps/length
+        // clips aren't dragged off their own playhead. No-op during playback (the
+        // frame is live) and in Grid mode (nothing is unhidden).
+        function _repaintActiveVideoOnSwitch(v) {
+            if (!v || !v.paused) return;
+            if (isNaN(v.duration) || v.readyState < 2) return;
+            const fps = videoFrameRates[v.src] || 30;
+            const frame = Math.floor(v.currentTime * fps + 0.01);
+            // A sub-frame position within the SAME frame that differs from the
+            // current time — assigning it fires a seek (repaint) without changing
+            // the displayed frame. Try midpoint, then late, then early.
+            const cands = [0.5, 0.75, 0.25]
+                .map(o => (frame + o) / fps)
+                .filter(t => t < v.duration - 0.0005);
+            const target = cands.find(t => Math.abs(t - v.currentTime) > 1e-4);
+            if (target !== undefined) v.currentTime = target;
+        }
+
         function switchToAsset(index) {
             // Skip empty slots
             const assetKey = assetOrder[index];
@@ -7519,6 +7549,10 @@
                 updateMediaProgress(playable);
             }
 
+            // Force the newly-shown clip to re-present its current frame (Stack,
+            // paused) so the flip doesn't flash a stale frame — see the helper.
+            if (!hasAudios && !isGridMode) _repaintActiveVideoOnSwitch(playable);
+
             // Reposition the newly active layer's wrapper with the current zoom/pan offset.
             applyZoom();
 
@@ -7558,6 +7592,9 @@
             let _scrubMutedStates = null; // saved muted flags, restored on mouseup
             let _activeLastSeekTime = 0;   // last time the active video was seeked (drag throttle)
             let _inactiveLastSeekTime = 0; // last time inactive videos were seeked (grid throttle)
+            let _scrubDragMoved = false;   // has the pointer moved past the click threshold since mousedown?
+            let _scrubDownX = 0, _scrubDownY = 0; // mousedown coords (click-vs-drag discrimination)
+            const _SCRUB_DRAG_PX = 3;      // movement beyond this ⇒ a drag (progressive scrub), not a click
             let _scrubRelayoutRaf = null;  // rAF handle for the 60fps compositor paint loop during drag
 
             // Run applyZoom() at 60fps while dragging to keep Chrome's compositor
@@ -7606,7 +7643,7 @@
                 // keyframes where decode takes longer than a fixed throttle interval.
                 // Grid mode and mouseup use the fixed-throttle path for multi-video sync.
                 const now = performance.now();
-                if (isDragging) _scrubOverlayRequestAll(t); // paints all live overlays; records t
+                if (isDragging) _scrubOverlayRequestAll(t, !_scrubDragMoved); // paints all live overlays; records t (direct until the pointer actually drags)
                 if (!isGridMode && isDragging && _scrubOverlayEffective(video)) {
                     // WebCodecs overlay is painting decoded frames — skip <video>
                     // seeks during the drag (they'd compete for the hardware
@@ -7685,7 +7722,7 @@
                 const endGuard = 0.5 / fps;
                 const t = Math.min(pct * seekDur, seekDur - endGuard);
                 const now = performance.now();
-                if (isDragging) _scrubOverlayRequestAll(t); // paints all live overlays; records t
+                if (isDragging) _scrubOverlayRequestAll(t, !_scrubDragMoved); // paints all live overlays; records t (direct until the pointer actually drags)
                 if (!isGridMode && isDragging && _scrubOverlayEffective(media)) {
                     // WebCodecs overlay is painting — skip <video> seeks (see
                     // scrubToPosition); final position seeked on mouseup.
@@ -7757,6 +7794,8 @@
                 isDragging = true;
                 _activeLastSeekTime = 0;
                 _inactiveLastSeekTime = 0;
+                _scrubDragMoved = false;
+                _scrubDownX = e.clientX; _scrubDownY = e.clientY;
 
                 if (!isGridMode) {
                     const _ctrlEl = document.getElementById('videoControls');
@@ -7826,6 +7865,8 @@
                 isDragging = true;
                 _activeLastSeekTime = 0;
                 _inactiveLastSeekTime = 0;
+                _scrubDragMoved = false;
+                _scrubDownX = e.clientX; _scrubDownY = e.clientY;
 
                 // Cache layout reads once at drag-start so applyZoom() called on each
                 // throttled seek is pure style-writes — no offsetHeight layout flushes.
@@ -7885,6 +7926,14 @@
 
             document.addEventListener('mousemove', function(e) {
                 if (!isDragging) return;
+                // Promote to a real drag once the pointer leaves the click zone —
+                // from here on the overlay fast-forwards progressively (smooth
+                // scrub); a pointer that never moves stays a direct click seek.
+                if (!_scrubDragMoved &&
+                    (Math.abs(e.clientX - _scrubDownX) > _SCRUB_DRAG_PX ||
+                     Math.abs(e.clientY - _scrubDownY) > _SCRUB_DRAG_PX)) {
+                    _scrubDragMoved = true;
+                }
                 // Loop marker drag
                 if (_draggingLoopMarker) {
                     const rect = _scrubContainerRect;
@@ -11841,6 +11890,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.3</h3>
+            <ul>
+                <li><strong>Cleaner clip switching and clicking.</strong> Flipping between two clips (arrow keys) no longer flashes the frame backward at the switch — the newly-shown clip repaints its exact frame immediately. And clicking a spot on the timeline while paused now jumps straight to that frame instead of briefly fast-forwarding through the frames in between.</li>
+            </ul>
             <h3>v3.11.2</h3>
             <ul>
                 <li><strong>Fixed scrubbing with three videos.</strong> When scrubbing three videos side-by-side, one slot could freeze while the other two moved. WarpDiff now detects when a slot's smooth-scrub preview isn't keeping up and falls back to seeking that video directly, so all three track together. Playback after scrubbing is smoother too — the scrub decoders are now released when you press play, freeing them up for the videos.</li>

@@ -260,7 +260,11 @@ function _createScrubVideoSession(bytes) {
             ctx2d = ctx || canvas.getContext('2d');
         },
 
-        request(t) {
+        // direct=true: this is a discrete seek (a click, or the initial position
+        // before any drag movement), so paint ONLY the target frame — suppress the
+        // progressive fast-forward through the GOP that makes a *drag* feel smooth
+        // but reads as "frames speeding past in an instant" on a single click.
+        request(t, direct) {
             if (dead || decoder.state !== 'configured') return;
             const idx = targetForTime(t);
             const key = keyBefore(idx);
@@ -286,6 +290,10 @@ function _createScrubVideoSession(bytes) {
                 // to 9.9s) — no reset needed, the run just stops sooner.
                 targetPts = pts;
                 targetIdx = idx;
+                // Discrete seek forward within the GOP: lift the paint floor to
+                // the target so the intervening frames decode (needed to release
+                // the target) but don't paint — no fast-forward flash on a click.
+                if (direct) paintFloor = pts - frameDur;
                 pump();
                 return;
             }
@@ -305,8 +313,10 @@ function _createScrubVideoSession(bytes) {
             } catch (_) { dead = true; return; }
             // Backward runs paint only the target frame (intermediates from the
             // keyframe are the PAST — painting them flashes a rewind). Forward
-            // cross-GOP runs keep the progressive fast-forward feel.
-            paintFloor = pts < lastPaintedPts ? pts - frameDur : lastPaintedPts;
+            // cross-GOP DRAG runs keep the progressive fast-forward feel; a
+            // discrete forward seek (direct) paints only the target, same as a
+            // backward run — no fast-forward flash on a click.
+            paintFloor = (direct || pts < lastPaintedPts) ? pts - frameDur : lastPaintedPts;
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             targetPts = pts;
             curKey = key;

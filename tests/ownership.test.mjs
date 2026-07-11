@@ -292,6 +292,37 @@ function extractFn(name, src = SRC) {
         eff.includes('.style.visibility') && eff.includes('framesPainted'));
 }
 
+// (J) Scrub click-vs-drag + asset-switch repaint (2026-07 UX fixes):
+//     A discrete seek (a click, or the drag's initial position before the
+//     pointer moves) must paint ONLY the target frame — the scrub session's
+//     progressive fast-forward through the GOP is what read as "frames speeding
+//     past in an instant" on a click. The overlay request threads a `direct`
+//     flag driven by _scrubDragMoved. Separately, flipping the active clip in
+//     Stack mode while paused must force the newly-shown <video> to re-present
+//     its own frame, or the display:none→visible unhide flashes a stale
+//     (backward) frame.
+{
+  const sv = JS_FILES.includes('scrub-video.js')
+    ? readFileSync(new URL('js/scrub-video.js', ROOT), 'utf8') : '';
+  check('scrub[direct]: session.request accepts a direct (discrete-seek) flag',
+        /request\(t,\s*direct\)/.test(sv));
+  check('scrub[direct]: a direct forward seek paints target-only (no GOP fast-forward)',
+        sv.includes('(direct || pts < lastPaintedPts) ? pts - frameDur : lastPaintedPts'));
+  check('scrub[direct]: _scrubOverlayRequestAll forwards direct-ness to the session',
+        extractFn('_scrubOverlayRequestAll').includes('s.request(t, direct)'));
+  check('scrub[direct]: scrub handlers request direct until the pointer actually drags',
+        countOf(SRC, '_scrubOverlayRequestAll(t, !_scrubDragMoved)') === 2);
+  check(`switch[repaint]: _repaintActiveVideoOnSwitch defined once (got ${countOf(SRC, 'function _repaintActiveVideoOnSwitch(')})`,
+        countOf(SRC, 'function _repaintActiveVideoOnSwitch(') === 1);
+  check('switch[repaint]: switchToAsset repaints the newly-shown clip (Stack-only guarded at the call site)',
+        extractFn('switchToAsset').includes('_repaintActiveVideoOnSwitch('));
+  const rep = extractFn('_repaintActiveVideoOnSwitch');
+  check('switch[repaint]: repaint only runs while paused (no seek mid-playback)',
+        rep.includes('!v.paused'));
+  check('switch[repaint]: repaint nudges within the SAME frame (differs from current time, no image change)',
+        rep.includes('Math.abs(t - v.currentTime) > 1e-4'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
