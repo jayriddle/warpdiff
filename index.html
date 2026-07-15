@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.6';
+        const APP_VERSION = '3.11.7';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -7823,6 +7823,10 @@
                     || (e.target.id === 'spectrogramCanvas' ? e.target : null);
                 if (!canvas) return;
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
+                // A mousedown while "dragging" means the previous drag's mouseup
+                // was lost — finalize it (restores muted states, suspends
+                // overlays) before starting fresh, or its snapshot is clobbered.
+                if (isDragging) endScrubDrag(null);
                 _scrubCanvas = canvas;
                 isDragging = true;
                 _activeLastSeekTime = 0;
@@ -7866,7 +7870,10 @@
                 // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
                 // Muted state is restored on mouseup; no audio plays because videos are paused.
                 if (_scrubAllVideos) {
-                    _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
+                    // Never clobber a live snapshot (only possible if a stuck
+                    // drag escaped every recovery path — the snapshot then still
+                    // holds the TRUE pre-scrub muted states, not all-unmuted).
+                    if (!_scrubMutedStates) _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
                     _scrubAllVideos.forEach(v => { v.muted = false; });
                 }
 
@@ -7885,6 +7892,10 @@
 
             progressContainer.addEventListener('mousedown', function(e) {
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
+
+                // A mousedown while "dragging" means the previous drag's mouseup
+                // was lost — finalize it before starting fresh (see endScrubDrag).
+                if (isDragging) endScrubDrag(null);
 
                 // Check if clicking on a loop marker — start marker drag instead of scrub
                 const marker = e.target.closest('.loop-marker');
@@ -7939,7 +7950,10 @@
                 // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
                 // Muted state is restored on mouseup; no audio plays because videos are paused.
                 if (_scrubAllVideos) {
-                    _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
+                    // Never clobber a live snapshot (only possible if a stuck
+                    // drag escaped every recovery path — the snapshot then still
+                    // holds the TRUE pre-scrub muted states, not all-unmuted).
+                    if (!_scrubMutedStates) _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
                     _scrubAllVideos.forEach(v => { v.muted = false; });
                 }
 
@@ -7959,6 +7973,10 @@
 
             document.addEventListener('mousemove', function(e) {
                 if (!isDragging) return;
+                // Lost-mouseup recovery: the button is no longer held, so the
+                // release happened where we couldn't see it (outside the window,
+                // during a focus loss). Finalize instead of ghost-scrubbing.
+                if (e.buttons === 0) { endScrubDrag(null); return; }
                 // Promote to a real drag once the pointer leaves the click zone —
                 // from here on the overlay fast-forwards progressively (smooth
                 // scrub); a pointer that never moves stays a direct click seek.
@@ -8016,8 +8034,21 @@
                 }
             });
 
-            document.addEventListener('mouseup', function(e) {
-                if (isDragging) {
+            // Sole owner of drag finalization. Runs from mouseup AND from the
+            // lost-mouseup recovery paths (mousemove with no button held, window
+            // blur, a mousedown arriving mid-"drag"). A missed mouseup \u2014 release
+            // outside the window, Alt-Tab mid-drag, an OS notification stealing
+            // focus \u2014 used to leave isDragging stuck true FOREVER: playAllMedia
+            // stopped suspending scrub decoders (choppy playback), the drift
+            // lock stood down (desync), the Stack scrub paint loop kept burning
+            // a rAF, and the muted-state snapshot was never restored \u2014 then the
+            // NEXT mousedown re-saved the all-unmuted state as the snapshot, so
+            // every later scrub "restored" every video unmuted (double audio).
+            // e === null \u2192 no pointer position (blur/recovery): skip the final
+            // position-dependent seeks and settle on the last scrubbed time.
+            function endScrubDrag(e) {
+                if (!isDragging) return;
+                {
                     isDragging = false;
                     if (_draggingLoopMarker) {
                         _draggingLoopMarker = null;
@@ -8026,8 +8057,9 @@
                         return;
                     }
                     if (_regionSelectStart !== null) {
-                        // Finalize shift+drag region selection
-                        const t = _scrubCanvas ? canvasXToTime(e, _scrubCanvas) : progressBarXToTime(e);
+                        // Finalize shift+drag region selection (needs a pointer
+                        // position — recovery keeps whatever mousemove last set)
+                        const t = e ? (_scrubCanvas ? canvasXToTime(e, _scrubCanvas) : progressBarXToTime(e)) : null;
                         if (t !== null) {
                             _loopInPoint = Math.min(_regionSelectStart, t);
                             _loopOutPoint = Math.max(_regionSelectStart, t);
@@ -8049,13 +8081,25 @@
                         // Clear reactive seek state so the final mouseup seek fires immediately
                         _scrubSeekPending = false;
                         _scrubNextTime = null;
-                        canvasScrubToPosition(e, _scrubCanvas);
+                        if (e) canvasScrubToPosition(e, _scrubCanvas);
                         _scrubCanvas = null;
                     } else if (_scrubContainerRect) {
                         // Clear reactive seek state so the final mouseup seek fires immediately
                         _scrubSeekPending = false;
                         _scrubNextTime = null;
-                        scrubToPosition(e);
+                        if (e) scrubToPosition(e);
+                    }
+                    // Recovery without a pointer position: the overlay path
+                    // skipped <video> seeks during the drag, so settle every
+                    // video on the last scrubbed time (else the overlay teardown
+                    // would snap the frame back to the pre-drag position).
+                    if (!e && _scrubOverlayLastT !== null && _scrubAllVideos) {
+                        for (const v of _scrubAllVideos) {
+                            if (!isNaN(v.duration)) {
+                                const vfps = videoFrameRates[v.src] || 30;
+                                v.currentTime = Math.min(_scrubOverlayLastT, v.duration - 0.5 / vfps);
+                            }
+                        }
                     }
 
                     // Don't resume playback if scrubbed to the very end — play() would wrap to 0
@@ -8088,7 +8132,12 @@
                     }
                     if (!hasAudios && videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
-            });
+            }
+
+            document.addEventListener('mouseup', endScrubDrag);
+            // Alt-Tab / focus loss mid-drag: the mouseup is delivered to another
+            // window (or nowhere) — finalize immediately.
+            window.addEventListener('blur', () => endScrubDrag(null));
         });
 
         // Browser fullscreen change handler — recalculates layout when chrome disappears/reappears.
@@ -11561,6 +11610,7 @@
             get timecopyFmt() { return _prefs.load('timecopyFmt', 'hms'); },
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
+            get isDragging() { return isDragging; },
             // Multi-video sync-lock state: effective loop region + per-video
             // clock/rate/nudge/native-loop snapshot (order = getAllVideos order)
             get _loopBounds() { return _getLoopBounds(); },
@@ -11924,6 +11974,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.7</h3>
+            <ul>
+                <li><strong>Fixed choppy playback and doubled audio after interrupted scrubs.</strong> Releasing the mouse outside the window (or switching apps) mid-scrub could silently leave WarpDiff thinking a drag was still in progress — playback sync and decoder management shut off (progressively choppier video) and every clip could end up unmuted at once (two audio tracks playing together). Interrupted drags are now detected and cleaned up automatically.</li>
+            </ul>
             <h3>v3.11.6</h3>
             <ul>
                 <li><strong>Version now shows the deployed build hash.</strong> The version in the top-left corner (e.g. <code>v3.11.6 · a2e5aa7</code>) now includes the short commit hash of the build being served, so you can tell at a glance whether you're on the latest deploy — handy when a stale PWA cache or a pending Pages deploy is serving an older build.</li>

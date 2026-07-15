@@ -380,6 +380,36 @@ function extractFn(name, src = SRC) {
         snap.includes('if (isDragging) return;'));
 }
 
+// (L) Lost-mouseup recovery (2026-07 "choppy + double audio after continued
+//     use" report): a drag whose mouseup never arrives (release outside the
+//     window, Alt-Tab mid-drag, OS notification) left isDragging stuck true —
+//     playAllMedia stopped suspending scrub decoders (chunky playback), the
+//     drift lock stood down permanently, and the muted-state snapshot was
+//     never restored; the NEXT mousedown then saved the all-unmuted state as
+//     the snapshot, so every later scrub restored every video unmuted (double
+//     audio). endScrubDrag is the SOLE drag finalizer, reachable from mouseup
+//     AND three recovery paths: mousemove with no button held, window blur,
+//     and a mousedown arriving mid-"drag".
+{
+  check(`one-owner[drag-end]: endScrubDrag defined once (got ${countOf(SRC, 'function endScrubDrag(')})`,
+        countOf(SRC, 'function endScrubDrag(') === 1);
+  check('one-owner[drag-end]: mouseup routes through the finalizer',
+        SRC.includes("document.addEventListener('mouseup', endScrubDrag)"));
+  check('recovery[drag-end]: mousemove with no button held finalizes (ghost-drag guard)',
+        SRC.includes('if (e.buttons === 0) { endScrubDrag(null); return; }'));
+  check('recovery[drag-end]: window blur finalizes the drag',
+        /window\.addEventListener\('blur', \(\) => endScrubDrag\(null\)\)/.test(SRC));
+  check('recovery[drag-end]: both mousedown paths finalize a stuck drag first (got ' +
+        countOf(SRC, 'if (isDragging) endScrubDrag(null);') + ', want 2)',
+        countOf(SRC, 'if (isDragging) endScrubDrag(null);') === 2);
+  check('recovery[drag-end]: muted snapshot is never clobbered while one is live (got ' +
+        countOf(SRC, 'if (!_scrubMutedStates) _scrubMutedStates =') + ', want 2)',
+        countOf(SRC, 'if (!_scrubMutedStates) _scrubMutedStates =') === 2);
+  const esd = extractFn('endScrubDrag');
+  check('recovery[drag-end]: finalizer restores the muted snapshot and tears down overlays',
+        esd.includes('_scrubMutedStates[i]') && esd.includes('_scrubOverlayEnd()'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
