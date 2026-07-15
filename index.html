@@ -2892,11 +2892,26 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.5';
+        const APP_VERSION = '3.11.6';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
+        // Append the deployed commit hash. version.json carries Jekyll front
+        // matter, so GitHub Pages substitutes {{ site.github.build_revision }}
+        // (the SHA the site was built from) at deploy time — the ONLY way to
+        // know the served commit with no build step (a commit can't contain its
+        // own hash). Local dev / offline-cache-miss serve the raw file (front
+        // matter intact → JSON.parse throws → catch) and show the bare version.
+        fetch('version.json')
+            .then(r => r.json())
+            .then(j => {
+                if (j && /^[0-9a-f]{40}$/.test(j.sha)) {
+                    document.getElementById('appVersion').textContent =
+                        'v' + APP_VERSION + ' · ' + j.sha.slice(0, 7);
+                }
+            })
+            .catch(() => {});
         document.getElementById('appVersion').style.cursor = 'pointer';
         document.getElementById('appVersion').addEventListener('click', () => {
             document.getElementById('changelogPopup').classList.add('show');
@@ -11909,6 +11924,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.6</h3>
+            <ul>
+                <li><strong>Version now shows the deployed build hash.</strong> The version in the top-left corner (e.g. <code>v3.11.6 · a2e5aa7</code>) now includes the short commit hash of the build being served, so you can tell at a glance whether you're on the latest deploy — handy when a stale PWA cache or a pending Pages deploy is serving an older build.</li>
+            </ul>
             <h3>v3.11.5</h3>
             <ul>
                 <li><strong>Smoother playback and faster reverse scrubbing in long sessions.</strong> The smooth-scrub engine now goes dormant during playback instead of being torn down — no more re-reading the whole file on every scrub after play, which caused playback to get progressively choppier with continued use. Its frame cache also survives play/pause cycles and skips redundant work, so scrubbing backward is much lighter.</li>
