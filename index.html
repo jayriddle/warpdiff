@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.4';
+        const APP_VERSION = '3.11.5';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -4015,6 +4015,10 @@
                         // where it would leak and be painted for the NEW file's frames.
                         if (gen !== _scrubSessionGen) { session.close(); return null; }
                         _scrubVideoSessions[slot] = session;
+                        // Init outlived the drag (quick tap): don't leave a live
+                        // decoder configured while playback may be running —
+                        // suspend now; the next drag's request() resumes it.
+                        if (!isDragging) session.suspend();
                         return session;
                     });
                 })
@@ -4030,13 +4034,27 @@
             delete _scrubVideoSessions[slot];
         }
 
-        // Close every retained scrub session (VideoDecoder + decoded-frame cache)
-        // and cancel any in-flight init. Called on playback start: an idle but
-        // still-configured VideoDecoder holds a hardware decode pipeline, and with
-        // 2–3 <video> elements playing the extra scrub decoders starve playback
-        // (chunky frames). Sessions are cheap to lazily recreate on the next drag.
-        // Sole owner of the release-all sweep (clearAllMedia and playback start
-        // both route through it; callers guard on isDragging where needed).
+        // Playback-start path: SUSPEND every retained scrub session — close just
+        // its VideoDecoder (an idle-but-configured decoder holds a hardware
+        // pipeline, and with 2–3 <video> elements playing the extra scrub
+        // decoders starve playback → chunky frames) while keeping the file
+        // bytes, demuxed samples, and decoded-frame cache. The v3.11.2 version
+        // fully close()d here, which forced every post-play scrub to refetch the
+        // whole file + re-demux with a cold cache — file-sized allocation churn
+        // on every scrub→play cycle (GC hitches that read as choppy playback
+        // "after continued use") and cold-cache reverse scrubs. request()
+        // lazily rebuilds just the decoder (~ms) on the next drag.
+        function _suspendScrubSessions() {
+            for (const k of Object.keys(_scrubVideoSessions)) {
+                const s = _scrubVideoSessions[k];
+                if (s && typeof s.suspend === 'function') s.suspend();
+            }
+        }
+
+        // Full teardown: close every retained scrub session (VideoDecoder +
+        // decoded-frame cache + file bytes) and cancel any in-flight init.
+        // Media-clear only — playback start routes through _suspendScrubSessions.
+        // Sole owner of the release-all sweep (clearAllMedia routes through it).
         function _releaseScrubSessions() {
             for (const k in _scrubVideoSessions) {
                 const s = _scrubVideoSessions[k];
@@ -11587,7 +11605,8 @@
                     const s = _scrubVideoSessions[slot];
                     if (!s) return 'none';
                     if (s === 'failed') return 'failed';
-                    return typeof s.close === 'function' ? 'ready' : 'pending';
+                    if (typeof s.close !== 'function') return 'pending';
+                    return s.suspended ? 'suspended' : 'ready';
                 },
                 overlayLive() { return Object.keys(_scrubOverlayLive).length > 0; },
                 overlayCount() { return Object.keys(_scrubOverlayLive).length; },
@@ -11890,6 +11909,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.5</h3>
+            <ul>
+                <li><strong>Smoother playback and faster reverse scrubbing in long sessions.</strong> The smooth-scrub engine now goes dormant during playback instead of being torn down — no more re-reading the whole file on every scrub after play, which caused playback to get progressively choppier with continued use. Its frame cache also survives play/pause cycles and skips redundant work, so scrubbing backward is much lighter.</li>
+            </ul>
             <h3>v3.11.4</h3>
             <ul>
                 <li><strong>Pause always lands on the same frame.</strong> Stopping synced playback (spacebar) now snaps every video to the exact same frame, closing a rare edge case where two clips could land a frame apart even though they were tightly synced during playback.</li>

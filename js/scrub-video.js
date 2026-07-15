@@ -61,6 +61,10 @@ function _createScrubVideoSession(bytes) {
     const cacheW = Math.max(2, Math.round((info.codedWidth || 640) * cacheScale));
     const cacheH = Math.max(2, Math.round((info.codedHeight || 360) * cacheScale));
     const cacheFrameBytes = cacheW * cacheH * 4;
+    // How many frames actually FIT in the budget (~26 at 1280×720). Frames
+    // farther than this from the current target would be evicted by
+    // cacheEvictFor the moment they land — see the distance gate in cacheStore.
+    const maxCacheFrames = Math.max(8, Math.floor(CACHE_BUDGET / cacheFrameBytes));
     const cache = new Map();          // decode idx → { bm: ImageBitmap, pts }
     let cacheBytes = 0;
     let cacheHits = 0;
@@ -84,6 +88,14 @@ function _createScrubVideoSession(bytes) {
     function cacheStore(frame) {
         const idx = idxByTs.get(frame.timestamp);
         if (idx === undefined || cache.has(idx) || dead) { return; }
+        // Distance gate: don't clone + createImageBitmap a frame the eviction
+        // policy would discard immediately. A backward jump re-decodes the whole
+        // GOP from its keyframe; without this gate every one of those frames
+        // (dozens per mousemove on sparse-keyframe files) pays a clone + async
+        // bitmap resize only to be evicted as "farthest from target" — pure
+        // churn that starves the drag's main thread (reverse-scrub stutter).
+        if (targetPts >= 0 &&
+            Math.abs(frame.timestamp / 1e6 - targetPts) > maxCacheFrames * frameDur) { return; }
         let clone;
         try { clone = frame.clone(); } catch (_) { return; }
         cacheEvictFor(frame.timestamp / 1e6);
@@ -106,6 +118,8 @@ function _createScrubVideoSession(bytes) {
 
     let canvas = null, ctx2d = null;
     let dead = false;
+    let suspended = false;  // decoder closed (playback owns the hardware pipeline);
+                            // bytes/samples/cache retained, decoder recreated on next request
     let curKey = -1;        // decode index of the GOP keyframe the decoder is primed from
     let nextFeed = -1;      // next decode index to feed (-1 = no active run)
     let targetIdx = -1;     // decode index of the current target sample
@@ -135,13 +149,14 @@ function _createScrubVideoSession(bytes) {
         f.close();
     }
 
-    const decoder = new VideoDecoder({
-        output(frame) {
+    // Named callbacks (not inline) so a suspended session can build a FRESH
+    // VideoDecoder around the same logic — see suspend()/the resume in request().
+    function _onDecoderOutput(frame) {
             // reset() discards pending outputs, so anything arriving here belongs
-            // to the current run. Cache EVERY emitted frame (even ones that won't
-            // paint — they're positions the user may revisit), then retain the
-            // newest paintable one; the rAF tick paints it. Superseded frames
-            // close immediately.
+            // to the current run. Cache emitted frames near the target (positions
+            // the user may revisit — the distance gate in cacheStore skips ones
+            // that would be evicted immediately), then retain the newest paintable
+            // one; the rAF tick paints it. Superseded frames close immediately.
             if (!_lastFrameColorSpace && frame.colorSpace) {
                 const cs = frame.colorSpace;
                 _lastFrameColorSpace = {
@@ -169,9 +184,10 @@ function _createScrubVideoSession(bytes) {
             if (pendingFrame) pendingFrame.close();
             pendingFrame = frame;
             if (!rafId) rafId = requestAnimationFrame(paintPending);
-        },
-        error() { dead = true; try { decoder.close(); } catch (_) {} }
-    });
+    }
+    function _onDecoderError() { dead = true; try { decoder.close(); } catch (_) {} }
+
+    let decoder = new VideoDecoder({ output: _onDecoderOutput, error: _onDecoderError });
 
     let readyResolve;
     const ready = new Promise(r => { readyResolve = r; });
@@ -237,6 +253,7 @@ function _createScrubVideoSession(bytes) {
         get framesPainted() { return framesPainted; },
         get lastPaintedPts() { return lastPaintedPts; },
         get dead() { return dead; },
+        get suspended() { return suspended; },
         get cacheStats() { return { frames: cache.size, bytes: cacheBytes, hits: cacheHits }; },
         get frameColorSpace() { return _lastFrameColorSpace; },
 
@@ -265,7 +282,20 @@ function _createScrubVideoSession(bytes) {
         // progressive fast-forward through the GOP that makes a *drag* feel smooth
         // but reads as "frames speeding past in an instant" on a single click.
         request(t, direct) {
-            if (dead || decoder.state !== 'configured') return;
+            if (dead) return;
+            // Resume from suspension: playback start closed the decoder (it holds
+            // a hardware pipeline) but kept the file bytes, demuxed samples, and
+            // the ImageBitmap cache. Recreating + reconfiguring here costs
+            // milliseconds; the full close() path would force a refetch of the
+            // entire file, a re-demux, and a cold cache on every scrub after play.
+            if (suspended) {
+                try {
+                    decoder = new VideoDecoder({ output: _onDecoderOutput, error: _onDecoderError });
+                    decoder.configure(config);   // config already validated by isConfigSupported at init
+                } catch (_) { dead = true; return; }
+                suspended = false;
+            }
+            if (decoder.state !== 'configured') return;
             const idx = targetForTime(t);
             const key = keyBefore(idx);
             const pts = samples[idx].pts;
@@ -323,6 +353,28 @@ function _createScrubVideoSession(bytes) {
             nextFeed = key;
             targetIdx = idx;
             pump();
+        },
+
+        // Playback-start teardown: release ONLY the VideoDecoder (the hardware
+        // pipeline that competes with 2-3 playing <video> elements) and the
+        // in-flight run state. The file bytes, demuxed sample table, and the
+        // decoded-frame ImageBitmap cache all survive — they're inert memory,
+        // and dropping them forced every post-play scrub to refetch + re-demux
+        // the whole file with a cold cache (GC churn = choppy playback after
+        // continued use; cold cache = reverse scrubs re-decode everything).
+        // request() lazily resumes. Idempotent; no-op after close().
+        suspend() {
+            if (dead || suspended) return;
+            suspended = true;
+            curKey = -1;
+            nextFeed = -1;
+            targetIdx = -1;
+            targetPts = -1;
+            paintFloor = -1;
+            lastPaintedPts = -1;
+            if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+            if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+            try { decoder.close(); } catch (_) {}
         },
 
         close() {

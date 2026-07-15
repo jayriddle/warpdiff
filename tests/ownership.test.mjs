@@ -262,24 +262,41 @@ function extractFn(name, src = SRC) {
         drift.includes('if (v.seeking) continue;'));
 }
 
-// (I) Scrub-session lifecycle (2026-07 three-video scrub fix):
-//     _releaseScrubSessions is the SOLE owner of the "close every retained scrub
-//     VideoDecoder" sweep — a second copy of that loop (the old inline one in
-//     clearAllMedia) would drift out of sync with the invalidation-generation
-//     bump. playAllMedia routes through it to free decoders before playback
-//     (idle scrub decoders starve 2–3 playing <video>s → chunky frames), and
-//     the skip-the-<video>-seek decision must gate on _scrubOverlayEffective
-//     (real paint progress), not mere liveness — a silently stalled overlay
-//     that still counted as "live" froze one slot in a 3-up Grid scrub.
+// (I) Scrub-session lifecycle (2026-07 three-video scrub fix; suspend/resume
+//     refinement after the "choppy with continued use" report):
+//     _releaseScrubSessions is the SOLE owner of the full "close every retained
+//     scrub session" sweep (clearAllMedia routes through it). playAllMedia must
+//     route through _suspendScrubSessions instead — suspend closes ONLY the
+//     VideoDecoder (idle scrub decoders starve 2–3 playing <video>s → chunky
+//     frames) while keeping file bytes + demux + frame cache; the earlier
+//     full-close-on-play forced every post-play scrub to refetch and re-demux
+//     the whole file with a cold cache (GC churn = choppy after continued use,
+//     and reverse scrubs re-decoded everything). The skip-the-<video>-seek
+//     decision must gate on _scrubOverlayEffective (real paint progress), not
+//     mere liveness — a silently stalled overlay that still counted as "live"
+//     froze one slot in a 3-up Grid scrub.
 {
   check(`one-owner[scrub-session]: _releaseScrubSessions defined once (got ${countOf(SRC, 'function _releaseScrubSessions(')})`,
         countOf(SRC, 'function _releaseScrubSessions(') === 1);
+  check(`one-owner[scrub-session]: _suspendScrubSessions defined once (got ${countOf(SRC, 'function _suspendScrubSessions(')})`,
+        countOf(SRC, 'function _suspendScrubSessions(') === 1);
   check('one-owner[scrub-session]: the release-all sweep lives only in _releaseScrubSessions',
         countOf(SRC, 'for (const k in _scrubVideoSessions)') === 1);
   check('one-owner[scrub-session]: clearAllMedia routes through the owner (no inline sweep)',
         extractFn('clearAllMedia').includes('_releaseScrubSessions()'));
-  check('one-owner[scrub-session]: playAllMedia frees scrub decoders before playback',
-        extractFn('playAllMedia').includes('_releaseScrubSessions()'));
+  check('one-owner[scrub-session]: playAllMedia SUSPENDS scrub decoders (never full-closes — that refetches the file per scrub)',
+        extractFn('playAllMedia').includes('_suspendScrubSessions()') &&
+        !extractFn('playAllMedia').includes('_releaseScrubSessions'));
+  const sv = readFileSync(new URL('js/scrub-video.js', ROOT), 'utf8');
+  check('scrub[suspend]: suspend() closes the decoder but keeps the frame cache and bytes',
+        /suspend\(\)\s*\{/.test(sv) && (() => {
+          const body = sv.slice(sv.indexOf('suspend() {'), sv.indexOf('close() {'));
+          return body.includes('decoder.close()') && !body.includes('cache.clear()');
+        })());
+  check('scrub[suspend]: request() lazily recreates the decoder on resume',
+        countOf(sv, 'new VideoDecoder({ output: _onDecoderOutput, error: _onDecoderError })') === 2);
+  check('scrub[cache]: cacheStore distance-gates frames that would be evicted immediately',
+        sv.includes('maxCacheFrames * frameDur'));
   check(`one-owner[scrub-session]: _scrubOverlayEffective defined once (got ${countOf(SRC, 'function _scrubOverlayEffective(')})`,
         countOf(SRC, 'function _scrubOverlayEffective(') === 1);
   // The skip-<video>-seek sites must trust paint progress, not liveness. The old
@@ -343,6 +360,8 @@ function extractFn(name, src = SRC) {
         /\{\s*if \(hasAudios\) return;/.test(snap));
   check('pause-snap: quantizes each follower to its OWN fps, not the reference frame number',
         snap.includes('videoFrameRates[v.src]') && snap.includes('refTime'));
+  check('pause-snap: stands down during a drag (scrub-start pause must not fire competing seeks)',
+        snap.includes('if (isDragging) return;'));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -73,10 +73,13 @@ function _applyNativeLoopPolicy() {
 
 function playAllMedia() {
     _bulkSyncActive = true;
-    // Free retained scrub VideoDecoders before playback: idle-but-configured
-    // decoders hold hardware pipelines and starve 2–3 playing <video> elements
-    // (chunky frames). Skip mid-drag (the overlay is using them). See index.html.
-    if (!isDragging) _releaseScrubSessions();
+    // Suspend retained scrub sessions before playback: idle-but-configured
+    // VideoDecoders hold hardware pipelines and starve 2–3 playing <video>
+    // elements (chunky frames). Suspend (not close) keeps the demuxed samples
+    // and frame cache so the next drag resumes in ~ms instead of refetching
+    // and re-demuxing the whole file. Skip mid-drag (the overlay is using
+    // them). See index.html.
+    if (!isDragging) _suspendScrubSessions();
     _applyNativeLoopPolicy();
     getAllPlayableMedia().forEach(m => { m.play().catch(() => {}); });
     _startOpusSyncForPlayingSlots(v => v.currentTime);
@@ -109,6 +112,10 @@ function pauseAllMedia() {
 // seek math). No-op for audio mode or fewer than 2 videos.
 function _snapAllVideosToFrame() {
     if (hasAudios) return;
+    // Scrub owns position during a drag: the scrub-start pause (mousedown while
+    // playing calls pauseAllMedia) must not fire a competing seek per video an
+    // instant before the drag's own first seek lands.
+    if (isDragging) return;
     const videos = getAllVideos();
     if (videos.length < 2) return;
     let ref = primaryVideoRef;
