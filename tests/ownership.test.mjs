@@ -101,6 +101,14 @@ function extractFn(name, src = SRC) {
         SW.includes("'version.json'"));
   check('version-hash: no .nojekyll (it would disable the Pages-side substitution)',
         !existsSync(new URL('.nojekyll', ROOT)));
+
+  // _config.yml must keep .md files out of the Pages build: themed .md pages
+  // pull {% seo %} → jekyll-github-metadata → a GitHub API call at build time,
+  // which fails the WHOLE deploy whenever api.github.com hiccups (observed
+  // 2026-07-16: two deploys died on 503s rendering CLAUDE.md).
+  const CFG = readFileSync(new URL('_config.yml', ROOT), 'utf8');
+  check('pages-build: _config.yml excludes *.md (deploys must not depend on the GitHub API)',
+        CFG.includes('exclude:') && CFG.includes('"*.md"'));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

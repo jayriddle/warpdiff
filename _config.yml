@@ -1,0 +1,23 @@
+# GitHub Pages (Jekyll) build config.
+#
+# Exclude repo docs/tooling from the built site. Without this, Pages renders
+# every .md file through the default theme layout, whose {% seo %} tag calls
+# the GitHub API at build time (jekyll-github-metadata → GET /repos/...).
+# That makes EVERY deploy depend on api.github.com being up: during the
+# 2026-07-16 GitHub incident two consecutive deploys failed with a Liquid
+# exception (503) while rendering CLAUDE.md — the app itself was fine.
+# The app (index.html, js/, version.json) uses no layouts and no API calls;
+# version.json's {{ site.github.build_revision }} comes from the build env,
+# not the API, so the deployed-hash mechanism is unaffected.
+#
+# Side effect (intended): the .md docs are no longer served as themed pages
+# on the live site — they're repo documentation, read on github.com.
+exclude:
+  - "*.md"
+  - docs/
+  - tests/
+  - node_modules/
+  - package.json
+  - package-lock.json
+  - playwright.config.ts
+  - start.sh
