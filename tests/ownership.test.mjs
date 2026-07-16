@@ -442,12 +442,17 @@ function extractFn(name, src = SRC) {
 }
 
 // _driftLockTick — follower convergence policy, run against fake video objects.
-// Stack mode (hidden followers): hard-seek past half a frame. Grid mode:
-// rate-nudge, re-asserted after a J/K overwrite, released on convergence.
+// BOTH modes rate-nudge below _DRIFT_HARD_SEEK (Grid gently at ±2%; Stack's
+// hidden+muted follower strongly at ±10% — a mid-playback seek stalls a playing
+// element for its seek latency, landing it behind by more than half a frame
+// again → a perpetual seek loop, ~26 seeks/s measured, that kept the hidden
+// follower 1–2 frames behind so every asset switch dragged the cluster
+// backward). Hard-seeks (past _DRIFT_HARD_SEEK) lead the target by the
+// measured landing error for the same reason.
 {
   // Pull the shipped threshold consts along with the function so the test
   // tracks their real values.
-  const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE']
+  const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE', '_DRIFT_NUDGE_HIDDEN']
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
   const runTick = (primary, followers, grid) => {
     const ctx = {
@@ -464,7 +469,27 @@ function extractFn(name, src = SRC) {
   {
     const p = vid(1.0), f = vid(1.05); // 50ms ahead, stack mode
     runTick(p, [f], false);
-    check('drift-lock[stack]: hidden follower hard-seeks onto the primary clock', f.currentTime === 1.0);
+    check('drift-lock[stack]: sub-threshold drift NUDGES strongly (no seek — seeks land behind and loop)',
+          f.currentTime === 1.05 && f._driftNudge === -1 &&
+          Math.abs(f.playbackRate - 0.90) < 1e-9);
+  }
+  {
+    const p = vid(1.0), f = vid(1.3); // past _DRIFT_HARD_SEEK, stack mode
+    runTick(p, [f], false);
+    check('drift-lock[stack]: big drift hard-seeks (lead starts at 0)', f.currentTime === 1.0 && f._seekIssued === true);
+    // Simulate the landing: the seek stalled the follower while the primary
+    // advanced 40ms — the follower lands 40ms BEHIND. The next tick must fold
+    // that error into the seek lead (0.8 gain) instead of blindly re-seeking
+    // to land behind again.
+    f.seeking = false; f.currentTime = 1.0; p.currentTime = 1.04;
+    runTick(p, [f], false);
+    check('drift-lock[lead]: landing error folds into the per-element seek lead',
+          Math.abs(f._seekLead - 0.032) < 1e-9 && f._seekIssued === false);
+    // A later hard-seek aims AHEAD of the primary by the learned lead.
+    f.currentTime = 2.0; p.currentTime = 2.3; f._driftNudge = 0;
+    runTick(p, [f], false);
+    check('drift-lock[lead]: subsequent hard-seek leads the primary clock',
+          Math.abs(f.currentTime - (2.3 + 0.032)) < 1e-9);
   }
   {
     const p = vid(1.0), f = vid(1.05); // 50ms ahead, grid mode

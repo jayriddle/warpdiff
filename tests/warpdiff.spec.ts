@@ -1772,6 +1772,59 @@ test.describe('Stack switch repaint (v3.11.3)', () => {
   });
 });
 
+test.describe('Stack drift lock — no seek storm (v3.11.8)', () => {
+  // Stack's hidden follower used to hard-seek at half a frame of drift, but a
+  // seek stalls a playing element for its seek latency — landing it behind by
+  // more than half a frame again → a perpetual seek loop (~26 seeks/s
+  // measured) that pinned the follower 1–2 frames behind. Switching assets
+  // then promoted the laggard to clock master and dragged the whole cluster
+  // (and the timeline) backward. Followers now converge via a strong rate
+  // trim (invisible: display:none AND muted) and hard-seek only past
+  // _DRIFT_HARD_SEEK, with a landing-error lead.
+  test('hidden follower converges without a seek storm; switch never steps backward', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI.isGridMode, {}, { timeout: 5000 });
+
+    const r = await page.evaluate(async () => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const seeks = [0, 0];
+      vids.forEach((v, i) => v.addEventListener('seeking', () => seeks[i]++));
+      (window as any).playAllMedia();
+      await new Promise<void>(res => {
+        const w = () => (!vids[0].paused && vids[0].currentTime > 0.2) ? res() : setTimeout(w, 50);
+        w();
+      });
+      const drifts: number[] = [];
+      const t0 = performance.now();
+      await new Promise<void>(res => {
+        const iv = setInterval(() => {
+          drifts.push(vids[1].currentTime - vids[0].currentTime);
+          if (performance.now() - t0 > 1500) { clearInterval(iv); res(); }
+        }, 100);
+      });
+      return { seeks, meanDrift: drifts.reduce((a, c) => a + c, 0) / drifts.length };
+    });
+    // The storm was ~26 hard-seeks/s on the hidden follower; a couple of
+    // corrections at startup are fine.
+    expect(r.seeks[1]).toBeLessThan(10);
+    expect(Math.abs(r.meanDrift)).toBeLessThan(0.021); // on-clock, not chronically behind
+
+    // Switch mid-play (early enough that no loop wrap lands in the window):
+    // the newly active clip's clock must never be behind the old one by more
+    // than half a frame.
+    const delta = await page.evaluate(async () => {
+      const before = (document.querySelector('.asset-layer.active video') as HTMLVideoElement).currentTime;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      await new Promise(r2 => setTimeout(r2, 100));
+      const after = (document.querySelector('.asset-layer.active video') as HTMLVideoElement).currentTime;
+      return after - before;
+    });
+    expect(delta).toBeGreaterThan(-0.021);
+  });
+});
+
 test.describe('Version hash display (v3.11.6)', () => {
   // version.json is Jekyll-processed on GitHub Pages (build_revision → the
   // deployed SHA). Locally the raw file (front matter intact) must fail

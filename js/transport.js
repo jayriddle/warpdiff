@@ -264,7 +264,10 @@ function _startLoopRvfc(video) {
 // Called from updateLoop (startProgressUpdateLoop) every rAF while playing.
 const _DRIFT_HARD_SEEK = 0.15; // s — beyond this, always seek (missed wrap, stall)
 const _DRIFT_RELEASE = 0.005;  // s — nudge ends once drift is inside this
-const _DRIFT_NUDGE = 0.02;     // ±2% rate trim (imperceptible on muted video)
+const _DRIFT_NUDGE = 0.02;     // ±2% rate trim (imperceptible on VISIBLE muted video)
+const _DRIFT_NUDGE_HIDDEN = 0.10; // ±10% for Stack's display:none follower — invisible
+                                  // AND muted, so a strong trim is undetectable and
+                                  // converges ~5× faster than Grid's gentle one
 
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
@@ -288,15 +291,38 @@ function _driftLockTick(primary) {
         // A correction seek is still in flight — let it land before measuring
         // again, or a stalled follower gets a fresh seek every rAF (seek storm).
         if (v.seeking) continue;
-        // Engage/hard-seek at half a frame of the COARSER of the two grids: a
-        // low-fps follower can only land on its own (coarser) grid, so measuring
-        // it against a high-fps primary's finer grid would re-seek it every tick
+        // A correction seek just landed: fold the landing error into a
+        // per-element lead. Seeking a PLAYING element stalls it for the seek
+        // latency while the primary keeps advancing, so an uncompensated seek
+        // lands BEHIND by that latency — beyond the engage threshold again →
+        // a perpetual seek loop (measured: ~26 seeks/s) that held the hidden
+        // Stack follower chronically 1–2 frames behind. Every asset switch
+        // then promoted the laggard to clock master and dragged the whole
+        // cluster (and the timeline) backward — the "switching jumps back a
+        // frame or two and stalls" bug. With the lead, one or two corrections
+        // land ON the clock and the loop stops.
+        if (v._seekIssued) {
+            v._seekIssued = false;
+            const err = v.currentTime - primary.currentTime; // <0 → landed behind
+            v._seekLead = Math.min(0.25, Math.max(0, (v._seekLead || 0) - err * 0.8));
+        }
+        // Engage at half a frame of the COARSER of the two grids: a low-fps
+        // follower can only land on its own (coarser) grid, so measuring it
+        // against a high-fps primary's finer grid would re-engage every tick
         // (thrash). Per-pair, mirroring the diff gate's fps convention.
         const engage = 0.5 / Math.min(primaryFps, videoFrameRates[v.src] || 30);
         const drift = v.currentTime - primary.currentTime; // >0 → follower ahead
         const mag = Math.abs(drift);
-        if (mag > _DRIFT_HARD_SEEK || (!isGridMode && mag > engage)) {
-            v.currentTime = primary.currentTime;
+        // Sub-_DRIFT_HARD_SEEK drift converges via rate trim in BOTH modes now:
+        // Grid followers are visible → gentle ±2%; Stack's follower is
+        // display:none AND muted → a strong ±10% is undetectable and converges
+        // fast without ever seeking. (Stack used to hard-seek at half a frame,
+        // but a seek stalls a playing element for its seek latency, landing it
+        // behind by more than half a frame again → perpetual seek loop.)
+        const trim = isGridMode ? _DRIFT_NUDGE : _DRIFT_NUDGE_HIDDEN;
+        if (mag > _DRIFT_HARD_SEEK) {
+            v._seekIssued = true;
+            v.currentTime = primary.currentTime + (v._seekLead || 0);
             v._driftNudge = 0;
             if (v.playbackRate !== base) v.playbackRate = base;
         } else if (v._driftNudge) {
@@ -305,12 +331,12 @@ function _driftLockTick(primary) {
                 v._driftNudge = 0;
                 v.playbackRate = base;
             } else {
-                const want = base * (1 + _DRIFT_NUDGE * v._driftNudge);
+                const want = base * (1 + trim * v._driftNudge);
                 if (Math.abs(v.playbackRate - want) > 1e-6) v.playbackRate = want;
             }
         } else if (mag > engage) {
             v._driftNudge = drift > 0 ? -1 : 1;
-            v.playbackRate = base * (1 + _DRIFT_NUDGE * v._driftNudge);
+            v.playbackRate = base * (1 + trim * v._driftNudge);
         } else if (v.playbackRate !== base) {
             // Idle follower tracks the user rate (J/K writes it directly, but
             // this heals any leftover from an interrupted nudge episode).

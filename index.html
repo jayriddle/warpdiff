@@ -2892,7 +2892,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.7';
+        const APP_VERSION = '3.11.8';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11620,6 +11620,7 @@
                 return getAllVideos().map(v => ({
                     t: v.currentTime, rate: v.playbackRate,
                     nudge: v._driftNudge || 0, nativeLoop: v.loop,
+                    seekLead: v._seekLead || 0,
                 }));
             },
             get _diffPair() {
@@ -11974,6 +11975,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.8</h3>
+            <ul>
+                <li><strong>Switching clips during playback no longer jumps backward.</strong> In Stack mode, the hidden clip was being constantly re-seeked to stay in sync — each seek stalled it briefly, leaving it always a frame or two behind, so switching to it dragged everything backward and stuttered. The hidden clip now stays locked via an imperceptible playback-rate trim instead (it's hidden and muted, so nothing is visible or audible), and switching mid-playback is seamless in both directions.</li>
+            </ul>
             <h3>v3.11.7</h3>
             <ul>
                 <li><strong>Fixed choppy playback and doubled audio after interrupted scrubs.</strong> Releasing the mouse outside the window (or switching apps) mid-scrub could silently leave WarpDiff thinking a drag was still in progress — playback sync and decoder management shut off (progressively choppier video) and every clip could end up unmuted at once (two audio tracks playing together). Interrupted drags are now detected and cleaned up automatically.</li>
