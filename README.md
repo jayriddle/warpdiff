@@ -113,7 +113,7 @@ Actively maintained. Releases follow semantic-ish versioning with a "What's New"
 
 ## Bugs & Feature Requests
 
-Found a bug or have an idea? [Open an issue](https://github.com/jayriddle/warpdiff/issues/new/choose) — use the version number shown in the top-left corner of the app when reporting bugs.
+Found a bug or have an idea? [Open an issue](https://github.com/jayriddle/warpdiff/issues/new/choose) — include the version and build hash shown in the top-left corner of the app (e.g. `v3.11.7 · 9873bee`) when reporting bugs; the hash identifies the exact deployed build.
 
 ## License
 

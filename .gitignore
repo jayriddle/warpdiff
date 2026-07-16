@@ -8,3 +8,4 @@ extension.new/
 tests/fixtures/*.mp4
 tests/fixtures/*.wav
 tests/fixtures/*.mp3
+tests/fixtures/*.webm

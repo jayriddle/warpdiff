@@ -42,11 +42,25 @@ ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=s=320x180:d=1:r=24"
     -color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc \
     -movflags +write_colr "$OUT/pq_hdr.mp4"
 
+# VP9 + VORBIS WebM pair — decodable by the open-codec Chromium builds used in
+# sandboxed/CI runs (the H.264 fixtures above need a proprietary-codec Chrome).
+# Vorbis (NOT Opus) deliberately: Opus slots take the Chrome Web Audio
+# replacement path where <video>.muted is always true — the scrub-drag muted-
+# state tests need the PLAIN muted-flag routing that AAC/Vorbis slots use.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
+    -f lavfi -i "sine=frequency=440:duration=3" \
+    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_a.webm"
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
+    -f lavfi -i "sine=frequency=660:duration=3" \
+    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_b.webm"
+
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=3" -ac 2 -c:a pcm_s16le  "$OUT/stereo.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=880:sample_rate=22050:duration=3" -ac 1 -c:a pcm_s16le  "$OUT/mono.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:sample_rate=44100:duration=3" -ac 2 -c:a libmp3lame -b:a 128k "$OUT/track.mp3"
 
-touch -t 202401010000 "$OUT/landscape_a.mp4" "$OUT/stereo.wav"
-touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav"
+touch -t 202401010000 "$OUT/landscape_a.mp4" "$OUT/stereo.wav" "$OUT/vorbis_a.webm"
+touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav" "$OUT/vorbis_b.webm"
 touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
 touch -t 202401040000 "$OUT/pq_hdr.mp4"

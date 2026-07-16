@@ -197,7 +197,10 @@ test.describe('Page Load & Initial State', () => {
 
   test('header shows version and action buttons', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#appVersion')).toContainText('v3.10');
+    // Version-agnostic: assert the format, not a pinned minor (a pinned
+    // substring rotted when v3.10 → v3.11). The deployed build may append
+    // ' · <sha7>' (see version.json), so anchor only the prefix.
+    await expect(page.locator('#appVersion')).toHaveText(/^v\d+\.\d+\.\d+( · [0-9a-f]{7})?$/);
     await expect(page.locator('#loadBtn')).toBeVisible();
     await expect(page.locator('#helpBtn')).toBeVisible();
   });
@@ -1571,6 +1574,237 @@ test.describe('WebCodecs scrub decoder', () => {
       {}, { timeout: 2000 }
     );
     expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayLive())).toBe(false);
+  });
+});
+
+// ===========================================================================
+// 2026-07 regression suites (v3.11.3–3.11.7 fixes). These use the VP9+Vorbis
+// webm fixtures so they run on open-codec Chromium builds too — and Vorbis
+// (not Opus) so the PLAIN <video>.muted routing is exercised rather than the
+// Chrome Opus Web Audio replacement (where .muted is always true).
+// ===========================================================================
+
+/** Muted flag per loaded video, in DOM order. */
+async function mutedStates(page: Page): Promise<boolean[]> {
+  return page.evaluate(() =>
+    Array.from(document.querySelectorAll('.asset-layer video')).map(v => (v as HTMLVideoElement).muted));
+}
+
+async function startPlayback(page: Page) {
+  await page.evaluate(() => (window as any).playAllMedia());
+  await page.waitForFunction(() => {
+    const v = document.querySelector('.asset-layer video') as HTMLVideoElement;
+    return v && !v.paused && v.currentTime > 0.3;
+  }, {}, { timeout: 5000 });
+}
+
+test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
+  // A drag whose mouseup never arrives (released outside the window, Alt-Tab
+  // mid-drag) must not leave isDragging stuck true — that shut off decoder
+  // suspension + the drift lock (choppy playback) and corrupted the muted
+  // snapshot so every video ended up unmuted at once (double audio).
+
+  async function loadAndPlay(page: Page) {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    const baseline = await mutedStates(page);
+    expect(baseline.filter(m => !m)).toHaveLength(1); // exactly one audible
+    await startPlayback(page);
+    return baseline;
+  }
+
+  async function dragOnProgressBar(page: Page, fromPct: number, toPct: number) {
+    const box = (await page.locator('#videoProgressContainer').boundingBox())!;
+    await page.mouse.move(box.x + box.width * fromPct, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * toPct, box.y + box.height / 2, { steps: 5 });
+    return box;
+  }
+
+  test('ghost mousemove (buttons=0) finalizes: mutes restored, playback resumed', async ({ page }) => {
+    const baseline = await loadAndPlay(page);
+    await dragOnProgressBar(page, 0.3, 0.5);
+    expect(await getVar(page, 'isDragging')).toBe(true);
+    expect((await mutedStates(page)).every(m => !m)).toBe(true); // scrub unmutes all
+
+    // The lost mouseup: next event is a mousemove with the button up.
+    await page.evaluate(() => document.dispatchEvent(
+      new MouseEvent('mousemove', { bubbles: true, buttons: 0, clientX: 50, clientY: 50 })));
+    await page.waitForFunction(() => !(window as any).__testAPI.isDragging, {}, { timeout: 2000 });
+    expect(await mutedStates(page)).toEqual(baseline);
+    expect(await page.evaluate(() => {
+      const v = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      return v && !v.paused;
+    })).toBe(true); // wasPlaying → resumed
+    await page.mouse.up(); // real release afterwards must be a no-op
+    await page.waitForTimeout(100);
+    expect(await mutedStates(page)).toEqual(baseline);
+  });
+
+  test('a mousedown mid-stuck-drag finalizes first — snapshot never clobbered', async ({ page }) => {
+    const baseline = await loadAndPlay(page);
+    // Forge a stuck drag exactly as a lost mouseup leaves it.
+    await page.evaluate(() => {
+      const bar = document.getElementById('videoProgressContainer')!;
+      const r = bar.getBoundingClientRect();
+      bar.dispatchEvent(new MouseEvent('mousedown',
+        { bubbles: true, buttons: 1, clientX: r.left + r.width * 0.4, clientY: r.top + 3 }));
+    });
+    expect(await getVar(page, 'isDragging')).toBe(true);
+    // Next real click-drag must finalize the stuck one, then restore cleanly.
+    await dragOnProgressBar(page, 0.6, 0.7);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    expect(await getVar(page, 'isDragging')).toBe(false);
+    expect(await mutedStates(page)).toEqual(baseline); // one audible — no double audio
+  });
+
+  test('window blur mid-drag finalizes the drag', async ({ page }) => {
+    const baseline = await loadAndPlay(page);
+    await dragOnProgressBar(page, 0.2, 0.3);
+    expect(await getVar(page, 'isDragging')).toBe(true);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.waitForFunction(() => !(window as any).__testAPI.isDragging, {}, { timeout: 2000 });
+    expect(await mutedStates(page)).toEqual(baseline);
+    await page.mouse.up();
+  });
+});
+
+test.describe('Pause-time frame snap (v3.11.4)', () => {
+  // Spacebar-pause must land every video on the SAME frame: the drift lock
+  // only holds followers within tolerance during playback, and a few-ms offset
+  // straddling a frame boundary rounds to frame N vs N+1 at pause time.
+
+  async function frameStates(page: Page) {
+    return page.evaluate(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return vids.map(v => {
+        const fps = ((window as any).videoFrameRates?.[v.src]) || 30;
+        return { frame: Math.floor(v.currentTime * fps + 0.01), paused: v.paused };
+      });
+    });
+  }
+
+  test('pause lands all videos on the same frame despite a knocked-off follower', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await startPlayback(page);
+    for (let i = 0; i < 3; i++) {
+      // Knock a follower ~13ms off — small enough that the drift lock may not
+      // re-correct before the pause lands (the boundary-straddle case).
+      await page.evaluate(() => {
+        const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+        if (vids[1] && !isNaN(vids[1].duration)) {
+          vids[1].currentTime = Math.min(vids[1].currentTime + 0.013, vids[1].duration - 0.05);
+        }
+      });
+      await page.waitForTimeout(120);
+      await page.keyboard.press(' ');
+      await page.waitForTimeout(150);
+      const st = await frameStates(page);
+      expect(st.every(s => s.paused)).toBe(true);
+      expect(new Set(st.map(s => s.frame)).size).toBe(1);
+      await page.keyboard.press(' '); // resume for the next round
+      await page.waitForFunction(() => {
+        const v = document.querySelector('.asset-layer video') as HTMLVideoElement;
+        return v && !v.paused;
+      }, {}, { timeout: 3000 });
+    }
+  });
+});
+
+test.describe('Stack switch repaint (v3.11.3)', () => {
+  // Flipping the active clip in Stack mode while paused must force the newly-
+  // shown <video> to re-present its own frame (a same-frame currentTime nudge
+  // fires a seek → repaint) — the display:none→visible unhide otherwise
+  // flashes the stale frame from when the slot was last visible.
+
+  test('switch fires a same-frame repaint seek on the incoming clip', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => (window as any).__testAPI.isGridMode === false, {}, { timeout: 5000 });
+    // Frame-step twice so BOTH clips sit at the identical frame midpoint (the
+    // worst case: a naive repaint would be a no-op and keep the stale frame).
+    await page.keyboard.press('.');
+    await page.keyboard.press('.');
+    await page.waitForTimeout(200);
+
+    const before = await page.evaluate(() => {
+      (window as any).__seekCounts = {};
+      const out: Record<string, number> = {};
+      document.querySelectorAll('.asset-layer video').forEach(el => {
+        const v = el as HTMLVideoElement;
+        (window as any).__seekCounts[v.src] = 0;
+        v.addEventListener('seeked', () => { (window as any).__seekCounts[v.src]++; });
+        out[v.src] = v.currentTime;
+      });
+      const active = document.querySelector('.asset-layer.active video') as HTMLVideoElement;
+      return { times: out, activeSrc: active.src };
+    });
+
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+
+    const after = await page.evaluate(() => {
+      const v = document.querySelector('.asset-layer.active video') as HTMLVideoElement;
+      const fps = ((window as any).videoFrameRates?.[v.src]) || 30;
+      return { src: v.src, ct: v.currentTime, fps, seeks: (window as any).__seekCounts[v.src] };
+    });
+    expect(after.src).not.toBe(before.activeSrc);       // switch happened
+    expect(after.seeks).toBeGreaterThanOrEqual(1);      // repaint seek fired
+    const frameOf = (t: number) => Math.floor(t * after.fps + 0.01);
+    expect(frameOf(after.ct)).toBe(frameOf(before.times[after.src])); // same frame — no jump
+  });
+
+  test('switch during playback is a no-op (clip keeps playing)', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => (window as any).__testAPI.isGridMode === false, {}, { timeout: 5000 });
+    await startPlayback(page);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(150);
+    expect(await page.evaluate(() => {
+      const v = document.querySelector('.asset-layer.active video') as HTMLVideoElement;
+      return v && !v.paused;
+    })).toBe(true);
+  });
+});
+
+test.describe('Version hash display (v3.11.6)', () => {
+  // version.json is Jekyll-processed on GitHub Pages (build_revision → the
+  // deployed SHA). Locally the raw file (front matter intact) must fail
+  // JSON.parse harmlessly; a substituted SHA appends ' · <sha7>'.
+
+  test('local raw file → bare version, no page errors', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto('/');
+    await page.waitForTimeout(600);
+    expect(await page.locator('#appVersion').textContent()).toMatch(/^v\d+\.\d+\.\d+$/);
+    expect(errors).toEqual([]);
+  });
+
+  test('substituted SHA → short hash appended', async ({ page }) => {
+    await page.route('**/version.json', route => route.fulfill({
+      contentType: 'application/json',
+      body: '{ "sha": "0123456789abcdef0123456789abcdef01234567" }',
+    }));
+    await page.goto('/');
+    await page.waitForFunction(
+      () => document.getElementById('appVersion')!.textContent!.includes('·'),
+      {}, { timeout: 3000 });
+    expect(await page.locator('#appVersion').textContent()).toMatch(/^v\d+\.\d+\.\d+ · 0123456$/);
+  });
+
+  test('empty sha (metadata unavailable) → bare version', async ({ page }) => {
+    await page.route('**/version.json', route => route.fulfill({
+      contentType: 'application/json', body: '{ "sha": "" }',
+    }));
+    await page.goto('/');
+    await page.waitForTimeout(600);
+    expect(await page.locator('#appVersion').textContent()).toMatch(/^v\d+\.\d+\.\d+$/);
   });
 });
 
