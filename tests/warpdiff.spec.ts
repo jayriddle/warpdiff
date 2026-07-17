@@ -1825,6 +1825,81 @@ test.describe('Stack drift lock — no seek storm (v3.11.8)', () => {
   });
 });
 
+test.describe('Seamless mid-playback Stack switch (v3.11.9)', () => {
+  // A display:none <video> stops being presented — unhiding it flashes its
+  // stale last-visible frame (backward jump on near-identical clips) and
+  // stalls while decode catches up. The outgoing layer must keep covering
+  // (.switch-out) until the incoming clip presents a current frame.
+  test('switch covers with the outgoing clip until the incoming presents, then swaps', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI.isGridMode, {}, { timeout: 5000 });
+    await startPlayback(page);
+    // Let the drift lock finish absorbing the play() start-latency offset —
+    // switching mid-convergence would measure the transient, not the swap.
+    await page.waitForFunction(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.012;
+    }, {}, { timeout: 5000 });
+
+    const snap = await page.evaluate(() => {
+      const oldLayer = document.querySelector('.asset-layer.active')!;
+      const oldVideo = oldLayer.querySelector('video') as HTMLVideoElement;
+      (window as any).__swapSeeks = 0;
+      document.querySelectorAll('.asset-layer video').forEach(v =>
+        v.addEventListener('seeking', () => { (window as any).__swapSeeks++; }));
+      const before = oldVideo.currentTime;
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      // switchToAsset runs synchronously in the keydown dispatch:
+      const newLayer = document.querySelector('.asset-layer.active')!;
+      return {
+        switched: newLayer !== oldLayer,
+        oldCovering: oldLayer.classList.contains('switch-out'),
+        before,
+      };
+    });
+    expect(snap.switched).toBe(true);
+    expect(snap.oldCovering).toBe(true); // outgoing keeps covering the screen
+
+    // The cover is released once the incoming presents (300ms hard fallback).
+    await page.waitForFunction(
+      () => document.querySelectorAll('.asset-layer.switch-out').length === 0,
+      {}, { timeout: 1000 });
+
+    const after = await page.evaluate(() => {
+      const v = document.querySelector('.asset-layer.active video') as HTMLVideoElement;
+      return { ct: v.currentTime, paused: v.paused, seeks: (window as any).__swapSeeks };
+    });
+    expect(after.paused).toBe(false);          // no stall-inducing pause
+    expect(after.seeks).toBe(0);               // the swap never seeks anyone
+    expect(after.ct).toBeGreaterThan(snap.before - 0.021); // clock never steps back
+  });
+
+  test('rapid back-and-forth switches leave exactly one covering layer, then none', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI.isGridMode, {}, { timeout: 5000 });
+    await startPlayback(page);
+    const midCount = await page.evaluate(async () => {
+      for (let i = 0; i < 4; i++) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        await new Promise(r => setTimeout(r, 40));
+      }
+      return document.querySelectorAll('.asset-layer.switch-out').length;
+    });
+    expect(midCount).toBeLessThanOrEqual(1); // token invalidation: never stacked covers
+    await page.waitForFunction(
+      () => document.querySelectorAll('.asset-layer.switch-out').length === 0,
+      {}, { timeout: 1000 });
+    expect(await page.evaluate(() => {
+      const v = document.querySelector('.asset-layer.active video') as HTMLVideoElement;
+      return !v.paused;
+    })).toBe(true);
+  });
+});
+
 test.describe('Version hash display (v3.11.6)', () => {
   // version.json is Jekyll-processed on GitHub Pages (build_revision → the
   // deployed SHA). Locally the raw file (front matter intact) must fail

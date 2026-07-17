@@ -418,6 +418,27 @@ function extractFn(name, src = SRC) {
         esd.includes('_scrubMutedStates[i]') && esd.includes('_scrubOverlayEnd()'));
 }
 
+// (M) Seamless mid-playback Stack switch (v3.11.9): a display:none <video>
+//     stops being PRESENTED — unhiding it flashes the stale frame from when it
+//     was last visible (backward jump on near-identical clips) and stalls while
+//     decode catches up. The outgoing layer must keep covering (.switch-out)
+//     until the incoming video presents a frame matching its current clock,
+//     with a stale-frame filter on the RVFC and a hard fallback bounding the
+//     two-video compositor overlap (black-A-slot hazard).
+{
+  check(`one-owner[switch-swap]: _beginSeamlessSwitch defined once (got ${countOf(SRC, 'function _beginSeamlessSwitch(')})`,
+        countOf(SRC, 'function _beginSeamlessSwitch(') === 1);
+  check('switch-swap: switchToAsset routes mid-playback Stack switches through the swap',
+        extractFn('switchToAsset').includes('_beginSeamlessSwitch(prevActiveLayer, playable)'));
+  const swp = extractFn('_beginSeamlessSwitch');
+  check('switch-swap: RVFC filters the stale frame Chrome presents on unhide',
+        swp.includes('md.mediaTime - newVideo.currentTime'));
+  check('switch-swap: hard fallback bounds the compositor overlap',
+        swp.includes('setTimeout(done, 300)'));
+  check('switch-swap: CSS keeps the outgoing wrapper visible above the incoming',
+        HTML.includes('.asset-layer.switch-out:not(.active) .video-wrapper'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).
@@ -475,7 +496,7 @@ function extractFn(name, src = SRC) {
   };
   const vid = t => ({ currentTime: t, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'p' });
   {
-    const p = vid(1.0), f = vid(1.05); // 50ms ahead, stack mode
+    const p = vid(1.0), f = vid(1.05); // 50ms ahead, stack mode — below _DRIFT_HARD_SEEK
     runTick(p, [f], false);
     check('drift-lock[stack]: sub-threshold drift NUDGES strongly (no seek — seeks land behind and loop)',
           f.currentTime === 1.05 && f._driftNudge === -1 &&
@@ -485,19 +506,20 @@ function extractFn(name, src = SRC) {
     const p = vid(1.0), f = vid(1.3); // past _DRIFT_HARD_SEEK, stack mode
     runTick(p, [f], false);
     check('drift-lock[stack]: big drift hard-seeks (lead starts at 0)', f.currentTime === 1.0 && f._seekIssued === true);
-    // Simulate the landing: the seek stalled the follower while the primary
-    // advanced 40ms — the follower lands 40ms BEHIND. The next tick must fold
-    // that error into the seek lead (0.8 gain) instead of blindly re-seeking
-    // to land behind again.
-    f.seeking = false; f.currentTime = 1.0; p.currentTime = 1.04;
+    // Landing: the seek stalled the follower while the primary advanced 41ms —
+    // the follower lands 41ms BEHIND. The tick folds that error into the lead
+    // (0.8 gain → 32.8ms) and the residual converges via nudge (41ms is far
+    // below the seek threshold — no blind re-seek loop).
+    f.seeking = false; f.currentTime = 1.0; p.currentTime = 1.041;
     runTick(p, [f], false);
-    check('drift-lock[lead]: landing error folds into the per-element seek lead',
-          Math.abs(f._seekLead - 0.032) < 1e-9 && f._seekIssued === false);
+    check('drift-lock[lead]: landing error folds into the lead; residual nudges, no re-seek',
+          Math.abs(f._seekLead - 0.0328) < 1e-9 && f._seekIssued === false &&
+          f.currentTime === 1.0 && f._driftNudge === 1);
     // A later hard-seek aims AHEAD of the primary by the learned lead.
-    f.currentTime = 2.0; p.currentTime = 2.3; f._driftNudge = 0;
+    f.seeking = false; f.currentTime = 2.0; p.currentTime = 2.35; f._driftNudge = 0;
     runTick(p, [f], false);
     check('drift-lock[lead]: subsequent hard-seek leads the primary clock',
-          Math.abs(f.currentTime - (2.3 + 0.032)) < 1e-9);
+          Math.abs(f.currentTime - (2.35 + 0.0328)) < 1e-9);
   }
   {
     const p = vid(1.0), f = vid(1.05); // 50ms ahead, grid mode
@@ -535,13 +557,20 @@ function extractFn(name, src = SRC) {
   {
     // C2 (2026-07 audit): engage threshold is per-follower at the COARSER grid.
     // 60fps primary + 24fps follower, drift 15ms: > half a 60fps frame (8.3ms)
-    // but < half a 24fps frame (20.8ms). The follower is on its own grid — it
-    // must NOT be corrected (using the primary's fps would thrash-seek it).
+    // but < half a 24fps frame (20.8ms). The follower is on its own grid — in
+    // GRID mode (visible follower, half-frame band) it must NOT be corrected
+    // (using the primary's fps would thrash every tick).
     const p = { currentTime: 1.0, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'hi' };
     const f = { currentTime: 1.015, playbackRate: 1, paused: false, ended: false, readyState: 4, src: 'lo' };
-    runTick(p, [f], false);  // stack mode: coarse follower would hard-seek if mis-thresholded
-    check('drift-lock[C2]: coarse follower within its own half-frame is left alone (no thrash)',
+    runTick(p, [f], true);
+    check('drift-lock[C2]: coarse GRID follower within its own half-frame is left alone (no thrash)',
           f.currentTime === 1.015 && !f._driftNudge);
+    // Stack tightens the band to 8ms (hidden+muted → nudges are free, and the
+    // follower is what the user switches TO): the same 15ms drift now engages a
+    // NUDGE — never a seek (the seek loop is the v3.11.8 bug).
+    runTick(p, [f], false);
+    check('drift-lock[C2]: same drift in STACK engages a nudge (tight 8ms band), not a seek',
+          f.currentTime === 1.015 && f._driftNudge === -1 && f.playbackRate < 1);
   }
 }
 

@@ -727,6 +727,22 @@
             display: none;
         }
 
+        /* Seamless mid-playback switch (double-buffer): the OUTGOING layer keeps
+           .switch-out for the few frames until the incoming <video> presents a
+           fresh frame — a display:none video stops being presented (and Chrome
+           may throttle its decode), so unhiding it briefly shows the stale frame
+           from when it was LAST visible (reads as a backward jump) and stalls
+           while the decoder catches up. Covering with the still-playing old clip
+           until the new one has a current frame eliminates both. The transient
+           two-video overlap in the compositor layer list is bounded by the
+           300 ms fallback in _beginSeamlessSwitch (see the black-A-slot note
+           above for why it must never persist). */
+        body:not(.grid-mode) .asset-layer.switch-out { opacity: 1; }
+        body:not(.grid-mode) .asset-layer.switch-out:not(.active) .video-wrapper {
+            display: block;
+            z-index: 12; /* above the incoming wrapper (11) until the swap */
+        }
+
         /* Grid mode: before positionLabelsToMedia sets precise inline top/left/width/height,
            wrappers default to filling their cell. Without this they would expand to the
            video's intrinsic resolution (e.g. 1920×1080) and overflow into adjacent cells,
@@ -2892,7 +2908,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.8';
+        const APP_VERSION = '3.11.9';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -7521,6 +7537,37 @@
             if (target !== undefined) v.currentTime = target;
         }
 
+        // Double-buffered mid-playback Stack switch. A display:none <video> keeps
+        // its clock running but is no longer PRESENTED — Chrome shows the stale
+        // frame from when it was last visible the instant it's unhidden (a
+        // visible backward jump on near-identical clips) and stalls a beat while
+        // decode catches up. So on switch, the OUTGOING layer keeps covering the
+        // screen (still playing — no freeze) until the incoming <video> presents
+        // a frame that matches its current clock; then they swap atomically.
+        // The RVFC callback filters out the stale frame Chrome may present on
+        // unhide (mediaTime far behind currentTime → re-arm and keep waiting).
+        // A 300 ms fallback bounds the two-video compositor overlap (see the
+        // black-A-slot CSS note). Rapid switches invalidate prior swaps by token.
+        let _switchOutToken = 0;
+        function _beginSeamlessSwitch(oldLayer, newVideo) {
+            const token = ++_switchOutToken;
+            document.querySelectorAll('.asset-layer.switch-out')
+                .forEach(l => l.classList.remove('switch-out'));
+            oldLayer.classList.add('switch-out');
+            const done = () => {
+                if (token !== _switchOutToken) return;
+                oldLayer.classList.remove('switch-out');
+            };
+            const arm = () => newVideo.requestVideoFrameCallback((now, md) => {
+                if (token !== _switchOutToken) return;
+                const fps = videoFrameRates[newVideo.src] || 30;
+                if (Math.abs(md.mediaTime - newVideo.currentTime) > 2.5 / fps) { arm(); return; }
+                done();
+            });
+            arm();
+            setTimeout(done, 300);
+        }
+
         function switchToAsset(index) {
             // Skip empty slots
             const assetKey = assetOrder[index];
@@ -7567,6 +7614,7 @@
             const activeLayer = getLayer(assetKey);
 
             // Hide all layers (only in overlay mode)
+            const prevActiveLayer = !isGridMode ? document.querySelector('.asset-layer.active') : null;
             if (!isGridMode) {
                 document.querySelectorAll('.asset-layer').forEach(layer => {
                     layer.classList.remove('active');
@@ -7580,6 +7628,16 @@
             if (playable) {
                 if (!hasAudios) primaryVideoRef = playable;
                 updateMediaProgress(playable);
+            }
+
+            // Mid-playback Stack switch: keep the outgoing clip covering the
+            // screen until the incoming <video> presents a CURRENT frame — the
+            // unhidden video otherwise flashes the stale frame from when it was
+            // last visible and stalls while decode catches up (see the helper).
+            if (!isGridMode && !hasAudios && playable && !playable.paused &&
+                prevActiveLayer && prevActiveLayer !== activeLayer &&
+                typeof playable.requestVideoFrameCallback === 'function') {
+                _beginSeamlessSwitch(prevActiveLayer, playable);
             }
 
             // Force the newly-shown clip to re-present its current frame (Stack,
@@ -11975,6 +12033,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.11.9</h3>
+            <ul>
+                <li><strong>Truly seamless clip switching.</strong> Switching between clips mid-playback could still flash a moment of older video and hesitate — the just-revealed clip briefly showed the frame from when it was last on screen while its decoder caught up. The outgoing clip now keeps playing on screen until the incoming one has a current frame ready, then they swap — no backward flash, no hesitation, even on nearly identical clips. The hidden clip is also held more tightly to the clock (within ~8&thinsp;ms), so the swap lands sub-frame.</li>
+            </ul>
             <h3>v3.11.8</h3>
             <ul>
                 <li><strong>Switching clips during playback no longer jumps backward.</strong> In Stack mode, the hidden clip was being constantly re-seeked to stay in sync — each seek stalled it briefly, leaving it always a frame or two behind, so switching to it dragged everything backward and stuttered. The hidden clip now stays locked via an imperceptible playback-rate trim instead (it's hidden and muted, so nothing is visible or audible), and switching mid-playback is seamless in both directions.</li>

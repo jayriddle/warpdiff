@@ -262,7 +262,12 @@ function _startLoopRvfc(video) {
 //     _DRIFT_HARD_SEEK. The nudged rate is re-asserted every tick so a J/K
 //     rate change mid-episode can't strand the follower at the base rate.
 // Called from updateLoop (startProgressUpdateLoop) every rAF while playing.
-const _DRIFT_HARD_SEEK = 0.15; // s — beyond this, always seek (missed wrap, stall)
+const _DRIFT_HARD_SEEK = 0.15; // s — beyond this, always seek (missed wrap, stall).
+                               // Deliberately the ONLY seek threshold in BOTH modes:
+                               // a 40ms hidden-seek tier was tried (v3.11.9 dev) and
+                               // measurably WORSENED steady-state sync (14 seeks/3s,
+                               // mean drift −11ms vs 1 seek, +2ms nudge-only) — seek
+                               // latency jitter keeps re-triggering around a low bar.
 const _DRIFT_RELEASE = 0.005;  // s — nudge ends once drift is inside this
 const _DRIFT_NUDGE = 0.02;     // ±2% rate trim (imperceptible on VISIBLE muted video)
 const _DRIFT_NUDGE_HIDDEN = 0.10; // ±10% for Stack's display:none follower — invisible
@@ -310,10 +315,17 @@ function _driftLockTick(primary) {
         // follower can only land on its own (coarser) grid, so measuring it
         // against a high-fps primary's finer grid would re-engage every tick
         // (thrash). Per-pair, mirroring the diff gate's fps convention.
-        const engage = 0.5 / Math.min(primaryFps, videoFrameRates[v.src] || 30);
+        // Stack tightens the band to 8 ms: its follower is hidden AND muted, so
+        // a nudge costs nothing perceptible — and the follower is what the user
+        // switches TO, so any tolerated drift becomes a visible content offset
+        // at the swap on near-identical clips. (Grid keeps the half-frame band:
+        // its followers are on screen and correcting sub-half-frame drift there
+        // buys nothing visible.)
+        const halfFrame = 0.5 / Math.min(primaryFps, videoFrameRates[v.src] || 30);
+        const engage = isGridMode ? halfFrame : Math.min(halfFrame, 0.008);
         const drift = v.currentTime - primary.currentTime; // >0 → follower ahead
         const mag = Math.abs(drift);
-        // Sub-_DRIFT_HARD_SEEK drift converges via rate trim in BOTH modes now:
+        // Sub-_DRIFT_HARD_SEEK drift converges via rate trim in BOTH modes:
         // Grid followers are visible → gentle ±2%; Stack's follower is
         // display:none AND muted → a strong ±10% is undetectable and converges
         // fast without ever seeking. (Stack used to hard-seek at half a frame,
