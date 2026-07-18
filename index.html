@@ -8008,6 +8008,12 @@
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
                 // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
                 // Muted state is restored on mouseup; no audio plays because videos are paused.
+                // NOTE: this overloads .muted as a "keep decoding" lever, which is why it can
+                // collide with real mute logic (see the isDragging guard in _applyMuteState).
+                // The quirk was observed on Chrome-on-macOS; it did NOT reproduce in headless
+                // Linux Chromium (paused+muted seeks decoded fine). TODO: re-verify muted+paused
+                // decode-on-seek on macOS Chrome — if the quirk is gone, this unmute / snapshot /
+                // restore dance can be deleted and the .muted overload retired.
                 if (_scrubAllVideos) {
                     // Never clobber a live snapshot (only possible if a stuck
                     // drag escaped every recovery path — the snapshot then still
@@ -8088,6 +8094,12 @@
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
                 // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
                 // Muted state is restored on mouseup; no audio plays because videos are paused.
+                // NOTE: this overloads .muted as a "keep decoding" lever, which is why it can
+                // collide with real mute logic (see the isDragging guard in _applyMuteState).
+                // The quirk was observed on Chrome-on-macOS; it did NOT reproduce in headless
+                // Linux Chromium (paused+muted seeks decoded fine). TODO: re-verify muted+paused
+                // decode-on-seek on macOS Chrome — if the quirk is gone, this unmute / snapshot /
+                // restore dance can be deleted and the .muted overload retired.
                 if (_scrubAllVideos) {
                     // Never clobber a live snapshot (only possible if a stuck
                     // drag escaped every recovery path — the snapshot then still
