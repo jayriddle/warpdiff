@@ -85,6 +85,8 @@ function playAllMedia() {
     _startOpusSyncForPlayingSlots(v => v.currentTime);
     startProgressUpdateLoop();
     _updatePlayPauseBtn(true);
+    // First-play muted nudge (index.html) — once per session, if muted + audible.
+    if (typeof _maybeMutedNudge === 'function') _maybeMutedNudge();
     setTimeout(() => { _bulkSyncActive = false; }, 50);
 }
 

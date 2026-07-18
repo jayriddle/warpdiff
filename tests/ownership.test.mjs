@@ -439,6 +439,57 @@ function extractFn(name, src = SRC) {
         HTML.includes('.asset-layer.switch-out:not(.active) .video-wrapper'));
 }
 
+// (N) Persistent global mute (v3.12.0): the global mute is sticky across file
+//     loads AND sessions (localStorage via _prefs). toggleMute is the SOLE writer
+//     of isMuted (besides the persisted init) and the SOLE persister; clearAllMedia
+//     must NOT reset isMuted (the old reset is exactly the "audio resets on every
+//     upload" complaint). _applyMuteState is the sole applier. The button reflects
+//     mute in FORM (amber chip + "Muted" label) by swapping ONLY #muteBtnIcon —
+//     writing muteBtn.innerHTML would destroy the .vi-label/.vi-icon structure.
+//     The first-play nudge fires once per session and lives at the document top
+//     level so its z-index clears the transport bar (#videoControls).
+{
+  check(`one-owner[mute]: isMuted has exactly 2 writers — persisted init + toggle (got ${countOf(SRC, 'isMuted = ')})`,
+        countOf(SRC, 'isMuted = ') === 2);
+  check('one-owner[mute]: isMuted initializes from the persisted preference',
+        SRC.includes("let isMuted = _prefs.load('muted', false);"));
+  check(`one-owner[mute]: toggleMute persists the preference exactly once (got ${countOf(SRC, "_prefs.save('muted'")})`,
+        countOf(SRC, "_prefs.save('muted'") === 1);
+  const tgl = extractFn('toggleMute');
+  check('one-owner[mute]: toggleMute persists then applies (no inline media writes)',
+        tgl.includes("_prefs.save('muted', isMuted)") && tgl.includes('_applyMuteState()'));
+  check('one-owner[mute]: clearAllMedia does NOT reset isMuted (global mute is sticky)',
+        !extractFn('clearAllMedia').includes('isMuted ='));
+  check(`one-owner[mute]: _applyMuteState defined once (got ${countOf(SRC, 'function _applyMuteState(')})`,
+        countOf(SRC, 'function _applyMuteState(') === 1);
+  // The button structure survives icon swaps: only #muteBtnIcon's innerHTML is
+  // written, never muteBtn's (which would blow away the "Muted" label span).
+  check('one-owner[mute]: the icon swap targets #muteBtnIcon, never muteBtn.innerHTML',
+        countOf(SRC, 'muteBtn.innerHTML') === 0 &&
+        extractFn('_updateMuteButtonUI').includes("getElementById('muteBtnIcon')"));
+  check('mute-ui: the muted button carries the amber chip + "Muted" label CSS',
+        HTML.includes('.volume-icon.muted .vi-label { display: inline; }') &&
+        HTML.includes('<span class="vi-label">Muted</span>'));
+  // First-play nudge: once per session, only with audible media, and Enable
+  // routes through the real toggle so it persists.
+  check(`one-owner[mute]: _maybeMutedNudge defined once (got ${countOf(SRC, 'function _maybeMutedNudge(')})`,
+        countOf(SRC, 'function _maybeMutedNudge(') === 1);
+  const nudge = extractFn('_maybeMutedNudge');
+  check('mute-nudge: fires once per session, only while muted, only with audible media',
+        nudge.includes('if (_mutedNudgeShown || !isMuted) return;') &&
+        nudge.includes('if (!(hasVideos || hasAudios)) return;') &&
+        nudge.includes('_mutedNudgeShown = true;'));
+  check('mute-nudge: Enable unmutes through the real toggle (persists + updates UI)',
+        extractFn('_enableAudioFromNudge').includes('if (isMuted) toggleMute();'));
+  check('mute-nudge: playAllMedia surfaces the nudge on first play',
+        extractFn('playAllMedia').includes('_maybeMutedNudge()'));
+  // The nudge must sit at the document top level (after #videoControls in source
+  // order) so its z-index clears the transport bar — nested in the media stage it
+  // sat in a lower stacking context and the Enable button was unclickable.
+  check('mute-nudge: #muteNudge lives at top level, after the transport bar (stacking-context fix)',
+        HTML.indexOf('id="muteNudge"') > HTML.indexOf('id="videoControls"'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. FUNCTIONAL UNIT TESTS (pure helpers, via extractFn) — proves the mechanism;
 //    the MP4 demuxer test lands with its extraction (step 2).

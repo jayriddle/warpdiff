@@ -717,6 +717,95 @@ test.describe('Mute Toggle', () => {
   });
 });
 
+// Persistent global mute (cross-session, global-only): users who review muted
+// want it to stay muted across file loads and sessions. Vorbis webm fixtures so
+// the plain <video>.muted routing is exercised (see the muted-state note below).
+test.describe('Persistent Mute + First-play Nudge', () => {
+  const allMuted = (page: Page) => page.evaluate(() =>
+    [...document.querySelectorAll('.asset-layer video')].every(v => (v as HTMLVideoElement).muted));
+  const btnMuted = (page: Page) => page.evaluate(() =>
+    document.getElementById('muteBtn')!.classList.contains('muted'));
+  const labelShown = (page: Page) => page.evaluate(() =>
+    getComputedStyle(document.querySelector('#muteBtn .vi-label')!).display !== 'none');
+  const nudgeVisible = (page: Page) => page.evaluate(() =>
+    document.getElementById('muteNudge')!.classList.contains('visible'));
+
+  test('default is unmuted; the "Muted" label is hidden', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    expect(await btnMuted(page)).toBe(false);
+    expect(await labelShown(page)).toBe(false);
+    expect(await allMuted(page)).toBe(false);
+  });
+
+  test('mute shows the amber chip + "Muted" label and persists the preference', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.click('#muteBtn');
+    expect(await btnMuted(page)).toBe(true);
+    expect(await labelShown(page)).toBe(true);
+    expect(await allMuted(page)).toBe(true);
+    expect(await page.evaluate(() => localStorage.getItem('pref_muted'))).toBe('true');
+  });
+
+  test('mute survives loading a fresh comparison', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.click('#muteBtn');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']); // new load must NOT reset mute
+    expect(await btnMuted(page)).toBe(true);
+    expect(await labelShown(page)).toBe(true);
+    expect(await allMuted(page)).toBe(true);
+  });
+
+  test('mute survives a page reload (cross-session)', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.click('#muteBtn');
+    await page.reload();                     // same context → localStorage kept
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    expect(await btnMuted(page)).toBe(true);
+    expect(await allMuted(page)).toBe(true);
+  });
+
+  test('first play while muted surfaces the nudge, once per session', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.click('#muteBtn');
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForTimeout(150);
+    expect(await nudgeVisible(page)).toBe(true);
+    // Second play in the same session must NOT re-show it.
+    await page.evaluate(() => document.getElementById('muteNudge')!.classList.remove('visible'));
+    await page.evaluate(() => { const v = document.querySelector('.asset-layer video') as HTMLVideoElement; v?.pause(); });
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForTimeout(150);
+    expect(await nudgeVisible(page)).toBe(false);
+  });
+
+  test('Enable in the nudge unmutes, persists, and dismisses', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.click('#muteBtn');
+    // Force the nudge visible (its showing logic is covered above) and exercise Enable.
+    // The nudge lives at the document top level so it clears the transport bar.
+    await page.evaluate(() => document.getElementById('muteNudge')!.classList.add('visible'));
+    await page.click('#muteNudge .mn-act');
+    expect(await btnMuted(page)).toBe(false);
+    expect(await allMuted(page)).toBe(false);
+    expect(await page.evaluate(() => localStorage.getItem('pref_muted'))).toBe('false');
+    expect(await nudgeVisible(page)).toBe(false);
+  });
+
+  test('unmuted playback never nudges', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForTimeout(150);
+    expect(await nudgeVisible(page)).toBe(false);
+  });
+});
+
 test.describe('File Rejection', () => {
   test('non-media file is rejected with toast', async ({ page }) => {
     await page.goto('/');

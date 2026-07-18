@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.11.9
+**Current version:** 3.12.0
 
 ---
 
@@ -35,6 +35,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)
 - Per-source audio switching (GT/A/B) with individual mute
+- Master mute (`M`) that persists across loads and sessions — reviewing muted stays muted, with an amber **Muted** label and a first-play reminder
 - `I`/`O` loop in/out points, Shift+drag on timeline
 
 **Audio file comparison**

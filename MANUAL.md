@@ -131,7 +131,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **Progress bar** | Click to seek; drag to scrub |
 | **Timecode** (left) | Current position — displays SS:FF or M:SS:FF based on detected frame rate |
 | **Duration** (right of bar) | Total length |
-| **Speaker icon** | Mute/unmute the active audio source |
+| **Speaker icon** | Mute/unmute the active audio source. When muted it shows an amber **Muted** label, and the muted state is remembered across new file loads and future sessions |
 | **Volume slider** | Adjust volume |
 | **GT / A / B buttons** | Select which asset's audio to hear |
 
@@ -148,9 +148,11 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **I** | Set loop in-point at current time (shared across all clips) |
 | **O** | Set loop out-point at current time (shared across all clips) |
 | **Shift+L** | Loop range: Sync (shortest) ↔ Full (longest) |
-| **M** | Mute / Unmute |
+| **M** | Mute / Unmute (persists across loads and sessions) |
 
 **Audio source selector:** Only one audio track plays at a time. Click GT, A, or B to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
+
+**Persistent mute:** The master mute (the speaker icon / **M**) is sticky — once you mute, WarpDiff stays muted when you load a new comparison and the next time you open it. The muted button shows an amber **Muted** label so the state is always clear, and the first time you press play while muted a brief reminder offers a one-click **Enable**. (The per-source GT/A/B mutes still reset with each new comparison.)
 
 **Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Loop points are **shared across all clips** — one region applies to every clip and stays put when you switch the active clip. Clear by setting new points or reloading.
 

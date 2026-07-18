@@ -939,6 +939,55 @@
             opacity: 1;
         }
 
+        /* First-play muted nudge — the actionable safety net (real toast styling
+           + an Enable action). Shown once per session at first play while muted,
+           only when there's audio-bearing media to miss. */
+        .mute-nudge {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(8px);
+            background: rgba(46, 46, 54, 0.97);
+            color: #d8d8e0;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 999px;
+            padding: 8px 10px 8px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            white-space: nowrap;
+            box-shadow: 0 2px 16px rgba(0,0,0,0.55);
+            z-index: 3100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .mute-nudge.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+        .mute-nudge .mn-icon { width: 16px; height: 16px; color: #f0a63c; display: inline-flex; flex: 0 0 auto; }
+        .mute-nudge .mn-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+        .mute-nudge .mn-act {
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .02em;
+            color: #f0a63c;
+            background: rgba(240, 166, 60, 0.14);
+            border: 1px solid rgba(240, 166, 60, 0.5);
+            border-radius: 999px;
+            padding: 4px 12px;
+            cursor: pointer;
+        }
+        .mute-nudge .mn-act:hover { color: #ffc172; }
+        .mute-nudge .mn-act:focus-visible { outline: 2px solid #f0a63c; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) { .mute-nudge { transition: opacity 0.01s; } }
+
         /* Asset info bar styling */
         .asset-info-bar {
             display: none; /* Hidden by default in overlay; shown in split modes and active overlay layer */
@@ -2111,8 +2160,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 26px;
+            gap: 6px;
             height: 26px;
+            box-sizing: border-box;
+            border-radius: 7px;
+            transition: background .12s ease, box-shadow .12s ease, padding .12s ease;
+        }
+        .volume-icon .vi-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
         }
         .volume-icon svg {
             width: 24px;
@@ -2124,11 +2183,30 @@
             stroke-linejoin: round;
             color: rgb(160, 160, 160);
         }
-
         .volume-icon:hover svg {
             stroke: #fff;
             color: #fff;
         }
+        /* Persistent "Muted" label (2026-07): mute now survives across sessions,
+           so the state must be legible at a glance — an amber chip + word, using
+           the app's existing attention-amber. Hidden (and zero-footprint) when
+           audio is on, so the unmuted control is unchanged. */
+        .volume-icon .vi-label {
+            display: none;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: #f0a63c;
+        }
+        .volume-icon.muted {
+            background: rgba(240, 166, 60, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(240, 166, 60, 0.5);
+            padding: 0 8px 0 4px;
+        }
+        .volume-icon.muted .vi-label { display: inline; }
+        .volume-icon.muted .vi-icon svg { stroke: #f0a63c; color: #f0a63c; }
+        .volume-icon.muted:hover .vi-icon svg { stroke: #ffc172; color: #ffc172; }
 
         .identical-warning {
             position: absolute;
@@ -2877,7 +2955,7 @@
                     <div class="video-progress-bar" id="videoProgressBar"></div>
                 </div>
                 <div class="volume-control">
-                    <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span>
+                    <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><span class="vi-icon" id="muteBtnIcon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span class="vi-label">Muted</span></span>
                     <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
                 </div>
                 <div class="audio-source-selector" id="audioSourceSelector">
@@ -2908,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.11.9';
+        const APP_VERSION = '3.12.0';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -3990,7 +4068,10 @@
         let hasVideos = false;
         let hasAudios = false;
         let hasImages = false;
-        let isMuted = false;
+        // Global mute persists across loads AND browser sessions (users who review
+        // muted want it to stay muted). Global-only — per-slot mutes stay session
+        // state. clearAllMedia deliberately no longer resets this.
+        let isMuted = _prefs.load('muted', false);
         const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
         let playbackRateIndex = 3; // default 1×
         let _loopInPoint = null;   // in-point time (seconds) for sub-region looping
@@ -9103,15 +9184,15 @@
             });
             currentAudioSource = 'original';
 
-            // Reset global mute toggle, playback speed, loop markers, and button label
-            isMuted = false;
+            // Global mute PERSISTS across loads (users who review muted want it to
+            // stay muted); only per-slot mutes (above) reset. Playback speed, loop
+            // markers, and button label still reset to fresh-comparison defaults.
             playbackRateIndex = 3;
             _loopRangeMode = 'sync';        // fresh comparison defaults to frame-locked
             _durMismatchNotified = false;
             clearLoopMarkers(true);
             _updateLoopRangeBtn();
-            const muteBtn = document.getElementById('muteBtn');
-            if (muteBtn) muteBtn.innerHTML = _SVG_VOL_ON;
+            _updateMuteButtonUI();   // re-render the (persisted) mute state; must not clobber the vi-icon/vi-label structure
 
             // Reset progress bar and timecode display
             getProgressEls();
@@ -10881,6 +10962,9 @@
 
                 function startFadeIn() {
                     hideLoading();
+                    // Apply the persisted global mute to the freshly loaded media
+                    // (and refresh the button) — a muted user stays muted on load.
+                    _applyMuteState();
                     // Surface the loop-range control + warn if clips differ in length
                     // (durations are available by now — metadata precedes fade-in).
                     _notifyDurationMismatch();
@@ -11016,18 +11100,58 @@
 
         function toggleMute() {
             isMuted = !isMuted;
-            const btn = document.getElementById('muteBtn');
+            _prefs.save('muted', isMuted);   // sticky across loads AND sessions
+            _applyMuteState();
+        }
 
+        // Sole applier of the global mute: routes the muted flag onto every media
+        // element (unmuting restores per-source routing) and refreshes the button.
+        // Called on toggle, on load-complete (startFadeIn), and at startup so a
+        // persisted mute takes effect on freshly loaded media.
+        function _applyMuteState() {
             if (isMuted) {
-                // Mute all videos/audios
                 getAllPlayableMedia().forEach(m => { m.muted = true; });
             } else {
-                // Unmute: re-apply audio source routing so only the active source plays
-                selectAudioSource(currentAudioSource);
+                selectAudioSource(currentAudioSource);   // restore per-source routing
             }
-
-            btn.innerHTML = isMuted ? _SVG_VOL_MUTED : _SVG_VOL_ON;
+            _updateMuteButtonUI();
             _updateOpusSyncGains();
+        }
+
+        // The mute button reflects state in FORM, not just an icon swap: muted gets
+        // an amber chip + "Muted" label (see .volume-icon.muted CSS). Icon lives in
+        // #muteBtnIcon so the sibling label survives the swap.
+        function _updateMuteButtonUI() {
+            const btn = document.getElementById('muteBtn');
+            if (!btn) return;
+            btn.classList.toggle('muted', isMuted);
+            const icon = document.getElementById('muteBtnIcon');
+            if (icon) icon.innerHTML = isMuted ? _SVG_VOL_MUTED : _SVG_VOL_ON;
+            btn.title = isMuted ? 'Audio muted — click to enable' : 'Click to mute/unmute';
+        }
+        _updateMuteButtonUI();   // reflect the persisted state on first paint
+
+        // First-play muted nudge: the actionable safety net. Fires ONCE per session
+        // (page load), the first time playback starts while muted, and only when
+        // there's audio-bearing media to miss (image pairs are skipped). Timed to
+        // the moment of confusion — pressing play, expecting sound.
+        let _mutedNudgeShown = false;
+        let _muteNudgeTimer = null;
+        function _maybeMutedNudge() {
+            if (_mutedNudgeShown || !isMuted) return;
+            if (!(hasVideos || hasAudios)) return;   // nothing audible → nothing to warn about
+            _mutedNudgeShown = true;
+            const el = document.getElementById('muteNudge');
+            if (!el) return;
+            el.classList.add('visible');
+            clearTimeout(_muteNudgeTimer);
+            _muteNudgeTimer = setTimeout(() => el.classList.remove('visible'), 5000);
+        }
+        function _enableAudioFromNudge() {
+            clearTimeout(_muteNudgeTimer);
+            const el = document.getElementById('muteNudge');
+            if (el) el.classList.remove('visible');
+            if (isMuted) toggleMute();   // unmute through the real path (persists + updates UI)
         }
 
         // ── Slot color customisation ──────────────────────────────────────────
@@ -12027,12 +12151,25 @@
       </feComponentTransfer>
     </filter></svg>
 
+    <!-- First-play muted nudge (2026-07): actionable, once per session. Lives at the
+         document top level so its z-index clears the transport bar (#videoControls) —
+         nested inside the media stage, its stacking context sat below the controls. -->
+    <div class="mute-nudge" id="muteNudge" role="status" aria-live="polite">
+        <span class="mn-icon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><line x1="18" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="18" y2="15"/></svg></span>
+        <span class="mn-msg">Audio is muted</span>
+        <button type="button" class="mn-act" onclick="_enableAudioFromNudge()">Enable</button>
+    </div>
+
     <div class="changelog-popup" id="changelogPopup">
         <div class="quick-start-header">
             <h2>What's New <span class="version-badge" id="changelogVersion"></span></h2>
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.0</h3>
+            <ul>
+                <li><strong>Mute now sticks.</strong> If you review with audio muted, WarpDiff remembers it — the mute state now persists across new file loads and across sessions, so you no longer have to re-mute every time you drop in a new comparison. When you press the mute button it also shows an amber <em>Muted</em> label so the state is unmistakable at a glance, and the first time you hit play while muted a brief reminder offers a one-click <em>Enable</em> in case you didn't mean to.</li>
+            </ul>
             <h3>v3.11.9</h3>
             <ul>
                 <li><strong>Truly seamless clip switching.</strong> Switching between clips mid-playback could still flash a moment of older video and hesitate — the just-revealed clip briefly showed the frame from when it was last on screen while its decoder caught up. The outgoing clip now keeps playing on screen until the incoming one has a current frame ready, then they swap — no backward flash, no hesitation, even on nearly identical clips. The hidden clip is also held more tightly to the clock (within ~8&thinsp;ms), so the swap lands sub-frame.</li>
