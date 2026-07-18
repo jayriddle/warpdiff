@@ -55,12 +55,20 @@ ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
     -f lavfi -i "sine=frequency=660:duration=3" \
     -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_b.webm"
+# 4-second VP9+Vorbis clip. Pairs with vorbis_a (3 s) for the sync-lock tests that
+# need clips of DIFFERENT lengths (loop bounds = [0, shortest]; the longer clip
+# must wrap early WITH the shorter one, not at its own end) — the open-codec
+# analogue of the landscape_a/landscape_b 3 s/4 s pair.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "testsrc2=size=320x180:rate=24:duration=4" \
+    -f lavfi -i "sine=frequency=550:duration=4" \
+    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_long.webm"
 
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=3" -ac 2 -c:a pcm_s16le  "$OUT/stereo.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=880:sample_rate=22050:duration=3" -ac 1 -c:a pcm_s16le  "$OUT/mono.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:sample_rate=44100:duration=3" -ac 2 -c:a libmp3lame -b:a 128k "$OUT/track.mp3"
 
 touch -t 202401010000 "$OUT/landscape_a.mp4" "$OUT/stereo.wav" "$OUT/vorbis_a.webm"
-touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav" "$OUT/vorbis_b.webm"
+touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav" "$OUT/vorbis_b.webm" "$OUT/vorbis_long.webm"
 touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
 touch -t 202401040000 "$OUT/pq_hdr.mp4"

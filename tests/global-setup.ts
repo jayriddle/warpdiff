@@ -8,6 +8,9 @@ const fixturesDir = path.join(__dirname, 'fixtures');
 const sentinels = [
   path.join(fixturesDir, 'landscape_a.mp4'),
   path.join(fixturesDir, 'vorbis_a.webm'),
+  // vorbis_long.webm (4 s) was added later for the open-codec sync-lock tests;
+  // a checkout with the earlier webms but not this one must still regenerate.
+  path.join(fixturesDir, 'vorbis_long.webm'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

@@ -998,14 +998,14 @@ async function seekVideos(page: Page, time: number) {
 test.describe('Loop in/out points', () => {
   test('start clean: both points are null', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     expect(await getVar(page, '_loopInPoint')).toBeNull();
     expect(await getVar(page, '_loopOutPoint')).toBeNull();
   });
 
   test('I sets in-point at currentTime, O sets out-point at currentTime', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await seekVideos(page, 0.5);
     await page.keyboard.press('i');
     expect(await getVar(page, '_loopInPoint')).toBeCloseTo(0.5, 1);
@@ -1017,7 +1017,7 @@ test.describe('Loop in/out points', () => {
 
   test('out-before-in then in-after-out auto-swaps to keep in < out', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     // Press O first at 1.0s (out-point captured at 1.0)
     await seekVideos(page, 1.0);
     await page.keyboard.press('o');
@@ -1035,7 +1035,7 @@ test.describe('Loop in/out points', () => {
 
   test('loop region marker is rendered when both points are set', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await seekVideos(page, 0.5);
     await page.keyboard.press('i');
     await seekVideos(page, 2.0);
@@ -1049,7 +1049,7 @@ test.describe('Loop in/out points', () => {
 
   test('double-Escape clears both loop points', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await seekVideos(page, 0.5);
     await page.keyboard.press('i');
     await seekVideos(page, 2.0);
@@ -1065,10 +1065,13 @@ test.describe('Loop in/out points', () => {
 
 // ===========================================================================
 // Multi-video sync-lock (v3.10.31) — synchronized looping + drift lock.
-// landscape_a.mp4 is 3 s and landscape_b.mp4 is 4 s (both 24 fps), so the
-// sync loop region must resolve to [0, ~3] and playback must wrap BOTH
-// videos together at the shortest duration instead of each native-looping
-// on its own clock.
+// Uses the VP9+Vorbis webm fixtures so this runs on open-codec Chromium (the
+// H.264 landscape fixtures need a proprietary-codec Chrome). vorbis_a.webm is
+// 3 s and vorbis_long.webm is 4 s (both 24 fps) — the shortest/longest pair the
+// bounds + wrap tests need; vorbis_b.webm (3 s) is used where equal lengths are
+// fine. The sync loop region must resolve to [0, ~3] and playback must wrap BOTH
+// videos together at the shortest duration instead of each native-looping on its
+// own clock.
 // ===========================================================================
 
 test.describe('Multi-video sync-lock', () => {
@@ -1080,13 +1083,13 @@ test.describe('Multi-video sync-lock', () => {
 
   test('2 videos → sync loop bounds [0, shortest] and native loop disabled', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
     // Bounds resolve once both videos' metadata is in (policy runs at loadedmetadata)
     await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
       {}, { timeout: 5000 });
     const bounds = await getVar(page, '_loopBounds');
     expect(bounds.inP).toBe(0);
-    expect(bounds.outP).toBeCloseTo(3, 0); // shortest clip (landscape_a, 3 s)
+    expect(bounds.outP).toBeCloseTo(3, 0); // shortest clip (vorbis_a, 3 s)
     const vids = await getVar(page, '_driftLock');
     expect(vids.length).toBe(2);
     for (const v of vids) expect(v.nativeLoop).toBe(false);
@@ -1094,7 +1097,7 @@ test.describe('Multi-video sync-lock', () => {
 
   test('single video keeps plain native looping (no managed region)', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4']);
+    await loadMedia(page, ['vorbis_a.webm']);
     expect(await getVar(page, '_loopBounds')).toBeNull();
     const vids = await getVar(page, '_driftLock');
     expect(vids.length).toBe(1);
@@ -1103,7 +1106,7 @@ test.describe('Multi-video sync-lock', () => {
 
   test('videos wrap together at the shortest duration and come out in sync', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
     await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
       {}, { timeout: 5000 });
     await seekVideos(page, 2.5); // just before the 3 s wrap point
@@ -1124,7 +1127,7 @@ test.describe('Multi-video sync-lock', () => {
 
   test('drift lock re-syncs a follower knocked off the primary clock', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await page.evaluate(() => (window as any).playAllMedia());
     await page.waitForFunction(() => {
       const v = document.querySelector('.asset-layer video') as HTMLVideoElement | null;
@@ -1145,7 +1148,7 @@ test.describe('Multi-video sync-lock', () => {
 
   test('custom loop points are enforced in Grid mode', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     // Default view after loading 2 videos is Grid — set a 0.5→1.5 loop region
     expect(await getVar(page, 'isGridMode')).toBe(true);
     await seekVideos(page, 0.5);
@@ -1370,7 +1373,7 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
 
   test('spectrogram canvas actually renders pixels for a video with audio', async ({ page }) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await page.keyboard.press('w');
     await expect(page.locator('#spectrogramPanel')).toBeVisible();
     // Wait for decode + render to actually paint the spectrogram.
