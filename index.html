@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.0';
+        const APP_VERSION = '3.12.1';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11109,6 +11109,17 @@
         // Called on toggle, on load-complete (startFadeIn), and at startup so a
         // persisted mute takes effect on freshly loaded media.
         function _applyMuteState() {
+            // A scrub drag OWNS the live .muted flags (it unmutes every video so
+            // Chrome keeps decoding frames) and restores them from its own snapshot
+            // on release. Writing muted flags here mid-drag — e.g. the load-complete
+            // startFadeIn landing while the user already scrubs — fights that unmute
+            // and re-mutes the non-active slots. Defer the media writes to the
+            // scrub's snapshot restore; just refresh the button/gain now.
+            if (typeof isDragging !== 'undefined' && isDragging) {
+                _updateMuteButtonUI();
+                _updateOpusSyncGains();
+                return;
+            }
             if (isMuted) {
                 getAllPlayableMedia().forEach(m => { m.muted = true; });
             } else {
@@ -12166,6 +12177,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.1</h3>
+            <ul>
+                <li><strong>Fixed a muted-audio glitch when scrubbing right after loading.</strong> If you began dragging the scrubber the instant a new comparison finished loading, the non-active clips could briefly re-mute mid-scrub (a side effect of the new persistent-mute applying itself on load). Scrubbing now keeps full ownership of audio while you drag.</li>
+            </ul>
             <h3>v3.12.0</h3>
             <ul>
                 <li><strong>Mute now sticks.</strong> If you review with audio muted, WarpDiff remembers it — the mute state now persists across new file loads and across sessions, so you no longer have to re-mute every time you drop in a new comparison. When you press the mute button it also shows an amber <em>Muted</em> label so the state is unmistakable at a glance, and the first time you hit play while muted a brief reminder offers a one-click <em>Enable</em> in case you didn't mean to.</li>

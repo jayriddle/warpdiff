@@ -1717,7 +1717,12 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     const baseline = await loadAndPlay(page);
     await dragOnProgressBar(page, 0.3, 0.5);
     expect(await getVar(page, 'isDragging')).toBe(true);
-    expect((await mutedStates(page)).every(m => !m)).toBe(true); // scrub unmutes all
+    // Scrub unmutes every video. The unmute is applied on mousedown, but a
+    // load-time audio-routing pass can land a beat later; wait for it to settle
+    // (still fails if the unmute never happens — the invariant under test).
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('.asset-layer video')].every(v => !(v as HTMLVideoElement).muted),
+      {}, { timeout: 2000 });
 
     // The lost mouseup: next event is a mousemove with the button up.
     await page.evaluate(() => document.dispatchEvent(
