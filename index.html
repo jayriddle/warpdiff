@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.5';
+        const APP_VERSION = '3.12.6';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12160,6 +12160,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.6</h3>
+            <ul>
+                <li><strong>Backward scrubbing is smoother.</strong> Dragging the playhead <em>backward</em> hitched in a way forward dragging didn't. Video decoders can only run forward, so every backward position the decoder has already passed means starting over from the previous keyframe — free if those frames are still cached, expensive if they aren't. The cache was a flat size that held about 27 frames while a typical clip's keyframes are ~48 frames apart, so backward dragging kept falling off the end of it and re-decoding. The cache is now sized to the file's actual keyframe spacing, which cut the re-decoding roughly in half and the visible hitches with it. Clips with frequent keyframes use no more memory than before; only the sparse ones (the files that scrub worst) spend more. Forward scrubbing is unchanged — it was never affected.</li>
+            </ul>
             <h3>v3.12.5</h3>
             <ul>
                 <li><strong>Two clips now actually start in sync — the real fix for the Grid pause stutter.</strong> v3.12.3 and v3.12.4 both went after the pause itself, but the pause was only the symptom. Measuring on real footage showed the two clips come up <em>1–2 frames apart every time you press play</em> — a decoder start race — and the gentle speed correction that closes that gap needed about a second and a half. Pause sooner than that (most people do) and the clips really were a frame apart, so the align step correctly seeked one of them, and <em>that</em> seek was the hop you saw. The correction is now proportional to how far apart the clips are: a full-frame gap gets closed in about a third of a second instead of a second and a half, so playback is in sync almost immediately and pauses land clean. Small everyday drift is corrected as gently as before.</li>
