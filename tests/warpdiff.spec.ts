@@ -1765,10 +1765,11 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
   });
 });
 
-test.describe('Pause-time frame snap (v3.11.4)', () => {
-  // Spacebar-pause must land every video on the SAME frame: the drift lock
-  // only holds followers within tolerance during playback, and a few-ms offset
-  // straddling a frame boundary rounds to frame N vs N+1 at pause time.
+test.describe('Pause-time frame snap (v3.11.4, revised v3.12.4)', () => {
+  // Spacebar-pause corrects a follower only when it's MORE than half a frame off
+  // the reference (an unconverged pause). A follower within the drift lock's own
+  // tolerance is left where it froze — seeking it there makes the just-paused,
+  // on-screen clip visibly hop a frame while the reference stays solid.
 
   async function frameStates(page: Page) {
     return page.evaluate(() => {
@@ -1780,31 +1781,58 @@ test.describe('Pause-time frame snap (v3.11.4)', () => {
     });
   }
 
-  test('pause lands all videos on the same frame despite a knocked-off follower', async ({ page }) => {
+  test('pause snaps a follower MORE than half a frame off onto the reference frame', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await startPlayback(page);
-    for (let i = 0; i < 3; i++) {
-      // Knock a follower ~13ms off — small enough that the drift lock may not
-      // re-correct before the pause lands (the boundary-straddle case).
-      await page.evaluate(() => {
-        const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
-        if (vids[1] && !isNaN(vids[1].duration)) {
-          vids[1].currentTime = Math.min(vids[1].currentTime + 0.013, vids[1].duration - 0.05);
-        }
-      });
-      await page.waitForTimeout(120);
-      await page.keyboard.press(' ');
-      await page.waitForTimeout(150);
-      const st = await frameStates(page);
-      expect(st.every(s => s.paused)).toBe(true);
-      expect(new Set(st.map(s => s.frame)).size).toBe(1);
-      await page.keyboard.press(' '); // resume for the next round
-      await page.waitForFunction(() => {
-        const v = document.querySelector('.asset-layer video') as HTMLVideoElement;
-        return v && !v.paused;
-      }, {}, { timeout: 3000 });
-    }
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForTimeout(120);
+    // Reference on frame 20, follower a full frame ahead (>> half a frame — the
+    // unconverged case the snap still corrects). Pause must pull it onto frame 20.
+    await page.evaluate(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const fps = ((window as any).videoFrameRates?.[vids[0].src]) || 24;
+      vids[0].currentTime = (20 + 0.5) / fps;
+      vids[1].currentTime = (21 + 0.5) / fps;
+    });
+    await page.waitForTimeout(80);
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForTimeout(80);
+    const st = await frameStates(page);
+    expect(st.every(s => s.paused)).toBe(true);
+    expect(new Set(st.map(s => s.frame)).size).toBe(1);
+  });
+
+  // Core fix (v3.12.4): a follower within the drift lock's half-frame tolerance is
+  // LEFT where it froze — even if it sits on an adjacent frame number. The old snap
+  // seeked it onto the reference's frame, and that seek made the just-paused on-screen
+  // follower visibly hop a frame to catch up while the reference stayed solid (the
+  // asymmetric "B stutters on almost every Grid pause" report).
+  test('a follower within half a frame is left where it froze (no catch-up hop)', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await startPlayback(page);
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForTimeout(120);
+    // A genuine STRADDLE: reference near the top of frame 20, follower just into
+    // frame 21 — different frame NUMBERS, but only 0.2 of a frame apart in clock
+    // (< half a frame). v3.12.3 (frame-number compare) would seek the follower onto
+    // frame 20 → a hop; v3.12.4 (tolerance) leaves it. Distinguishes the two.
+    const before = await page.evaluate(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const fps = ((window as any).videoFrameRates?.[vids[0].src]) || 24;
+      vids[0].currentTime = (20 + 0.9) / fps;       // reference: frame 20 (near top)
+      vids[1].currentTime = (21 + 0.1) / fps;       // follower: frame 21, +0.2 frame in clock
+      return { ct: vids.map(v => v.currentTime), fps };
+    });
+    await page.waitForTimeout(80);
+    await page.evaluate(() => (window as any).pauseAllMedia());  // triggers _snapAllVideosToFrame
+    await page.waitForTimeout(80);
+    const after = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).map(v => (v as HTMLVideoElement).currentTime));
+    // Neither clip was seeked — the follower keeps its own frame (21), no catch-up hop.
+    for (let i = 0; i < after.length; i++) expect(after[i]).toBeCloseTo(before.ct[i], 5);
+    expect(Math.floor(after[1] * before.fps + 0.01)).toBe(21);   // still on its own frame
   });
 
   // Regression (v3.12.3): when the clips are ALREADY on the same frame, pause must

@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.3';
+        const APP_VERSION = '3.12.4';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12156,6 +12156,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.4</h3>
+            <ul>
+                <li><strong>Grid pause no longer makes the other clip stutter.</strong> Following up on v3.12.3: when you paused, the selected clip held still but the other one would visibly hop a frame or two to catch up (and the roles swapped if you selected the other clip). The pause-align step was seeking the non-selected clip onto the selected clip's exact frame. It now leaves a clip that's already within the normal sync tolerance right where it froze — both clips stop cleanly, no hop.</li>
+            </ul>
             <h3>v3.12.3</h3>
             <ul>
                 <li><strong>Fixed the frame jump when pausing two videos in Grid.</strong> Tapping Space to pause could make one or both clips jump ahead and then hop back a frame or two. The pause-time frame-align step was re-seeking every clip on every pause — even when they were already on the same frame — and that needless seek is what flashed the picture. It now only nudges a clip that's genuinely on the wrong frame, so pausing lands cleanly.</li>

@@ -131,17 +131,20 @@ function _snapAllVideosToFrame() {
     for (const v of videos) {
         if (isNaN(v.duration)) continue;
         const fps = videoFrameRates[v.src] || 30;
+        // Leave a follower that's within the drift lock's own tolerance (half a
+        // frame) exactly where it froze. It may sit on an ADJACENT frame number to
+        // the reference — a sub-half-frame clock difference straddling a boundary —
+        // but seeking it onto the reference's frame makes the just-paused, on-screen
+        // follower visibly HOP a frame to catch up while the reference (never
+        // seeked) stays solid: the asymmetric "B stutters on almost every Grid
+        // pause" report. The clips are already as aligned as they were all through
+        // playback — the lock never held them tighter than this — so a seek buys a
+        // frame of precision at the cost of a visible jump, which reads as a bug.
+        // Only snap a follower that's genuinely MORE than half a frame off: an
+        // unconverged state (paused right after play/seek/loop-wrap, before the lock
+        // caught up), where a visible correction is expected anyway.
+        if (Math.abs(v.currentTime - refTime) <= 0.5 / fps) continue;
         const frame = Math.floor(refTime * fps + 0.01);
-        // Only correct clips that are on a DIFFERENT frame than the reference.
-        // currentTime is virtually never exactly at a frame midpoint, so the old
-        // `|currentTime - midpoint| > 1e-4` guard re-seeked EVERY video on EVERY
-        // pause — and a seek on a just-paused clip forces a re-present that
-        // visibly jumps the picture (the frame lands ±1 off the shown one as the
-        // decoder catches up). The drift lock already holds followers within half
-        // a frame, so most pauses land everyone on the same frame and need no seek
-        // at all. Compare frame NUMBERS: snap only a genuine straddler (ref on N,
-        // this clip rounded to N±1), which is the case this guard exists for.
-        if (Math.floor(v.currentTime * fps + 0.01) === frame) continue;
         v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
     }
 }

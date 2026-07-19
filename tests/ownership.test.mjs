@@ -364,13 +364,16 @@ function extractFn(name, src = SRC) {
         rep.includes('Math.abs(t - v.currentTime) > 1e-4'));
 }
 
-// (K) Pause-time frame snap (2026-07): the drift lock holds synced videos
-//     within tolerance (half a frame in Stack, ~5ms converged in Grid) during
-//     playback, but that's not "the same frame" — a clip a few ms off can
-//     straddle a frame boundary and round to N vs N+1 at the exact instant
-//     pause() lands. pauseAllMedia is the SOLE owner of the post-pause snap;
-//     it quantizes every video to ITS OWN frame grid at the reference clip's
-//     paused time (not the reference's frame NUMBER — clips can differ in fps).
+// (K) Pause-time frame snap (2026-07): pauseAllMedia is the SOLE owner of the
+//     post-pause snap; it quantizes a video to ITS OWN frame grid at the
+//     reference clip's paused time (not the reference's frame NUMBER — clips can
+//     differ in fps). It only touches a follower that's MORE than half a frame
+//     off the reference (an unconverged pause). A follower already within the
+//     drift lock's tolerance is LEFT where it froze: seeking it would make the
+//     just-paused, on-screen clip visibly hop a frame to catch up while the
+//     reference (never seeked) stays solid — the asymmetric Grid-pause stutter
+//     (v3.12.4). The earlier `|currentTime - midpoint| > 1e-4` guard re-seeked
+//     every clip on every pause (v3.12.3 fixed the reference; v3.12.4 the follower).
 {
   check(`one-owner[pause-snap]: _snapAllVideosToFrame defined once (got ${countOf(SRC, 'function _snapAllVideosToFrame(')})`,
         countOf(SRC, 'function _snapAllVideosToFrame(') === 1);
@@ -384,6 +387,8 @@ function extractFn(name, src = SRC) {
         /\{\s*if \(hasAudios\) return;/.test(snap));
   check('pause-snap: quantizes each follower to its OWN fps, not the reference frame number',
         snap.includes('videoFrameRates[v.src]') && snap.includes('refTime'));
+  check('pause-snap: leaves within-half-a-frame followers untouched (no catch-up hop)',
+        snap.includes('Math.abs(v.currentTime - refTime) <= 0.5 / fps'));
   check('pause-snap: stands down during a drag (scrub-start pause must not fire competing seeks)',
         snap.includes('if (isDragging) return;'));
 }
