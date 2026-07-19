@@ -388,16 +388,15 @@ function extractFn(name, src = SRC) {
         snap.includes('if (isDragging) return;'));
 }
 
-// (L) Lost-mouseup recovery (2026-07 "choppy + double audio after continued
-//     use" report): a drag whose mouseup never arrives (release outside the
-//     window, Alt-Tab mid-drag, OS notification) left isDragging stuck true —
-//     playAllMedia stopped suspending scrub decoders (chunky playback), the
-//     drift lock stood down permanently, and the muted-state snapshot was
-//     never restored; the NEXT mousedown then saved the all-unmuted state as
-//     the snapshot, so every later scrub restored every video unmuted (double
-//     audio). endScrubDrag is the SOLE drag finalizer, reachable from mouseup
-//     AND three recovery paths: mousemove with no button held, window blur,
-//     and a mousedown arriving mid-"drag".
+// (L) Lost-mouseup recovery (2026-07 "choppy after continued use" report): a drag
+//     whose mouseup never arrives (release outside the window, Alt-Tab mid-drag, OS
+//     notification) left isDragging stuck true — playAllMedia stopped suspending
+//     scrub decoders (chunky playback) and the drift lock stood down permanently.
+//     endScrubDrag is the SOLE drag finalizer, reachable from mouseup AND three
+//     recovery paths: mousemove with no button held, window blur, and a mousedown
+//     arriving mid-"drag". (Scrub no longer touches .muted as of v3.12.2, so the
+//     old muted-snapshot / double-audio failure mode is gone — see the scrub-start
+//     note in index.html.)
 {
   check(`one-owner[drag-end]: endScrubDrag defined once (got ${countOf(SRC, 'function endScrubDrag(')})`,
         countOf(SRC, 'function endScrubDrag(') === 1);
@@ -410,12 +409,14 @@ function extractFn(name, src = SRC) {
   check('recovery[drag-end]: both mousedown paths finalize a stuck drag first (got ' +
         countOf(SRC, 'if (isDragging) endScrubDrag(null);') + ', want 2)',
         countOf(SRC, 'if (isDragging) endScrubDrag(null);') === 2);
-  check('recovery[drag-end]: muted snapshot is never clobbered while one is live (got ' +
-        countOf(SRC, 'if (!_scrubMutedStates) _scrubMutedStates =') + ', want 2)',
-        countOf(SRC, 'if (!_scrubMutedStates) _scrubMutedStates =') === 2);
+  // Scrub must NOT touch .muted anymore (the decode-warm hack was retired). Freeze
+  // that so the .muted overload — and the mute/scrub collision it caused — can't
+  // silently return.
+  check('recovery[drag-end]: scrub no longer snapshots/writes .muted (overload retired)',
+        !SRC.includes('_scrubMutedStates') && !/_scrubAllVideos\.forEach\(v => \{ v\.muted = false/.test(SRC));
   const esd = extractFn('endScrubDrag');
-  check('recovery[drag-end]: finalizer restores the muted snapshot and tears down overlays',
-        esd.includes('_scrubMutedStates[i]') && esd.includes('_scrubOverlayEnd()'));
+  check('recovery[drag-end]: finalizer tears down the scrub overlays',
+        esd.includes('_scrubOverlayEnd()'));
 }
 
 // (M) Seamless mid-playback Stack switch (v3.11.9): a display:none <video>

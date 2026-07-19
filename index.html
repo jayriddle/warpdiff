@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.1';
+        const APP_VERSION = '3.12.2';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -7761,7 +7761,6 @@
             let _scrubVideo = null;
             let _scrubAllVideos = null;
             let _scrubContainerRect = null;
-            let _scrubMutedStates = null; // saved muted flags, restored on mouseup
             let _activeLastSeekTime = 0;   // last time the active video was seeked (drag throttle)
             let _inactiveLastSeekTime = 0; // last time inactive videos were seeked (grid throttle)
             let _scrubDragMoved = false;   // has the pointer moved past the click threshold since mousedown?
@@ -8006,21 +8005,12 @@
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
                 // Loop is restored by playAllMedia() when playback resumes.
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
-                // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
-                // Muted state is restored on mouseup; no audio plays because videos are paused.
-                // NOTE: this overloads .muted as a "keep decoding" lever, which is why it can
-                // collide with real mute logic (see the isDragging guard in _applyMuteState).
-                // The quirk was observed on Chrome-on-macOS; it did NOT reproduce in headless
-                // Linux Chromium (paused+muted seeks decoded fine). TODO: re-verify muted+paused
-                // decode-on-seek on macOS Chrome — if the quirk is gone, this unmute / snapshot /
-                // restore dance can be deleted and the .muted overload retired.
-                if (_scrubAllVideos) {
-                    // Never clobber a live snapshot (only possible if a stuck
-                    // drag escaped every recovery path — the snapshot then still
-                    // holds the TRUE pre-scrub muted states, not all-unmuted).
-                    if (!_scrubMutedStates) _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
-                    _scrubAllVideos.forEach(v => { v.muted = false; });
-                }
+                // NOTE: scrub deliberately does NOT touch .muted. We used to unmute every
+                // <video> here as a Chrome decode-warm hack (muted+paused seeks historically
+                // skipped frame decode, freezing the scrub preview). Verified fixed on modern
+                // Chrome — macOS (H.264) + Linux (VP9), 2026-07 — so scrub leaves the mute
+                // routing alone. If a scrub-preview freeze ever resurfaces on some browser, the
+                // old unmute/snapshot/restore lives in git history (retired in v3.12.2).
 
                 if (e.shiftKey) {
                     _regionSelectStart = canvasXToTime(e, canvas);
@@ -8092,21 +8082,12 @@
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
                 // Loop is restored by playAllMedia() when playback resumes.
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
-                // Unmute videos during scrub — Chrome skips frame decode for muted+paused video.
-                // Muted state is restored on mouseup; no audio plays because videos are paused.
-                // NOTE: this overloads .muted as a "keep decoding" lever, which is why it can
-                // collide with real mute logic (see the isDragging guard in _applyMuteState).
-                // The quirk was observed on Chrome-on-macOS; it did NOT reproduce in headless
-                // Linux Chromium (paused+muted seeks decoded fine). TODO: re-verify muted+paused
-                // decode-on-seek on macOS Chrome — if the quirk is gone, this unmute / snapshot /
-                // restore dance can be deleted and the .muted overload retired.
-                if (_scrubAllVideos) {
-                    // Never clobber a live snapshot (only possible if a stuck
-                    // drag escaped every recovery path — the snapshot then still
-                    // holds the TRUE pre-scrub muted states, not all-unmuted).
-                    if (!_scrubMutedStates) _scrubMutedStates = _scrubAllVideos.map(v => v.muted);
-                    _scrubAllVideos.forEach(v => { v.muted = false; });
-                }
+                // NOTE: scrub deliberately does NOT touch .muted. We used to unmute every
+                // <video> here as a Chrome decode-warm hack (muted+paused seeks historically
+                // skipped frame decode, freezing the scrub preview). Verified fixed on modern
+                // Chrome — macOS (H.264) + Linux (VP9), 2026-07 — so scrub leaves the mute
+                // routing alone. If a scrub-preview freeze ever resurfaces on some browser, the
+                // old unmute/snapshot/restore lives in git history (retired in v3.12.2).
 
                 if (e.shiftKey) {
                     _regionSelectStart = progressBarXToTime(e);
@@ -8256,17 +8237,14 @@
                     // Don't resume playback if scrubbed to the very end — play() would wrap to 0
                     const _scrubAtEnd = _scrubVideo && _scrubVideo.duration - _scrubVideo.currentTime < 0.05;
 
-                    // Restore per-video muted states saved at mousedown
-                    if (_scrubAllVideos && _scrubMutedStates) {
-                        _scrubAllVideos.forEach((v, i) => { v.muted = _scrubMutedStates[i]; });
-                    }
+                    // (No muted-state restore — scrub no longer touches .muted; see the
+                    // scrub-start note. The mute routing was never disturbed during the drag.)
                     // Tear down the WebCodecs scrub overlays (each waits for its
                     // slot's final <video> seek to paint before removing)
                     _scrubOverlayEnd();
                     _scrubVideo = null;
                     _scrubAllVideos = null;
                     _scrubContainerRect = null;
-                    _scrubMutedStates = null;
                     _scrubCachedHeaderH = null;
                     _scrubCachedControlsH = null;
                     _scrubSeekPending = false;
@@ -11121,17 +11099,6 @@
         // Called on toggle, on load-complete (startFadeIn), and at startup so a
         // persisted mute takes effect on freshly loaded media.
         function _applyMuteState() {
-            // A scrub drag OWNS the live .muted flags (it unmutes every video so
-            // Chrome keeps decoding frames) and restores them from its own snapshot
-            // on release. Writing muted flags here mid-drag — e.g. the load-complete
-            // startFadeIn landing while the user already scrubs — fights that unmute
-            // and re-mutes the non-active slots. Defer the media writes to the
-            // scrub's snapshot restore; just refresh the button/gain now.
-            if (typeof isDragging !== 'undefined' && isDragging) {
-                _updateMuteButtonUI();
-                _updateOpusSyncGains();
-                return;
-            }
             if (isMuted) {
                 getAllPlayableMedia().forEach(m => { m.muted = true; });
             } else {
@@ -12189,6 +12156,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.2</h3>
+            <ul>
+                <li><strong>Internal cleanup — scrubbing no longer juggles the mute state.</strong> WarpDiff used to briefly unmute every clip while you scrubbed (an old workaround for a Chrome bug that skipped frame decoding on muted, paused video). That bug is long fixed, and the workaround was the source of the v3.12.1 mute glitch, so it's been removed entirely. No change you'll see or hear — scrubbing and audio behave exactly as before, with one less thing to go wrong.</li>
+            </ul>
             <h3>v3.12.1</h3>
             <ul>
                 <li><strong>Fixed a muted-audio glitch when scrubbing right after loading.</strong> If you began dragging the scrubber the instant a new comparison finished loading, the non-active clips could briefly re-mute mid-scrub (a side effect of the new persistent-mute applying itself on load). Scrubbing now keeps full ownership of audio while you drag.</li>

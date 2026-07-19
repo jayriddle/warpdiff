@@ -1693,8 +1693,9 @@ async function startPlayback(page: Page) {
 test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
   // A drag whose mouseup never arrives (released outside the window, Alt-Tab
   // mid-drag) must not leave isDragging stuck true — that shut off decoder
-  // suspension + the drift lock (choppy playback) and corrupted the muted
-  // snapshot so every video ended up unmuted at once (double audio).
+  // suspension + the drift lock (choppy playback). (Scrub no longer touches
+  // .muted as of v3.12.2, so these tests now also assert the mute routing is
+  // simply left undisturbed across a drag + recovery.)
 
   async function loadAndPlay(page: Page) {
     await page.goto('/');
@@ -1713,16 +1714,13 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     return box;
   }
 
-  test('ghost mousemove (buttons=0) finalizes: mutes restored, playback resumed', async ({ page }) => {
+  test('ghost mousemove (buttons=0) finalizes: mute routing intact, playback resumed', async ({ page }) => {
     const baseline = await loadAndPlay(page);
     await dragOnProgressBar(page, 0.3, 0.5);
     expect(await getVar(page, 'isDragging')).toBe(true);
-    // Scrub unmutes every video. The unmute is applied on mousedown, but a
-    // load-time audio-routing pass can land a beat later; wait for it to settle
-    // (still fails if the unmute never happens — the invariant under test).
-    await page.waitForFunction(
-      () => [...document.querySelectorAll('.asset-layer video')].every(v => !(v as HTMLVideoElement).muted),
-      {}, { timeout: 2000 });
+    // Scrub no longer touches .muted (the decode-warm unmute was retired), so the
+    // routing stays at baseline throughout the drag — not the old all-unmuted state.
+    expect(await mutedStates(page)).toEqual(baseline);
 
     // The lost mouseup: next event is a mousemove with the button up.
     await page.evaluate(() => document.dispatchEvent(
@@ -1738,7 +1736,7 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     expect(await mutedStates(page)).toEqual(baseline);
   });
 
-  test('a mousedown mid-stuck-drag finalizes first — snapshot never clobbered', async ({ page }) => {
+  test('a mousedown mid-stuck-drag finalizes first — mute routing intact', async ({ page }) => {
     const baseline = await loadAndPlay(page);
     // Forge a stuck drag exactly as a lost mouseup leaves it.
     await page.evaluate(() => {
@@ -1753,7 +1751,7 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     await page.mouse.up();
     await page.waitForTimeout(300);
     expect(await getVar(page, 'isDragging')).toBe(false);
-    expect(await mutedStates(page)).toEqual(baseline); // one audible — no double audio
+    expect(await mutedStates(page)).toEqual(baseline); // one audible — routing undisturbed
   });
 
   test('window blur mid-drag finalizes the drag', async ({ page }) => {
