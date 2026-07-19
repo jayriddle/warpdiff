@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.8';
+        const APP_VERSION = '3.12.9';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12172,6 +12172,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.9</h3>
+            <ul>
+                <li><strong>Safari: the unselected clip plays smoothly again on resume.</strong> To keep two clips locked together, WarpDiff nudges the non-selected one's speed by a fraction of a percent at a time. Chrome does that invisibly; Safari does not — it renders the nudged clip unevenly, which is why the unselected video juddered when you hit play while the selected one looked fine. Nudging is now skipped on Safari wherever the clip is actually on screen, so it plays smoothly; the two are still snapped onto the same frame the moment you pause, which is when frame accuracy matters. Chrome is unchanged.</li>
+            </ul>
             <h3>v3.12.8</h3>
             <ul>
                 <li><strong>Clicking a video selects it again when clips have different orientations.</strong> With a portrait clip beside a landscape one, the pictures were being nudged sideways to centre them as a group — but the invisible box that receives your click stayed put, so the picture drifted over its neighbour's box. Clicking a video selected the <em>other</em> one, and you had to click the empty space beside it instead. The whole cell now moves with its picture, so what you click is what you get. Most visible in Safari, where the sideways shift was largest.</li>

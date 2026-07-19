@@ -315,6 +315,36 @@ const _DRIFT_NUDGE_HIDDEN = 0.10; // ±10% for Stack's display:none follower —
 // is a worse-looking seek. Cap stays under the ±10% Stack has always shipped.
 const _DRIFT_NUDGE_MAX = 0.12;      // ceiling for Grid's proportional trim
 const _DRIFT_CONVERGE_TAU = 0.4;    // s — Grid convergence time constant (exponential)
+// Does this engine render a rate-trimmed <video> smoothly? Chrome does; WebKit
+// does NOT. Measured in real Safari (safaridriver, tests/investigate-safari.mjs
+// section 3), 4 s of resumed playback per arm, 3 runs: the VISIBLE follower under
+// a trim presented frames irregularly every single time (12/102, 12/102, 7/8
+// wrong frame-steps plus wall-clock hitches), while the untrimmed primary was
+// flawless in all six arms and the same follower with trims stubbed out was
+// flawless too (0/94 in every run). The jerk does NOT scale with magnitude —
+// capping the trim at 2% or 5% was just as bad as 12% — so it can't be tuned
+// away, only avoided. That is the reported "when I resume, the unselected clip
+// doesn't play smoothly".
+// On such an engine a slightly-offset-but-SMOOTH visible follower beats a
+// frame-accurate juddering one: the offset is a per-play-session startup race
+// that stays roughly constant rather than growing, it's hard to see while both
+// clips are moving, and _snapAllVideosToFrame aligns the pair exactly on pause —
+// which is when frame accuracy actually matters. Gross desync still hard-seeks
+// via _DRIFT_HARD_SEEK, and Stack's follower is display:none so its trim is
+// invisible and stays enabled.
+// Detected by capability, not UA string — fastSeek is WebKit-only, the same
+// gate _scrubUseDecoder uses to pick the scrub path.
+// Measured trade (Safari, Grid follower, per 4 s resume): trims gave peak drift
+// 53–145 ms with >½ frame on ~85% of ticks AND 6 hitches + 12/102 bad
+// frame-steps; no trim gives ~85 ms drift with 0 hitches / 0 bad steps. The
+// trims were buying almost no sync here while costing all the smoothness.
+// Both land on the SAME FRAME at pause (verified 3×), which is what review
+// accuracy depends on. A cooldown-limited corrective SEEK instead of a trim was
+// also measured — drift ~36 ms, but ~1 hitch per 92 frames — and rejected: it
+// reintroduces judder to buy sub-frame alignment during motion, and seeking a
+// playing element is the mechanism the _seekLead comments warn about.
+const _RATE_TRIM_IS_SMOOTH = typeof HTMLMediaElement === 'undefined' ||
+    !HTMLMediaElement.prototype.fastSeek;
 
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
@@ -376,21 +406,27 @@ function _driftLockTick(primary) {
         const trim = isGridMode
             ? Math.min(_DRIFT_NUDGE_MAX, Math.max(_DRIFT_NUDGE, mag / _DRIFT_CONVERGE_TAU))
             : _DRIFT_NUDGE_HIDDEN;
+        // Engines that judder under a rate trim only get it where it can't be
+        // seen (Stack's display:none follower). A VISIBLE follower is left alone
+        // and re-aligned by the pause snap — see _RATE_TRIM_IS_SMOOTH.
+        const mayTrim = _RATE_TRIM_IS_SMOOTH || !isGridMode;
         if (mag > _DRIFT_HARD_SEEK) {
             v._seekIssued = true;
             v.currentTime = primary.currentTime + (v._seekLead || 0);
             v._driftNudge = 0;
             if (v.playbackRate !== base) v.playbackRate = base;
         } else if (v._driftNudge) {
-            // Release on convergence OR overshoot past the target (sign flip).
-            if (mag < _DRIFT_RELEASE || Math.sign(drift) === v._driftNudge) {
+            // Release on convergence OR overshoot past the target (sign flip) —
+            // and unconditionally where trims aren't usable, so an episode that
+            // began before a mode switch can't strand the follower off-rate.
+            if (!mayTrim || mag < _DRIFT_RELEASE || Math.sign(drift) === v._driftNudge) {
                 v._driftNudge = 0;
                 v.playbackRate = base;
             } else {
                 const want = base * (1 + trim * v._driftNudge);
                 if (Math.abs(v.playbackRate - want) > 1e-6) v.playbackRate = want;
             }
-        } else if (mag > engage) {
+        } else if (mayTrim && mag > engage) {
             v._driftNudge = drift > 0 ? -1 : 1;
             v.playbackRate = base * (1 + trim * v._driftNudge);
         } else if (v.playbackRate !== base) {

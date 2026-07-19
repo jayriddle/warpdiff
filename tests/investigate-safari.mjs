@@ -260,9 +260,21 @@ try {
       return { dropped: (now.droppedVideoFrames || 0) - (was.droppedVideoFrames || 0),
                total: (now.totalVideoFrames || 0) - (was.totalVideoFrames || 0) };
     });
+    const beforePause = (v[1].currentTime - v[0].currentTime) * 1000;
     window.pauseAllMedia();
-    return { samples: window.__samples, quality: q, fps: window.__testAPI ? window.__testAPI._videoFps : null };
+    return { samples: window.__samples, quality: q, fps: window.__testAPI ? window.__testAPI._videoFps : null,
+             beforePause: +beforePause.toFixed(2) };
   })()`);
+  await sleep(500);
+  const settled = await exec(`return (() => {
+    const v = [...document.querySelectorAll('.asset-layer video')];
+    const fr = window.__testAPI._videoFps;
+    return { drift: +((v[1].currentTime - v[0].currentTime) * 1000).toFixed(2),
+             frames: v.map((x, i) => Math.floor(x.currentTime * fr[i] + 0.01)),
+             paused: v.map(x => x.paused) };
+  })()`);
+  console.log(`  PAUSE SNAP: drift ${run.beforePause}ms before pause → ${settled.drift}ms after` +
+              `   frames [${settled.frames.join(', ')}]${settled.frames[0] === settled.frames[1] ? '  SAME FRAME' : '  ← DIFFERENT FRAMES'}`);
 
   const S2 = run.samples || [];
   const drift = S2.map(s => Math.abs(s.d));
@@ -284,6 +296,74 @@ try {
     .filter(Boolean).join('  '));
   console.log(`  rate curve:  ` + marks.map(m => { const s = at(m); return s ? `@${m}=${s.rA}/${s.rB}` : null; })
     .filter(Boolean).join('  '));
+  // ── 3. resume smoothness ───────────────────────────────────────────────────
+  // The follower is the ONLY element the drift lock trims, and it sits at the
+  // trim cap for seconds after a resume. If Safari renders playbackRate != 1
+  // unevenly, that alone would make the unselected clip play jerkily while the
+  // selected one is fine. A/B it: same resume, drift lock on vs stubbed out.
+  console.log(`\n===== 3. RESUME SMOOTHNESS (frame cadence per clip) =====`);
+  async function cadence(label, disableLock) {
+    const r = await exec(`return (() => new Promise(resolve => {
+      const vids = [...document.querySelectorAll('.asset-layer video')];
+      // Restore first so each arm starts from the shipping lock, then stub if asked.
+      if (window.__savedLock) { window._driftLockTick = window.__savedLock; window.__savedLock = null; }
+      if (${disableLock}) { window.__savedLock = window._driftLockTick; window._driftLockTick = function () {}; }
+      try { window.pauseAllMedia(); } catch (e) {}
+      // Clear any trim left over from a previous arm so the rate seen is this
+      // arm's doing, and start both clips from the same instant.
+      vids.forEach(v => { v.playbackRate = 1; v.currentTime = 1.0; });
+      setTimeout(() => {
+        const rec = vids.map(() => ({ wall: [], media: [], rate: [], _lastMt: null }));
+        vids.forEach((v, i) => {
+          let last = null;
+          const on = (now, md) => {
+            if (last !== null) {
+              rec[i].wall.push(+(now - last).toFixed(2));
+              rec[i].media.push(+((md.mediaTime - rec[i]._lastMt) * 1000).toFixed(2));
+            }
+            last = now; rec[i]._lastMt = md.mediaTime;
+            rec[i].rate.push(+v.playbackRate.toFixed(3));
+            v.requestVideoFrameCallback(on);   // run for the whole window, not a frame budget
+          };
+          v.requestVideoFrameCallback(on);
+        });
+        window.playAllMedia();
+        // Fixed 4 s observation window regardless of how many frames land —
+        // a frame budget made a stalling clip look like a short clean run.
+        setTimeout(() => { try { window.pauseAllMedia(); } catch (e) {} resolve(rec); }, 4000);
+      }, 500);
+    }))()`);
+    console.log(`\n  --- ${label} ---`);
+    r.forEach((c, i) => {
+      const w = c.wall.filter(x => x > 0);
+      if (!w.length) { console.log(`    ${'AB'[i]}: no frames presented`); return; }
+      const sorted = w.slice().sort((a, b) => a - b);
+      const med = sorted[sorted.length >> 1];
+      // A hitch = a gap more than 1.5x the median presentation interval, i.e.
+      // the picture visibly held longer than one frame.
+      const hitches = w.filter(x => x > med * 1.5).length;
+      const rates = [...new Set(c.rate)];
+      console.log(`    ${'AB'[i]}: ${w.length} frames   wall gap median ${med.toFixed(1)}ms  ` +
+                  `p95 ${sorted[Math.floor(sorted.length * 0.95)].toFixed(1)}ms  max ${sorted[sorted.length - 1].toFixed(1)}ms`);
+      // mediaTime deltas: a smooth run advances exactly one frame each time.
+      // Values at 2x (skipped a frame) or 0 (same frame presented twice) are
+      // what actually reads as jerk, independent of wall-clock spacing.
+      const md = c.media.filter(x => x !== undefined);
+      const mdSorted = md.slice().sort((a, b) => a - b);
+      const mdMed = mdSorted[mdSorted.length >> 1] || 0;
+      const irregular = md.filter(x => Math.abs(x - mdMed) > mdMed * 0.4).length;
+      console.log(`        hitches >1.5x median: ${hitches}/${w.length}` +
+                  `   frame-step irregular: ${irregular}/${md.length}` +
+                  `${(hitches + irregular) > w.length * 0.08 ? '   ← JERKY' : ''}`);
+      console.log(`        playbackRate seen: [${rates.slice(0, 6).join(', ')}]`);
+    });
+    return r;
+  }
+  for (let i = 1; i <= 3; i++) {
+    await cadence(`run ${i}: drift lock ACTIVE (shipping)`, false);
+    await cadence(`run ${i}: drift lock STUBBED (no rate trims)`, true);
+  }
+  await exec('if (window.__savedLock) { window._driftLockTick = window.__savedLock; window.__savedLock = null; } return 1;');
 } catch (e) {
   console.error('\n[error]', e.message);
 } finally {

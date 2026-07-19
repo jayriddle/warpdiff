@@ -551,14 +551,21 @@ function extractFn(name, src = SRC) {
 {
   // Pull the shipped threshold consts along with the function so the test
   // tracks their real values.
+  // NB: _RATE_TRIM_IS_SMOOTH is deliberately NOT pulled from source — it reads
+  // HTMLMediaElement, and the tests supply it via ctx so both engines can run.
   const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE', '_DRIFT_NUDGE_HIDDEN',
                        '_DRIFT_NUDGE_MAX', '_DRIFT_CONVERGE_TAU']
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
-  const runTick = (primary, followers, grid) => {
+  // _RATE_TRIM_IS_SMOOTH is injected per-run rather than pulled from source, so
+  // both engines can be exercised: Chrome (true → trims) and WebKit (false →
+  // a VISIBLE follower is left alone because Safari renders a rate-trimmed
+  // <video> unevenly; see the const's comment in js/transport.js).
+  const runTick = (primary, followers, grid, rateTrimSmooth = true) => {
     const ctx = {
       hasAudios: false, isDragging: false, _bulkSyncActive: false,
       isGridMode: grid, videoFrameRates: { p: 24, hi: 60, lo: 24 },
       PLAYBACK_RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2], playbackRateIndex: 3,
+      _RATE_TRIM_IS_SMOOTH: rateTrimSmooth,
       getAllVideos: () => [primary, ...followers],
     };
     new Function(...Object.keys(ctx), 'primary',
@@ -608,6 +615,39 @@ function extractFn(name, src = SRC) {
     const p = vid(1.0), f = vid(1.3); // past the hard-seek threshold, grid mode
     runTick(p, [f], true);
     check('drift-lock[grid]: big drift hard-seeks even when visible', f.currentTime === 1.0);
+  }
+  {
+    // WebKit: a VISIBLE follower must NOT be rate-trimmed — measured in real
+    // Safari, any trim (2/5/12%) made it present frames unevenly while the
+    // untrimmed primary was flawless. The pause snap re-aligns instead.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], true, false);
+    check('drift-lock[webkit]: visible follower is NOT trimmed (judders under rate change)',
+          f.playbackRate === 1 && !f._driftNudge && f.currentTime === 1.05);
+  }
+  {
+    // ...but Stack's follower is display:none, so trimming it is invisible and
+    // stays enabled even on WebKit.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], false, false);
+    check('drift-lock[webkit]: HIDDEN follower still trims (invisible, so no cost)',
+          Math.abs(f.playbackRate - 0.90) < 1e-9 && f._driftNudge === -1);
+  }
+  {
+    // Gross desync still corrects on WebKit — smoothness must not mean drifting
+    // away unbounded.
+    const p = vid(1.0), f = vid(1.3);
+    runTick(p, [f], true, false);
+    check('drift-lock[webkit]: past _DRIFT_HARD_SEEK still hard-seeks', f.currentTime === 1.0);
+  }
+  {
+    // An episode already in progress must stand down when trims become
+    // unusable, not strand the follower at an off base rate.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], true, true);           // engage a nudge (Chrome-like)
+    runTick(p, [f], true, false);          // now on an engine that can't trim
+    check('drift-lock[webkit]: in-flight nudge releases back to base rate',
+          f.playbackRate === 1 && f._driftNudge === 0);
   }
   {
     const p = vid(1.0), f = vid(1.05);
