@@ -1806,6 +1806,37 @@ test.describe('Pause-time frame snap (v3.11.4)', () => {
       }, {}, { timeout: 3000 });
     }
   });
+
+  // Regression (v3.12.3): when the clips are ALREADY on the same frame, pause must
+  // NOT re-seek them — the old snap compared currentTime against the frame midpoint
+  // and re-seeked every clip on every pause, and that seek visibly jumped the frame
+  // (present ±1 as the decoder caught up: the "jump ahead then back" on spacebar).
+  test('pause does not re-seek clips already on the same frame', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await startPlayback(page);
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForTimeout(120);
+    // Place BOTH clips on the same frame but OFF its midpoint (0.2 of a frame in),
+    // then run the snap again. The old code seeked both to the midpoint (0.3 frame
+    // away → after !== before); the fix leaves an already-correct frame untouched.
+    const before = await page.evaluate(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const fps = ((window as any).videoFrameRates?.[vids[0].src]) || 24;
+      const t = (20 + 0.2) / fps;                 // on frame 20, not at the midpoint
+      vids.forEach(v => { v.currentTime = t; });
+      return vids.map(v => v.currentTime);
+    });
+    await page.waitForTimeout(80);                 // let those seeks settle
+    await page.evaluate(() => (window as any).pauseAllMedia());  // triggers _snapAllVideosToFrame
+    await page.waitForTimeout(80);
+    const after = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).map(v => (v as HTMLVideoElement).currentTime));
+    // No snap seek: currentTime unchanged (identical), all on the same frame.
+    for (let i = 0; i < after.length; i++) expect(after[i]).toBeCloseTo(before[i], 5);
+    const frames = await frameStates(page);
+    expect(new Set(frames.map(f => f.frame)).size).toBe(1);
+  });
 });
 
 test.describe('Stack switch repaint (v3.11.3)', () => {

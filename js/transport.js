@@ -132,8 +132,17 @@ function _snapAllVideosToFrame() {
         if (isNaN(v.duration)) continue;
         const fps = videoFrameRates[v.src] || 30;
         const frame = Math.floor(refTime * fps + 0.01);
-        const target = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
-        if (Math.abs(v.currentTime - target) > 1e-4) v.currentTime = target;
+        // Only correct clips that are on a DIFFERENT frame than the reference.
+        // currentTime is virtually never exactly at a frame midpoint, so the old
+        // `|currentTime - midpoint| > 1e-4` guard re-seeked EVERY video on EVERY
+        // pause — and a seek on a just-paused clip forces a re-present that
+        // visibly jumps the picture (the frame lands ±1 off the shown one as the
+        // decoder catches up). The drift lock already holds followers within half
+        // a frame, so most pauses land everyone on the same frame and need no seek
+        // at all. Compare frame NUMBERS: snap only a genuine straddler (ref on N,
+        // this clip rounded to N±1), which is the case this guard exists for.
+        if (Math.floor(v.currentTime * fps + 0.01) === frame) continue;
+        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
     }
 }
 
