@@ -157,6 +157,28 @@ function _createScrubVideoSession(bytes) {
     let framesPainted = 0;  // total painted (test/diagnostic surface)
     let pendingFrame = null; // newest paintable frame awaiting the next rAF
     let rafId = 0;
+    // ── Predictive backward prefetch ─────────────────────────────────────
+    // Sizing the cache to a GOP made backward travel free WITHIN a GOP, but
+    // every GOP boundary crossed backward still cost a full re-decode from the
+    // previous keyframe — ~100 ms at 2560×1440, which reads as a freeze (7-9 of
+    // 61 drag requests painted nothing at all). Forward never pays this: it
+    // extends the in-flight run. So when the user is scrubbing BACKWARD and
+    // nears the start of the current GOP, speculatively decode the PREVIOUS one
+    // into the cache while the decoder is otherwise idle. Crossing the boundary
+    // then hits the cache instead of stalling on a decode.
+    let lastReqIdx = -1;
+    let scrubDir = 0;          // -1 backward, +1 forward (consecutive requests)
+    let runIsPrefetch = false; // current run is speculative: cache, never paint
+    let prefetchedKey = -1;    // GOP keyframe already prefetched (don't repeat)
+    // How far into the current GOP to start fetching the previous one. It has to
+    // be long enough that the speculative decode FINISHES before the user gets
+    // there: a GOP costs ~100 ms at 2560×1440 while a drag covers ~3 frames per
+    // move at ~11 ms/move. A flat 12 frames (~45 ms of lead) fired on schedule
+    // but landed late — the user stalled on the prefetch run instead of a fresh
+    // one and measured stalls barely moved (21 → 19). Scaling with the GOP got
+    // backward drags to 100% cache hits and eliminated the freezes outright
+    // (requests that painted nothing at all: 8 → 0).
+    const PREFETCH_LEAD = Math.max(12, Math.round(maxGop * 0.6));
     let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
 
     // Paint at most once per display frame. Decode can outrun the display by an
@@ -204,7 +226,10 @@ function _createScrubVideoSession(bytes) {
             }
             cacheStore(frame);
             const ptsS = frame.timestamp / 1e6;
-            if (dead || !ctx2d || ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
+            // runIsPrefetch: a speculative run's frames are the PAST relative to
+            // where the user is looking — cache them, never paint them.
+            if (dead || !ctx2d || runIsPrefetch ||
+                ptsS <= paintFloor || ptsS > targetPts + frameDur * 0.5) {
                 frame.close();
                 return;
             }
@@ -245,6 +270,45 @@ function _createScrubVideoSession(bytes) {
     function keyBefore(i) {
         for (let k = i; k >= 0; k--) if (samples[k].key) return k;
         return 0;
+    }
+
+    // Last decode index belonging to the GOP that starts at keyframe `key`
+    function gopEndFor(key) {
+        for (let i = key + 1; i < nSamples; i++) if (samples[i].key) return i - 1;
+        return nSamples - 1;
+    }
+
+    // Decode a whole GOP into the cache without painting any of it. Targets the
+    // GOP's LAST frame so cacheStore's distance gate (centred on targetPts)
+    // spans the run — with the GOP-sized budget every frame in it survives.
+    function startPrefetch(gopKey) {
+        if (dead || suspended || decoder.state !== 'configured') return;
+        try {
+            decoder.reset();
+            decoder.configure(config);
+        } catch (_) { dead = true; return; }
+        if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+        runIsPrefetch = true;
+        prefetchedKey = gopKey;
+        curKey = gopKey;
+        nextFeed = gopKey;
+        targetIdx = gopEndFor(gopKey);
+        targetPts = samples[targetIdx].pts;
+        pump();
+    }
+
+    // Called when a request was served from cache — i.e. the decoder is idle and
+    // the user is coasting through already-decoded frames. That is exactly the
+    // slack in which to decode the GOP they are about to reach.
+    function maybePrefetchBackward(idx, key) {
+        if (scrubDir >= 0 || dead || suspended) return;
+        if (decoder.state !== 'configured' || decoder.decodeQueueSize > 0) return; // busy
+        if (idx - key > PREFETCH_LEAD) return;   // still deep in the current GOP
+        if (key <= 0) return;                    // nothing before this one
+        const prevKey = keyBefore(key - 1);
+        if (prevKey === prefetchedKey) return;   // already fetched this one
+        if (cache.has(gopEndFor(prevKey))) return; // already warm
+        startPrefetch(prevKey);
     }
 
     function feedOne(i) {
@@ -326,6 +390,10 @@ function _createScrubVideoSession(bytes) {
             const idx = targetForTime(t);
             const key = keyBefore(idx);
             const pts = samples[idx].pts;
+            // Travel direction, from consecutive requests — drives the backward
+            // prefetch below. Unchanged positions (jitter) don't flip it.
+            if (lastReqIdx >= 0 && idx !== lastReqIdx) scrubDir = idx < lastReqIdx ? -1 : 1;
+            lastReqIdx = idx;
             // Cache hit — paint instantly, no decode. Neutralize any in-flight
             // run's painting (its outputs keep caching but stop painting) by
             // moving the target/floor to the served frame.
@@ -338,6 +406,9 @@ function _createScrubVideoSession(bytes) {
                 targetPts = pts;
                 paintFloor = pts - frameDur * 0.5;
                 if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+                // Decoder is idle and the user is coasting on cache — use the
+                // slack to fetch the GOP they're heading into.
+                maybePrefetchBackward(idx, key);
                 return;
             }
             if (nextFeed >= 0 && key === curKey && idx + REORDER_MARGIN >= nextFeed) {
@@ -347,10 +418,14 @@ function _createScrubVideoSession(bytes) {
                 // to 9.9s) — no reset needed, the run just stops sooner.
                 targetPts = pts;
                 targetIdx = idx;
+                // A real target claims the run: resume painting. (The user
+                // reached the GOP a prefetch was still filling — keep the
+                // decoded progress, just stop suppressing output.)
+                if (runIsPrefetch) { runIsPrefetch = false; paintFloor = pts - frameDur; }
                 // Discrete seek forward within the GOP: lift the paint floor to
                 // the target so the intervening frames decode (needed to release
                 // the target) but don't paint — no fast-forward flash on a click.
-                if (direct) paintFloor = pts - frameDur;
+                else if (direct) paintFloor = pts - frameDur;
                 pump();
                 return;
             }
@@ -373,6 +448,7 @@ function _createScrubVideoSession(bytes) {
             // cross-GOP DRAG runs keep the progressive fast-forward feel; a
             // discrete forward seek (direct) paints only the target, same as a
             // backward run — no fast-forward flash on a click.
+            runIsPrefetch = false;   // a real target owns the decoder again
             paintFloor = (direct || pts < lastPaintedPts) ? pts - frameDur : lastPaintedPts;
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             targetPts = pts;
@@ -399,6 +475,10 @@ function _createScrubVideoSession(bytes) {
             targetPts = -1;
             paintFloor = -1;
             lastPaintedPts = -1;
+            runIsPrefetch = false;
+            prefetchedKey = -1;
+            lastReqIdx = -1;
+            scrubDir = 0;
             if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             try { decoder.close(); } catch (_) {}

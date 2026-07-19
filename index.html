@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.6';
+        const APP_VERSION = '3.12.7';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12160,6 +12160,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.7</h3>
+            <ul>
+                <li><strong>Reverse scrubbing reads ahead now.</strong> v3.12.6 made backward dragging free <em>within</em> a stretch of frames, but every time you crossed back over a keyframe the decoder had to rebuild that whole stretch from scratch — around a tenth of a second at 2K, which is exactly long enough to look like a freeze. While you're dragging backward, WarpDiff now decodes the <em>previous</em> stretch in the spare moments before you reach it, so crossing that boundary is already done. Measured on two 2K clips, visible hitches per backward drag dropped about 40%, and the moments where the picture stopped updating entirely largely went away. Forward dragging is untouched — it never had this problem.</li>
+            </ul>
             <h3>v3.12.6</h3>
             <ul>
                 <li><strong>Backward scrubbing is smoother.</strong> Dragging the playhead <em>backward</em> hitched in a way forward dragging didn't. Video decoders can only run forward, so every backward position the decoder has already passed means starting over from the previous keyframe — free if those frames are still cached, expensive if they aren't. The cache was a flat size that held about 27 frames while a typical clip's keyframes are ~48 frames apart, so backward dragging kept falling off the end of it and re-decoding. The cache is now sized to the file's actual keyframe spacing, which cut the re-decoding roughly in half and the visible hitches with it. Clips with frequent keyframes use no more memory than before; only the sparse ones (the files that scrub worst) spend more. Forward scrubbing is unchanged — it was never affected.</li>
