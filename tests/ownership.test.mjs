@@ -700,6 +700,40 @@ function extractFn(name, src = SRC) {
         svh.includes("_asLayer && _asLayer.querySelector('video')") &&
         svh.indexOf('_asLayer') < svh.indexOf('_scrubSeekPending = false'));
 
+  // fps estimation must be robust to junk RVFC deltas. Safari emits them during
+  // ordinary playback: measured on a 24 fps clip, a clean run of 41.67 ms
+  // polluted by 2.17 / 4.65 / 0 / -666 / 743 ms values. The old estimator took
+  // Math.min as its base, so the 2.17 ms outlier set the dropped-frame threshold
+  // (3.26 ms), every real interval was discarded as a "drop", and the clip was
+  // detected as 60 fps — feeding the wrong grid to the pause snap and stepFrame.
+  // Replays the real deltas through the SHIPPED estimator body.
+  {
+    const body = extractFn('_setupFpsDetection');
+    const from = body.indexOf('const sorted = intervals.slice()');
+    const to = body.indexOf('console.log(`[fps]');
+    // Fail with a readable message instead of a ReferenceError from slicing a
+    // body that no longer contains the estimator (e.g. reverted to Math.min).
+    check('fps-detect: estimator is median-based (robust to junk RVFC deltas)', from >= 0 && to > from);
+    const est = (from >= 0 && to > from)
+      ? new Function('intervals', '_FPS_STANDARD_RATES', `${body.slice(from, to)}\nreturn snapped;`)
+      : () => NaN;
+    const RATES = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
+    const ms = a => a.map(x => x / 1000);
+    const safariJunk = ms([17.75, 23.92, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67,
+                           41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 743.18, 2.17,
+                           4.65, 41.67, 41.67, 41.67, 41.67]);
+    check(`fps-detect: Safari's polluted 24 fps deltas → 24 (got ${est(safariJunk, RATES)})`,
+          est(safariJunk, RATES) === 24);
+    check('fps-detect: clean 24 fps → 24', est(ms(Array(23).fill(41.67)), RATES) === 24);
+    check('fps-detect: clean 23.976 stays distinct from 24',
+          est(ms(Array(23).fill(41.7083)), RATES) === 23.976);
+    check('fps-detect: clean 30 fps → 29.97/30', [29.97, 30].includes(est(ms(Array(23).fill(33.3667)), RATES)));
+    check('fps-detect: 60 fps → 59.94/60', [59.94, 60].includes(est(ms(Array(23).fill(16.6833)), RATES)));
+    check('fps-detect: dropped frames (2x gaps) do not halve the estimate',
+          est(ms([41.67, 41.67, 83.34, 41.67, 41.67, 83.34, 41.67, 41.67, 41.67, 83.34,
+                  41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67]), RATES) === 24);
+  }
+
   // C5: passive fps detection uses a single-chain guard.
   const fps = extractFn('_setupFpsDetection');
   check('sweep[C5]: fps detection guarded against concurrent chains (detecting flag)',

@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.7';
+        const APP_VERSION = '3.12.8';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -10118,19 +10118,31 @@
                         measured.data[s].cw = m.layer ? m.layer.offsetWidth : perSlot[s].rw;
                     });
 
-                    // Group centering
-                    const groupW    = loadedSlots.reduce((sum, s) => sum + perSlot[s].rw, 0) + gap * (nSlots - 1);
-                    const groupLeft = Math.round((window.innerWidth - groupW) / 2);
-                    let cumImgLeft = groupLeft;
-                    let cumCellLeft = 0;
+                    // Group centering — centre the CELLS, not the pictures inside them.
+                    // This used to compute tx = (viewport-centred group start) − (running
+                    // cell left) and offset each picture by it, which moves the <video>
+                    // but NOT its .asset-layer. The click-to-select listener is on the
+                    // layer, so as soon as that offset was non-trivial the picture
+                    // overhung into the neighbouring layer and clicking a video selected
+                    // the WRONG slot — while clicking the empty strip beside it still
+                    // worked. Chromium hid the bug: there the cells nearly fill the
+                    // viewport so the offset is ~8px. Safari laid the same pair out with
+                    // 624px of slack (portrait + landscape, where the equal-area sizes
+                    // differ a lot), giving a 312px shift — the reported case. The old
+                    // walk was also inconsistent about the gap (cumImgLeft added it,
+                    // cumCellLeft didn't), so the error grew by one gap per slot.
+                    // Each layer is sized to exactly its picture above, so justify the
+                    // grid tracks and leave the picture at its layer's origin; hit box
+                    // and picture then move together by construction.
+                    if (ac) ac.style.justifyContent = 'center';
                     loadedSlots.forEach(s => {
                         const m = measured.data[s];
                         const p = perSlot[s];
-                        const tx = cumImgLeft - cumCellLeft;
+                        // Centre within the layer in case an engine clamps the width we
+                        // asked for; normally cw === rw and this is 0.
+                        const tx = Math.round((m.cw - p.rw) / 2);
                         const ty = m.ibH + Math.round(Math.max(0, m.availH - p.rh) / 2);
                         slotGeometry[s] = { rw: p.rw, rh: p.rh, tx, ty, zoom: p.rw / m.nw };
-                        cumImgLeft  += p.rw + gap;
-                        cumCellLeft += m.cw;
                     });
                 }
             } else {
@@ -12160,6 +12172,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.8</h3>
+            <ul>
+                <li><strong>Clicking a video selects it again when clips have different orientations.</strong> With a portrait clip beside a landscape one, the pictures were being nudged sideways to centre them as a group — but the invisible box that receives your click stayed put, so the picture drifted over its neighbour's box. Clicking a video selected the <em>other</em> one, and you had to click the empty space beside it instead. The whole cell now moves with its picture, so what you click is what you get. Most visible in Safari, where the sideways shift was largest.</li>
+                <li><strong>Frame rate is detected correctly in Safari.</strong> Safari occasionally reports nonsense frame timings during normal playback, and one bad reading was enough to throw off the whole estimate — a 24 fps clip could be read as 60. That fed the wrong frame grid to pausing and to frame stepping, so clips could land a frame apart. The estimate now ignores outliers instead of trusting the smallest reading.</li>
+            </ul>
             <h3>v3.12.7</h3>
             <ul>
                 <li><strong>Reverse scrubbing reads ahead now.</strong> v3.12.6 made backward dragging free <em>within</em> a stretch of frames, but every time you crossed back over a keyframe the decoder had to rebuild that whole stretch from scratch — around a tenth of a second at 2K, which is exactly long enough to look like a freeze. While you're dragging backward, WarpDiff now decodes the <em>previous</em> stretch in the spare moments before you reach it, so crossing that boundary is already done. Measured on two 2K clips, visible hitches per backward drag dropped about 40%, and the moments where the picture stopped updating entirely largely went away. Forward dragging is untouched — it never had this problem.</li>

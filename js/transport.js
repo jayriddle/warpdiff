@@ -431,15 +431,28 @@ function _setupFpsDetection(video, slot) {
         } else {
             detected = true;
             detecting = false;
-            // Find minimum interval (true frame duration — drops only create larger gaps)
-            const minInterval = Math.min(...intervals);
-            // Filter out dropped frames (interval > 1.5x the minimum)
-            const threshold = minInterval * 1.5;
-            const good = intervals.filter(dt => dt <= threshold);
+            // Base the frame duration on the MEDIAN interval, not the minimum.
+            // The minimum is the single least robust statistic available here:
+            // one spuriously small delta sets the dropped-frame threshold for
+            // every other sample, so all the real intervals get discarded as
+            // "drops" and the estimate collapses onto the junk. Safari emits
+            // exactly that during ordinary playback — measured on a 24 fps clip
+            // whose deltas were a clean run of 41.67 ms polluted by 2.17, 4.65,
+            // 0, −666 and 743 ms values; min → 2.17 ms → threshold 3.26 ms →
+            // zero real intervals survived → ~460 fps, snapped to 60 (Chrome
+            // reported the same file as 24). The median ignores outliers at
+            // both ends, and a real dropped frame still lands at ~2× it.
+            const sorted = intervals.slice().sort((a, b) => a - b);
+            const median = sorted[sorted.length >> 1];
+            // ±25% around the median: real frame intervals cluster tightly, a
+            // dropped frame lands at ~2x, and Safari's junk deltas land well
+            // outside. A wider ±50% window still admitted a stray 23.9 ms delta
+            // next to a clean 41.67 ms run and pulled 24 fps to 25.
+            const good = intervals.filter(dt => dt > median * 0.75 && dt < median * 1.25);
             // Average the good intervals for precision to distinguish 23.976 vs 24
             const avgInterval = good.length > 0
                 ? good.reduce((a, b) => a + b, 0) / good.length
-                : minInterval;
+                : median;
             const rawFps = 1 / avgInterval;
             const snapped = _FPS_STANDARD_RATES.reduce((a, b) =>
                 Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a);

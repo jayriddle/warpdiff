@@ -518,6 +518,51 @@ test.describe('Grid Layout Direction', () => {
   // immediately after comparisonView becomes active. Before the fix, 2-asset
   // loads always defaulted to 'horizontal' regardless of aspect ratio.
 
+  test('mixed-orientation grid: each picture stays inside its own layer (hit box)', async ({ page }) => {
+    // Regression (v3.12.8): the equal-area path centred the GROUP by offsetting
+    // each picture inside its cell (tx = viewport-centred group start − running
+    // cell left) without moving the .asset-layer that carries the
+    // click-to-select listener. A portrait + landscape pair leaves a lot of
+    // horizontal slack, so the picture overhung into its NEIGHBOUR's layer and
+    // clicking a video selected the wrong slot — while clicking the empty strip
+    // beside it still worked. Reported in Safari (312px shift); Chromium showed
+    // a smaller but still non-zero offset. Now the grid tracks are justified and
+    // the picture sits at its layer's origin.
+    await page.setViewportSize({ width: 1650, height: 1550 });
+    await page.goto('/');
+    await loadMedia(page, ['portrait.mp4', 'landscape_a.mp4']);
+    await page.waitForFunction(() => {
+      const v = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return v.length === 2 && v.every(x => x.videoWidth > 0);
+    }, {}, { timeout: 15000 });
+    await page.waitForTimeout(400);   // let the layout settle
+
+    const boxes = await page.evaluate(() => {
+      const r = (el: Element) => { const b = el.getBoundingClientRect();
+        return { x: b.x, y: b.y, w: b.width, h: b.height }; };
+      return Array.from(document.querySelectorAll('.asset-layer'))
+        .filter(l => l.querySelector('video'))
+        .map(l => ({ id: l.id, layer: r(l), video: r(l.querySelector('video')!) }));
+    });
+    expect(boxes.length).toBe(2);
+    for (const b of boxes) {
+      // The painted picture must not extend past the box that receives the click.
+      expect(b.video.x, `${b.id} video left`).toBeGreaterThanOrEqual(b.layer.x - 1);
+      expect(b.video.x + b.video.w, `${b.id} video right`)
+        .toBeLessThanOrEqual(b.layer.x + b.layer.w + 1);
+    }
+
+    // And the centre of each picture must actually resolve to its own layer.
+    for (const b of boxes) {
+      const hit = await page.evaluate(([cx, cy]) => {
+        const el = document.elementFromPoint(cx, cy);
+        const layer = el && (el as Element).closest ? (el as Element).closest('.asset-layer') : null;
+        return layer ? layer.id : null;
+      }, [Math.round(b.video.x + b.video.w / 2), Math.round(b.video.y + b.video.h / 2)]);
+      expect(hit, `centre of ${b.id} should hit ${b.id}`).toBe(b.id);
+    }
+  });
+
   test('two wide/landscape images get vertical (stacked) layout', async ({ page }) => {
     await page.goto('/');
     // wide.png is 300×150 (AR=2, landscape). Stacking vertically lets each image span
