@@ -364,6 +364,78 @@ try {
     await cadence(`run ${i}: drift lock STUBBED (no rate trims)`, true);
   }
   await exec('if (window.__savedLock) { window._driftLockTick = window.__savedLock; window.__savedLock = null; } return 1;');
+
+  // ── 4. hitch attribution ───────────────────────────────────────────────────
+  // Where do the resume/loop-start hitches actually come from? Log every seek,
+  // snap, loop wrap and drift-lock correction alongside per-frame presentation
+  // cadence, then line the hitches up against the events.
+  console.log(`\n===== 4. HITCH ATTRIBUTION (resume + loop wraps) =====`);
+  const attr = await exec(`return (() => new Promise(resolve => {
+    const vids = [...document.querySelectorAll('.asset-layer video')];
+    const ev = [];
+    const t0ref = { t: 0 };
+    const now = () => +(performance.now() - t0ref.t).toFixed(0);
+    // Instrument the seek-issuing paths.
+    const origSnap = window._snapAllVideosToFrame;
+    window._snapAllVideosToFrame = function () {
+      const before = vids.map(v => v.currentTime);
+      origSnap.apply(this, arguments);
+      const after = vids.map(v => v.currentTime);
+      vids.forEach((v, i) => { if (Math.abs(after[i] - before[i]) > 1e-4)
+        ev.push({ t: now(), what: 'SNAP-SEEK', clip: 'AB'[i], delta: +((after[i]-before[i])*1000).toFixed(1) }); });
+    };
+    const origWrap = window._loopWrapToInPoint;
+    if (origWrap) window._loopWrapToInPoint = function () { ev.push({ t: now(), what: 'LOOP-WRAP', clip: '-' }); return origWrap.apply(this, arguments); };
+    vids.forEach((v, i) => {
+      v.addEventListener('seeking', () => ev.push({ t: now(), what: 'seeking', clip: 'AB'[i] }));
+      v.addEventListener('seeked',  () => ev.push({ t: now(), what: 'seeked',  clip: 'AB'[i] }));
+      v.addEventListener('waiting', () => ev.push({ t: now(), what: 'WAITING(stall)', clip: 'AB'[i] }));
+      v.addEventListener('ratechange', () => ev.push({ t: now(), what: 'rate=' + v.playbackRate.toFixed(3), clip: 'AB'[i] }));
+    });
+    try { window.pauseAllMedia(); } catch (e) {}
+    // Tight loop region so wraps happen quickly and repeatedly.
+    window._loopInPoint = 1.0; window._loopOutPoint = 3.0;
+    if (window.updateLoopMarkerUI) window.updateLoopMarkerUI();
+    if (window._applyNativeLoopPolicy) window._applyNativeLoopPolicy();
+    vids.forEach(v => { v.playbackRate = 1; v.currentTime = 1.0; });
+    setTimeout(() => {
+      t0ref.t = performance.now();
+      const frames = vids.map(() => []);
+      vids.forEach((v, i) => {
+        let last = null;
+        const on = (n, md) => {
+          if (last !== null) frames[i].push({ t: now(), gap: +(n - last).toFixed(1) });
+          last = n;
+          v.requestVideoFrameCallback(on);
+        };
+        v.requestVideoFrameCallback(on);
+      });
+      window.playAllMedia();
+      setTimeout(() => {
+        try { window.pauseAllMedia(); } catch (e) {}
+        window._snapAllVideosToFrame = origSnap;
+        if (origWrap) window._loopWrapToInPoint = origWrap;
+        window._loopInPoint = null; window._loopOutPoint = null;
+        resolve({ ev, frames, tRange: vids.map(v => v.currentTime), loopBounds: (window._getLoopBounds ? window._getLoopBounds() : null) });
+      }, 8000);
+    }, 500);
+  }))()`);
+  attr.frames.forEach((f, i) => {
+    const gaps = f.map(x => x.gap).filter(x => x > 0).sort((a, b) => a - b);
+    const med = gaps[gaps.length >> 1] || 0;
+    const hitches = f.filter(x => x.gap > med * 1.5);
+    console.log(`\n  ${'AB'[i]}: ${f.length} frames, median gap ${med.toFixed(1)}ms, ${hitches.length} hitches`);
+    hitches.slice(0, 12).forEach(h => {
+      const near = attr.ev.filter(e => Math.abs(e.t - h.t) < 260)
+        .map(e => `${e.what}${e.clip !== '-' ? '/' + e.clip : ''}@${e.t}`);
+      console.log(`      hitch @${h.t}ms gap ${h.gap}ms   nearby: [${near.join(' ') || 'nothing'}]`);
+    });
+  });
+  const counts = {};
+  attr.ev.forEach(e => { counts[e.what] = (counts[e.what] || 0) + 1; });
+  console.log(`\n  event totals: ${JSON.stringify(counts)}`);
+  console.log(`  loop bounds: ${JSON.stringify(attr.loopBounds)}   clocks ended at ${JSON.stringify(attr.tRange)}` +
+              `${!counts['LOOP-WRAP'] ? '   <- NO WRAPS OBSERVED (loop did not engage)' : ''}`);
 } catch (e) {
   console.error('\n[error]', e.message);
 } finally {

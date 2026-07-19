@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.9';
+        const APP_VERSION = '3.12.10';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12172,9 +12172,9 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
-            <h3>v3.12.9</h3>
+            <h3>v3.12.10</h3>
             <ul>
-                <li><strong>Safari: the unselected clip plays smoothly again on resume.</strong> To keep two clips locked together, WarpDiff nudges the non-selected one's speed by a fraction of a percent at a time. Chrome does that invisibly; Safari does not — it renders the nudged clip unevenly, which is why the unselected video juddered when you hit play while the selected one looked fine. Nudging is now skipped on Safari wherever the clip is actually on screen, so it plays smoothly; the two are still snapped onto the same frame the moment you pause, which is when frame accuracy matters. Chrome is unchanged.</li>
+                <li><strong>Reverted the Safari playback change from 3.12.9.</strong> It was meant to stop the unselected clip juddering on Safari, and it did on test material — but on real footage it didn't help, and it brought back a small jump on the unselected clip when you pause. Playback behaves as it did in 3.12.8 while the real cause is tracked down.</li>
             </ul>
             <h3>v3.12.8</h3>
             <ul>
