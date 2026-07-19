@@ -23,11 +23,19 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { basename, extname, resolve as resolvePath, dirname } from 'node:path';
+import { basename, resolve as resolvePath } from 'node:path';
 
 const [fileA, fileB] = process.argv.slice(2).map(f => resolvePath(f));
 if (!fileA || !fileB) { console.error('Usage: node tests/investigate-safari-baseline.mjs <a.mp4> <b.mp4>'); process.exit(1); }
 const SECS = +(process.env.SECS || 5);
+for (const f of [fileA, fileB]) {
+  try { await stat(f); } catch {
+    console.error(`Cannot read: ${f}\n` +
+      `Run this FROM the repo and pass real paths, e.g.\n` +
+      `  cd /path/to/warpdiff && node tests/investigate-safari-baseline.mjs ~/Downloads/"a (1).mp4" ~/Downloads/"b (1).mp4"`);
+    process.exit(1);
+  }
+}
 
 const PAGE = (n) => `<!doctype html><meta charset=utf-8>
 <style>body{margin:0;background:#111;display:flex;gap:4px}video{width:${n === 1 ? 100 : 49}vw}</style>
@@ -37,6 +45,29 @@ ${n === 2 ? '<video id=b src="/b.mp4" muted playsinline></video>' : ''}
 window.__vids = [...document.querySelectorAll('video')];
 window.__ready = () => window.__vids.every(v => v.readyState >= 2);
 // Deliberately naive: play both, measure. No syncing of any kind.
+// Native loop wrap: one element, browser-owned looping, nothing else running.
+window.__runLoop = (ms) => new Promise(res => {
+  const v = window.__vids[0];
+  v.loop = true;
+  v.pause();
+  v.currentTime = Math.max(0, v.duration - 1.2);
+  setTimeout(() => {
+    const gaps = [], marks = [];
+    let last = null, lastMt = null;
+    const on = (now, md) => {
+      if (last !== null) {
+        gaps.push(+(now - last).toFixed(1));
+        // A wrap shows up as mediaTime jumping backwards.
+        if (lastMt !== null && md.mediaTime < lastMt) marks.push(gaps.length - 1);
+      }
+      last = now; lastMt = md.mediaTime;
+      v.requestVideoFrameCallback(on);
+    };
+    v.requestVideoFrameCallback(on);
+    v.play().catch(() => {});
+    setTimeout(() => { v.pause(); v.loop = false; res({ gaps, marks }); }, ms);
+  }, 500);
+});
 window.__run = (ms) => new Promise(res => {
   const vids = window.__vids;
   vids.forEach(v => { v.pause(); v.currentTime = 1.0; });
@@ -126,6 +157,26 @@ try {
       `const done = arguments[arguments.length - 1]; window.__run(${SECS * 1000}).then(done);`);
     report(label, rec);
   }
+  // Native-loop arm — the newly reported symptom: one video, freeze at wrap.
+  await wd('POST', S('/url'), { url: `http://localhost:${port}/one` });
+  for (let i = 0; i < 60; i++) {
+    if (await exec('return window.__ready && window.__ready() && window.__vids[0].duration > 0')) break;
+    await sleep(500);
+  }
+  const lp = await execAsync(
+    `const done = arguments[arguments.length - 1]; window.__runLoop(${SECS * 1000}).then(done);`);
+  const g = lp.gaps.filter(x => x > 0);
+  const srt = g.slice().sort((a, b) => a - b);
+  const med = srt[srt.length >> 1] || 0;
+  console.log(`\n  --- ONE video, NATIVE loop (bare page) ---`);
+  console.log(`    ${g.length} frames  median ${med.toFixed(1)}ms  max ${srt[srt.length - 1].toFixed(1)}ms` +
+              `   wraps observed: ${lp.marks.length}`);
+  lp.marks.forEach(i => {
+    const around = g.slice(Math.max(0, i - 2), i + 4).map((x, k) =>
+      `${k + Math.max(0, i - 2) === i ? '[' : ''}${x}${k + Math.max(0, i - 2) === i ? ']' : ''}`).join(' ');
+    console.log(`      wrap gap ${g[i]}ms (${(g[i] / med).toFixed(1)}x median)   around: ${around}`);
+  });
+  if (!lp.marks.length) console.log(`      (no wrap seen — clip may be too long for the ${SECS}s window)`);
   console.log(`\n  Compare with the app's numbers from investigate-safari.mjs section 3.`);
 } catch (e) {
   console.error('\n[error]', e.message);
