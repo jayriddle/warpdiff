@@ -1,0 +1,136 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Safari loop-restart check</title>
+<!--
+  Standalone check: does a looping <video> stall at the restart in Safari?
+
+  Open this file directly in Safari (double-click it). No server, no
+  automation, no WarpDiff — which is the point: it removes every confound in
+  the harnesses under tests/ (those drive Safari through safaridriver and serve
+  media over HTTP without Range support, either of which can produce a stall
+  that has nothing to do with looping).
+
+  The file is read with createObjectURL, exactly how WarpDiff loads media, so
+  a seek never touches the network.
+
+  Play it muted, then unmuted, and compare the numbers.
+-->
+<style>
+  body { margin: 0; background: #14141a; color: #e8e8ef; font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+  header { padding: 14px 18px; border-bottom: 1px solid #2a2a35; }
+  h1 { font-size: 15px; margin: 0 0 6px; font-weight: 600; }
+  p  { margin: 0; color: #9a9aab; font-size: 13px; }
+  main { display: flex; gap: 18px; padding: 18px; align-items: flex-start; flex-wrap: wrap; }
+  video { max-width: 62vw; background: #000; border-radius: 6px; }
+  #panel { min-width: 280px; flex: 1; }
+  .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  button { background: #2a2a35; color: #e8e8ef; border: 1px solid #3a3a48; border-radius: 5px;
+           padding: 7px 12px; font-size: 13px; cursor: pointer; }
+  button:hover { background: #343442; }
+  button.on { background: #f0a030; border-color: #f0a030; color: #14141a; font-weight: 600; }
+  #out { white-space: pre-wrap; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #0e0e13; border: 1px solid #2a2a35; border-radius: 6px; padding: 12px;
+         min-height: 190px; }
+  .verdict { font-weight: 600; }
+  .bad  { color: #ff6b6b; }
+  .good { color: #4dbb5f; }
+</style>
+
+<header>
+  <h1>Safari loop-restart check</h1>
+  <p>Pick a video, let it loop past the end a few times, and compare muted vs unmuted.
+     Measures the gap between presented frames at each loop wrap.</p>
+</header>
+
+<main>
+  <video id="v" playsinline controls loop muted></video>
+  <div id="panel">
+    <div class="row">
+      <input type="file" id="file" accept="video/*">
+    </div>
+    <div class="row">
+      <button id="mute" class="on">Muted</button>
+      <button id="reset">Reset stats</button>
+    </div>
+    <div id="out">Choose a video file to begin.
+
+Then let it play through the end at least twice.
+Each loop wrap is reported below.</div>
+  </div>
+</main>
+
+<script>
+(function () {
+  const v = document.getElementById('v');
+  const out = document.getElementById('out');
+  const muteBtn = document.getElementById('mute');
+  let gaps = [], wraps = [], last = null, lastMt = null, running = false;
+
+  document.getElementById('file').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    // Same media source WarpDiff uses: fully in memory, so a loop's seek-to-0
+    // never re-reads from disk or network.
+    v.src = URL.createObjectURL(f);
+    reset();
+    v.play().catch(() => {});
+    if (!running) { running = true; v.requestVideoFrameCallback(onFrame); }
+  });
+
+  muteBtn.addEventListener('click', () => {
+    v.muted = !v.muted;
+    muteBtn.textContent = v.muted ? 'Muted' : 'Unmuted (audio on)';
+    muteBtn.classList.toggle('on', v.muted);
+    reset();
+  });
+  document.getElementById('reset').addEventListener('click', reset);
+
+  function reset() { gaps = []; wraps = []; last = null; lastMt = null; render(); }
+
+  function onFrame(now, md) {
+    if (last !== null) {
+      gaps.push(now - last);
+      // A wrap shows up as mediaTime jumping backwards.
+      if (lastMt !== null && md.mediaTime < lastMt) wraps.push(gaps.length - 1);
+    }
+    last = now; lastMt = md.mediaTime;
+    if (gaps.length % 5 === 0) render();
+    v.requestVideoFrameCallback(onFrame);
+  }
+
+  function render() {
+    if (!gaps.length) {
+      out.textContent = 'Waiting for frames…';
+      return;
+    }
+    const g = gaps.filter(x => x > 0);
+    const sorted = g.slice().sort((a, b) => a - b);
+    const med = sorted[sorted.length >> 1];
+    let s = `state:   ${v.muted ? 'MUTED' : 'UNMUTED (audio on)'}\n`;
+    s += `frames:  ${g.length}\n`;
+    s += `typical: ${med.toFixed(0)}ms between frames\n`;
+    s += `worst:   ${sorted[sorted.length - 1].toFixed(0)}ms\n\n`;
+    if (!wraps.length) {
+      s += `loop wraps seen: 0  — let it play past the end.`;
+      out.textContent = s;
+      return;
+    }
+    s += `loop wraps seen: ${wraps.length}\n\n`;
+    wraps.slice(-6).forEach((i, n) => {
+      // The stall usually lands on the frame AFTER the wrap.
+      const at = Math.max(g[i] || 0, g[i + 1] || 0);
+      const bad = at > med * 1.5;
+      s += `  wrap ${n + 1}: worst gap ${at.toFixed(0)}ms  (${(at / med).toFixed(1)}x typical)` +
+           `  ${bad ? '← STALL' : 'smooth'}\n`;
+    });
+    const worstWrap = Math.max(...wraps.map(i => Math.max(g[i] || 0, g[i + 1] || 0)));
+    const bad = worstWrap > med * 1.5;
+    s += `\n`;
+    out.innerHTML = s.replace(/</g, '&lt;') +
+      `<span class="verdict ${bad ? 'bad' : 'good'}">` +
+      (bad ? `Stalls at the loop restart (worst ${worstWrap.toFixed(0)}ms vs ${med.toFixed(0)}ms typical).`
+           : `Loops smoothly (worst ${worstWrap.toFixed(0)}ms vs ${med.toFixed(0)}ms typical).`) +
+      `</span>`;
+  }
+})();
+</script>
