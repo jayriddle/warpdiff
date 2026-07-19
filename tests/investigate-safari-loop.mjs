@@ -56,7 +56,31 @@ window.__loopProbe = (ms, v) => new Promise(res => {
 const BARE = `<!doctype html><meta charset=utf-8>
 <style>body{margin:0;background:#111}video{width:100vw}</style>
 <video id=a src="/__clip.mp4" muted playsinline></video>
+<button id=go style="position:fixed;top:0;left:0;z-index:9;font-size:20px">go</button>
 <script>${PROBE}
+// A real click satisfies Safari's autoplay gesture requirement, which is the
+// only way to get a genuinely UNMUTED looping <video> on a bare page.
+window.__gestureResult = null;
+document.getElementById('go').addEventListener('click', () => {
+  const v = document.querySelector('video');
+  v.muted = false; v.volume = 1; v.loop = true;
+  v.currentTime = Math.max(0, v.duration - 1.2);
+  v.play().then(() => {
+    const gaps = [], marks = [];
+    let last = null, lastMt = null;
+    const on = (now, md) => {
+      if (last !== null) {
+        gaps.push(+(now - last).toFixed(1));
+        if (lastMt !== null && md.mediaTime < lastMt) marks.push(gaps.length - 1);
+      }
+      last = now; lastMt = md.mediaTime;
+      v.requestVideoFrameCallback(on);
+    };
+    v.requestVideoFrameCallback(on);
+    setTimeout(() => { v.pause(); window.__gestureResult = { gaps, marks, muted: v.muted }; },
+              window.__gestureMs || 8000);
+  }).catch(e => { window.__gestureResult = { gaps: [], marks: [], err: String(e) }; });
+});
 window.__ready = () => document.querySelector('video').readyState >= 2 && document.querySelector('video').duration > 0;
 window.__go = (ms) => window.__loopProbe(ms, document.querySelector('video'));
 </script>`;
@@ -133,7 +157,22 @@ try {
   // The decisive control: same bare page, audio ON. If this freezes too, the
   // wrap stall is Safari restarting audio at a loop boundary — nothing WarpDiff
   // does — and no app change can remove it.
-  report('BARE PAGE, UNMUTED (no WarpDiff)', await execAsync(
+  // Decisive control via a real user gesture.
+  await exec(`window.__gestureMs = ${SECS * 1000}; return 1;`);
+  const btn = await wd('POST', S('/element'), { using: 'css selector', value: '#go' });
+  await wd('POST', S(`/element/${Object.values(btn)[0]}/click`), {});
+  for (let i = 0; i < 60; i++) {
+    if (await exec('return window.__gestureResult !== null')) break;
+    await sleep(500);
+  }
+  const gest = await exec('return window.__gestureResult');
+  if (gest && !gest.err) {
+    console.log(`\n  [gesture arm] element muted during run = ${gest.muted}`);
+    report('BARE PAGE, UNMUTED via real click (no WarpDiff)', gest);
+  } else {
+    console.log(`\n  [gesture arm] failed: ${gest && gest.err}`);
+  }
+  if (false) report('BARE PAGE, UNMUTED (no WarpDiff)', await execAsync(
     `const d = arguments[arguments.length-1];
      const v = document.querySelector('video');
      // Autoplay policy blocks an unmuted play() without a gesture, so start
@@ -258,8 +297,8 @@ try {
   // ── bisect the app video's own styling ────────────────────────────────────
   // Same element, same decoder, same page — one style neutralised per arm.
   const variants = [
-    ['MUTED (app video normally has audio)', "v.muted = true"],
-    ['unmuted (control for the above)',      "v.muted = false"],
+    ['UNMUTED, native .loop (current single-video path)', "v.muted = false"],
+    ['MUTED, native .loop (known-good reference)',        "v.muted = true"],
   ];
   for (const [label, mutate] of variants) {
     const r = await execAsync(
@@ -273,6 +312,49 @@ try {
        });`);
     report(`APP VIDEO, ${label}`, r);
   }
+
+  // ── MANAGED wrap: does WarpDiff's own scheduled seek-back avoid the audio
+  // teardown that native .loop triggers? Single video normally uses native
+  // looping; setting loop points routes it through _startLoopRvfc /
+  // _loopWrapToInPoint instead, which seeks back BEFORE the element ends.
+  const managed = await execAsync(
+    `const d = arguments[arguments.length-1];
+     const v = document.querySelector('.asset-layer video');
+     v.muted = false;
+     // _loopInPoint/_loopOutPoint are top-level lets, NOT window properties —
+     // assigning window._loopInPoint creates a dead global the app never reads.
+     // Drive the app's own setter, which seeks then records the point.
+     v.currentTime = 0.4;
+     window.setLoopPoint('in');
+     v.currentTime = Math.max(1.0, v.duration - 0.25);
+     window.setLoopPoint('out');
+     // Probe WITHOUT forcing v.loop — the app owns the wrap now.
+     v.pause();
+     v.currentTime = Math.max(1.0, v.duration - 1.25);
+     setTimeout(() => {
+       const gaps = [], marks = [];
+       let last = null, lastMt = null;
+       const on = (now, md) => {
+         if (last !== null) {
+           gaps.push(+(now - last).toFixed(1));
+           if (lastMt !== null && md.mediaTime < lastMt) marks.push(gaps.length - 1);
+         }
+         last = now; lastMt = md.mediaTime;
+         v.requestVideoFrameCallback(on);
+       };
+       v.requestVideoFrameCallback(on);
+       window.playAllMedia();
+       setTimeout(() => {
+         try { window.pauseAllMedia(); } catch (e) {}
+         const nativeLoop = v.loop;
+         const bounds = window._getLoopBounds ? window._getLoopBounds() : null;
+         if (window.clearLoopMarkers) window.clearLoopMarkers();
+         d({ gaps, marks, nativeLoop, bounds });
+       }, ${SECS * 1000});
+     }, 700);`);
+  console.log(`\n  [managed arm] native .loop during run = ${managed.nativeLoop} ` +
+              `(false = app-managed wrap)  bounds=${JSON.stringify(managed.bounds)}`);
+  report('APP VIDEO, UNMUTED, MANAGED wrap (RVFC seek-back)', managed);
 } catch (e) {
   console.error('\n[error]', e.message);
 } finally {
