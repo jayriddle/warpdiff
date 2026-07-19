@@ -47,14 +47,23 @@ ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=s=320x180:d=1:r=24"
 # Vorbis (NOT Opus) deliberately: Opus slots take the Chrome Web Audio
 # replacement path where <video>.muted is always true — the scrub-drag muted-
 # state tests need the PLAIN muted-flag routing that AAC/Vorbis slots use.
+# Not every ffmpeg build ships libvorbis (Homebrew's does not by default); fall
+# back to ffmpeg's built-in Vorbis encoder, which is marked experimental (needs
+# -strict -2) and only accepts stereo — hence the explicit -ac 2, a no-op for
+# libvorbis since `sine` is mono. Same codec in the container either way.
+if ffmpeg -hide_banner -encoders 2>/dev/null | grep -q ' libvorbis '; then
+    VORBIS_ENC=(-c:a libvorbis -ac 2)
+else
+    VORBIS_ENC=(-c:a vorbis -strict -2 -ac 2)
+fi
 ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
     -f lavfi -i "sine=frequency=440:duration=3" \
-    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_a.webm"
+    -c:v libvpx-vp9 -b:v 200k "${VORBIS_ENC[@]}" "$OUT/vorbis_a.webm"
 ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "testsrc2=size=320x180:rate=24:duration=3" \
     -f lavfi -i "sine=frequency=660:duration=3" \
-    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_b.webm"
+    -c:v libvpx-vp9 -b:v 200k "${VORBIS_ENC[@]}" "$OUT/vorbis_b.webm"
 # 4-second VP9+Vorbis clip. Pairs with vorbis_a (3 s) for the sync-lock tests that
 # need clips of DIFFERENT lengths (loop bounds = [0, shortest]; the longer clip
 # must wrap early WITH the shorter one, not at its own end) — the open-codec
@@ -62,7 +71,16 @@ ffmpeg -hide_banner -loglevel error -y \
 ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "testsrc2=size=320x180:rate=24:duration=4" \
     -f lavfi -i "sine=frequency=550:duration=4" \
-    -c:v libvpx-vp9 -b:v 200k -c:a libvorbis "$OUT/vorbis_long.webm"
+    -c:v libvpx-vp9 -b:v 200k "${VORBIS_ENC[@]}" "$OUT/vorbis_long.webm"
+# 30 fps VP9+Vorbis clip (all the others are 24 fps). Pairs with vorbis_a for the
+# MIXED-frame-rate frame-stepping test: stepping used to advance each clip by one
+# of its OWN frames, so a 24/30 pair diverged 8.3 ms per step (~5 frames adrift
+# after 24 taps) with nothing to correct it — the drift lock only runs during
+# playback. Equal 3 s duration so the pair stays in Sync range mode.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "testsrc2=size=320x180:rate=30:duration=3" \
+    -f lavfi -i "sine=frequency=700:duration=3" \
+    -c:v libvpx-vp9 -b:v 200k "${VORBIS_ENC[@]}" "$OUT/vorbis_30.webm"
 
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=3" -ac 2 -c:a pcm_s16le  "$OUT/stereo.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=880:sample_rate=22050:duration=3" -ac 1 -c:a pcm_s16le  "$OUT/mono.wav"

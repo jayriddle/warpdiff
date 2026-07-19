@@ -11,6 +11,8 @@ const sentinels = [
   // vorbis_long.webm (4 s) was added later for the open-codec sync-lock tests;
   // a checkout with the earlier webms but not this one must still regenerate.
   path.join(fixturesDir, 'vorbis_long.webm'),
+  // vorbis_30.webm (30 fps) was added for the mixed-frame-rate stepping test.
+  path.join(fixturesDir, 'vorbis_30.webm'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

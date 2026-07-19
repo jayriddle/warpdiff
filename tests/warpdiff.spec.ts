@@ -1071,7 +1071,9 @@ test.describe('Loop in/out points', () => {
 // bounds + wrap tests need; vorbis_b.webm (3 s) is used where equal lengths are
 // fine. The sync loop region must resolve to [0, ~3] and playback must wrap BOTH
 // videos together at the shortest duration instead of each native-looping on its
-// own clock.
+// own clock. NOTE: an unequal pair DEFAULTS to Full range mode (wrap at the
+// longest) — the sync-bounds tests call useSyncRange() to opt in explicitly
+// rather than racing that default.
 // ===========================================================================
 
 test.describe('Multi-video sync-lock', () => {
@@ -1081,12 +1083,29 @@ test.describe('Multi-video sync-lock', () => {
     return vids.map(v => ({ t: v.currentTime, paused: v.paused }));
   });
 
+  /**
+   * Opt into Sync range mode, deterministically. Clips of DIFFERENT lengths
+   * default to Full (_notifyDurationMismatch), which fires from startFadeIn —
+   * LATER than the loadedmetadata that publishes _loopBounds. So a test that
+   * loads the 3 s/4 s pair and asserts sync bounds right after load is racing
+   * that flip: win and you see [0, 3], lose and you see [0, 4]. Wait for the
+   * default to land, then toggle back to Sync (what Shift+L does for the user).
+   */
+  const useSyncRange = async (page: Page) => {
+    await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'full',
+      {}, { timeout: 5000 });
+    await page.evaluate(() => (window as any)._toggleLoopRangeMode());
+    await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'sync',
+      {}, { timeout: 2000 });
+  };
+
   test('2 videos → sync loop bounds [0, shortest] and native loop disabled', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
     // Bounds resolve once both videos' metadata is in (policy runs at loadedmetadata)
     await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
       {}, { timeout: 5000 });
+    await useSyncRange(page);
     const bounds = await getVar(page, '_loopBounds');
     expect(bounds.inP).toBe(0);
     expect(bounds.outP).toBeCloseTo(3, 0); // shortest clip (vorbis_a, 3 s)
@@ -1109,6 +1128,7 @@ test.describe('Multi-video sync-lock', () => {
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
     await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
       {}, { timeout: 5000 });
+    await useSyncRange(page); // otherwise this wraps at 4 s (Full) and tests nothing
     await seekVideos(page, 2.5); // just before the 3 s wrap point
     await page.evaluate(() => (window as any).playAllMedia());
     // Wait for the synchronized wrap: the primary comes back below 1 s while playing
@@ -1123,6 +1143,60 @@ test.describe('Multi-video sync-lock', () => {
     expect(b.paused).toBe(false);
     expect(b.t).toBeLessThan(2.0); // the 4 s clip wrapped with the 3 s clip, not at its own end
     expect(Math.abs(a.t - b.t)).toBeLessThan(0.15);
+  });
+
+  test('frame stepping holds sync across MIXED frame rates', async ({ page }) => {
+    // Regression (v3.12.5): stepFrame() advanced each video by one of its OWN
+    // frames from its OWN clock, so a 24/30 pair drifted 8.3 ms per step and
+    // nothing pulled it back — the drift lock only runs during playback and the
+    // pause snap only runs from pauseAllMedia. 24 taps put the clips ~5 frames
+    // apart. Stepping is now reference-driven: the selected clip advances one of
+    // its frames and every other clip is re-quantized onto its own grid at that
+    // shared instant.
+    // _setupFpsDetection logs "[fps] <slot>: raw=… → snapped=…" when it resolves.
+    // Attach before navigating so no log is missed.
+    let resolved = 0;
+    page.on('console', m => { if (m.text().startsWith('[fps]')) resolved++; });
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_30.webm']);
+    await page.waitForFunction(() => {
+      const v = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return v.length === 2 && v.every(x => !isNaN(x.duration));
+    }, {}, { timeout: 10000 });
+    // fps detection is passive — it needs presented frames. Until it resolves,
+    // BOTH clips sit on the 30 fps default, the old per-clip stepping advances
+    // them identically, and the bug this test exists for cannot appear. So wait
+    // for real detection rather than a fixed playback time, looping back to the
+    // start so a 3 s clip doesn't run out first.
+    await page.evaluate(() => (window as any).playAllMedia());
+    for (let i = 0; i < 80 && resolved < 2; i++) {
+      await page.waitForTimeout(250);
+      await page.evaluate(() => {
+        const v = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+        if (v.some(x => x.currentTime > x.duration - 0.4)) v.forEach(x => { x.currentTime = 0; });
+      });
+    }
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForTimeout(200);
+    // Self-check: without two DIFFERENT detected rates this asserts nothing.
+    const rates = await getVar(page, '_videoFps');
+    expect(new Set(rates).size).toBe(2);
+
+    const drift = await page.evaluate(async () => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const settle = () => new Promise(r => setTimeout(r, 40));
+      (window as any).stepFrame(1); await settle();   // land on the aligned grid first
+      (window as any).stepFrame(-1); await settle();
+      let worst = 0;
+      for (let i = 0; i < 24; i++) {
+        (window as any).stepFrame(1);
+        await settle();
+        worst = Math.max(worst, Math.abs(vids[1].currentTime - vids[0].currentTime));
+      }
+      return worst;
+    });
+    // Half a frame of the coarser (24 fps) grid. Pre-fix this reached ~0.2 s.
+    expect(drift).toBeLessThan(0.5 / 24);
   });
 
   test('drift lock re-syncs a follower knocked off the primary clock', async ({ page }) => {

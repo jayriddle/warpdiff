@@ -102,6 +102,22 @@ function pauseAllMedia() {
     setTimeout(() => { _bulkSyncActive = false; }, 50);
 }
 
+// Single owner of "which clip is the sync reference" for the PAUSED alignment
+// paths (pause snap + frame stepping): the selected/active clip. It's the one
+// the user is watching, and the only one guaranteed to sit on its own frame, so
+// every other clip is aligned TO it rather than the group averaging toward a
+// clip nobody is looking at. Falls back to the active layer's video, then the
+// first video, when primaryVideoRef is stale (asset switch, replaced element).
+function _syncReferenceVideo(videos) {
+    let ref = primaryVideoRef;
+    if (!ref || ref.isConnected === false || !videos.includes(ref)) {
+        const activeSlot = (typeof currentAudioSource !== 'undefined' && currentAudioSource) || assetOrder[currentAssetIndex];
+        const activeLayer = getLayer(activeSlot);
+        ref = (activeLayer && activeLayer.querySelector('video')) || videos[0];
+    }
+    return ref || null;
+}
+
 // Snap every video onto its own frame grid at the REFERENCE clip's paused
 // instant, so a spacebar-stop always lands all synced videos on "the same
 // frame" — not just within the drift lock's tolerance. The drift lock holds
@@ -120,12 +136,7 @@ function _snapAllVideosToFrame() {
     if (isDragging) return;
     const videos = getAllVideos();
     if (videos.length < 2) return;
-    let ref = primaryVideoRef;
-    if (!ref || ref.isConnected === false || !videos.includes(ref)) {
-        const activeSlot = (typeof currentAudioSource !== 'undefined' && currentAudioSource) || assetOrder[currentAssetIndex];
-        const activeLayer = getLayer(activeSlot);
-        ref = (activeLayer && activeLayer.querySelector('video')) || videos[0];
-    }
+    const ref = _syncReferenceVideo(videos);
     if (!ref || isNaN(ref.duration)) return;
     const refTime = ref.currentTime;
     for (const v of videos) {
@@ -287,6 +298,23 @@ const _DRIFT_NUDGE = 0.02;     // ±2% rate trim (imperceptible on VISIBLE muted
 const _DRIFT_NUDGE_HIDDEN = 0.10; // ±10% for Stack's display:none follower — invisible
                                   // AND muted, so a strong trim is undetectable and
                                   // converges ~5× faster than Grid's gentle one
+// Grid's trim is PROPORTIONAL to the error (mag/_DRIFT_CONVERGE_TAU, floored at
+// _DRIFT_NUDGE, capped at _DRIFT_NUDGE_MAX) rather than a flat ±2%. Two <video>s
+// told to play together come up 1–2 frames apart on real hardware — a decode-start
+// race, NOT steady drift: measured in real Chrome on 1080p high-bitrate H.264, the
+// offset builds to 35–50 ms within the first ~200 ms of playback and then just sits
+// there. A flat ±2% needs ~1.5 s to walk 45 ms out (measured: converged at 1494 ms
+// and 1643 ms), but a review pause typically lands ~0.7 s in — while the pair is
+// still 30–40 ms (>½ frame) apart. _snapAllVideosToFrame then correctly seeks the
+// follower onto the reference's frame, and THAT seek is the visible "B stutters a
+// frame or two to catch up on almost every pause" hop (the reference, never seeked,
+// stays solid — hence the asymmetry, and why it tracks the selection).
+// Proportional trim closes the same 45 ms in ~0.3 s while leaving small
+// steady-state errors on the old gentle ±2%: the visible follower only ever gets a
+// strong trim when it is already a frame out, which is exactly when the alternative
+// is a worse-looking seek. Cap stays under the ±10% Stack has always shipped.
+const _DRIFT_NUDGE_MAX = 0.12;      // ceiling for Grid's proportional trim
+const _DRIFT_CONVERGE_TAU = 0.4;    // s — Grid convergence time constant (exponential)
 
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
@@ -345,7 +373,9 @@ function _driftLockTick(primary) {
         // fast without ever seeking. (Stack used to hard-seek at half a frame,
         // but a seek stalls a playing element for its seek latency, landing it
         // behind by more than half a frame again → perpetual seek loop.)
-        const trim = isGridMode ? _DRIFT_NUDGE : _DRIFT_NUDGE_HIDDEN;
+        const trim = isGridMode
+            ? Math.min(_DRIFT_NUDGE_MAX, Math.max(_DRIFT_NUDGE, mag / _DRIFT_CONVERGE_TAU))
+            : _DRIFT_NUDGE_HIDDEN;
         if (mag > _DRIFT_HARD_SEEK) {
             v._seekIssued = true;
             v.currentTime = primary.currentTime + (v._seekLead || 0);
@@ -377,7 +407,11 @@ function _setupFpsDetection(video, slot) {
         return;
     }
     videoFrameRates[video.src] = 30; // default until detected
-    const timestamps = [];
+    // Frame-to-frame deltas, ACCUMULATED across play sessions (see the 'play'
+    // handler). lastTs anchors the current run only, so a pause/seek boundary
+    // never contributes a bogus interval.
+    const intervals = [];
+    let lastTs = null;
     let detected = false;
     let detecting = false;   // single-chain guard: at most one detection RVFC in flight
 
@@ -385,20 +419,18 @@ function _setupFpsDetection(video, slot) {
         if (detected) { detecting = false; return; }
         // Chain ended before enough samples (pause/seek/ended) — release the
         // guard so the next 'play' can start a clean pass instead of two chains
-        // racing the same timestamps array + its mid-stream reset (wrong snap).
+        // racing the same sample buffer.
         if (video.paused || video.ended) { detecting = false; return; }
-        timestamps.push(metadata.mediaTime);
-        if (timestamps.length <= _FPS_SAMPLE_COUNT) {
+        if (lastTs !== null) {
+            const dt = metadata.mediaTime - lastTs;
+            if (dt > 0) intervals.push(dt);
+        }
+        lastTs = metadata.mediaTime;
+        if (intervals.length < _FPS_SAMPLE_COUNT) {
             video.requestVideoFrameCallback(onFrame);
         } else {
             detected = true;
             detecting = false;
-            // Compute all intervals between consecutive frames
-            const intervals = [];
-            for (let i = 1; i < timestamps.length; i++) {
-                const dt = timestamps[i] - timestamps[i - 1];
-                if (dt > 0) intervals.push(dt);
-            }
             // Find minimum interval (true frame duration — drops only create larger gaps)
             const minInterval = Math.min(...intervals);
             // Filter out dropped frames (interval > 1.5x the minimum)
@@ -418,10 +450,24 @@ function _setupFpsDetection(video, slot) {
         }
     }
 
+    // A run boundary must not bridge into a bogus delta: drop the anchor, keep
+    // the samples. (A mid-playback seek otherwise contributes a garbage interval
+    // — and a small forward one would poison minInterval, which sets the
+    // dropped-frame filter's threshold for every other sample.)
+    video.addEventListener('seeking', function() { lastTs = null; });
+
     video.addEventListener('play', function() {
         if (detected || detecting) return;
         detecting = true;
-        timestamps.length = 0;
+        // Do NOT clear the accumulated intervals. Detection needs
+        // _FPS_SAMPLE_COUNT frames (~1.3 s at 24 fps) and resetting on every
+        // play meant a user reviewing in short taps (~0.7 s ≈ 17 frames) never
+        // finished a pass — the clip stayed pinned to the 30 fps default, which
+        // then fed the WRONG grid to _snapAllVideosToFrame's midpoint
+        // quantization (landing a 24 fps clip off its own frame boundaries,
+        // defeating the (frame+0.5)/fps protection) and the wrong half-frame
+        // band to the drift lock. Samples now carry across sessions.
+        lastTs = null;
         video.requestVideoFrameCallback(onFrame);
     });
 }
@@ -589,18 +635,34 @@ function stepFrame(direction) {
     if (videos.length === 0) return;
     // Pause all videos first — frame stepping only makes sense when paused
     videos.forEach(v => { if (!v.paused) v.pause(); });
+    // Advance the REFERENCE clip by one of ITS frames, then quantize every clip
+    // onto its OWN grid at that shared instant — the same reference-time (not
+    // reference-frame-NUMBER) convention _snapAllVideosToFrame uses, because
+    // clips can differ in fps. Stepping each video on its own clock instead let
+    // a mixed-fps pair diverge by the frame-duration difference on EVERY step
+    // (24 vs 30 fps = 8.3 ms/step: measured 204 ms — 5 frames — adrift after 24
+    // taps), and nothing corrects it: the drift lock only runs during playback
+    // and the pause snap only runs from pauseAllMedia. The old per-clip
+    // `% totalFrames` wrap was the same bug at the loop point — clips of
+    // different lengths wrapped at their own ends onto unrelated content.
+    const ref = _syncReferenceVideo(videos);
+    if (!ref || isNaN(ref.duration)) return;
+    const refFps = videoFrameRates[ref.src] || 30;
+    // Small epsilon (0.01 frames) handles IEEE 754 rounding at frame boundaries
+    // without overshooting from frame midpoints.
+    const refTotal = Math.floor(_getEffectiveDuration(ref) * refFps + 0.01);
+    if (refTotal <= 0) return;
+    const refFrame = Math.floor(ref.currentTime * refFps + 0.01);
+    // Seek to the midpoint of the target frame to avoid landing on a frame
+    // boundary where IEEE 754 rounding leaves us in the wrong frame (e.g.
+    // 1/24 = 0.04166...64, just short of frame 1).
+    const refTime = (((refFrame + direction) % refTotal + refTotal) % refTotal + 0.5) / refFps;
     videos.forEach(v => {
         const fps = videoFrameRates[v.src] || 30;
-        // Small epsilon (0.01 frames) handles IEEE 754 rounding at
-        // frame boundaries without overshooting from frame midpoints.
-        const currentFrame = Math.floor(v.currentTime * fps + 0.01);
-        const totalFrames = Math.floor(v.duration * fps + 0.01);
-        const targetFrame = (currentFrame + direction + totalFrames) % totalFrames;
-        // Seek to the midpoint of the target frame to avoid landing on
-        // a frame boundary where IEEE 754 rounding leaves us in the
-        // wrong frame (e.g. 1/24 = 0.04166...64, just short of frame 1).
-        const target = Math.min((targetFrame + 0.5) / fps, v.duration - 0.001);
-        v.currentTime = target;
+        const frame = Math.floor(refTime * fps + 0.01);
+        // A follower shorter than the reference holds on its last frame rather
+        // than wrapping to unrelated content (matches the Full-mode tail).
+        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
     });
     // Update progress display after seek completes (seeked event handles
     // the visual update). Also update optimistically for responsive feel.

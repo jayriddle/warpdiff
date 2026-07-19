@@ -391,6 +391,25 @@ function extractFn(name, src = SRC) {
         snap.includes('Math.abs(v.currentTime - refTime) <= 0.5 / fps'));
   check('pause-snap: stands down during a drag (scrub-start pause must not fire competing seeks)',
         snap.includes('if (isDragging) return;'));
+  // Both PAUSED alignment paths resolve the reference through one owner, and
+  // both quantize followers onto their own grid at the reference's TIME.
+  // stepFrame used to advance each video by one of its OWN frames from its OWN
+  // clock: a 24/30 pair then diverged by the frame-duration difference on every
+  // step (8.3 ms — ~5 frames after 24 taps, measured) with nothing to correct it,
+  // and its per-clip `% totalFrames` wrap sent clips of different lengths to
+  // unrelated content at the loop point.
+  check(`one-owner[sync-ref]: _syncReferenceVideo defined once (got ${countOf(SRC, 'function _syncReferenceVideo(')})`,
+        countOf(SRC, 'function _syncReferenceVideo(') === 1);
+  check('one-owner[sync-ref]: pause snap resolves the reference through the owner',
+        snap.includes('_syncReferenceVideo(videos)'));
+  const step = extractFn('stepFrame');
+  check('one-owner[sync-ref]: frame stepping resolves the reference through the owner',
+        step.includes('_syncReferenceVideo(videos)'));
+  check('step-sync: stepping is reference-driven, not per-clip-clock',
+        step.includes('refTime') && step.includes('videoFrameRates[v.src]') &&
+        !/const currentFrame = Math\.floor\(v\.currentTime/.test(step));
+  check('step-sync: no per-clip duration wrap (different-length clips must not wrap to their own ends)',
+        !/Math\.floor\(v\.duration \* fps/.test(step));
 }
 
 // (L) Lost-mouseup recovery (2026-07 "choppy after continued use" report): a drag
@@ -532,7 +551,8 @@ function extractFn(name, src = SRC) {
 {
   // Pull the shipped threshold consts along with the function so the test
   // tracks their real values.
-  const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE', '_DRIFT_NUDGE_HIDDEN']
+  const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE', '_DRIFT_NUDGE_HIDDEN',
+                       '_DRIFT_NUDGE_MAX', '_DRIFT_CONVERGE_TAU']
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
   const runTick = (primary, followers, grid) => {
     const ctx = {

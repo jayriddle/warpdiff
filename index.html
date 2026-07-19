@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.4';
+        const APP_VERSION = '3.12.5';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -11795,6 +11795,10 @@
                     seekLead: v._seekLead || 0,
                 }));
             },
+            // Detected frame rate per video, in DOM order. (videoFrameRates is a
+            // top-level `let`, so it is NOT a window property — tests can't read
+            // it directly the way they can a function declaration.)
+            get _videoFps() { return getAllVideos().map(v => videoFrameRates[v.src]); },
             get _diffPair() {
                 const pairs = _getDiffPairs();
                 return pairs.length === 0 ? null : pairs[_diffPairIndex % pairs.length];
@@ -12156,6 +12160,12 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.5</h3>
+            <ul>
+                <li><strong>Two clips now actually start in sync — the real fix for the Grid pause stutter.</strong> v3.12.3 and v3.12.4 both went after the pause itself, but the pause was only the symptom. Measuring on real footage showed the two clips come up <em>1–2 frames apart every time you press play</em> — a decoder start race — and the gentle speed correction that closes that gap needed about a second and a half. Pause sooner than that (most people do) and the clips really were a frame apart, so the align step correctly seeked one of them, and <em>that</em> seek was the hop you saw. The correction is now proportional to how far apart the clips are: a full-frame gap gets closed in about a third of a second instead of a second and a half, so playback is in sync almost immediately and pauses land clean. Small everyday drift is corrected as gently as before.</li>
+                <li><strong>Frame stepping (<kbd>,</kbd> / <kbd>.</kbd>) now keeps clips together when their frame rates differ.</strong> Stepping advanced each clip by one of <em>its own</em> frames, so comparing a 24 fps clip against a 30 fps one pulled them apart by a third of a frame on every tap — about five frames adrift after two dozen steps, with nothing to pull them back (the sync lock only runs during playback). Clips of different lengths could also wrap at their own end and land on completely unrelated content. Stepping is now driven by the selected clip: it moves one of its frames and every other clip lands on whichever of its own frames covers that same instant. Verified across 24 / 25 / 29.97 / 30 fps, matched and mixed.</li>
+                <li><strong>Frame rate is now detected even if you only play in short bursts.</strong> Detection needed ~1.3 s of uninterrupted playback and started over every time you pressed play, so reviewing in short taps meant it never finished and the clip stayed pinned to the 30 fps default. On a 24 fps clip that fed the wrong frame grid to the pause-align step. Samples now carry across plays, so it settles on the true rate however you watch.</li>
+            </ul>
             <h3>v3.12.4</h3>
             <ul>
                 <li><strong>Grid pause no longer makes the other clip stutter.</strong> Following up on v3.12.3: when you paused, the selected clip held still but the other one would visibly hop a frame or two to catch up (and the roles swapped if you selected the other clip). The pause-align step was seeking the non-selected clip onto the selected clip's exact frame. It now leaves a clip that's already within the normal sync tolerance right where it froze — both clips stop cleanly, no hop.</li>
