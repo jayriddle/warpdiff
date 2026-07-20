@@ -1244,6 +1244,54 @@ test.describe('Multi-video sync-lock', () => {
     expect(drift).toBeLessThan(0.5 / 24);
   });
 
+  test('audio-viz panel does not overlap the videos (Grid, two clips)', async ({ page }) => {
+    // Regression (v3.12.14): Grid video wrappers are JS-pinned to their cell's
+    // measured offsetHeight, and #videoControls (which holds the audio-viz panel)
+    // shares the flex column with the video area. Paths that grew the controls
+    // without re-laying-out the video left the wrapper too tall, so it spilled
+    // past the comparison view under the panel (z-index 100) — "the waveform
+    // overlaps the lower part of the videos". A ResizeObserver on #videoControls
+    // now relays the video out on any controls-height change. Measured overlaps
+    // pre-fix: 324 px loading two clips with the panel open, 174 px during a
+    // resize-drag.
+    const overlap = () => page.evaluate(() => {
+      const panel = document.getElementById('spectrogramPanel');
+      const pr = panel?.getBoundingClientRect();
+      if (!pr || pr.height <= 1) return -1;   // panel not open — test is vacuous
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return Math.max(0, ...vids.map(v => v.getBoundingClientRect().bottom - pr.top));
+    });
+
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.waitForFunction(() => {
+      const v = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return v.length === 2 && v.every(x => !isNaN(x.duration) && x.videoWidth > 0);
+    }, {}, { timeout: 15000 });
+
+    // Open the panel and let the max-height transition + relayout settle.
+    await page.evaluate(() => (window as any).toggleAudioViz());
+    await page.waitForFunction(() => {
+      const p = document.getElementById('spectrogramPanel');
+      return !!p && p.getBoundingClientRect().height > 50;
+    }, {}, { timeout: 4000 });
+    await page.waitForTimeout(500);
+    expect(await overlap(), 'panel open, settled').toBeLessThanOrEqual(2);
+
+    // Reported trigger: two clips loaded while the panel is already open.
+    await page.evaluate(() => (window as any).clearAllMedia());
+    await page.waitForTimeout(200);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.waitForFunction(() => {
+      const v = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return v.length === 2 && v.every(x => !isNaN(x.duration) && x.videoWidth > 0);
+    }, {}, { timeout: 15000 });
+    await page.waitForTimeout(500);
+    const o = await overlap();
+    expect(o, 'two clips loaded with panel already open').toBeLessThanOrEqual(2);
+    expect(o, 'panel must actually be open for this test to mean anything').toBeGreaterThanOrEqual(0);
+  });
+
   test('drift lock re-syncs a follower knocked off the primary clock', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);

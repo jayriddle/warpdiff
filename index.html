@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.13';
+        const APP_VERSION = '3.12.14';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5746,6 +5746,37 @@
                 if (performance.now() < _relayoutEndTime) requestAnimationFrame(tick);
             }
             requestAnimationFrame(tick);
+        }
+
+        // Relayout the video whenever the controls box changes height. Grid
+        // wrappers are JS-pinned to their cell's measured offsetHeight and the
+        // controls share the flex column with the video area, so a wrapper sized
+        // before the controls settled stays too tall and spills DOWN past the
+        // comparison view — under the audio-viz panel, which draws on top
+        // (z-index 100): "the waveform overlaps the lower part of the videos".
+        // A single observer catches every path that was previously stale or
+        // uncovered — loading two clips with the panel already open (the
+        // debounced load relayout runs before #videoControls activates), the
+        // panel resize-drag (onMove grows the panel but never relaid out the
+        // video), the open/close max-height transition, and Safari's slower
+        // reflow timing. Reposition only (never touches the controls' own size),
+        // so it cannot feed back. rAF-coalesced to one relayout per frame.
+        let _controlsRelayoutRaf = 0;
+        function _setupControlsResizeRelayout() {
+            const ctrlEl = document.getElementById('videoControls');
+            if (!ctrlEl || typeof ResizeObserver === 'undefined') return;
+            const obs = new ResizeObserver(() => {
+                if (_controlsRelayoutRaf) return;
+                _controlsRelayoutRaf = requestAnimationFrame(() => {
+                    _controlsRelayoutRaf = 0;
+                    const cv = document.getElementById('comparisonView');
+                    if (!cv || !cv.classList.contains('active')) return;
+                    if (!(hasVideos || hasImages)) return;
+                    if (isGridMode) positionLabelsToMedia();
+                    else applyZoom();
+                });
+            });
+            obs.observe(ctrlEl);
         }
 
         // Lazy audio viz decode — only triggered when user opens waveform panel
@@ -11689,6 +11720,7 @@
             setupDragAndDrop();
             setupPanHandlers(); // pan always available in overlay mode
             _setupMiniMapInteraction();
+            _setupControlsResizeRelayout(); // keep video off the audio-viz panel
 
             // Restore persisted preferences to UI
             const savedVol = _prefs.load('volume', 100);
@@ -12217,6 +12249,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.14</h3>
+            <ul>
+                <li><strong>The waveform panel no longer overlaps the videos.</strong> With two clips in Grid view, opening the panel or loading clips while it was already open could leave the bottom of the videos tucked under the waveform. The video area now resizes reliably whenever the panel does.</li>
+            </ul>
             <h3>v3.12.13</h3>
             <ul>
                 <li><strong>Firefox is no longer treated as Safari.</strong> The Safari-specific playback and switching behaviour added in 3.12.12 was keyed off a browser feature Firefox also has, so Firefox was quietly getting workarounds that were never tested there. Firefox now uses the standard path again.</li>
