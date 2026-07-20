@@ -29,6 +29,8 @@ const [fileA, fileB] = process.argv.slice(2).map(f => f && resolvePath(f));
 if (!fileA || !fileB) { console.error('Usage: node tests/investigate-safari-successive.mjs <a.mp4> <b.mp4>'); process.exit(1); }
 for (const f of [fileA, fileB]) { try { await stat(f); } catch { console.error(`Cannot read: ${f}`); process.exit(1); } }
 const CYCLES = +(process.env.CYCLES || 6);
+// MODE: baseline | noTrim | oneShot  (in-page patch of the recovery policy)
+const MODE = process.env.MODE || 'baseline';
 const SECS = +(process.env.SECS || 3.5);
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
   '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp4': 'video/mp4',
@@ -80,6 +82,48 @@ try {
   await exec('window.pauseAllMedia(); return 1;');
   await sleep(400);
   const fps = await exec('return window.__testAPI._videoFps');
+  // Patch the recovery policy in-page. _driftLockTick is a classic-script
+  // top-level function: assigning window._driftLockTick shadows it for the
+  // updateLoop call site (resolved via the global object at call time).
+  if (MODE === 'noTrim') {
+    await exec(`[...document.querySelectorAll('.asset-layer video')].forEach(v => { v.playbackRate = 1; });
+      window._driftLockTick = function () {}; return 1;`);
+  } else if (MODE === 'oneShot') {
+    await exec(`
+      // One-shot re-align: no rate trims. When the follower sits >1.5 frames
+      // off for 8 consecutive ticks (a real, settled offset - not read noise)
+      // and hasn't been seeked in 800ms, hard-seek it once with the seek lead.
+      [...document.querySelectorAll('.asset-layer video')].forEach(v => { v.playbackRate = 1; });
+      window._driftLockTick = function (primary) {
+        if (hasAudios || !primary || primary.paused) return;
+        if (isDragging || _bulkSyncActive) return;
+        const videos = getAllVideos();
+        if (videos.length < 2) return;
+        const primaryFps = videoFrameRates[primary.src] || 30;
+        for (const v of videos) {
+          if (v === primary) continue;
+          if (v.paused || v.ended || v.readyState < 2 || v.seeking) continue;
+          if (v._seekIssued) {
+            v._seekIssued = false;
+            const err = v.currentTime - primary.currentTime;
+            v._seekLead = Math.min(0.25, Math.max(0, (v._seekLead || 0) - err * 0.8));
+          }
+          const fps2 = Math.min(primaryFps, videoFrameRates[v.src] || 30);
+          const drift = v.currentTime - primary.currentTime;
+          const mag = Math.abs(drift);
+          if (mag > 1.5 / fps2) { v._offTicks = (v._offTicks || 0) + 1; }
+          else v._offTicks = 0;
+          const now = performance.now();
+          if (v._offTicks >= 8 && (!v._lastRealign || now - v._lastRealign > 800)) {
+            v._lastRealign = now;
+            v._offTicks = 0;
+            v._seekIssued = true;
+            v.currentTime = primary.currentTime + (v._seekLead || 0);
+          }
+        }
+      }; return 1;`);
+  }
+  console.log(`  MODE: ${MODE}`);
   console.log(`\n[successive] ${basename(fileA)} + ${basename(fileB)}   fps=${JSON.stringify(fps)}   ${CYCLES} cycles\n`);
   console.log('  cycle  peakDrift  trims  seeks  seekLead(A/B)   follower: badSteps  hitches');
 
@@ -88,7 +132,7 @@ try {
       const done = arguments[arguments.length - 1];
       const vids = [...document.querySelectorAll('.asset-layer video')];
       const F = vids[1]; // follower = non-selected slot (selection defaults to the first)
-      vids.forEach(v => { v.currentTime = 1.0; });
+      vids.forEach(v => { v.currentTime = 1.0; ${MODE !== 'baseline' ? 'v.playbackRate = 1;' : ''} });
       let seeks = 0;
       const onSeek = () => seeks++;
       F.addEventListener('seeking', onSeek);

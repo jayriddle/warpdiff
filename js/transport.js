@@ -315,24 +315,40 @@ const _DRIFT_NUDGE_HIDDEN = 0.10; // ±10% for Stack's display:none follower —
 // is a worse-looking seek. Cap stays under the ±10% Stack has always shipped.
 const _DRIFT_NUDGE_MAX = 0.12;      // ceiling for Grid's proportional trim
 const _DRIFT_CONVERGE_TAU = 0.4;    // s — Grid convergence time constant (exponential)
-// WebKit judder under rate trims — MEASURED, then REVERTED (v3.12.9 → v3.12.10).
-// On moderate synthetic media (20 Mbps 2K) real Safari presented a rate-trimmed
-// VISIBLE follower irregularly every run (12/102, 12/102, 7/8 bad frame-steps)
-// while the untrimmed primary was clean, and the judder did not scale with trim
-// magnitude (2/5/12% equally bad). Suppressing the trim for visible followers
-// made that fixture perfectly smooth (0/94 every run) — but on the USER'S REAL
-// FOOTAGE it did not fix the reported hitching AND reintroduced the pause-snap
-// hop (with no trim the pair sits ~85 ms apart, so _snapAllVideosToFrame fires
-// on every pause). Strictly worse in practice, so the gate was removed.
-// What the real symptom actually looks like: 2-3 hitches at the START of each
-// resume AND of each loop pass, then smooth for the remainder — i.e. tied to
-// playback START, not to sustained trimming. A 336 Mbps 2K stress fixture
-// reproduced something adjacent (Safari starved the SECOND stream almost
-// entirely: 1-25 presented frames in 4 s vs the primary's ~78, with trims
-// already disabled), which points at decode-pipeline contention between two
-// simultaneous streams at start-up rather than at anything the sync logic does.
-// Not yet reproduced on representative media — do not "fix" this by tuning the
-// trim again without a fixture that shows the start-of-playback hitches.
+// WebKit: rate trims on a VISIBLE follower are not just cosmetically bad — the
+// control loop is UNSTABLE there (v3.12.11; measured in real Safari via
+// tests/investigate-safari-successive.mjs, 6 play/pause cycles per arm, 2K 24fps):
+//
+//     policy               peak drift      follower bad frame-steps
+//     shipping trims       122-142 ms      10-15 per ~90 frames
+//     NO correction        49-54 ms stable  1 per ~83 frames, every cycle
+//
+// Doing NOTHING beats trimming on both axes at once. Mechanism: Safari presents
+// a rate-trimmed visible follower unevenly (measured in v3.12.9: 12/102 bad
+// steps at ANY magnitude — 2/5/12% equally bad), each stutter loses real time,
+// the loss grows the drift, and the grown drift keeps the trim engaged — the
+// trim FEEDS the drift it corrects (50 ms → 130 ms whenever the lock engaged;
+// cycles that happened to start inside the engage band stayed at 20-30 ms with
+// 1 bad step). Left alone, the pair settles ~1 frame apart and holds there;
+// _snapAllVideosToFrame closes that at pause, which is when frame accuracy
+// matters. A contaminated run double-confirms the mechanism: a follower stuck
+// at a CONSTANT 12% skew (drift growing 133 ms/s) still presented smoothly
+// (1-2 bad steps) — it is rate CHURN that stutters, not wrong rate.
+// v3.12.9 shipped the trim gate alone and was still bad on real footage; the
+// remaining artifacts were (a) the engine's own decode-warm-up stalls at play
+// start (2-3 hitches, present in EVERY arm, no sync policy can remove them) and
+// (b) the un-gated _DRIFT_HARD_SEEK path: a start-up stall can push drift past
+// 150 ms, and an immediate hard-seek on a slow-seeking engine lands behind and
+// can re-fire. So WebKit gets BOTH pieces: no trims for visible followers, and
+// the hard-seek stability-gated (_WK_SEEK_STABLE_TICKS consecutive off ticks +
+// _WK_SEEK_COOLDOWN_MS) so it fires once, with the lead, on a settled offset —
+// never a storm. Stack's display:none follower keeps full trims (invisible).
+// Chrome (_RATE_TRIM_IS_SMOOTH true) is entirely unchanged.
+// Capability-detected via fastSeek (WebKit-only), same gate as _scrubUseDecoder.
+const _RATE_TRIM_IS_SMOOTH = typeof HTMLMediaElement === 'undefined' ||
+    !HTMLMediaElement.prototype.fastSeek;
+const _WK_SEEK_STABLE_TICKS = 8;   // consecutive ticks past threshold before seeking
+const _WK_SEEK_COOLDOWN_MS = 800;  // min spacing between re-align seeks
 
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
@@ -394,29 +410,56 @@ function _driftLockTick(primary) {
         const trim = isGridMode
             ? Math.min(_DRIFT_NUDGE_MAX, Math.max(_DRIFT_NUDGE, mag / _DRIFT_CONVERGE_TAU))
             : _DRIFT_NUDGE_HIDDEN;
+        // WebKit renders a rate-trimmed VISIBLE follower unevenly, and the
+        // stutter feeds the drift being corrected (unstable loop — see the
+        // _RATE_TRIM_IS_SMOOTH block). Left alone the pair settles ~1 frame
+        // apart; the pause snap closes that when frame accuracy matters.
+        // Stack's follower is display:none, so its trims stay.
+        const mayTrim = _RATE_TRIM_IS_SMOOTH || !isGridMode;
         if (mag > _DRIFT_HARD_SEEK) {
+            // On no-trim engines the hard-seek must not storm: a start-up stall
+            // can push drift past the threshold, and an immediate seek on a
+            // slow-seeking engine lands behind and re-fires. Require the offset
+            // to be SETTLED (consecutive ticks past threshold) and space the
+            // attempts, so it fires once, with the learned lead.
+            if (!mayTrim) {
+                v._wkOffTicks = (v._wkOffTicks || 0) + 1;
+                const now = performance.now();
+                if (v._wkOffTicks < _WK_SEEK_STABLE_TICKS ||
+                    (v._wkLastSeek && now - v._wkLastSeek < _WK_SEEK_COOLDOWN_MS)) {
+                    if (v.playbackRate !== base) v.playbackRate = base;
+                    continue;
+                }
+                v._wkLastSeek = now;
+                v._wkOffTicks = 0;
+            }
             v._seekIssued = true;
             v.currentTime = primary.currentTime + (v._seekLead || 0);
             v._driftNudge = 0;
             if (v.playbackRate !== base) v.playbackRate = base;
         } else if (v._driftNudge) {
+            v._wkOffTicks = 0;
             // Release on convergence OR overshoot past the target (sign flip) —
             // and unconditionally where trims aren't usable, so an episode that
             // began before a mode switch can't strand the follower off-rate.
-            if (mag < _DRIFT_RELEASE || Math.sign(drift) === v._driftNudge) {
+            if (!mayTrim || mag < _DRIFT_RELEASE || Math.sign(drift) === v._driftNudge) {
                 v._driftNudge = 0;
                 v.playbackRate = base;
             } else {
                 const want = base * (1 + trim * v._driftNudge);
                 if (Math.abs(v.playbackRate - want) > 1e-6) v.playbackRate = want;
             }
-        } else if (mag > engage) {
+        } else if (mayTrim && mag > engage) {
+            v._wkOffTicks = 0;
             v._driftNudge = drift > 0 ? -1 : 1;
             v.playbackRate = base * (1 + trim * v._driftNudge);
-        } else if (v.playbackRate !== base) {
-            // Idle follower tracks the user rate (J/K writes it directly, but
-            // this heals any leftover from an interrupted nudge episode).
-            v.playbackRate = base;
+        } else {
+            v._wkOffTicks = 0;
+            if (v.playbackRate !== base) {
+                // Idle follower tracks the user rate (J/K writes it directly, but
+                // this heals any leftover from an interrupted nudge episode).
+                v.playbackRate = base;
+            }
         }
     }
 }

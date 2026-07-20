@@ -2986,7 +2986,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.10';
+        const APP_VERSION = '3.12.11';
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -12172,6 +12172,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.11</h3>
+            <ul>
+                <li><strong>Safari: the unselected clip no longer stutters during playback.</strong> To keep two clips together, WarpDiff nudges the unselected clip's speed. On Safari those nudges backfire: the nudged clip plays unevenly, the unevenness loses it real time, and the growing gap keeps the nudging engaged — a feedback loop that turned a one-frame offset into three and made the clip stutter for seconds at a stretch (often from the second play onward). Measured directly: with nudging, the pair drifted up to 140ms with 10–15 visible missteps per play; with nudging off it settled at ~50ms — about one frame — and held there with essentially none. So on Safari the unselected clip is now left to run free while playing, and the two are aligned exactly at pause, which is when frame accuracy matters. In this configuration pausing usually lands both on the same frame with no correction at all. Chrome is unchanged. (The 2–3 brief hitches right at play start are Safari warming up its decoders and, with audio on, restarting its audio pipeline at each loop — those are the browser's own; muting removes the loop ones.)</li>
+            </ul>
             <h3>v3.12.10</h3>
             <ul>
                 <li><strong>Reverted the Safari playback change from 3.12.9.</strong> It was meant to stop the unselected clip juddering on Safari, and it did on test material — but on real footage it didn't help, and it brought back a small jump on the unselected clip when you pause. Playback behaves as it did in 3.12.8 while the real cause is tracked down.</li>

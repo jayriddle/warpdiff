@@ -551,14 +551,19 @@ function extractFn(name, src = SRC) {
 {
   // Pull the shipped threshold consts along with the function so the test
   // tracks their real values.
+  // NB: _RATE_TRIM_IS_SMOOTH is deliberately NOT pulled from source (it reads
+  // HTMLMediaElement); the tests supply it via ctx so both engines can run.
   const driftConsts = ['_DRIFT_HARD_SEEK', '_DRIFT_RELEASE', '_DRIFT_NUDGE', '_DRIFT_NUDGE_HIDDEN',
-                       '_DRIFT_NUDGE_MAX', '_DRIFT_CONVERGE_TAU']
+                       '_DRIFT_NUDGE_MAX', '_DRIFT_CONVERGE_TAU',
+                       '_WK_SEEK_STABLE_TICKS', '_WK_SEEK_COOLDOWN_MS']
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
-  const runTick = (primary, followers, grid) => {
+  const runTick = (primary, followers, grid, rateTrimSmooth = true) => {
     const ctx = {
       hasAudios: false, isDragging: false, _bulkSyncActive: false,
       isGridMode: grid, videoFrameRates: { p: 24, hi: 60, lo: 24 },
       PLAYBACK_RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2], playbackRateIndex: 3,
+      _RATE_TRIM_IS_SMOOTH: rateTrimSmooth,
+      performance: { now: () => 1e6 },
       getAllVideos: () => [primary, ...followers],
     };
     new Function(...Object.keys(ctx), 'primary',
@@ -608,6 +613,47 @@ function extractFn(name, src = SRC) {
     const p = vid(1.0), f = vid(1.3); // past the hard-seek threshold, grid mode
     runTick(p, [f], true);
     check('drift-lock[grid]: big drift hard-seeks even when visible', f.currentTime === 1.0);
+  }
+  // WebKit (rateTrimSmooth=false): trimming a VISIBLE follower is an UNSTABLE
+  // loop there — Safari presents a trimmed follower unevenly, each stutter
+  // loses real time, and the loss keeps the trim engaged (measured: shipping
+  // trims peaked at 122-142ms drift with 10-15 bad frame-steps per ~90; no
+  // correction settles at ~50ms with 1 bad step). Visible followers are left
+  // alone; the pause snap aligns at pause.
+  {
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], true, false);
+    check('drift-lock[webkit]: visible follower is NOT trimmed (trims feed the drift)',
+          f.playbackRate === 1 && !f._driftNudge && f.currentTime === 1.05);
+  }
+  {
+    // Stack's follower is display:none — trims are invisible and stay enabled.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], false, false);
+    check('drift-lock[webkit]: HIDDEN follower still trims',
+          Math.abs(f.playbackRate - 0.90) < 1e-9 && f._driftNudge === -1);
+  }
+  {
+    // Past _DRIFT_HARD_SEEK the seek is STABILITY-GATED on WebKit: a start-up
+    // stall can push drift past the threshold, and an immediate seek on a
+    // slow-seeking engine lands behind and re-fires (storm). It must wait
+    // _WK_SEEK_STABLE_TICKS consecutive ticks, then fire once.
+    const p = vid(1.0), f = vid(1.3);
+    for (let i = 0; i < 7; i++) runTick(p, [f], true, false);
+    check('drift-lock[webkit]: hard-seek waits for a settled offset (no immediate fire)',
+          f.currentTime === 1.3);
+    runTick(p, [f], true, false); // 8th consecutive off tick
+    check('drift-lock[webkit]: settled offset seeks once, with the lead',
+          f.currentTime === 1.0 && f._seekIssued === true);
+  }
+  {
+    // An in-flight nudge episode (started under a trim-capable state) releases
+    // back to base instead of stranding the follower off-rate.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], true, true);
+    runTick(p, [f], true, false);
+    check('drift-lock[webkit]: in-flight nudge releases back to base rate',
+          f.playbackRate === 1 && f._driftNudge === 0);
   }
 
   {

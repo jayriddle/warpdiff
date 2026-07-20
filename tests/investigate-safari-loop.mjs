@@ -61,6 +61,17 @@ const BARE = `<!doctype html><meta charset=utf-8>
 // A real click satisfies Safari's autoplay gesture requirement, which is the
 // only way to get a genuinely UNMUTED looping <video> on a bare page.
 window.__gestureResult = null;
+// Match WarpDiff's media source EXACTLY: it loads files as in-memory blob:
+// URLs, so a seek never touches the network. Serving over plain HTTP without
+// Range support would make the loop's seek-to-0 refetch, which would show up
+// as a stall that has nothing to do with Safari's looping.
+window.__useBlob = async () => {
+  const v = document.querySelector('video');
+  const buf = await (await fetch('/__clip.mp4')).blob();
+  v.src = URL.createObjectURL(buf);
+  await new Promise(r => { const t = () => (v.readyState >= 2 && v.duration > 0) ? r() : setTimeout(t, 100); t(); });
+  return v.src.slice(0, 5);
+};
 document.getElementById('go').addEventListener('click', () => {
   const v = document.querySelector('video');
   v.muted = false; v.volume = 1; v.loop = true;
@@ -159,6 +170,11 @@ try {
   // does — and no app change can remove it.
   // Decisive control via a real user gesture.
   await exec(`window.__gestureMs = ${SECS * 1000}; return 1;`);
+  // Swap the bare page onto a blob: URL first, so the only difference from the
+  // app arm is the app code itself — not how the bytes are sourced.
+  const scheme = await execAsync(
+    `const d = arguments[arguments.length-1]; window.__useBlob().then(d);`);
+  console.log(`\n  [bare page media source] ${scheme}:  (matches the app's blob: URLs)`);
   const btn = await wd('POST', S('/element'), { using: 'css selector', value: '#go' });
   await wd('POST', S(`/element/${Object.values(btn)[0]}/click`), {});
   for (let i = 0; i < 60; i++) {
