@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.12
+**Current version:** 3.12.13
 
 ---
 
@@ -31,7 +31,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Sync-locked playback across all assets — with 2+ videos, they loop together over the shortest clip and stay frame-aligned (within half a frame) in both Stack and Grid mode, so A/B comparison holds across loop passes
+- Sync-locked playback across all assets — with 2+ videos, they loop together over the shortest clip and stay frame-aligned in both Stack and Grid mode, so A/B comparison holds across loop passes (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)
 - Per-source audio switching (GT/A/B) with individual mute

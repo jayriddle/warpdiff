@@ -139,9 +139,18 @@ function _snapAllVideosToFrame() {
     const ref = _syncReferenceVideo(videos);
     if (!ref || isNaN(ref.duration)) return;
     const refTime = ref.currentTime;
+    const refFps = videoFrameRates[ref.src] || 30;
     for (const v of videos) {
         if (isNaN(v.duration)) continue;
         const fps = videoFrameRates[v.src] || 30;
+        // Tolerance is half a frame of the COARSER grid, matching the band
+        // _driftLockTick engages on (min(primaryFps, followerFps)). Using the
+        // follower's own fps made the two disagree on mixed-fps pairs: with a
+        // 24 fps reference and a 60 fps follower the lock tolerates 20.8 ms but
+        // this fired at 8.3 ms, so the snap seeked a follower the lock had
+        // deliberately left alone — reintroducing the pause hop this guard
+        // exists to prevent, on exactly the mixed-fps pairs v3.12.5 added.
+        const tolerance = 0.5 / Math.min(refFps, fps);
         // Leave a follower that's within the drift lock's own tolerance (half a
         // frame) exactly where it froze. It may sit on an ADJACENT frame number to
         // the reference — a sub-half-frame clock difference straddling a boundary —
@@ -154,7 +163,7 @@ function _snapAllVideosToFrame() {
         // Only snap a follower that's genuinely MORE than half a frame off: an
         // unconverged state (paused right after play/seek/loop-wrap, before the lock
         // caught up), where a visible correction is expected anyway.
-        if (Math.abs(v.currentTime - refTime) <= 0.5 / fps) continue;
+        if (Math.abs(v.currentTime - refTime) <= tolerance) continue;
         const frame = Math.floor(refTime * fps + 0.01);
         v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
     }
@@ -348,9 +357,19 @@ const _DRIFT_CONVERGE_TAU = 0.4;    // s — Grid convergence time constant (exp
 // trims churned it even while invisible (composited+trims ~100 ms to first
 // frame after a switch vs ≤40 ms and 0 bad steps untrimmed).
 // Chrome (_RATE_TRIM_IS_SMOOTH true) is entirely unchanged.
-// Capability-detected via fastSeek (WebKit-only), same gate as _scrubUseDecoder.
-const _RATE_TRIM_IS_SMOOTH = typeof HTMLMediaElement === 'undefined' ||
-    !HTMLMediaElement.prototype.fastSeek;
+// Engine detection. `fastSeek` alone is NOT a WebKit test: Firefox implements
+// it too (docs/scrub-proxy-spike-2026-05.md — "Safari and Firefox stayed out of
+// the proxy path entirely"), so `!fastSeek` identifies CHROME — which is how
+// _scrubUseDecoder uses it, correctly — while its negation means "Safari OR
+// Firefox". v3.12.11/12 hung the Safari workarounds on that negation and so
+// silently applied them to Firefox, where nothing was ever measured. Require
+// WebKit as well: GestureEvent is WebKit-only and absent in both Chrome and
+// Firefox. Firefox therefore keeps the standard trimming path it has always
+// had, and only Safari takes the measured-on-Safari policy.
+const _IS_WEBKIT_MEDIA = typeof HTMLMediaElement !== 'undefined' &&
+    !!HTMLMediaElement.prototype.fastSeek &&
+    typeof window !== 'undefined' && 'GestureEvent' in window;
+const _RATE_TRIM_IS_SMOOTH = !_IS_WEBKIT_MEDIA;
 const _WK_SEEK_STABLE_TICKS = 8;   // consecutive ticks past threshold before seeking
 const _WK_SEEK_COOLDOWN_MS = 800;  // min spacing between re-align seeks
 
@@ -738,14 +757,25 @@ function stepFrame(direction) {
     const refFps = videoFrameRates[ref.src] || 30;
     // Small epsilon (0.01 frames) handles IEEE 754 rounding at frame boundaries
     // without overshooting from frame midpoints.
-    const refTotal = Math.floor(_getEffectiveDuration(ref) * refFps + 0.01);
+    const refDur = _getEffectiveDuration(ref);
+    const refTotal = Math.floor(refDur * refFps + 0.01);
     if (refTotal <= 0) return;
-    const refFrame = Math.floor(ref.currentTime * refFps + 0.01);
+    // Clamp the reading to the SAME duration the wrap modulus is built from.
+    // For Opus slots container duration exceeds decoded-audio duration, so a
+    // playhead parked in that phantom tail yields refFrame >= refTotal and the
+    // modulus lands somewhere unrelated instead of the last frame.
+    const refFrame = Math.min(Math.floor(ref.currentTime * refFps + 0.01), refTotal - 1);
     // Seek to the midpoint of the target frame to avoid landing on a frame
     // boundary where IEEE 754 rounding leaves us in the wrong frame (e.g.
     // 1/24 = 0.04166...64, just short of frame 1).
     const refTime = (((refFrame + direction) % refTotal + refTotal) % refTotal + 0.5) / refFps;
     videos.forEach(v => {
+        // Metadata may not have landed on every clip yet (a step keyed before
+        // 'loadedmetadata'). currentTime is a restricted double, so assigning
+        // the NaN that a NaN duration produces throws a TypeError and aborts
+        // the whole forEach — leaving the clips that came earlier stepped and
+        // the rest behind. Same guard _snapAllVideosToFrame carries.
+        if (isNaN(v.duration)) return;
         const fps = videoFrameRates[v.src] || 30;
         const frame = Math.floor(refTime * fps + 0.01);
         // A follower shorter than the reference holds on its last frame rather

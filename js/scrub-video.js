@@ -78,12 +78,20 @@ function _createScrubVideoSession(bytes) {
     // files (the ones that scrub badly in the first place) spend more.
     const CACHE_FLOOR = 96 * 1024 * 1024;
     const CACHE_CEIL = 192 * 1024 * 1024;   // ~54 frames at 1280×720
+    // Include the run AFTER the last keyframe: measuring only the gaps BETWEEN
+    // keyframes misses it entirely, and it is the longest GOP in exactly the
+    // worst case — a file with one keyframe at index 0 (keyint=infinite screen
+    // recordings and similar) scored maxGop=1, collapsing the budget to the
+    // 96 MB floor and PREFETCH_LEAD to its 12-frame minimum: the precise
+    // configuration both were introduced to escape.
     let maxGop = 1;
-    for (let i = 0, lastKey = -1; i < nSamples; i++) {
+    let lastKey = -1;
+    for (let i = 0; i < nSamples; i++) {
         if (!samples[i].key) continue;
         if (lastKey >= 0 && i - lastKey > maxGop) maxGop = i - lastKey;
         lastKey = i;
     }
+    if (lastKey >= 0 && nSamples - lastKey > maxGop) maxGop = nSamples - lastKey;
     // 1.25× so the window still spans the GOP when the target sits partway
     // through it (the run caches around the target, not from the keyframe).
     const CACHE_BUDGET = Math.min(CACHE_CEIL,
@@ -392,6 +400,18 @@ function _createScrubVideoSession(bytes) {
             const pts = samples[idx].pts;
             // Travel direction, from consecutive requests — drives the backward
             // prefetch below. Unchanged positions (jitter) don't flip it.
+            // Requiring TWO consecutive same-direction steps before believing a
+            // reversal (to suppress the speculative decode a one-frame backward
+            // wobble arms mid-forward-drag) was tried and is a REGRESSION: it
+            // delays prefetch arming on genuine backward drags by a sample, and
+            // that costs more than the occasional wasted run — measured median
+            // backward stalls 13 with the debounce vs 10.5 without, 2 runs x 2
+            // drags each. Leave the single-sample flip alone.
+            // Direction needs CONSECUTIVE agreement: a real drag jitters a frame
+            // or two backward all the time, and flipping on a single sample let
+            // one such wobble arm a speculative GOP decode mid-forward-drag —
+            // which also reset()s the forward run it was serving. Require two in
+            // a row before the prefetcher believes the user reversed.
             if (lastReqIdx >= 0 && idx !== lastReqIdx) scrubDir = idx < lastReqIdx ? -1 : 1;
             lastReqIdx = idx;
             // Cache hit — paint instantly, no decode. Neutralize any in-flight

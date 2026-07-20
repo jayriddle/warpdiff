@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.12';
+        const APP_VERSION = '3.12.13';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3811,6 +3811,18 @@
         function findWrapperUnderCursor(x, y) {
             const wrappers = document.querySelectorAll('.video-wrapper');
             for (const w of wrappers) {
+                // Stack mode stacks every wrapper at the SAME viewport coords, so
+                // this must consider only the visible one. It used to be implicit:
+                // inactive wrappers were display:none and had zero-size rects. On
+                // WebKit they are now kept in the layout (body.webkit-video — so an
+                // A/B switch reveals a live surface) and hidden by the layer's
+                // opacity:0 instead, which leaves a full-size rect at the same
+                // place — DOM order would then decide the hit and the loupe could
+                // sample an invisible clip. Test the layer explicitly.
+                if (!isGridMode) {
+                    const layer = w.closest('.asset-layer');
+                    if (layer && !layer.classList.contains('active')) continue;
+                }
                 const r = w.getBoundingClientRect();
                 if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return w;
             }
@@ -12205,6 +12217,14 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.13</h3>
+            <ul>
+                <li><strong>Firefox is no longer treated as Safari.</strong> The Safari-specific playback and switching behaviour added in 3.12.12 was keyed off a browser feature Firefox also has, so Firefox was quietly getting workarounds that were never tested there. Firefox now uses the standard path again.</li>
+                <li><strong>Zoom loupe fixed in Stack mode on Safari.</strong> It could sample the hidden clip instead of the one you're looking at.</li>
+                <li><strong>Frame stepping is safe before clips finish loading</strong>, and stays correct on clips whose metadata overstates their length.</li>
+                <li><strong>Pause alignment matches the sync tolerance on mixed-frame-rate pairs</strong> — it was nudging clips that were already close enough.</li>
+                <li><strong>Better scrubbing on clips with very few keyframes</strong> (long recordings with no scene cuts), which were sized against the wrong frame budget.</li>
+            </ul>
             <h3>v3.12.12</h3>
             <ul>
                 <li><strong>Playback sync overhaul.</strong> Two clips now lock into sync as soon as playback starts, pauses land cleanly on the same frame, and frame stepping (<kbd>,</kbd> / <kbd>.</kbd>) stays aligned even when clips have different frame rates.</li>

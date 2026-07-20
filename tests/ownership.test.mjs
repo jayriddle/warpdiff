@@ -388,7 +388,8 @@ function extractFn(name, src = SRC) {
   check('pause-snap: quantizes each follower to its OWN fps, not the reference frame number',
         snap.includes('videoFrameRates[v.src]') && snap.includes('refTime'));
   check('pause-snap: leaves within-half-a-frame followers untouched (no catch-up hop)',
-        snap.includes('Math.abs(v.currentTime - refTime) <= 0.5 / fps'));
+        snap.includes('Math.abs(v.currentTime - refTime) <= tolerance') &&
+        snap.includes('const tolerance = 0.5 / Math.min(refFps, fps)'));
   check('pause-snap: stands down during a drag (scrub-start pause must not fire competing seeks)',
         snap.includes('if (isDragging) return;'));
   // Both PAUSED alignment paths resolve the reference through one owner, and
@@ -410,6 +411,12 @@ function extractFn(name, src = SRC) {
         !/const currentFrame = Math\.floor\(v\.currentTime/.test(step));
   check('step-sync: no per-clip duration wrap (different-length clips must not wrap to their own ends)',
         !/Math\.floor\(v\.duration \* fps/.test(step));
+  check('step-sync: skips clips without metadata (NaN duration -> currentTime TypeError aborts the loop)',
+        /videos\.forEach\(v => \{[\s\S]{0,400}?isNaN\(v\.duration\)\) return;/.test(step));
+  check('step-sync: reference frame is clamped to the same duration the wrap modulus uses',
+        step.includes('refTotal - 1'));
+  check('pause-snap: tolerance uses the COARSER grid, matching the drift lock\'s engage band',
+        snap.includes('Math.min(refFps, fps)'));
 }
 
 // (L) Lost-mouseup recovery (2026-07 "choppy after continued use" report): a drag
@@ -642,8 +649,20 @@ function extractFn(name, src = SRC) {
   // switch hesitation (display:none'd video resuming presentation).
   check('webkit-switch: CSS keeps inactive Stack wrappers composited on WebKit',
         /body\.webkit-video:not\(\.grid-mode\)[^{]*\.asset-layer:not\(\.active\) \.video-wrapper\s*\{\s*display:\s*block/.test(SRC));
-  check('webkit-switch: boot adds body.webkit-video from the fastSeek capability',
+  check('webkit-switch: boot adds body.webkit-video from the engine capability',
         SRC.includes("classList.add('webkit-video')") && countOf(SRC, "classList.add('webkit-video')") === 1);
+  // fastSeek is NOT a WebKit test — Firefox implements it too, so !fastSeek means
+  // CHROME and its negation means "Safari OR Firefox". v3.12.11/12 hung the
+  // Safari-only workarounds on that negation and silently applied them to
+  // Firefox. The detector must require an actual WebKit marker as well.
+  check('webkit-detect: _RATE_TRIM_IS_SMOOTH is not fastSeek alone (Firefox has fastSeek)',
+        /_IS_WEBKIT_MEDIA[\s\S]{0,240}?GestureEvent/.test(SRC) &&
+        /const _RATE_TRIM_IS_SMOOTH = !_IS_WEBKIT_MEDIA;/.test(SRC));
+  // Stack stacks every wrapper at the same coords; on WebKit the inactive ones
+  // are now laid out (opacity-hidden) instead of display:none, so cursor
+  // hit-testing must consult the layer rather than rely on zero-size rects.
+  check('webkit-switch: wrapper hit-test ignores inactive Stack layers',
+        /findWrapperUnderCursor[\s\S]{0,900}?!isGridMode[\s\S]{0,200}?classList\.contains\('active'\)/.test(SRC));
   check('webkit-switch: _beginSeamlessSwitch bypasses the double-buffer on WebKit',
         /_beginSeamlessSwitch\(oldLayer, newVideo\) \{[\s\S]{0,700}?!_RATE_TRIM_IS_SMOOTH\) return;/.test(SRC));
   {
