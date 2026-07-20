@@ -627,12 +627,25 @@ function extractFn(name, src = SRC) {
           f.playbackRate === 1 && !f._driftNudge && f.currentTime === 1.05);
   }
   {
-    // Stack's follower is display:none — trims are invisible and stay enabled.
+    // Stack's follower is NOT trimmed on WebKit either (v3.12.12): it is kept
+    // composited there (body.webkit-video CSS) so an A/B switch reveals a live
+    // surface, and trims churned it even while invisible — measured ~100 ms to
+    // the first new frame after a switch with trims vs <=40 ms without.
     const p = vid(1.0), f = vid(1.05);
     runTick(p, [f], false, false);
-    check('drift-lock[webkit]: HIDDEN follower still trims',
-          Math.abs(f.playbackRate - 0.90) < 1e-9 && f._driftNudge === -1);
+    check('drift-lock[webkit]: STACK follower not trimmed either (churn breaks the A/B switch)',
+          f.playbackRate === 1 && !f._driftNudge && f.currentTime === 1.05);
   }
+  // Structural: the composited-hiding pieces stay wired together — the CSS
+  // override, the boot class writer, and the seamless-switch bypass all key on
+  // the same capability. Removing any one reintroduces the 100-500 ms Safari
+  // switch hesitation (display:none'd video resuming presentation).
+  check('webkit-switch: CSS keeps inactive Stack wrappers composited on WebKit',
+        /body\.webkit-video:not\(\.grid-mode\)[^{]*\.asset-layer:not\(\.active\) \.video-wrapper\s*\{\s*display:\s*block/.test(SRC));
+  check('webkit-switch: boot adds body.webkit-video from the fastSeek capability',
+        SRC.includes("classList.add('webkit-video')") && countOf(SRC, "classList.add('webkit-video')") === 1);
+  check('webkit-switch: _beginSeamlessSwitch bypasses the double-buffer on WebKit',
+        /_beginSeamlessSwitch\(oldLayer, newVideo\) \{[\s\S]{0,700}?!_RATE_TRIM_IS_SMOOTH\) return;/.test(SRC));
   {
     // Past _DRIFT_HARD_SEEK the seek is STABILITY-GATED on WebKit: a start-up
     // stall can push drift past the threshold, and an immediate seek on a

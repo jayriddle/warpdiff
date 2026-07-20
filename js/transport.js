@@ -342,7 +342,11 @@ const _DRIFT_CONVERGE_TAU = 0.4;    // s — Grid convergence time constant (exp
 // can re-fire. So WebKit gets BOTH pieces: no trims for visible followers, and
 // the hard-seek stability-gated (_WK_SEEK_STABLE_TICKS consecutive off ticks +
 // _WK_SEEK_COOLDOWN_MS) so it fires once, with the lead, on a settled offset —
-// never a storm. Stack's display:none follower keeps full trims (invisible).
+// never a storm. This applies in BOTH modes (v3.12.12): Stack's follower is
+// kept composited on WebKit (body.webkit-video CSS — display:none'd videos
+// cost 100–500 ms to resume presenting, the Stack A/B switch hesitation) and
+// trims churned it even while invisible (composited+trims ~100 ms to first
+// frame after a switch vs ≤40 ms and 0 bad steps untrimmed).
 // Chrome (_RATE_TRIM_IS_SMOOTH true) is entirely unchanged.
 // Capability-detected via fastSeek (WebKit-only), same gate as _scrubUseDecoder.
 const _RATE_TRIM_IS_SMOOTH = typeof HTMLMediaElement === 'undefined' ||
@@ -410,12 +414,20 @@ function _driftLockTick(primary) {
         const trim = isGridMode
             ? Math.min(_DRIFT_NUDGE_MAX, Math.max(_DRIFT_NUDGE, mag / _DRIFT_CONVERGE_TAU))
             : _DRIFT_NUDGE_HIDDEN;
-        // WebKit renders a rate-trimmed VISIBLE follower unevenly, and the
-        // stutter feeds the drift being corrected (unstable loop — see the
+        // WebKit renders a rate-trimmed follower unevenly, and the stutter
+        // feeds the drift being corrected (unstable loop — see the
         // _RATE_TRIM_IS_SMOOTH block). Left alone the pair settles ~1 frame
         // apart; the pause snap closes that when frame accuracy matters.
-        // Stack's follower is display:none, so its trims stay.
-        const mayTrim = _RATE_TRIM_IS_SMOOTH || !isGridMode;
+        // This includes Stack's follower (v3.12.12): it is kept COMPOSITED
+        // there (body.webkit-video CSS keeps inactive wrappers presenting so
+        // an A/B switch reveals a live surface), and even while composited-
+        // but-invisible the trims churned it — measured via
+        // tests/investigate-safari-switch.mjs: composited + trims still
+        // hesitated ~100 ms at the switch with a trim active on 7/8 switches;
+        // composited + no trims presented the first new frame in ≤40 ms with
+        // 0 bad frame-steps and the pair holding ≤51 ms apart. Chrome
+        // (_RATE_TRIM_IS_SMOOTH true) trims everywhere, unchanged.
+        const mayTrim = _RATE_TRIM_IS_SMOOTH;
         if (mag > _DRIFT_HARD_SEEK) {
             // On no-trim engines the hard-seek must not storm: a start-up stall
             // can push drift past the threshold, and an immediate seek on a

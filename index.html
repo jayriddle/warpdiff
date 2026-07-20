@@ -727,6 +727,25 @@
             display: none;
         }
 
+        /* WebKit: resuming presentation of a display:none'd <video> costs
+           100–500 ms (measured via tests/investigate-safari-switch.mjs: first
+           new frame after a Stack A/B switch p50 138–298 ms, worst 479 ms —
+           the reported switch hesitation). Keep the inactive wrapper in the
+           layer tree instead: the parent .asset-layer is already opacity:0 +
+           pointer-events:none, which hides it visually but keeps the element
+           COMPOSITED, so it never stops presenting and a switch reveals a live
+           surface (measured: p50 28 ms, worst 40 ms, 0 bad frame-steps — with
+           the WebKit no-trim drift policy; a trimmed hidden element still
+           hesitated at ~100 ms). The black-A-slot compositor hazard that
+           forced display:none is Chrome-on-macOS-specific; Chrome keeps
+           display:none and the double-buffer switch. Scoped away from audio /
+           no-video modes, whose wrappers hold canvases with no presentation-
+           resume problem. body.webkit-video is set at boot from the same
+           fastSeek capability check as _RATE_TRIM_IS_SMOOTH. */
+        body.webkit-video:not(.grid-mode):not(.audio-mode):not(.no-video) .asset-layer:not(.active) .video-wrapper {
+            display: block;
+        }
+
         /* Seamless mid-playback switch (double-buffer): the OUTGOING layer keeps
            .switch-out for the few frames until the incoming <video> presents a
            fresh frame — a display:none video stops being presented (and Chrome
@@ -2986,7 +3005,14 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.11';
+        const APP_VERSION = '3.12.12';
+        // WebKit media-engine marker (fastSeek is WebKit-only — the same
+        // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
+        // Gates the Stack-mode CSS that keeps inactive video wrappers
+        // composited: see the body.webkit-video rule in the stylesheet.
+        if (typeof _RATE_TRIM_IS_SMOOTH !== 'undefined' && !_RATE_TRIM_IS_SMOOTH) {
+            document.body.classList.add('webkit-video');
+        }
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
@@ -7631,6 +7657,13 @@
         // black-A-slot CSS note). Rapid switches invalidate prior swaps by token.
         let _switchOutToken = 0;
         function _beginSeamlessSwitch(oldLayer, newVideo) {
+            // WebKit: inactive wrappers stay COMPOSITED (body.webkit-video CSS),
+            // so the incoming element is already presenting — there is no
+            // stale-frame / decode-resume gap for this double-buffer to cover
+            // (measured: first new frame ≤40 ms after the switch). Running it
+            // anyway would hold the outgoing clip on top for up to 300 ms and
+            // fight the opacity-based hiding via .switch-out.
+            if (typeof _RATE_TRIM_IS_SMOOTH !== 'undefined' && !_RATE_TRIM_IS_SMOOTH) return;
             const token = ++_switchOutToken;
             document.querySelectorAll('.asset-layer.switch-out')
                 .forEach(l => l.classList.remove('switch-out'));
@@ -12172,8 +12205,9 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
-            <h3>v3.12.11</h3>
+            <h3>v3.12.12</h3>
             <ul>
+                <li><strong>Safari: switching between A and B in Stack mode is instant.</strong> Safari takes 100–500&nbsp;ms to resume showing a video that was fully hidden, so every A/B switch hesitated while the incoming clip's picture spun back up. Hidden clips are now kept quietly running in the compositor (invisible, but never stopped), so a switch reveals a live picture — measured: the first new frame lands within ~40&nbsp;ms, about one frame, on every switch. Chrome never had this cost and is unchanged.</li>
                 <li><strong>Two clips now start playback in sync.</strong> Measuring on real footage showed the clips come up 1–2 frames apart every time you press play — a decoder start race — and the gentle speed correction took ~1.5&nbsp;s to close that gap. Pause sooner (most people do) and the clips really were a frame apart, so the pause-align step seeked one of them: the "other clip hops on pause" stutter. The correction is now proportional to the gap — a full-frame offset closes in about a third of a second — so playback locks almost immediately and pauses land clean, while small everyday drift is corrected as gently as before.</li>
                 <li><strong>Frame stepping (<kbd>,</kbd> / <kbd>.</kbd>) keeps clips together when their frame rates differ.</strong> Stepping used to advance each clip by one of <em>its own</em> frames, so a 24&nbsp;fps clip against a 30&nbsp;fps one drifted a third of a frame per tap — five frames adrift after two dozen steps — and clips of different lengths could wrap at their own end onto unrelated content. Stepping is now driven by the selected clip: it moves one of its frames and every other clip lands on whichever of its own frames covers the same instant. Verified across 24 / 25 / 29.97 / 30&nbsp;fps, matched and mixed.</li>
                 <li><strong>Frame-rate detection is more robust.</strong> It used to need ~1.3&nbsp;s of uninterrupted playback and started over on every play, so reviewing in short taps left clips pinned to a 30&nbsp;fps default; samples now carry across plays. It also no longer trusts the smallest frame interval, which let one nonsense timing reading (Safari emits these during normal playback) make a 24&nbsp;fps clip read as 60. Both fed the wrong frame grid to pausing and stepping.</li>
