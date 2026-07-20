@@ -50,8 +50,13 @@
     </div>
     <div class="row">
       <button id="mute" class="on">Muted</button>
+      <button id="mode">Native loop</button>
       <button id="reset">Reset stats</button>
     </div>
+    <p style="font-size:12px;color:#7a7a8b;margin:-4px 0 10px">
+      <b>Native loop</b> = the browser wraps at the end (what a single clip uses today).<br>
+      <b>Managed wrap</b> = seek back just before the end, the way WarpDiff wraps 2+ clips.
+    </p>
     <div id="out">Choose a video file to begin.
 
 Then let it play through the end at least twice.
@@ -65,6 +70,7 @@ Each loop wrap is reported below.</div>
   const out = document.getElementById('out');
   const muteBtn = document.getElementById('mute');
   let gaps = [], wraps = [], last = null, lastMt = null, running = false;
+  let managed = false, wrapping = false;
 
   document.getElementById('file').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
@@ -85,7 +91,24 @@ Each loop wrap is reported below.</div>
   });
   document.getElementById('reset').addEventListener('click', reset);
 
-  function reset() { gaps = []; wraps = []; last = null; lastMt = null; render(); }
+  const modeBtn = document.getElementById('mode');
+  modeBtn.addEventListener('click', () => {
+    managed = !managed;
+    modeBtn.textContent = managed ? 'Managed wrap' : 'Native loop';
+    modeBtn.classList.toggle('on', managed);
+    // Managed mode owns the wrap, so native looping must be off or both fire.
+    v.loop = !managed;
+    reset();
+  });
+
+  function reset() { gaps = []; wraps = []; last = null; lastMt = null; wrapping = false; render(); }
+  // Median inter-frame gap in SECONDS (used to spot the last in-range frame).
+  function med() {
+    const g = gaps.filter(x => x > 0);
+    if (g.length < 8) return 0;
+    const s2 = g.slice().sort((a, b) => a - b);
+    return s2[s2.length >> 1] / 1000;
+  }
 
   function onFrame(now, md) {
     if (last !== null) {
@@ -94,6 +117,17 @@ Each loop wrap is reported below.</div>
       if (lastMt !== null && md.mediaTime < lastMt) wraps.push(gaps.length - 1);
     }
     last = now; lastMt = md.mediaTime;
+    // Managed wrap: seek back as the LAST in-range frame presents, before the
+    // element reaches its end — the same idea as WarpDiff's loop RVFC chain.
+    if (managed && !wrapping && v.duration) {
+      const frameDur = med() || 0.042;
+      if (md.mediaTime >= v.duration - frameDur * 1.25) {
+        wrapping = true;
+        v.currentTime = 0;
+        v.play().catch(() => {});
+        setTimeout(() => { wrapping = false; }, 120);
+      }
+    }
     if (gaps.length % 5 === 0) render();
     v.requestVideoFrameCallback(onFrame);
   }
@@ -106,7 +140,7 @@ Each loop wrap is reported below.</div>
     const g = gaps.filter(x => x > 0);
     const sorted = g.slice().sort((a, b) => a - b);
     const med = sorted[sorted.length >> 1];
-    let s = `state:   ${v.muted ? 'MUTED' : 'UNMUTED (audio on)'}\n`;
+    let s = `state:   ${v.muted ? 'MUTED' : 'UNMUTED (audio on)'}  ·  ${managed ? 'MANAGED wrap' : 'NATIVE loop'}\n`;
     s += `frames:  ${g.length}\n`;
     s += `typical: ${med.toFixed(0)}ms between frames\n`;
     s += `worst:   ${sorted[sorted.length - 1].toFixed(0)}ms\n\n`;
