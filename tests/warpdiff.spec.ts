@@ -1726,6 +1726,21 @@ test.describe('Decoded audio timeline placement', () => {
     expect(starts.editB).toBeGreaterThan(0.1);
     expect(starts.editB).toBeLessThan(0.25);
   });
+
+  test('video scrub audio preserves anti-phase stereo side information', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['side_lr.mp4']);
+    await page.waitForFunction(() => {
+      const info = (window as any).__testAPI?.scrubAudioInfo('editA');
+      return info && info.channels === 2 && info.channelRms.length === 2;
+    }, {}, { timeout: 10000 });
+    const info = await page.evaluate(() => (window as any).__testAPI.scrubAudioInfo('editA'));
+    expect(info.channels).toBe(2);
+    expect(info.sampleRate).toBe(22050);
+    expect(info.channelRms[0]).toBeGreaterThan(0.05);
+    expect(info.channelRms[1]).toBeGreaterThan(0.05);
+    expect(info.cross).toBeLessThan(-0.002);
+  });
 });
 
 test.describe('WebCodecs scrub decoder', () => {

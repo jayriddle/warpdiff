@@ -15,6 +15,8 @@ const sentinels = [
   path.join(fixturesDir, 'vorbis_30.webm'),
   // MP4 with a leading empty audio edit for decoded-audio timeline mapping.
   path.join(fixturesDir, 'audio_offset.mp4'),
+  // MP4 whose stereo soundtrack is pure side information (L = -R).
+  path.join(fixturesDir, 'side_lr.mp4'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

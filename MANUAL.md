@@ -183,6 +183,8 @@ Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to s
 
 If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
 
+Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
+
 ---
 
 ## Audio File Comparison

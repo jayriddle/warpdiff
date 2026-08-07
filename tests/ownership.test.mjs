@@ -993,6 +993,39 @@ function extractFn(name, src = SRC) {
         extractFn('setupVideoHandlers').includes('waitingForTimelineStart'));
 }
 
+// Scrub storage may lower sample rate, but it must never collapse channels:
+// averaging anti-phase stereo (L = -R) produces digital silence.
+{
+  const getAudioContext = () => ({
+    createBuffer(channels, length, sampleRate) {
+      const data = Array.from({ length: channels }, () => new Float32Array(length));
+      return {
+        numberOfChannels: channels, length, sampleRate,
+        getChannelData(channel) { return data[channel]; },
+      };
+    },
+  });
+  const { _downsampleForScrub } = new Function(
+    'getAudioContext',
+    extractFn('_downsampleForScrub') + '\nreturn { _downsampleForScrub };'
+  )(getAudioContext);
+  const left = new Float32Array([0.25, 0.5, -0.25, -0.5]);
+  const right = Float32Array.from(left, sample => -sample);
+  const src = {
+    sampleRate: 22050, length: left.length, numberOfChannels: 2,
+    getChannelData(channel) { return channel === 0 ? left : right; },
+  };
+  const out = _downsampleForScrub(src);
+  check('scrub-audio-channels: stereo remains stereo after downsampling',
+        out.numberOfChannels === 2);
+  check('scrub-audio-channels: L = -R remains audible side information',
+        out.getChannelData(0)[1] === 0.5 && out.getChannelData(1)[1] === -0.5);
+  const downsample = extractFn('_downsampleForScrub');
+  check('scrub-audio-channels: downsampler never owns a mono fold-down',
+        downsample.includes('createBuffer(nCh, dstLen, dstSR)') &&
+        !downsample.includes('s / nCh'));
+}
+
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.
 // landscape_a.mp4 is 3 s of 24 fps H.264 with default (sparse) GOP: one keyframe.
 {

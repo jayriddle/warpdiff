@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.16';
+        const APP_VERSION = '3.12.17';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5664,8 +5664,9 @@
         // (_opusSync* state, _startOpusSyncAudio/_stopOpusSyncAudio/_syncOpusAudioToVideo/
         //  _updateOpusSyncRate/_updateOpusSyncGains, _OPUS_FADE, _isChrome)
 
-        // Downsample an AudioBuffer (or WebCodecs fake buffer) to mono 22050 Hz.
-        // Used for non-Opus scrub storage — ~8× smaller than stereo 48 kHz.
+        // Downsample an AudioBuffer (or WebCodecs fake buffer) to 22050 Hz while
+        // preserving every channel independently. A mono fold-down erased pure
+        // side information (L = -R) through phase cancellation during scrubbing.
         function _downsampleForScrub(srcBuf) {
             try {
                 const srcSR  = srcBuf.sampleRate || 48000;
@@ -5678,13 +5679,13 @@
                 const chs = [];
                 for (let c = 0; c < nCh; c++) chs.push(srcBuf.getChannelData(c));
                 const ctx = getAudioContext();
-                const out = ctx.createBuffer(1, dstLen, dstSR);
-                const od  = out.getChannelData(0);
-                for (let i = 0; i < dstLen; i++) {
-                    const j = Math.min(Math.round(i * step), srcLen - 1);
-                    let s = 0;
-                    for (let c = 0; c < nCh; c++) s += chs[c][j];
-                    od[i] = s / nCh;
+                const out = ctx.createBuffer(nCh, dstLen, dstSR);
+                for (let c = 0; c < nCh; c++) {
+                    const od = out.getChannelData(c);
+                    for (let i = 0; i < dstLen; i++) {
+                        const j = Math.min(Math.round(i * step), srcLen - 1);
+                        od[i] = chs[c][j];
+                    }
                 }
                 return out;
             } catch (_) {
@@ -11881,6 +11882,26 @@
             get spectrogramLogScale() { return spectrogramLogScale; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
+            scrubAudioInfo(slot) {
+                const buf = _videoAudioBuffers[slot];
+                if (!buf) return null;
+                const n = Math.min(buf.length, 4096);
+                const channelRms = [];
+                let cross = 0;
+                for (let c = 0; c < buf.numberOfChannels; c++) {
+                    const data = buf.getChannelData(c);
+                    let sum = 0;
+                    for (let i = 0; i < n; i++) sum += data[i] * data[i];
+                    channelRms.push(Math.sqrt(sum / Math.max(n, 1)));
+                }
+                if (buf.numberOfChannels > 1) {
+                    const left = buf.getChannelData(0);
+                    const right = buf.getChannelData(1);
+                    for (let i = 0; i < n; i++) cross += left[i] * right[i];
+                    cross /= Math.max(n, 1);
+                }
+                return { channels: buf.numberOfChannels, sampleRate: buf.sampleRate, channelRms, cross };
+            },
             get timecopyFmt() { return _prefs.load('timecopyFmt', 'hms'); },
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
@@ -12263,6 +12284,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.17</h3>
+            <ul>
+                <li><strong>Scrubbing now preserves stereo phase and channel placement.</strong> Side-only material such as <kbd>L = −R</kbd> no longer disappears from the scrub preview.</li>
+            </ul>
             <h3>v3.12.16</h3>
             <ul>
                 <li><strong>Repeated frame stepping no longer misses a tap.</strong> While a previous seek is still settling, <kbd>,</kbd> and <kbd>.</kbd> now advance from the last requested frame instead of asking for the same settled frame again.</li>

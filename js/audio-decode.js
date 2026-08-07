@@ -151,7 +151,8 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
 
     // Store AudioBuffer for scrub audio.
     // Opus sync slots (Chrome) need full quality for correct A/V playback.
-    // All other slots get a mono 22050 Hz copy — saves ~8× memory.
+    // All other slots get a channel-preserving 22050 Hz copy. Keeping channels
+    // separate prevents anti-phase stereo (L = -R) cancelling to silence.
     // decodeAudioData returns a real AudioBuffer; the WebCodecs path
     // returns a fake object — normalize it first via createBuffer + copyToChannel.
     try {
@@ -166,7 +167,7 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
         }
         _videoAudioBuffers[slot] = (_isChrome && _opusSyncPending[slot])
             ? buf                        // full quality — needed for Opus A/V sync
-            : _downsampleForScrub(buf);  // mono 22050 Hz — scrub preview only
+            : _downsampleForScrub(buf);  // channel-preserving 22050 Hz scrub copy
     } catch (_) {} // non-critical — scrub audio just won't work
 
     // Activate Chrome Opus sync only for slots that used WebCodecs

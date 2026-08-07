@@ -42,6 +42,14 @@ ffmpeg -hide_banner -loglevel error -y \
     -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 96k \
     -movflags +faststart "$OUT/audio_offset.mp4"
 
+# Stereo side-only soundtrack: R is the exact inverse of L. A mono L+R fold-down
+# cancels this to silence, so it guards scrub preview's channel/phase fidelity.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "testsrc2=size=320x180:rate=24:duration=2" \
+    -f lavfi -i "aevalsrc=0.35*sin(2*PI*440*t)|-0.35*sin(2*PI*440*t):s=48000:d=2" \
+    -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k \
+    -movflags +faststart "$OUT/side_lr.mp4"
+
 # HDR-tagged clip (BT.2020 + PQ colr box) — the scrub decoder must REFUSE these
 # (Chrome tone-maps HDR <video>; canvas drawImage doesn't) and fall back to
 # native scrubbing. Content is SDR testsrc; only the tagging matters.
@@ -100,3 +108,4 @@ touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav" "$OUT/vorbis_b.webm
 touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
 touch -t 202401040000 "$OUT/pq_hdr.mp4"
 touch -t 202401050000 "$OUT/audio_offset.mp4"
+touch -t 202401060000 "$OUT/side_lr.mp4"

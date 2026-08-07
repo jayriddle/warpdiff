@@ -112,7 +112,7 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 ### Scrub audio preview
 - 80 ms snippet via Web Audio at scrub time, throttled at `_SCRUB_THROTTLE` ms.
 - `source.playbackRate.value = PLAYBACK_RATES[playbackRateIndex]` so scrub preview matches the user's selected speed (not always 1×).
-- Storage: full-quality `AudioBuffer` for Chrome Opus slots (needed for Opus sync replacement). Mono 22050 Hz downsample via `_downsampleForScrub()` for everything else — ~5–8× smaller than full stereo 48 kHz.
+- Storage: full-quality `AudioBuffer` for Chrome Opus slots (needed for Opus sync replacement). Channel-preserving 22050 Hz downsample via `_downsampleForScrub()` for everything else. The old mono average cancelled anti-phase stereo (`L = −R`) to silence during scrub; every channel must remain independent. The lower sample rate still roughly halves PCM storage versus the source at 48 kHz, but channel count is no longer discarded.
 - MP4 edit-list placement is preserved separately in `_audioTimelineStarts`: `bufferTime = videoTime − timelineStart`. Times before the first sample and after the buffer end are silent rather than clamped to an edge sample. This mapping is shared by Chromium and Safari scrub preview; native `<video>` audio remains untouched. Chromium's Opus Web Audio replacement also uses it and schedules a future source start when playback begins inside leading silence. A seek or playback-rate change during that pending interval must cancel and reschedule the source: unlike the ordinary 15 ms fade window, a long timeline-silence wait changes when the video will reach `timelineStart`.
 
 ### Audio & video metrics
