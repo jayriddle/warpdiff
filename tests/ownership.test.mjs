@@ -415,8 +415,47 @@ function extractFn(name, src = SRC) {
         /videos\.forEach\(v => \{[\s\S]{0,400}?isNaN\(v\.duration\)\) return;/.test(step));
   check('step-sync: reference frame is clamped to the same duration the wrap modulus uses',
         step.includes('refTotal - 1'));
+  check(`one-owner[frame-step-cursor]: logical cursor defined once (got ${countOf(SRC, 'let _frameStepCursor = null')})`,
+        countOf(SRC, 'let _frameStepCursor = null') === 1 &&
+        countOf(SRC, 'function _frameStepCursorFrame(') === 1);
+  check('one-owner[frame-step-cursor]: stepFrame advances from the cursor owner while a seek is pending',
+        step.includes('_frameStepCursorFrame(_frameStepCursor, ref, observedFrame, refFps, refTotal, now)') &&
+        step.includes('frame: targetFrame') && step.includes('targetTime: refTime'));
+  check('one-owner[frame-step-cursor]: playback, pause, restart, play events, and both scrub entry points reset it',
+        countOf(SRC, '_resetFrameStepCursor();') === 6 &&
+        extractFn('playAllMedia').includes('_resetFrameStepCursor();') &&
+        extractFn('pauseAllMedia').includes('_resetFrameStepCursor();') &&
+        extractFn('restartAllVideos').includes('_resetFrameStepCursor();') &&
+        extractFn('setupVideoHandlers').includes("video.addEventListener('play', function() {\n        _resetFrameStepCursor();") &&
+        countOf(HTML, '_resetFrameStepCursor();') === 2);
   check('pause-snap: tolerance uses the COARSER grid, matching the drift lock\'s engage band',
         snap.includes('Math.min(refFps, fps)'));
+}
+
+// Rapid repeated steps must advance from the last REQUESTED frame while the
+// browser is still reporting the previous settled currentTime. Once an
+// ordinary seek has settled somewhere else, that observed position owns again.
+{
+  const { _frameStepCursorFrame } = new Function(
+    'const _FRAME_STEP_BURST_MS = 750;\n' +
+    extractFn('_frameStepCursorFrame') +
+    '\nreturn { _frameStepCursorFrame };'
+  )();
+  const ref = { currentSrc: 'fixture.mp4', currentTime: 3.5 / 24, seeking: true };
+  const cursor = {
+    ref, src: ref.currentSrc, fps: 24, total: 240,
+    frame: 4, targetTime: 4.5 / 24, updatedAt: 100,
+  };
+  check('frame-step-cursor: unresolved seek advances from the last requested frame',
+        _frameStepCursorFrame(cursor, ref, 3, 24, 240, 200) === 4);
+  ref.seeking = false;
+  check('frame-step-cursor: an ordinary settled seek restores observed-time authority',
+        _frameStepCursorFrame(cursor, ref, 3, 24, 240, 200) === 3);
+  ref.currentTime = cursor.targetTime;
+  check('frame-step-cursor: a just-landed burst target still advances continuously',
+        _frameStepCursorFrame(cursor, ref, 4, 24, 240, 200) === 4);
+  check('frame-step-cursor: an expired burst restores observed-time authority',
+        _frameStepCursorFrame(cursor, ref, 3, 24, 240, 851) === 3);
 }
 
 // (L) Lost-mouseup recovery (2026-07 "choppy after continued use" report): a drag

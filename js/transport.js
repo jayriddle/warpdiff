@@ -72,6 +72,7 @@ function _applyNativeLoopPolicy() {
 }
 
 function playAllMedia() {
+    _resetFrameStepCursor();
     _bulkSyncActive = true;
     // Suspend retained scrub sessions before playback: idle-but-configured
     // VideoDecoders hold hardware pipelines and starve 2–3 playing <video>
@@ -91,6 +92,7 @@ function playAllMedia() {
 }
 
 function pauseAllMedia() {
+    _resetFrameStepCursor();
     _bulkSyncActive = true;
     getAllPlayableMedia().forEach(m => m.pause());
     _snapAllVideosToFrame();
@@ -116,6 +118,23 @@ function _syncReferenceVideo(videos) {
         ref = (activeLayer && activeLayer.querySelector('video')) || videos[0];
     }
     return ref || null;
+}
+
+// A browser may keep reporting the last SETTLED currentTime while a precise
+// seek is still decoding. Frame-step key presses that arrive in that window
+// must advance from our last requested frame, not request the same frame again.
+// The cursor is deliberately burst-scoped and reference-video-specific: normal
+// transport/scrub owners clear it, and a stale/different reference falls back
+// to the element's observed time.
+const _FRAME_STEP_BURST_MS = 750;
+let _frameStepCursor = null;
+function _resetFrameStepCursor() { _frameStepCursor = null; }
+function _frameStepCursorFrame(cursor, ref, observedFrame, fps, total, nowMs) {
+    if (!cursor || cursor.ref !== ref || cursor.src !== (ref.currentSrc || ref.src) ||
+        Math.abs(cursor.fps - fps) > 1e-6 || cursor.total !== total ||
+        nowMs - cursor.updatedAt > _FRAME_STEP_BURST_MS) return observedFrame;
+    const landedOnTarget = Math.abs(ref.currentTime - cursor.targetTime) <= 0.25 / fps;
+    return (ref.seeking || landedOnTarget) ? cursor.frame : observedFrame;
 }
 
 // Snap every video onto its own frame grid at the REFERENCE clip's paused
@@ -600,6 +619,7 @@ function setupVideoHandlers(video, slot) {
     _setupFpsDetection(video, slot);
 
     video.addEventListener('play', function() {
+        _resetFrameStepCursor();
         // Frame-accurate loop enforcement runs even during bulk sync — the 'play'
         // event fires after the transition to playing, so this is the correct
         // moment to start the RVFC chain. Guarding it on _bulkSyncActive (as the
@@ -733,6 +753,7 @@ function setupVideoHandlers(video, slot) {
 }
 
 function restartAllVideos() {
+    _resetFrameStepCursor();
     _bulkSyncActive = true;
     const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
     getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play().catch(() => {}); });
@@ -768,11 +789,18 @@ function stepFrame(direction) {
     // For Opus slots container duration exceeds decoded-audio duration, so a
     // playhead parked in that phantom tail yields refFrame >= refTotal and the
     // modulus lands somewhere unrelated instead of the last frame.
-    const refFrame = Math.min(Math.floor(ref.currentTime * refFps + 0.01), refTotal - 1);
+    const observedFrame = Math.min(Math.floor(ref.currentTime * refFps + 0.01), refTotal - 1);
+    const now = performance.now();
+    const refFrame = _frameStepCursorFrame(_frameStepCursor, ref, observedFrame, refFps, refTotal, now);
     // Seek to the midpoint of the target frame to avoid landing on a frame
     // boundary where IEEE 754 rounding leaves us in the wrong frame (e.g.
     // 1/24 = 0.04166...64, just short of frame 1).
-    const refTime = (((refFrame + direction) % refTotal + refTotal) % refTotal + 0.5) / refFps;
+    const targetFrame = ((refFrame + direction) % refTotal + refTotal) % refTotal;
+    const refTime = (targetFrame + 0.5) / refFps;
+    _frameStepCursor = {
+        ref, src: ref.currentSrc || ref.src, fps: refFps, total: refTotal,
+        frame: targetFrame, targetTime: refTime, updatedAt: now,
+    };
     videos.forEach(v => {
         // Metadata may not have landed on every clip yet (a step keyed before
         // 'loadedmetadata'). currentTime is a restricted double, so assigning

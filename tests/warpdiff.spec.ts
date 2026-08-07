@@ -1242,6 +1242,19 @@ test.describe('Multi-video sync-lock', () => {
     });
     // Half a frame of the coarser (24 fps) grid. Pre-fix this reached ~0.2 s.
     expect(drift).toBeLessThan(0.5 / 24);
+
+    // Dispatch a burst with no settling delay between presses. WebKit can keep
+    // exposing the previous settled currentTime while these seeks are pending;
+    // every key event must still contribute exactly one requested frame.
+    await seekVideos(page, 0.5 / 24);
+    await page.evaluate(() => {
+      for (let i = 0; i < 10; i++) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: '.', code: 'Period', bubbles: true }));
+      }
+    });
+    await page.waitForTimeout(300);
+    const rapidTime = (await videoTimes(page))[0].t;
+    expect(rapidTime).toBeCloseTo(10.5 / 24, 3);
   });
 
   test('audio-viz panel does not overlap the videos (Grid, two clips)', async ({ page }) => {

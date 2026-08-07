@@ -279,7 +279,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 |-----|--------|
 | **← → ↑ ↓** | Switch asset (Stack mode) |
 | **Space** | Play / Pause |
-| **,** / **.** | Frame step back / forward |
+| **,** / **.** | Frame step back / forward (repeated presses advance one frame each) |
 | **R** | Restart |
 | **J** / **K** | Slower / Faster |
 | **I** / **O** | Loop in / out |

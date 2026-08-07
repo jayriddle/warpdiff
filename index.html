@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.15';
+        const APP_VERSION = '3.12.16';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -8045,6 +8045,7 @@
                     || (e.target.id === 'panelWaveformCanvas' ? e.target : null)
                     || (e.target.id === 'spectrogramCanvas' ? e.target : null);
                 if (!canvas) return;
+                _resetFrameStepCursor();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
                 // A mousedown while "dragging" means the previous drag's mouseup
                 // was lost — finalize it (restores muted states, suspends
@@ -8111,6 +8112,7 @@
             let _draggingLoopMarker = null; // 'in' or 'out' during loop marker drag
 
             progressContainer.addEventListener('mousedown', function(e) {
+                _resetFrameStepCursor();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
 
                 // A mousedown while "dragging" means the previous drag's mouseup
@@ -12261,6 +12263,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.16</h3>
+            <ul>
+                <li><strong>Repeated frame stepping no longer misses a tap.</strong> While a previous seek is still settling, <kbd>,</kbd> and <kbd>.</kbd> now advance from the last requested frame instead of asking for the same settled frame again.</li>
+            </ul>
             <h3>v3.12.15</h3>
             <ul>
                 <li><strong>Scrub audio now respects a video's intentional audio start offset.</strong> Files whose soundtrack begins after the first frame retain that leading silence instead of previewing the audio early; Chromium's Opus correction follows the same timeline mapping.</li>
