@@ -1740,6 +1740,26 @@ test.describe('Decoded audio timeline placement', () => {
     expect(info.channelRms[0]).toBeGreaterThan(0.05);
     expect(info.channelRms[1]).toBeGreaterThan(0.05);
     expect(info.cross).toBeLessThan(-0.002);
+
+    const phase = await page.evaluate(() => {
+      const ctx = new AudioContext();
+      const frequency = 440;
+      const buf = ctx.createBuffer(2, ctx.sampleRate, ctx.sampleRate);
+      for (let channel = 0; channel < 2; channel++) {
+        const data = buf.getChannelData(channel);
+        for (let i = 0; i < data.length; i++) data[i] = Math.sin(2 * Math.PI * frequency * i / ctx.sampleRate);
+      }
+      const prior = 0.25;
+      const opposite = prior + 0.5 / frequency;
+      const align = (window as typeof window & { _phaseAlignScrubOffset: Function })._phaseAlignScrubOffset;
+      const aligned = align(buf, opposite, prior, 1);
+      return {
+        displacement: Math.abs(aligned - opposite),
+        correlation: Math.cos(2 * Math.PI * frequency * (aligned - prior)),
+      };
+    });
+    expect(phase.displacement).toBeLessThanOrEqual(0.0081);
+    expect(phase.correlation).toBeGreaterThan(0.9);
   });
 });
 

@@ -1026,6 +1026,40 @@ function extractFn(name, src = SRC) {
         !downsample.includes('s / nCh'));
 }
 
+// Overlapping scrub grains must not meet at opposite waveform phases: that
+// crossfade passes through silence even when the source itself is a steady,
+// centered tone. Alignment is bounded so audio remains local to the picture.
+{
+  const { _phaseAlignScrubOffset } = new Function(
+    'const _SCRUB_PHASE_SEARCH = 0.008;\n' +
+    extractFn('_phaseAlignScrubOffset') +
+    '\nreturn { _phaseAlignScrubOffset };'
+  )();
+  const sampleRate = 22050;
+  const frequency = 440;
+  const data = new Float32Array(sampleRate);
+  for (let i = 0; i < data.length; i++) data[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate);
+  const buf = {
+    sampleRate, length: data.length, numberOfChannels: 2,
+    getChannelData() { return data; },
+  };
+  const prior = 0.25;
+  const opposite = prior + 0.5 / frequency;
+  const aligned = _phaseAlignScrubOffset(buf, opposite, prior, 1);
+  const resultingPhase = Math.cos(2 * Math.PI * frequency * (aligned - prior));
+  check('scrub-grain-phase: an opposite-phase CENTER grain is aligned constructively',
+        resultingPhase > 0.9);
+  check('scrub-grain-phase: alignment remains inside the ±8ms A/V locality bound',
+        Math.abs(aligned - opposite) <= 0.008 + 1 / sampleRate);
+  const play = extractFn('playScrubSnippet');
+  check('one-owner[scrub-grain-phase]: snippet replacement routes through bounded alignment and held gain',
+        countOf(SRC, 'function _phaseAlignScrubOffset(') === 1 &&
+        countOf(SRC, 'function _holdAudioParam(') === 1 &&
+        play.includes('_phaseAlignScrubOffset(buf, offset, priorOffset, rate)') &&
+        play.includes('_holdAudioParam(_scrubGain.gain, ctx.currentTime)') &&
+        extractFn('stopScrubSnippet').includes('_holdAudioParam(_scrubGain.gain, ctx.currentTime)'));
+}
+
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.
 // landscape_a.mp4 is 3 s of 24 fps H.264 with default (sparse) GOP: one keyframe.
 {

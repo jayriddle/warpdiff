@@ -185,6 +185,8 @@ If a video's soundtrack intentionally begins after the first frame, scrub previe
 
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
 
+Successive scrub snippets are phase-aligned within a bounded ±8 ms neighbourhood before they overlap. This prevents steady centered tones—and similar voiced material—from thinning or dropping out as the pointer moves, without moving the preview by as much as one video frame.
+
 ---
 
 ## Audio File Comparison

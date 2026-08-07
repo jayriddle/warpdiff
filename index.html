@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.17';
+        const APP_VERSION = '3.12.18';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4782,10 +4782,69 @@
         // Scrub audio preview — plays short snippets with gain envelope to avoid clicks
         let _scrubSource = null;
         let _scrubGain = null;
+        let _scrubSourceBuffer = null;
+        let _scrubSourceOffset = 0;
+        let _scrubSourceStartCtx = 0;
+        let _scrubSourceRate = 1;
         let _scrubLastTime = 0;
         const _SCRUB_SNIPPET_LEN = 0.08;  // 80ms snippet
         const _SCRUB_FADE = 0.01;         // 10ms fade in/out
         const _SCRUB_THROTTLE = 50;       // min ms between new snippets
+        const _SCRUB_PHASE_SEARCH = 0.008; // max ±8ms target adjustment (< 1/5 frame at 24fps)
+
+        function _holdAudioParam(param, at) {
+            if (typeof param.cancelAndHoldAtTime === 'function') {
+                param.cancelAndHoldAtTime(at);
+            } else {
+                const held = param.value;
+                param.cancelScheduledValues(at);
+                param.setValueAtTime(held, at);
+            }
+        }
+
+        // Align a new grain to the outgoing grain's waveform phase within a
+        // tightly bounded neighbourhood of the requested timeline position.
+        // Unaligned overlap can null a steady CENTER tone (or hollow speech)
+        // when the two grains happen to begin on opposite waveform phases.
+        function _phaseAlignScrubOffset(buf, desiredOffset, priorOffset, rate) {
+            const sr = buf && buf.sampleRate;
+            const channels = buf && buf.numberOfChannels;
+            if (!sr || !channels || !buf.length) return desiredOffset;
+            const step = Math.max(0.125, rate || 1);
+            const windowFrames = Math.max(16, Math.round(0.004 * sr / step));
+            const searchFrames = Math.max(1, Math.round(_SCRUB_PHASE_SEARCH * sr));
+            const priorFrame = Math.round(priorOffset * sr);
+            const desiredFrame = Math.round(desiredOffset * sr);
+            if (priorFrame < 0 || priorFrame + Math.round(windowFrames * step) >= buf.length) return desiredOffset;
+            const channelData = [];
+            for (let c = 0; c < channels; c++) channelData.push(buf.getChannelData(c));
+            const scoreAt = (candidateFrame) => {
+                if (candidateFrame < 0 || candidateFrame + Math.round(windowFrames * step) >= buf.length) return -Infinity;
+                let cross = 0, oldEnergy = 0, newEnergy = 0;
+                for (let i = 0; i < windowFrames; i++) {
+                    const advance = Math.round(i * step);
+                    for (let c = 0; c < channels; c++) {
+                        const oldSample = channelData[c][priorFrame + advance];
+                        const newSample = channelData[c][candidateFrame + advance];
+                        cross += oldSample * newSample;
+                        oldEnergy += oldSample * oldSample;
+                        newEnergy += newSample * newSample;
+                    }
+                }
+                if (oldEnergy < 1e-8 || newEnergy < 1e-8) return -Infinity;
+                return cross / Math.sqrt(oldEnergy * newEnergy);
+            };
+            const directScore = scoreAt(desiredFrame);
+            let bestFrame = desiredFrame;
+            let bestScore = directScore;
+            for (let delta = -searchFrames; delta <= searchFrames; delta++) {
+                const score = scoreAt(desiredFrame + delta) - Math.abs(delta) / searchFrames * 0.002;
+                if (score > bestScore) { bestScore = score; bestFrame = desiredFrame + delta; }
+            }
+            // Do not slide arbitrary/noisy jumps for a marginal correlation win.
+            if (bestScore < 0.35 || bestScore < directScore + 0.08) return desiredOffset;
+            return bestFrame / sr;
+        }
 
         function playScrubSnippet(time) {
             const now = performance.now();
@@ -4798,20 +4857,25 @@
             const vizData = _audioSlotVizData[slot];
             const buf = (vizData && vizData.audioBuffer) || _videoAudioBuffers[slot];
             if (!buf) return;
-            const offset = _audioBufferTimeForTimeline(time, _audioTimelineStarts[slot] || 0);
+            let offset = _audioBufferTimeForTimeline(time, _audioTimelineStarts[slot] || 0);
             // Silence is part of the timeline. In particular, a leading empty
             // MP4 edit must not clamp to sample zero and repeat the first sound.
             if (offset < 0 || offset >= buf.duration) {
                 stopScrubSnippet();
                 return;
             }
+            const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
+            if (_scrubSource && _scrubSourceBuffer === buf) {
+                const priorOffset = _scrubSourceOffset +
+                    Math.max(0, ctx.currentTime - _scrubSourceStartCtx) * _scrubSourceRate;
+                offset = _phaseAlignScrubOffset(buf, offset, priorOffset, rate);
+            }
             const snippetLen = Math.min(_SCRUB_SNIPPET_LEN, buf.duration - offset);
             const fadeLen = Math.min(_SCRUB_FADE, snippetLen / 2);
 
             // Fade out previous snippet smoothly
             if (_scrubGain) {
-                _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
-                _scrubGain.gain.setValueAtTime(_scrubGain.gain.value, ctx.currentTime);
+                _holdAudioParam(_scrubGain.gain, ctx.currentTime);
                 _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
             }
             if (_scrubSource) {
@@ -4832,22 +4896,26 @@
             source.buffer = buf;
             // Match the current playback rate so the scrub preview sounds like the
             // user's selected speed rather than always playing at 1×.
-            const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
             source.playbackRate.value = rate;
             source.connect(gain);
             source.start(0, offset, snippetLen);
             _scrubSource = source;
             _scrubGain = gain;
+            _scrubSourceBuffer = buf;
+            _scrubSourceOffset = offset;
+            _scrubSourceStartCtx = ctx.currentTime;
+            _scrubSourceRate = rate;
             source.onended = () => {
-                if (_scrubSource === source) { _scrubSource = null; _scrubGain = null; }
+                if (_scrubSource === source) {
+                    _scrubSource = null; _scrubGain = null; _scrubSourceBuffer = null;
+                }
             };
         }
 
         function stopScrubSnippet() {
             const ctx = getAudioContext();
             if (_scrubGain) {
-                _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
-                _scrubGain.gain.setValueAtTime(_scrubGain.gain.value, ctx.currentTime);
+                _holdAudioParam(_scrubGain.gain, ctx.currentTime);
                 _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
             }
             if (_scrubSource) {
@@ -4855,6 +4923,7 @@
                 setTimeout(() => { try { old.stop(); } catch (_) {} }, _SCRUB_FADE * 1000 + 10);
                 _scrubSource = null;
                 _scrubGain = null;
+                _scrubSourceBuffer = null;
             }
         }
 
@@ -12285,6 +12354,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.18</h3>
+            <ul>
+                <li><strong>Scrub audio no longer pulses or drops in level on centered material.</strong> Successive snippets are phase-aligned within a tightly bounded window before crossfading, and gain transitions now hold their true instantaneous level.</li>
+            </ul>
             <h3>v3.12.17</h3>
             <ul>
                 <li><strong>Scrubbing now preserves stereo phase and channel placement.</strong> Side-only material such as <kbd>L = −R</kbd> no longer disappears from the scrub preview.</li>

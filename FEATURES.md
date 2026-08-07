@@ -38,7 +38,7 @@ Press `Shift+G` to grab the current frame from the active slot and pin it to a g
 
 ## Synchronized video playback
 
-All videos play in sync with shared transport controls. Scrub audio preserves stereo channels and phase, repeated `,`/`.` presses frame-step reliably, and restart acts on every clip. Per-source audio switching lets you listen to any asset's audio track independently.
+All videos play in sync with shared transport controls. Scrub audio preserves stereo channels and phase while smoothing grain transitions to avoid level dropouts; repeated `,`/`.` presses frame-step reliably, and restart acts on every clip. Per-source audio switching lets you listen to any asset's audio track independently.
 
 With two or more videos loaded, playback is **sync-locked**: all videos loop together over the shortest clip's duration (rather than each restarting on its own clock), and a continuous drift lock holds every video on the active one's clock — within half a frame — in both Stack and Grid mode. Clips come up a frame or two apart when playback starts (a decoder start race); on Chrome the lock closes that within about a third of a second, so pausing shortly after pressing play still lands both clips on the same frame. On Safari the clips are instead left to run free during playback (rate corrections make WebKit present video unevenly) and are aligned exactly when you pause, which is when frame accuracy matters.
 
