@@ -713,7 +713,11 @@ function setupVideoHandlers(video, slot) {
             const rate = _opusSyncRate[slot] || 1;
             const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
             const expectedVideoTime = _opusSyncStartVideo[slot] + elapsed * rate;
-            if (elapsed >= 0 && Math.abs(video.currentTime - expectedVideoTime) > 0.15) {
+            const waitingForTimelineStart = elapsed < 0 &&
+                (_audioTimelineStarts[slot] || 0) > 0 &&
+                Math.abs(_opusSyncStartVideo[slot] - _audioTimelineStarts[slot]) < 1e-6;
+            if (waitingForTimelineStart ||
+                (elapsed >= 0 && Math.abs(video.currentTime - expectedVideoTime) > 0.15)) {
                 _startOpusSyncAudio(slot, video.currentTime);
             }
         } else if (_opusSyncSlots[slot] && !video.paused) {

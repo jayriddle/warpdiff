@@ -1629,6 +1629,38 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
     expect(r.second.startVideo).toBeGreaterThan(0.6 + 0.005); // clearly compensated, not raw fromTime
   });
 
+  test('leading timeline silence delays the source instead of playing sample zero early', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const opus = (window as any).__testAPI.opus;
+      opus.installTestBuffer('editA', 2, 0.166);
+      const before = opus.ctxTime();
+      opus.start('editA', 0);
+      return { before, state: opus.state('editA') };
+    });
+    expect(r.state.hasSource).toBe(true);
+    expect(r.state.startCtx - r.before).toBeGreaterThan(0.15);
+    expect(r.state.startVideo).toBeCloseTo(0.166, 3);
+  });
+
+  test('rate change during leading silence reschedules the delayed soundtrack start', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const opus = (window as any).__testAPI.opus;
+      opus.installTestBuffer('editA', 2, 0.166);
+      opus.start('editA', 0);
+      const first = opus.state('editA');
+      const video = document.querySelector('#layerEditA video') as HTMLVideoElement;
+      video.playbackRate = 2;
+      const before = opus.ctxTime();
+      opus.updateRate(2);
+      return { first, before, second: opus.state('editA') };
+    });
+    expect(r.second.rate).toBe(2);
+    expect(r.second.startVideo).toBeCloseTo(0.166, 3);
+    expect(r.second.startCtx - r.before).toBeGreaterThan(0.07);
+    expect(r.second.startCtx - r.before).toBeLessThan(0.1);
+    expect(r.second.startCtx).toBeLessThan(r.first.startCtx - 0.05);
+  });
+
   test('stopping a pending source cancels silently without extending fadeUntil', async ({ page }) => {
     const r = await page.evaluate(() => {
       const opus = (window as any).__testAPI.opus;
@@ -1665,6 +1697,21 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
     expect(r.after.startVideo).toBeCloseTo(r.before.startVideo, 6);
     expect(r.after.startCtx).toBeCloseTo(r.before.startCtx, 6);
     expect(r.after.rate).toBe(2);
+  });
+});
+
+test.describe('Decoded audio timeline placement', () => {
+  test('MP4 leading empty edit is retained for scrub-audio mapping', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'audio_offset.mp4']);
+    await page.waitForFunction(() => {
+      const starts = (window as any).__testAPI?._audioTimelineStarts;
+      return starts && starts.editB > 0.1;
+    }, {}, { timeout: 15000 });
+    const starts = await getVar(page, '_audioTimelineStarts');
+    expect(starts.editA).toBe(0);
+    expect(starts.editB).toBeGreaterThan(0.1);
+    expect(starts.editB).toBeLessThan(0.25);
   });
 });
 
@@ -1894,10 +1941,13 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
       new MouseEvent('mousemove', { bubbles: true, buttons: 0, clientX: 50, clientY: 50 })));
     await page.waitForFunction(() => !(window as any).__testAPI.isDragging, {}, { timeout: 2000 });
     expect(await mutedStates(page)).toEqual(baseline);
-    expect(await page.evaluate(() => {
+    // Product code deliberately resumes on the next animation frame so the
+    // final seek settles first; wait for that documented deferred resume rather
+    // than racing it with an immediate assertion.
+    await page.waitForFunction(() => {
       const v = document.querySelector('.asset-layer video') as HTMLVideoElement;
       return v && !v.paused;
-    })).toBe(true); // wasPlaying → resumed
+    }, {}, { timeout: 2000 });
     await page.mouse.up(); // real release afterwards must be a no-op
     await page.waitForTimeout(100);
     expect(await mutedStates(page)).toEqual(baseline);

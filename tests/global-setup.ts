@@ -13,6 +13,8 @@ const sentinels = [
   path.join(fixturesDir, 'vorbis_long.webm'),
   // vorbis_30.webm (30 fps) was added for the mixed-frame-rate stepping test.
   path.join(fixturesDir, 'vorbis_30.webm'),
+  // MP4 with a leading empty audio edit for decoded-audio timeline mapping.
+  path.join(fixturesDir, 'audio_offset.mp4'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

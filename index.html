@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.14';
+        const APP_VERSION = '3.12.15';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4798,7 +4798,15 @@
             const vizData = _audioSlotVizData[slot];
             const buf = (vizData && vizData.audioBuffer) || _videoAudioBuffers[slot];
             if (!buf) return;
-            const offset = Math.max(0, Math.min(time, buf.duration - _SCRUB_SNIPPET_LEN));
+            const offset = _audioBufferTimeForTimeline(time, _audioTimelineStarts[slot] || 0);
+            // Silence is part of the timeline. In particular, a leading empty
+            // MP4 edit must not clamp to sample zero and repeat the first sound.
+            if (offset < 0 || offset >= buf.duration) {
+                stopScrubSnippet();
+                return;
+            }
+            const snippetLen = Math.min(_SCRUB_SNIPPET_LEN, buf.duration - offset);
+            const fadeLen = Math.min(_SCRUB_FADE, snippetLen / 2);
 
             // Fade out previous snippet smoothly
             if (_scrubGain) {
@@ -4815,10 +4823,10 @@
             gain.connect(ctx.destination);
             // Fade in
             gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(1, ctx.currentTime + _SCRUB_FADE);
+            gain.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeLen);
             // Fade out before end
-            gain.gain.setValueAtTime(1, ctx.currentTime + _SCRUB_SNIPPET_LEN - _SCRUB_FADE);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_SNIPPET_LEN);
+            gain.gain.setValueAtTime(1, ctx.currentTime + snippetLen - fadeLen);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + snippetLen);
 
             const source = ctx.createBufferSource();
             source.buffer = buf;
@@ -4827,7 +4835,7 @@
             const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
             source.playbackRate.value = rate;
             source.connect(gain);
-            source.start(0, offset, _SCRUB_SNIPPET_LEN);
+            source.start(0, offset, snippetLen);
             _scrubSource = source;
             _scrubGain = gain;
             source.onended = () => {
@@ -5053,6 +5061,7 @@
         // decodeAndComputeAudioViz → js/audio-decode.js
 
         let _videoAudioBuffers = {}; // { slot: AudioBuffer } — for video scrub audio
+        let _audioTimelineStarts = {}; // { slot: seconds } — first decoded sample's position on the video timeline
 
         // ── Unsupported-codec detection + ffmpeg.wasm transcode ─────────────
         // Browsers cannot decode AC-3, EAC-3, DTS, or TrueHD. When the MP4
@@ -9290,6 +9299,7 @@
             _scrubOverlayCanvases = {}; // elements die with their layers
             _scrubSlotByVideo = null;
             _videoAudioBuffers = {};
+            _audioTimelineStarts = {};
             audioFileBuffers = {};
             audioMetrics = {};
             _audioSlotVizData = {};
@@ -11868,6 +11878,7 @@
             get viewActivating() { return viewActivating; },
             get spectrogramLogScale() { return spectrogramLogScale; },
             get audioMetrics() { return audioMetrics; },
+            get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
             get timecopyFmt() { return _prefs.load('timecopyFmt', 'hms'); },
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
@@ -11905,9 +11916,10 @@
             // scheduling invariants can be exercised without an Opus fixture —
             // they are pure Web Audio timing math, independent of codec.
             opus: {
-                installTestBuffer(slot, seconds = 2) {
+                installTestBuffer(slot, seconds = 2, timelineStart = 0) {
                     const ctx = getAudioContext();
                     _videoAudioBuffers[slot] = ctx.createBuffer(2, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+                    _audioTimelineStarts[slot] = timelineStart;
                     _opusSyncSlots[slot] = true;
                     _opusSyncActive = true;
                 },
@@ -12249,6 +12261,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.15</h3>
+            <ul>
+                <li><strong>Scrub audio now respects a video's intentional audio start offset.</strong> Files whose soundtrack begins after the first frame retain that leading silence instead of previewing the audio early; Chromium's Opus correction follows the same timeline mapping.</li>
+            </ul>
             <h3>v3.12.14</h3>
             <ul>
                 <li><strong>The waveform panel no longer overlaps the videos.</strong> With two clips in Grid view, opening the panel or loading clips while it was already open could leave the bottom of the videos tucked under the waveform. The video area now resizes reliably whenever the panel does.</li>

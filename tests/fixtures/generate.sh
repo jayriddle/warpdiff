@@ -33,6 +33,15 @@ make_video "$OUT/landscape_a.mp4" 960 540 24 red    green   blue
 make_video "$OUT/landscape_b.mp4" 960 540 24 yellow magenta cyan  white
 make_video "$OUT/portrait.mp4"    540 960 24 orange purple  teal  gray pink
 
+# Video with an intentional 166 ms leading empty audio edit. The decoded audio
+# buffer begins at its first sample; WarpDiff must retain the edit-list placement
+# separately so scrub preview stays silent before the soundtrack begins.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "color=c=black:s=320x180:r=24:d=2" \
+    -itsoffset 0.166 -f lavfi -i "sine=frequency=1000:sample_rate=48000:duration=1.5" \
+    -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 96k \
+    -movflags +faststart "$OUT/audio_offset.mp4"
+
 # HDR-tagged clip (BT.2020 + PQ colr box) — the scrub decoder must REFUSE these
 # (Chrome tone-maps HDR <video>; canvas drawImage doesn't) and fall back to
 # native scrubbing. Content is SDR testsrc; only the tagging matters.
@@ -90,3 +99,4 @@ touch -t 202401010000 "$OUT/landscape_a.mp4" "$OUT/stereo.wav" "$OUT/vorbis_a.we
 touch -t 202401020000 "$OUT/landscape_b.mp4" "$OUT/mono.wav" "$OUT/vorbis_b.webm" "$OUT/vorbis_long.webm"
 touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
 touch -t 202401040000 "$OUT/pq_hdr.mp4"
+touch -t 202401050000 "$OUT/audio_offset.mp4"

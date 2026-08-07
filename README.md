@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.14
+**Current version:** 3.12.15
 
 ---
 
@@ -52,6 +52,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Source–A, Source–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default, contrast auto-scaled per clip)
+- Scrub audio preserves intentional soundtrack offsets and leading silence from the video container
 - `Shift+W` toggle linear/log frequency, `P` cycle spectrogram palettes
 
 **Keyboard-first**

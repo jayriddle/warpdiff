@@ -6,6 +6,11 @@
 // resolve via the shared global scope of classic <script>s (same as js/hotkeys.js).
 // Single decode owners per concern; see tests/ownership.test.mjs for the guards.
 
+function _audioBufferTimeForTimeline(timelineTime, timelineStart) {
+    const start = Number.isFinite(timelineStart) && timelineStart > 0 ? timelineStart : 0;
+    return timelineTime - start;
+}
+
 async function decodeAndComputeAudioViz(slot, source) {
     // Generation guard: a reload/clear during the async decode below must not
     // let a stale completion write this slot's viz/metrics/Opus state (or mute
@@ -24,6 +29,17 @@ async function decodeAndComputeAudioViz(slot, source) {
     // Detect Opus from file bytes — needed to activate Chrome sync correction.
     // Scan first and last 64KB for 'Opus' (MP4) or 'A_OPUS' (WebM).
     const bytes = new Uint8Array(arrayBuffer);
+    const isMP4 = bytes.length > 7 &&
+        bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+    let timelineStart = 0;
+    if (isMP4) {
+        try {
+            const timing = _demuxMP4Audio(bytes, true);
+            if (timing && Number.isFinite(timing.timelineStart)) timelineStart = timing.timelineStart;
+        } catch (e) {
+            console.warn('[audio-timeline] MP4 timing parse failed for', slot, e);
+        }
+    }
     let isOpus = false;
     const scanRegions = [
         [0, Math.min(bytes.length, 65536)],
@@ -77,7 +93,7 @@ async function decodeAndComputeAudioViz(slot, source) {
             new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
         ]);
-        _finalizeAudioViz(slot, audioBuffer, gen);
+        _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
     } catch (e) {
         if (typeof AudioDecoder !== 'undefined') {
             console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
@@ -108,12 +124,15 @@ function _onAllDecodeFailed(slot, audioConfirmed) {
     _registerFfmpegCommand(slot, filename, codec);
 }
 
-function _finalizeAudioViz(slot, audioBuffer, gen) {
+function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
     // Drop stale completions — a reload/clear during the async decode chain
     // bumps _videoAudioDecodeGen, so this slot no longer belongs to this decode.
     // Without this, a previous file's decode could overwrite the new slot's
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
+    _audioTimelineStarts[slot] = Number.isFinite(timelineStart) && timelineStart > 0
+        ? timelineStart
+        : 0;
     waveformData[slot] = computeWaveformData(audioBuffer, 600);
     spectrogramData[slot] = computeSpectrogramData(audioBuffer);
     const _mf = computeAudioMetrics(audioBuffer);
@@ -157,7 +176,7 @@ function _finalizeAudioViz(slot, audioBuffer, gen) {
     if (_isChrome && _opusSyncPending[slot] && _videoAudioBuffers[slot] && hasVideos) {
         _opusSyncSlots[slot] = true;
         _opusSyncActive = true;
-        _opusSyncDuration[slot] = _videoAudioBuffers[slot].duration;
+        _opusSyncDuration[slot] = _audioTimelineStarts[slot] + _videoAudioBuffers[slot].duration;
         const layer = getLayer(slot);
         const video = layer && layer.querySelector('video');
         if (video) video.muted = true;
@@ -342,7 +361,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         };
         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
-        _finalizeAudioViz(slot, fakeBuffer, gen);
+        _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart || 0);
         _webcodecsFinished();
     }).catch(err => {
         console.warn('AudioDecoder flush failed for', slot, err);
@@ -373,7 +392,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
                 numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
                 duration: duration, length: totalFrames,
                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
-            }, gen);
+            }, gen, extracted.timelineStart || 0);
         }
         _webcodecsFinished();
     });

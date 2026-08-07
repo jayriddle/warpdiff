@@ -912,7 +912,46 @@ function extractFn(name, src = SRC) {
     check('demux[mp4]: codec fourcc string', r && typeof r.codec === 'string' && r.codec.length > 0);
     check('demux[mp4]: chunks carry {timestamp, data}', r && r.chunks[0] &&
           typeof r.chunks[0].timestamp === 'number' && r.chunks[0].data && r.chunks[0].data.length > 0);
+    check('demux[mp4]: ordinary fixture has no delayed audio timeline start',
+          r && r.timelineStart === 0);
   }
+}
+
+// MP4 audio edit-list placement — audio_offset.mp4 carries a leading empty edit
+// before its first audible sample. This is presentation delay, not encoder
+// priming: it must survive as timelineStart instead of being discarded.
+{
+  const fixture = new URL('fixtures/audio_offset.mp4', import.meta.url);
+  if (!existsSync(fixture)) {
+    console.log('  ⊘ demux[mp4-offset]: skipped — run `npm test` once to generate tests/fixtures/*.mp4');
+  } else {
+    const { _demuxMP4Audio } = new Function(extractFn('_demuxMP4Audio') + '\nreturn { _demuxMP4Audio };')();
+    const bytes = new Uint8Array(readFileSync(fixture));
+    const timing = _demuxMP4Audio(bytes, true);
+    const full = _demuxMP4Audio(bytes);
+    check('demux[mp4-offset]: metadata-only parse finds delayed audio start',
+          timing && timing.timelineStart > 0.1 && timing.timelineStart < 0.25);
+    check('demux[mp4-offset]: full demux preserves the same delayed start',
+          full && Math.abs(full.timelineStart - timing.timelineStart) < 1e-9);
+  }
+}
+
+// Shared Chromium/Safari scrub mapping is pure timeline math. Negative buffer
+// time means the playhead is in intentional leading silence.
+{
+  const { _audioBufferTimeForTimeline } = new Function(
+    extractFn('_audioBufferTimeForTimeline') + '\nreturn { _audioBufferTimeForTimeline };'
+  )();
+  check('audio-timeline: before soundtrack start maps to silence',
+        _audioBufferTimeForTimeline(0.1, 0.166) < 0);
+  check('audio-timeline: soundtrack start maps to buffer zero',
+        Math.abs(_audioBufferTimeForTimeline(0.166, 0.166)) < 1e-9);
+  check('audio-timeline: zero-offset files retain direct mapping',
+        _audioBufferTimeForTimeline(1.25, 0) === 1.25);
+  check('audio-timeline: pending Opus rate changes reschedule intentional leading silence',
+        extractFn('_updateOpusSyncRate').includes('_startOpusSyncAudio(slot, video.currentTime)'));
+  check('audio-timeline: seeks re-anchor pending intentional leading silence',
+        extractFn('setupVideoHandlers').includes('waitingForTimelineStart'));
 }
 
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.

@@ -181,6 +181,8 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
+If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
+
 ---
 
 ## Audio File Comparison

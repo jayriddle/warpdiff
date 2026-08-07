@@ -34,11 +34,9 @@ function _startOpusSyncAudio(slot, fromTime) {
     const buf = _videoAudioBuffers[slot];
     if (!buf) return;
     if (ctx.state === 'suspended') ctx.resume();
-    const source = ctx.createBufferSource();
-    const gain = ctx.createGain();
-    const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
-    const vol = isCurrent && !audioMuteStates[slot]
-        ? (_prefs.load('volume', 100) / 100) : 0;
+    const layer = getLayer(slot);
+    const video = layer && layer.querySelector('video');
+    const rate = (video && video.playbackRate) || 1;
     // Begin only once any previous fade-out has gone silent — overlapping
     // the two creates a linear crossfade between uncorrelated audio chunks
     // (different points in the buffer), which sums to audible phase
@@ -47,15 +45,31 @@ function _startOpusSyncAudio(slot, fromTime) {
     // whenever it fades an audible source, so this covers external
     // stop→start sequences (e.g. pause→play) as well as replacement, and
     // collapses to "now" when nothing is fading.
-    const startTime = Math.max(ctx.currentTime, _opusSyncFadeUntil[slot] || 0);
+    let startTime = Math.max(ctx.currentTime, _opusSyncFadeUntil[slot] || 0);
+    const timelineStart = _audioTimelineStarts[slot] || 0;
+    let startVideoTime = fromTime + (startTime - ctx.currentTime) * rate;
+    let offset = _audioBufferTimeForTimeline(startVideoTime, timelineStart);
+    // A leading empty MP4 edit means the video timeline begins before the first
+    // audio sample. Schedule the source for that future timeline point instead
+    // of clamping to sample zero and playing the audio early.
+    if (offset < 0) {
+        startTime += (-offset) / rate;
+        startVideoTime = timelineStart;
+        offset = 0;
+    }
+    // The video may legitimately continue after the audio edit ends.
+    if (offset >= buf.duration) return;
+
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
+    const vol = isCurrent && !audioMuteStates[slot]
+        ? (_prefs.load('volume', 100) / 100) : 0;
     // Fade in from 0 to vol over _OPUS_FADE, starting at startTime
     gain.gain.setValueAtTime(0, startTime);
     gain.gain.linearRampToValueAtTime(vol, startTime + _OPUS_FADE);
     source.buffer = buf;
     // Match the video element's playback rate so audio runs in sync at non-1× speeds
-    const layer = getLayer(slot);
-    const video = layer && layer.querySelector('video');
-    const rate = (video && video.playbackRate) || 1;
     source.playbackRate.value = rate;
     source.connect(gain);
     gain.connect(ctx.destination);
@@ -64,15 +78,13 @@ function _startOpusSyncAudio(slot, fromTime) {
     // current then. Starting at fromTime's sample would play it late and
     // bake a permanent (startTime − now)·rate lag into the drift anchors,
     // which are self-consistent with the audio and never correct it.
-    const compensated = fromTime + (startTime - ctx.currentTime) * rate;
-    const offset = Math.max(0, Math.min(compensated, buf.duration - 0.001));
     source.start(startTime, offset);
     _opusSyncSources[slot] = source;
     _opusSyncGains[slot] = gain;
     // Anchor drift math at the actual start moment — _syncOpusAudioToVideo
     // computes expectedVideoTime = startVideo + (ctx.currentTime - startCtx) * rate.
     _opusSyncStartCtx[slot] = startTime;
-    _opusSyncStartVideo[slot] = offset;
+    _opusSyncStartVideo[slot] = startVideoTime;
     _opusSyncRate[slot] = rate;
     source.onended = () => {
         if (_opusSyncSources[slot] === source) {
@@ -160,6 +172,16 @@ function _updateOpusSyncRate(rate) {
         // startCtx from the moment the source actually begins. The rate
         // assignment below still takes effect when the source starts.
         const elapsed = ctx.currentTime - _opusSyncStartCtx[slot];
+        const timelineStart = _audioTimelineStarts[slot] || 0;
+        const layer = getLayer(slot);
+        const video = layer && layer.querySelector('video');
+        if (elapsed < 0 && timelineStart > 0 && video && video.currentTime < timelineStart) {
+            // This is a potentially long wait for intentional leading silence,
+            // not merely the 15 ms anti-click fade. Playback-rate changes alter
+            // when the video reaches timelineStart, so cancel and reschedule.
+            _startOpusSyncAudio(slot, video.currentTime);
+            continue;
+        }
         if (elapsed >= 0) {
             const oldRate = _opusSyncRate[slot] || 1;
             _opusSyncStartVideo[slot] = _opusSyncStartVideo[slot] + elapsed * oldRate;

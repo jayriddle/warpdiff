@@ -1,11 +1,12 @@
 // MP4 / WebM audio demuxers — extracted from index.html (no app-state dependencies).
 // Pure: each takes a Uint8Array container and returns
-//   { chunks:[{timestamp,data}], sampleRate, channels, codec, description, preSkip, maxSamples }
+//   { chunks:[{timestamp,data}], sampleRate, channels, codec, description,
+//     preSkip, maxSamples, timelineStart }
 // (WebM returns a subset). Used by the audio decode pipeline to feed WebCodecs AudioDecoder.
 // See CLAUDE.md "MP4 audio demuxer" for the per-track mdhd.timescale scoping invariant.
 
 // --- MP4 demuxer ---
-function _demuxMP4Audio(data) {
+function _demuxMP4Audio(data, metadataOnly = false) {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     let sampleRate = 48000, channels = 2;
     let codecPrivate = null;
@@ -15,7 +16,9 @@ function _demuxMP4Audio(data) {
     let timescale = 1;
     let mediaStartTime = -1; // from edit list, in timescale units
     let segmentDuration = -1; // from edit list, in movie timescale units
+    let timelineStartDuration = 0; // leading empty edits, in movie timescale units
     let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
+    let foundAudioTrack = false;
     const sampleTable = { sizes: [], offsets: [], durations: [] };
     const chunks = [];
 
@@ -56,17 +59,17 @@ function _demuxMP4Audio(data) {
                 parseMdhd(boxStart, boxEnd);
             } else if (type === 'hdlr') {
                 parseHdlr(boxStart, boxEnd);
-            } else if (type === 'stsd') {
+            } else if (type === 'stsd' && !metadataOnly) {
                 parseStsd(boxStart, boxEnd);
-            } else if (type === 'stsz') {
+            } else if (type === 'stsz' && !metadataOnly) {
                 parseStsz(boxStart, boxEnd);
-            } else if (type === 'stco') {
+            } else if (type === 'stco' && !metadataOnly) {
                 parseStco(boxStart, boxEnd);
-            } else if (type === 'co64') {
+            } else if (type === 'co64' && !metadataOnly) {
                 parseCo64(boxStart, boxEnd);
-            } else if (type === 'stsc') {
+            } else if (type === 'stsc' && !metadataOnly) {
                 parseStsc(boxStart, boxEnd);
-            } else if (type === 'stts') {
+            } else if (type === 'stts' && !metadataOnly) {
                 parseStts(boxStart, boxEnd);
             } else if (type === 'tkhd') {
                 parseTkhd(boxStart, boxEnd);
@@ -82,6 +85,7 @@ function _demuxMP4Audio(data) {
     let _stscEntries = [];
     let _lastElstMediaTime = -1; // elst from current trak, resolved after hdlr
     let _lastElstSegDuration = -1;
+    let _lastElstTimelineStartDuration = 0;
     let _lastMdhdTimescale = 0;  // mdhd from current trak; promoted to `timescale`
                                  // only when hdlr confirms this trak is audio.
                                  // Without per-track scoping, the data/subtitle
@@ -93,6 +97,7 @@ function _demuxMP4Audio(data) {
         if (end - start < 8) return;
         _lastElstMediaTime = -1; // reset for each new trak
         _lastElstSegDuration = -1;
+        _lastElstTimelineStartDuration = 0;
         _lastMdhdTimescale = 0; // also reset per-track — see parseMdhd
         _currentTrackIsAudio = false;
         const version = data[start];
@@ -114,12 +119,14 @@ function _demuxMP4Audio(data) {
                 if (off + 20 > end) break;
                 const sd = Number(view.getBigUint64(off));
                 const mt = Number(view.getBigInt64(off + 8));
+                if (mt === -1) _lastElstTimelineStartDuration += sd;
                 if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
                 off += 20;
             } else {
                 if (off + 12 > end) break;
                 const sd = view.getUint32(off);
                 const mt = view.getInt32(off + 4);
+                if (mt === -1) _lastElstTimelineStartDuration += sd;
                 if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
                 off += 12;
             }
@@ -155,6 +162,7 @@ function _demuxMP4Audio(data) {
         const handlerType = readStr(start + 8, 4);
         _currentTrackIsAudio = (handlerType === 'soun');
         if (_currentTrackIsAudio) {
+            foundAudioTrack = true;
             // Promote this trak's mdhd timescale to the demuxer-wide variable.
             // Previously the global `timescale` was overwritten by every track,
             // so a data/subtitle track parsed after the audio track (with
@@ -165,6 +173,7 @@ function _demuxMP4Audio(data) {
                 mediaStartTime = _lastElstMediaTime;
                 segmentDuration = _lastElstSegDuration;
             }
+            timelineStartDuration = _lastElstTimelineStartDuration;
         }
     }
 
@@ -279,6 +288,14 @@ function _demuxMP4Audio(data) {
     // Parse
     walkBoxes(0, data.length, '');
 
+    const timelineStart = (timelineStartDuration > 0 && movieTimescale > 0)
+        ? timelineStartDuration / movieTimescale
+        : 0;
+    // decodeAudioData handles the compressed samples itself; callers use this
+    // lightweight mode only to retain the MP4 edit-list placement on the video
+    // timeline. Do not build or copy the packet table in that path.
+    if (metadataOnly) return foundAudioTrack ? { timelineStart: timelineStart } : null;
+
     if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
         console.warn('[mp4-parse] no audio samples found');
         return null;
@@ -343,6 +360,7 @@ function _demuxMP4Audio(data) {
     console.log('[mp4-parse] ' + chunks.length + ' audio samples, timescale=' + timescale +
         ', rate=' + sampleRate + ', ch=' + channels +
         ', elst_media_time=' + mediaStartTime + ', skipSamples=' + skipSamples +
+        ', timelineStart=' + timelineStart +
         ', segDur=' + segmentDuration + ', movieTs=' + movieTimescale +
         ', maxSamples=' + maxSamples);
 
@@ -353,7 +371,8 @@ function _demuxMP4Audio(data) {
         codec: audioCodec,
         description: codecPrivate,
         preSkip: skipSamples,
-        maxSamples: maxSamples
+        maxSamples: maxSamples,
+        timelineStart: timelineStart
     };
 }
 
