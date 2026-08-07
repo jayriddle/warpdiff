@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.18';
+        const APP_VERSION = '3.12.19';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4786,20 +4786,28 @@
         let _scrubSourceOffset = 0;
         let _scrubSourceStartCtx = 0;
         let _scrubSourceRate = 1;
+        let _scrubSourceSnippetLen = 0;
+        let _scrubSourceFadeLen = 0;
         let _scrubLastTime = 0;
         const _SCRUB_SNIPPET_LEN = 0.08;  // 80ms snippet
         const _SCRUB_FADE = 0.01;         // 10ms fade in/out
         const _SCRUB_THROTTLE = 50;       // min ms between new snippets
         const _SCRUB_PHASE_SEARCH = 0.008; // max ±8ms target adjustment (< 1/5 frame at 24fps)
 
-        function _holdAudioParam(param, at) {
-            if (typeof param.cancelAndHoldAtTime === 'function') {
-                param.cancelAndHoldAtTime(at);
-            } else {
-                const held = param.value;
-                param.cancelScheduledValues(at);
-                param.setValueAtTime(held, at);
-            }
+        function _scrubEnvelopeGain(elapsed, snippetLen, fadeLen) {
+            if (elapsed <= 0 || snippetLen <= 0) return 0;
+            if (fadeLen > 0 && elapsed < fadeLen) return elapsed / fadeLen;
+            if (elapsed <= snippetLen - fadeLen) return 1;
+            if (fadeLen > 0 && elapsed < snippetLen) return (snippetLen - elapsed) / fadeLen;
+            return 0;
+        }
+
+        function _holdScrubGain(ctx) {
+            if (!_scrubGain) return;
+            const elapsed = Math.max(0, ctx.currentTime - _scrubSourceStartCtx);
+            const held = _scrubEnvelopeGain(elapsed, _scrubSourceSnippetLen, _scrubSourceFadeLen);
+            _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
+            _scrubGain.gain.setValueAtTime(held, ctx.currentTime);
         }
 
         // Align a new grain to the outgoing grain's waveform phase within a
@@ -4871,11 +4879,12 @@
                 offset = _phaseAlignScrubOffset(buf, offset, priorOffset, rate);
             }
             const snippetLen = Math.min(_SCRUB_SNIPPET_LEN, buf.duration - offset);
-            const fadeLen = Math.min(_SCRUB_FADE, snippetLen / 2);
+            const outputSnippetLen = snippetLen / rate;
+            const fadeLen = Math.min(_SCRUB_FADE, outputSnippetLen / 2);
 
             // Fade out previous snippet smoothly
             if (_scrubGain) {
-                _holdAudioParam(_scrubGain.gain, ctx.currentTime);
+                _holdScrubGain(ctx);
                 _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
             }
             if (_scrubSource) {
@@ -4889,8 +4898,8 @@
             gain.gain.setValueAtTime(0, ctx.currentTime);
             gain.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeLen);
             // Fade out before end
-            gain.gain.setValueAtTime(1, ctx.currentTime + snippetLen - fadeLen);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + snippetLen);
+            gain.gain.setValueAtTime(1, ctx.currentTime + outputSnippetLen - fadeLen);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + outputSnippetLen);
 
             const source = ctx.createBufferSource();
             source.buffer = buf;
@@ -4905,6 +4914,8 @@
             _scrubSourceOffset = offset;
             _scrubSourceStartCtx = ctx.currentTime;
             _scrubSourceRate = rate;
+            _scrubSourceSnippetLen = outputSnippetLen;
+            _scrubSourceFadeLen = fadeLen;
             source.onended = () => {
                 if (_scrubSource === source) {
                     _scrubSource = null; _scrubGain = null; _scrubSourceBuffer = null;
@@ -4915,7 +4926,7 @@
         function stopScrubSnippet() {
             const ctx = getAudioContext();
             if (_scrubGain) {
-                _holdAudioParam(_scrubGain.gain, ctx.currentTime);
+                _holdScrubGain(ctx);
                 _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
             }
             if (_scrubSource) {
@@ -12354,6 +12365,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.19</h3>
+            <ul>
+                <li><strong>Removed pronounced clicks introduced by the previous scrub-smoothing change.</strong> Grain transitions now derive their current envelope level directly instead of relying on browser gain-automation hold behaviour.</li>
+            </ul>
             <h3>v3.12.18</h3>
             <ul>
                 <li><strong>Scrub audio no longer pulses or drops in level on centered material.</strong> Successive snippets are phase-aligned within a tightly bounded window before crossfading, and gain transitions now hold their true instantaneous level.</li>

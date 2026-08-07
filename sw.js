@@ -1,5 +1,5 @@
 // Keep in sync with APP_VERSION in index.html
-const CACHE_NAME = 'warpdiff-v3.12.18';
+const CACHE_NAME = 'warpdiff-v3.12.19';
 const ASSETS = ['./', 'index.html', 'js/audio-viz.js', 'js/scopes.js', 'js/hotkeys.js', 'js/mp4-demux.js', 'js/scrub-video.js', 'js/timecode.js', 'js/opus-sync.js', 'js/audio-decode.js', 'js/transport.js', 'js/starfield.js', 'version.json', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'manifest.json'];
 
 self.addEventListener('install', e => {

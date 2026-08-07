@@ -1051,13 +1051,42 @@ function extractFn(name, src = SRC) {
         resultingPhase > 0.9);
   check('scrub-grain-phase: alignment remains inside the ±8ms A/V locality bound',
         Math.abs(aligned - opposite) <= 0.008 + 1 / sampleRate);
+  let baselineEnergy = 0, errorEnergy = 0, unalignedMidEnergy = 0;
+  const fadeSamples = Math.round(0.01 * sampleRate);
+  for (let i = 0; i < fadeSamples; i++) {
+    const t = i / sampleRate;
+    const mix = i / Math.max(fadeSamples - 1, 1);
+    const oldSample = Math.sin(2 * Math.PI * frequency * (prior + t));
+    const alignedSample = Math.sin(2 * Math.PI * frequency * (aligned + t));
+    const oppositeSample = Math.sin(2 * Math.PI * frequency * (opposite + t));
+    const output = oldSample * (1 - mix) + alignedSample * mix;
+    const unaligned = oldSample * (1 - mix) + oppositeSample * mix;
+    baselineEnergy += oldSample * oldSample;
+    errorEnergy += (output - oldSample) * (output - oldSample);
+    if (mix > 0.45 && mix < 0.55) unalignedMidEnergy += unaligned * unaligned;
+  }
+  check('scrub-grain-phase: aligned CENTER crossfade remains nearly identical to uninterrupted playback',
+        Math.sqrt(errorEnergy / baselineEnergy) < 0.05);
+  check('scrub-grain-phase test is sensitive: the unaligned half-cycle crossfade collapses near its midpoint',
+        unalignedMidEnergy / Math.max(1, Math.round(fadeSamples * 0.1)) < 0.01);
+  const { _scrubEnvelopeGain } = new Function(
+    extractFn('_scrubEnvelopeGain') + '\nreturn { _scrubEnvelopeGain };'
+  )();
+  check('scrub-grain-envelope: analytic gain follows fade-in, plateau, fade-out, and end',
+        Math.abs(_scrubEnvelopeGain(0.005, 0.08, 0.01) - 0.5) < 1e-9 &&
+        _scrubEnvelopeGain(0.04, 0.08, 0.01) === 1 &&
+        Math.abs(_scrubEnvelopeGain(0.075, 0.08, 0.01) - 0.5) < 1e-9 &&
+        _scrubEnvelopeGain(0.08, 0.08, 0.01) === 0);
   const play = extractFn('playScrubSnippet');
   check('one-owner[scrub-grain-phase]: snippet replacement routes through bounded alignment and held gain',
         countOf(SRC, 'function _phaseAlignScrubOffset(') === 1 &&
-        countOf(SRC, 'function _holdAudioParam(') === 1 &&
+        countOf(SRC, 'function _scrubEnvelopeGain(') === 1 &&
+        countOf(SRC, 'function _holdScrubGain(') === 1 &&
+        countOf(SRC, 'function _holdAudioParam(') === 0 &&
         play.includes('_phaseAlignScrubOffset(buf, offset, priorOffset, rate)') &&
-        play.includes('_holdAudioParam(_scrubGain.gain, ctx.currentTime)') &&
-        extractFn('stopScrubSnippet').includes('_holdAudioParam(_scrubGain.gain, ctx.currentTime)'));
+        play.includes('_holdScrubGain(ctx)') &&
+        play.includes('const outputSnippetLen = snippetLen / rate') &&
+        extractFn('stopScrubSnippet').includes('_holdScrubGain(ctx)'));
 }
 
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.
