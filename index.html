@@ -11882,22 +11882,23 @@
             get spectrogramLogScale() { return spectrogramLogScale; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
-            scrubAudioInfo(slot) {
+            scrubAudioInfo(slot, atTime = 0) {
                 const buf = _videoAudioBuffers[slot];
                 if (!buf) return null;
-                const n = Math.min(buf.length, 4096);
+                const start = Math.max(0, Math.min(Math.floor(atTime * buf.sampleRate), buf.length - 1));
+                const n = Math.min(buf.length - start, 4096);
                 const channelRms = [];
                 let cross = 0;
                 for (let c = 0; c < buf.numberOfChannels; c++) {
                     const data = buf.getChannelData(c);
                     let sum = 0;
-                    for (let i = 0; i < n; i++) sum += data[i] * data[i];
+                    for (let i = 0; i < n; i++) sum += data[start + i] * data[start + i];
                     channelRms.push(Math.sqrt(sum / Math.max(n, 1)));
                 }
                 if (buf.numberOfChannels > 1) {
                     const left = buf.getChannelData(0);
                     const right = buf.getChannelData(1);
-                    for (let i = 0; i < n; i++) cross += left[i] * right[i];
+                    for (let i = 0; i < n; i++) cross += left[start + i] * right[start + i];
                     cross /= Math.max(n, 1);
                 }
                 return { channels: buf.numberOfChannels, sampleRate: buf.sampleRate, channelRms, cross };
