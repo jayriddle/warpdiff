@@ -1578,6 +1578,22 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
     }, {}, { timeout: 15000 });
   });
 
+  test('Fit/Ref applies one persistent level scale to waveform and spectrogram', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['stereo.wav', 'mono.wav']);
+    const group = page.locator('#audioLevelGroup');
+    const fit = group.locator('[data-audio-level="fit"]');
+    const ref = group.locator('[data-audio-level="ref"]');
+    await expect(group).toBeVisible();
+    await expect(fit).toHaveClass(/\bactive\b/);
+    expect(await getVar(page, 'audioVizLevelMode')).toBe('fit');
+    await ref.click();
+    await expect(ref).toHaveClass(/\bactive\b/);
+    expect(await getVar(page, 'audioVizLevelMode')).toBe('ref');
+    await page.reload();
+    expect(await getVar(page, 'audioVizLevelMode')).toBe('ref');
+  });
+
   test('loading a new set clears stale loop points and resets the spectrogram cursor', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);

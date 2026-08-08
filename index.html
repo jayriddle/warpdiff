@@ -2418,6 +2418,19 @@
         #scopesToggleBtn.active { color: #4add20; }
         #waveformToggleBtn.active:hover,
         #scopesToggleBtn.active:hover { background: rgba(74,221,32,0.1); color: #4add20; }
+        .audio-level-group {
+            display: none;
+            align-items: center;
+            gap: 2px;
+            margin-left: 1px;
+        }
+        .audio-level-label {
+            color: #666;
+            font: 8px/1 monospace;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-right: 1px;
+        }
         .analysis-btn svg { width: 20px; height: 20px; display: block; }
         .analysis-btn:focus { outline: none; }
         .analysis-btn:focus-visible { outline: 2px solid #f0a030; outline-offset: 2px; }
@@ -2831,6 +2844,11 @@
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
+                <div class="audio-level-group" id="audioLevelGroup" role="group" aria-label="Waveform and spectrogram level scaling">
+                    <span class="audio-level-label">Level</span>
+                    <button class="mode-sub-btn" data-audio-level="fit" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
+                    <button class="mode-sub-btn" data-audio-level="ref" onclick="setAudioVizLevelMode('ref'); this.blur();" title="Ref: true waveform amplitude at 0 dBFS and a fixed −70 to 0 dBFS spectrogram scale">Ref</button>
+                </div>
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
             </div><!-- /headerRight -->
@@ -3005,7 +3023,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.21';
+        const APP_VERSION = '3.12.22';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4941,6 +4959,32 @@
         // fft, buildPalette, spectrogramPalettes, paletteNames → js/audio-viz.js
         let currentPaletteIndex = _prefs.load('paletteIndex', paletteNames.indexOf('inferno'));
         let spectrogramPalette = spectrogramPalettes[paletteNames[currentPaletteIndex]] || spectrogramPalettes.viridis;
+        let audioVizLevelMode = _prefs.load('audioVizLevelMode', 'fit');
+        if (audioVizLevelMode !== 'fit' && audioVizLevelMode !== 'ref') audioVizLevelMode = 'fit';
+
+        function _syncAudioVizLevelButtons() {
+            document.querySelectorAll('[data-audio-level]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.audioLevel === audioVizLevelMode);
+            });
+            const group = document.getElementById('audioLevelGroup');
+            if (group) group.style.display = (hasVideos || hasAudios) ? 'flex' : 'none';
+        }
+
+        function setAudioVizLevelMode(mode) {
+            if (mode !== 'fit' && mode !== 'ref') return;
+            audioVizLevelMode = mode;
+            _prefs.save('audioVizLevelMode', mode);
+            _syncAudioVizLevelButtons();
+            if (audioVizVisible) {
+                const slot = currentAudioSource || assetOrder[currentAssetIndex];
+                drawWaveform(slot);
+                drawSpectrogram(slot);
+            }
+            if (hasAudios || _noVideoMode) redrawAllAudioSlotCanvases();
+            showToast(mode === 'fit'
+                ? 'Audio level: Fit (normalized per asset)'
+                : 'Audio level: Ref (fixed dBFS scale)');
+        }
 
         // computeWaveformChannel, computeWaveformData, runSTFT, computeSpectrogramChannel,
         // computeSpectrogramData, WAVEFORM_DB_*, WAVEFORM_ZONES, WAVEFORM_DB_LEVELS,
@@ -4977,20 +5021,23 @@
             // Mode 0 or 1: draw waveform
             const data = waveformData[slot];
             if (_audioWaveMode !== 2 && data && data.L && data.L.length > 0) {
+                const amplitudeScale = _waveformScaleForMode(data.peak, audioVizLevelMode);
                 if (data.R) {
                     const chH = h / 2;
-                    drawWaveformChannelSmooth(ctx, data.L, w, 0, chH);
-                    drawWaveformChannelSmooth(ctx, data.R, w, h / 2, chH);
-                    drawWaveformDbGrid(ctx, w, 0, chH / 2);
-                    drawWaveformDbGrid(ctx, w, h / 2, chH / 2);
+                    drawWaveformChannelSmooth(ctx, data.L, w, 0, chH, amplitudeScale);
+                    drawWaveformChannelSmooth(ctx, data.R, w, h / 2, chH, amplitudeScale);
+                    if (audioVizLevelMode === 'ref') {
+                        drawWaveformDbGrid(ctx, w, 0, chH / 2);
+                        drawWaveformDbGrid(ctx, w, h / 2, chH / 2);
+                    }
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                     ctx.beginPath();
                     ctx.moveTo(0, h / 2);
                     ctx.lineTo(w, h / 2);
                     ctx.stroke();
                 } else {
-                    drawWaveformChannelSmooth(ctx, data.L, w, 0, h);
-                    drawWaveformDbGrid(ctx, w, 0, h / 2);
+                    drawWaveformChannelSmooth(ctx, data.L, w, 0, h, amplitudeScale);
+                    if (audioVizLevelMode === 'ref') drawWaveformDbGrid(ctx, w, 0, h / 2);
                 }
                 // Dim regions outside loop markers
                 if (_loopInPoint !== null && _loopOutPoint !== null) {
@@ -5078,15 +5125,18 @@
                 const halfH = Math.floor((canvas.height - specGap) / 2);
                 const rTop = halfH + specGap;
                 const rHeight = canvas.height - rTop;
-                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, halfH, sr, spectrogramPalette, spectrogramLogScale);
-                drawSpectrogramRegion(pixels, canvas.width, spec.R.frames, numBins, rTop, rHeight, sr, spectrogramPalette, spectrogramLogScale);
+                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, halfH, sr,
+                    spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
+                drawSpectrogramRegion(pixels, canvas.width, spec.R.frames, numBins, rTop, rHeight, sr,
+                    spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
                 ctx.putImageData(imgData, 0, 0);
                 // Fill gap with background color
                 ctx.fillStyle = '#111';
                 ctx.fillRect(0, halfH, canvas.width, specGap);
             } else {
                 // Mono: full height
-                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, canvas.height, sr, spectrogramPalette, spectrogramLogScale);
+                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, canvas.height, sr,
+                    spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
                 ctx.putImageData(imgData, 0, 0);
             }
             // Dim regions outside loop markers
@@ -6779,34 +6829,37 @@
                 ctx.save();
                 ctx.translate(labelMargin, wfPad);
                 const wf = vizData.waveform;
+                const amplitudeScale = _waveformScaleForMode(wf.peak, audioVizLevelMode);
 
                 if (isStereo) {
                     const halfH = Math.floor(wfInnerH / 2);
-                    drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, halfH);
-                    drawWaveformChannelSmooth(ctx, wf.R, fillW, halfH, wfInnerH - halfH);
+                    drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, halfH, amplitudeScale);
+                    drawWaveformChannelSmooth(ctx, wf.R, fillW, halfH, wfInnerH - halfH, amplitudeScale);
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
                     ctx.beginPath();
                     ctx.moveTo(0, halfH);
                     ctx.lineTo(fillW, halfH);
                     ctx.stroke();
                 } else {
-                    drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, wfInnerH);
+                    drawWaveformChannelSmooth(ctx, wf.L, fillW, 0, wfInnerH, amplitudeScale);
                 }
 
                 // dB grid lines
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-                ctx.setLineDash([4, 4]);
-                const midY = wfInnerH / 2;
-                [-6, -12].forEach(db => {
-                    const amp = Math.pow(10, db / 20);
-                    [midY - amp * (wfInnerH / 2), midY + amp * (wfInnerH / 2)].forEach(y => {
-                        ctx.beginPath();
-                        ctx.moveTo(0, y);
-                        ctx.lineTo(fillW, y);
-                        ctx.stroke();
+                if (audioVizLevelMode === 'ref') {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.setLineDash([4, 4]);
+                    const midY = wfInnerH / 2;
+                    [-6, -12].forEach(db => {
+                        const amp = Math.pow(10, db / 20);
+                        [midY - amp * (wfInnerH / 2), midY + amp * (wfInnerH / 2)].forEach(y => {
+                            ctx.beginPath();
+                            ctx.moveTo(0, y);
+                            ctx.lineTo(fillW, y);
+                            ctx.stroke();
+                        });
                     });
-                });
-                ctx.setLineDash([]);
+                    ctx.setLineDash([]);
+                }
                 ctx.restore();
             }
 
@@ -6838,12 +6891,15 @@
                     const halfSpecH = Math.floor((specH - specGap) / 2);
                     const rHeight = specH - halfSpecH - specGap;
                     const imgData = ctx.createImageData(fillW, specH);
-                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, halfSpecH, sr, spectrogramPalette, spectrogramLogScale);
-                    drawSpectrogramRegion(imgData.data, fillW, spec.R.frames, numBins, halfSpecH + specGap, rHeight, sr, spectrogramPalette, spectrogramLogScale);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, halfSpecH, sr,
+                        spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.R.frames, numBins, halfSpecH + specGap, rHeight, sr,
+                        spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
                     ctx.putImageData(imgData, labelMargin, waveH);
                 } else {
                     const imgData = ctx.createImageData(fillW, specH);
-                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, specH, sr, spectrogramPalette, spectrogramLogScale);
+                    drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, specH, sr,
+                        spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
                     ctx.putImageData(imgData, labelMargin, waveH);
                 }
             }
@@ -10784,6 +10840,7 @@
             // Always show analysis icons; hide mode strip for single file
             document.getElementById('headerRight').style.display = 'flex';
             document.getElementById('analysisStrip').style.display = 'flex';
+            _syncAudioVizLevelButtons();
             document.getElementById('iconSep1').style.display = 'none'; // shown only in Stack mode below
             // Normalise activeMode: horizontal/vertical both map to 'compare' for highlighting
             const normalised = (activeMode === 'horizontal' || activeMode === 'vertical') ? 'compare' : activeMode;
@@ -11960,6 +12017,7 @@
             get gridInlineMode() { return gridInlineMode; },
             get viewActivating() { return viewActivating; },
             get spectrogramLogScale() { return spectrogramLogScale; },
+            get audioVizLevelMode() { return audioVizLevelMode; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
             scrubAudioInfo(slot, atTime = 0) {
@@ -12176,6 +12234,7 @@
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
+            <p><strong>Fit / Ref level scaling:</strong> The shared header control applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
             <h2>Audio Timeline Interaction</h2>
             <p>In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.</p>
@@ -12244,6 +12303,7 @@
                 <li>Zoom loupe size and magnification level</li>
                 <li>Linked zoom on/off</li>
                 <li>Volume level</li>
+                <li>Waveform and spectrogram Fit / Ref level scaling</li>
                 <li>Spectrogram scale (linear/log) and color palette</li>
             </ul>
 
@@ -12312,7 +12372,7 @@
             <ul>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
-                <li><kbd>W</kbd> audio waveform with dB color coding + spectrogram</li>
+                <li><kbd>W</kbd> audio waveform + spectrogram, with shared Fit / Ref level scaling</li>
             </ul>
 
             <h3>Keyboard-First</h3>
@@ -12365,6 +12425,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.22</h3>
+            <ul>
+                <li><strong>Waveforms and spectrograms now share a persistent Fit / Ref level control.</strong> Fit reveals the detail in each asset; Ref preserves true waveform amplitude and uses a common −70 to 0 dBFS spectrogram scale for honest level comparisons.</li>
+            </ul>
             <h3>v3.12.21</h3>
             <ul>
                 <li><strong>Long videos no longer freeze the interface while loading.</strong> Clips of two minutes or more use a bounded full-timeline spectrogram analysis instead of generating hundreds of thousands of oversized FFT frames.</li>

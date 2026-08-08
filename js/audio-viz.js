@@ -100,7 +100,14 @@ function computeWaveformData(audioBuffer, numBuckets) {
     const R = audioBuffer.numberOfChannels > 1
         ? computeWaveformChannel(audioBuffer.getChannelData(1), numBuckets)
         : null;
-    return { L, R };
+    let peak = 0;
+    for (const data of R ? [L, R] : [L]) {
+        for (let i = 0; i < data.length; i++) {
+            const a = Math.abs(data[i]);
+            if (a > peak) peak = a;
+        }
+    }
+    return { L, R, peak };
 }
 
 // --- Spectrogram computation ---
@@ -226,6 +233,16 @@ function _bakeSpectrogramChannel(ch, floorDb, rangeDb) {
     }
 }
 
+function _spectrogramPaletteIndex(fitIndex, fitFloorDb, fitCeilDb, levelMode) {
+    const fitted = Math.max(0, Math.min(255, Math.round(Number(fitIndex) || 0)));
+    if (levelMode !== 'ref') return fitted;
+    const floorDb = Number.isFinite(fitFloorDb) ? fitFloorDb : -70;
+    const ceilDb = Number.isFinite(fitCeilDb) ? fitCeilDb : 0;
+    const db = floorDb + (fitted / 255) * Math.max(1e-9, ceilDb - floorDb);
+    const referenced = Math.round(((db + 70) / 70) * 255);
+    return Math.max(0, Math.min(255, referenced));
+}
+
 function computeSpectrogramData(audioBuffer) {
     const sr = audioBuffer.sampleRate;
     const L = computeSpectrogramChannel(audioBuffer.getChannelData(0), sr);
@@ -268,7 +285,11 @@ const WAVEFORM_DB_LEVELS = [
     { db: -24, amp: 0.063 },
 ];
 
-function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH) {
+function _waveformScaleForMode(peak, levelMode) {
+    return levelMode === 'fit' && Number.isFinite(peak) && peak > 0 ? 1 / peak : 1;
+}
+
+function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH, amplitudeScale = 1) {
     const numBuckets = data.length / 2;
     if (numBuckets === 0) return;
     const midY = topY + fullH / 2;
@@ -277,16 +298,16 @@ function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH) {
 
     const minSpread = 1 / halfH;
     const path = new Path2D();
-    let mn = data[0], mx = data[1];
+    let mn = data[0] * amplitudeScale, mx = data[1] * amplitudeScale;
     if (mx - mn < minSpread) { mx += minSpread / 2; mn -= minSpread / 2; }
     path.moveTo(0, midY - mx * halfH);
     for (let i = 1; i < numBuckets; i++) {
-        mn = data[i * 2]; mx = data[i * 2 + 1];
+        mn = data[i * 2] * amplitudeScale; mx = data[i * 2 + 1] * amplitudeScale;
         if (mx - mn < minSpread) { mx += minSpread / 2; mn -= minSpread / 2; }
         path.lineTo(i * bucketW, midY - mx * halfH);
     }
     for (let i = numBuckets - 1; i >= 0; i--) {
-        mn = data[i * 2]; mx = data[i * 2 + 1];
+        mn = data[i * 2] * amplitudeScale; mx = data[i * 2 + 1] * amplitudeScale;
         if (mx - mn < minSpread) { mn -= minSpread / 2; }
         path.lineTo(i * bucketW, midY - mn * halfH);
     }
@@ -306,7 +327,8 @@ function drawWaveformChannelSmooth(ctx, data, drawW, topY, fullH) {
 
     for (let z = WAVEFORM_ZONES.length - 2; z >= 0; z--) {
         const zone = WAVEFORM_ZONES[z];
-        const t = zone.threshold;
+        const t = zone.threshold * amplitudeScale;
+        if (t >= 1) continue;
         const bandTopPos = midY - halfH;
         const bandBotPos = midY - t * halfH;
         const bandTopNeg = midY + t * halfH;
@@ -340,7 +362,8 @@ function drawWaveformDbGrid(ctx, w, topY, halfH) {
 
 // --- Spectrogram rendering ---
 
-function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH, sampleRate, palette, logScale) {
+function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH, sampleRate,
+    palette, logScale, fitFloorDb = -70, fitCeilDb = 0, levelMode = 'fit') {
     const numFrames = frames.length;
     const nyquist = sampleRate / 2;
     const fMin = 20;
@@ -364,7 +387,8 @@ function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH
             const b0 = Math.max(0, Math.min(numBins - 1, Math.floor(binF)));
             const b1 = Math.min(numBins - 1, b0 + 1);
             const frac = binF - b0;
-            const val = Math.round(frame[b0] * (1 - frac) + frame[b1] * frac);
+            const fitted = Math.round(frame[b0] * (1 - frac) + frame[b1] * frac);
+            const val = _spectrogramPaletteIndex(fitted, fitFloorDb, fitCeilDb, levelMode);
             const [r, g, b] = palette[val];
             const idx = (y * canvasW + x) * 4;
             pixels[idx] = r;

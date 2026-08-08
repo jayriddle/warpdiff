@@ -833,6 +833,20 @@ function extractFn(name, src = SRC) {
   check('spectrogram-plan: five-minute clips use bounded single-resolution analysis',
         longPlan && longPlan.loFFT === 2048 && longPlan.hiFFT === 2048 && longPlan.hop === 1024);
 
+  let waveformScale = () => NaN;
+  let spectrogramIndex = () => NaN;
+  try {
+    waveformScale = new Function(`return (${extractFn('_waveformScaleForMode')})`)();
+    spectrogramIndex = new Function(`return (${extractFn('_spectrogramPaletteIndex')})`)();
+  } catch {}
+  check('audio-viz-scale: Fit normalizes waveform peak while Ref preserves true amplitude',
+        waveformScale(0.25, 'fit') === 4 && waveformScale(0.25, 'ref') === 1);
+  check('audio-viz-scale: Fit preserves clip-relative spectrogram indices',
+        spectrogramIndex(173, -90, -20, 'fit') === 173);
+  check('audio-viz-scale: Ref remaps fitted spectrogram indices onto fixed -70..0 dBFS',
+        spectrogramIndex(255, -90, -20, 'ref') === 182
+        && spectrogramIndex(0, -90, -20, 'ref') === 0);
+
   // fps estimation must be robust to junk RVFC deltas. Safari emits them during
   // ordinary playback: measured on a 24 fps clip, a clean run of 41.67 ms
   // polluted by 2.17 / 4.65 / 0 / -666 / 743 ms values. The old estimator took
