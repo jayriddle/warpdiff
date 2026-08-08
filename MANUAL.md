@@ -165,6 +165,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 ## Audio Visualization
 
 Press **W** to toggle the waveform and spectrogram panel below the video controls.
+For clips of two minutes or longer, WarpDiff uses a bounded full-timeline spectrogram with lower fine-frequency resolution so loading remains responsive; playback, waveform, loudness metrics, and scrub audio remain full-duration.
 
 **Waveform** uses dB color coding:
 - **Green** — normal levels (below -6dB)

@@ -818,6 +818,21 @@ function extractFn(name, src = SRC) {
         svh.includes("_asLayer && _asLayer.querySelector('video')") &&
         svh.indexOf('_asLayer') < svh.indexOf('_scrubSeekPending = false'));
 
+  // Long media must not run the ordinary dual-resolution 8192/2048 FFT over
+  // every 128-sample hop. A five-minute stereo reference created ~225k FFT
+  // frames and blocked the UI for roughly 50 seconds during load. Long clips
+  // retain complete timeline coverage with a single, smaller FFT instead.
+  let spectrogramPlan = () => null;
+  try {
+    spectrogramPlan = new Function(`return (${extractFn('_spectrogramPlan')})`)();
+  } catch {}
+  const shortPlan = spectrogramPlan(10);
+  const longPlan = spectrogramPlan(300);
+  check('spectrogram-plan: ordinary clips keep dual-resolution detail',
+        shortPlan && shortPlan.loFFT === 8192 && shortPlan.hiFFT === 2048 && shortPlan.hop === 128);
+  check('spectrogram-plan: five-minute clips use bounded single-resolution analysis',
+        longPlan && longPlan.loFFT === 2048 && longPlan.hiFFT === 2048 && longPlan.hop === 1024);
+
   // fps estimation must be robust to junk RVFC deltas. Safari emits them during
   // ordinary playback: measured on a 24 fps clip, a clean run of 41.67 ms
   // polluted by 2.17 / 4.65 / 0 / -666 / 743 ms values. The old estimator took

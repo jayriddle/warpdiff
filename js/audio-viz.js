@@ -140,14 +140,30 @@ function runSTFT(channelData, fftSize, hop) {
     return { frames, halfBins, maxDb };
 }
 
+function _spectrogramPlan(durationSeconds) {
+    // The dual-resolution 8192/2048 analysis is valuable on ordinary clips, but
+    // its 128-sample hop scales to ~112,500 frames per channel at five minutes.
+    // That made a stereo QC reference monopolize the main thread for ~50 s and
+    // created enormous intermediate arrays. Long clips use a single 2048-point
+    // FFT with 50% overlap: the whole timeline and full audible band are still
+    // sampled, while fine low-frequency resolution yields to bounded work.
+    return Number(durationSeconds) >= 120
+        ? { loFFT: 2048, hiFFT: 2048, hop: 1024 }
+        : { loFFT: 8192, hiFFT: 2048, hop: 128 };
+}
+
 function computeSpectrogramChannel(channelData, sampleRate) {
-    const hop = 128;
-    const loFFT = 8192;
-    const hiFFT = 2048;
+    const plan = _spectrogramPlan(channelData.length / sampleRate);
+    const hop = plan.hop;
+    const loFFT = plan.loFFT;
+    const hiFFT = plan.hiFFT;
     const crossoverLoHz = 500;
     const crossoverHiHz = 2000;
 
     const lo = runSTFT(channelData, loFFT, hop);
+    if (loFFT === hiFFT) {
+        return lo ? { frames: lo.frames, fftSize: loFFT, maxDb: lo.maxDb } : null;
+    }
     const hi = runSTFT(channelData, hiFFT, hop);
     if (!lo || !hi) return lo ? { frames: lo.frames, fftSize: loFFT, maxDb: lo.maxDb } : null;
 
