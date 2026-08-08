@@ -835,7 +835,8 @@ function extractFn(name, src = SRC) {
     const est = (from >= 0 && to > from)
       ? new Function('intervals', '_FPS_STANDARD_RATES', `${body.slice(from, to)}\nreturn snapped;`)
       : () => NaN;
-    const RATES = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
+    const ratesMatch = SRC.match(/const _FPS_STANDARD_RATES = \[([^\]]+)\]/);
+    const RATES = ratesMatch ? ratesMatch[1].split(',').map(Number) : [];
     const ms = a => a.map(x => x / 1000);
     const safariJunk = ms([17.75, 23.92, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67,
                            41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 743.18, 2.17,
@@ -847,9 +848,24 @@ function extractFn(name, src = SRC) {
           est(ms(Array(23).fill(41.7083)), RATES) === 23.976);
     check('fps-detect: clean 30 fps → 29.97/30', [29.97, 30].includes(est(ms(Array(23).fill(33.3667)), RATES)));
     check('fps-detect: 60 fps → 59.94/60', [59.94, 60].includes(est(ms(Array(23).fill(16.6833)), RATES)));
+    check('fps-detect: 50 fps is a recognized standard rate', RATES.includes(50));
+    check('fps-detect: clean 50 fps → 50', est(ms(Array(23).fill(20)), RATES) === 50);
     check('fps-detect: dropped frames (2x gaps) do not halve the estimate',
           est(ms([41.67, 41.67, 83.34, 41.67, 41.67, 83.34, 41.67, 41.67, 41.67, 83.34,
                   41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67, 41.67]), RATES) === 24);
+
+    // RVFC callbacks are not guaranteed to arrive for every presented frame.
+    // At 50 fps, a callback skipped by the main thread produces a 40 ms media
+    // delta that looks exactly like 25 fps unless presentedFrames is used to
+    // recover the two 20 ms source-frame intervals represented by that sample.
+    let normalizeInterval = () => NaN;
+    try {
+      normalizeInterval = new Function(`return (${extractFn('_normalizeFpsInterval')})`)();
+    } catch {}
+    check('fps-detect: normalizer exists for coalesced RVFC callbacks',
+          Number.isFinite(normalizeInterval(0.02, 1)));
+    check('fps-detect: a 40 ms / 2-frame callback normalizes to 20 ms',
+          Math.abs(normalizeInterval(0.04, 2) - 0.02) < 1e-9);
   }
 
   // C5: passive fps detection uses a single-chain guard.

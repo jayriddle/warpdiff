@@ -336,7 +336,7 @@ The following settings are saved to your browser and persist across sessions and
 
 Each asset displays an info bar (Grid mode) or a header strip (Stack mode) showing:
 - **Slot label** — colored pill (green = GT/Ref, amber = A, magenta = B); hidden when only one file is loaded
-- **FPS** — frame rate, shown dimmed until detected; snaps to nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 59.94, 60)
+- **FPS** — frame rate, shown dimmed until detected; snaps to nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60)
 - **Duration** — video/audio length with a stopwatch icon; `—` for images
 - **Resolution** and **aspect ratio** — for images and video (e.g. `1920×1080`, `16:9`)
 - **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple)

@@ -514,6 +514,18 @@ function _driftLockTick(primary) {
     }
 }
 
+function _normalizeFpsInterval(mediaDelta, presentedFrameDelta) {
+    if (!Number.isFinite(mediaDelta) || mediaDelta <= 0) return null;
+    // requestVideoFrameCallback is allowed to coalesce callbacks when the main
+    // thread is busy. metadata.presentedFrames still advances by the number of
+    // frames represented by the media-time delta, so divide by that count to
+    // recover the source frame interval (e.g. 40 ms / 2 frames = 50 fps).
+    const frames = Number.isFinite(presentedFrameDelta) && presentedFrameDelta >= 1
+        ? Math.max(1, Math.round(presentedFrameDelta))
+        : 1;
+    return mediaDelta / frames;
+}
+
 function _setupFpsDetection(video, slot) {
     if (typeof video.requestVideoFrameCallback !== 'function') {
         videoFrameRates[video.src] = 30;
@@ -525,6 +537,7 @@ function _setupFpsDetection(video, slot) {
     // never contributes a bogus interval.
     const intervals = [];
     let lastTs = null;
+    let lastPresentedFrames = null;
     let detected = false;
     let detecting = false;   // single-chain guard: at most one detection RVFC in flight
 
@@ -534,11 +547,16 @@ function _setupFpsDetection(video, slot) {
         // guard so the next 'play' can start a clean pass instead of two chains
         // racing the same sample buffer.
         if (video.paused || video.ended) { detecting = false; return; }
+        const presentedFrames = Number(metadata.presentedFrames);
         if (lastTs !== null) {
-            const dt = metadata.mediaTime - lastTs;
-            if (dt > 0) intervals.push(dt);
+            const presentedDelta = lastPresentedFrames !== null && Number.isFinite(presentedFrames)
+                ? presentedFrames - lastPresentedFrames
+                : 1;
+            const dt = _normalizeFpsInterval(metadata.mediaTime - lastTs, presentedDelta);
+            if (dt !== null) intervals.push(dt);
         }
         lastTs = metadata.mediaTime;
+        lastPresentedFrames = Number.isFinite(presentedFrames) ? presentedFrames : null;
         if (intervals.length < _FPS_SAMPLE_COUNT) {
             video.requestVideoFrameCallback(onFrame);
         } else {
@@ -580,7 +598,10 @@ function _setupFpsDetection(video, slot) {
     // the samples. (A mid-playback seek otherwise contributes a garbage interval
     // — and a small forward one would poison minInterval, which sets the
     // dropped-frame filter's threshold for every other sample.)
-    video.addEventListener('seeking', function() { lastTs = null; });
+    video.addEventListener('seeking', function() {
+        lastTs = null;
+        lastPresentedFrames = null;
+    });
 
     video.addEventListener('play', function() {
         if (detected || detecting) return;
@@ -594,6 +615,7 @@ function _setupFpsDetection(video, slot) {
         // defeating the (frame+0.5)/fps protection) and the wrong half-frame
         // band to the drift lock. Samples now carry across sessions.
         lastTs = null;
+        lastPresentedFrames = null;
         video.requestVideoFrameCallback(onFrame);
     });
 }

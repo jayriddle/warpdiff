@@ -3005,7 +3005,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.19';
+        const APP_VERSION = '3.12.20';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -7503,7 +7503,7 @@
 
         // Passive fps detection — collects frame timestamps during normal playback
         // instead of playing each video at load time. Defaults to 30fps until detected.
-        const _FPS_STANDARD_RATES = [23.976, 24, 25, 29.97, 30, 48, 59.94, 60];
+        const _FPS_STANDARD_RATES = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60];
         const _FPS_SAMPLE_COUNT = 30;
 
         // _setupFpsDetection → js/transport.js
@@ -12365,6 +12365,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.20</h3>
+            <ul>
+                <li><strong>50 fps videos now report and step at their actual frame rate.</strong> Detection also remains accurate when the browser combines multiple presented frames into one callback.</li>
+            </ul>
             <h3>v3.12.19</h3>
             <ul>
                 <li><strong>Removed pronounced clicks introduced by the previous scrub-smoothing change.</strong> Grain transitions now derive their current envelope level directly instead of relying on browser gain-automation hold behaviour.</li>
