@@ -1890,6 +1890,30 @@
             width: 36px;
             min-width: 36px;
             max-width: 36px;
+            box-sizing: border-box;
+        }
+
+        .audio-level-panel-group {
+            display: none;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: center;
+            gap: 1px;
+            padding: 1px 2px;
+            border-left: 1px solid #30343d;
+            background: #14161b;
+        }
+        .audio-level-panel-group .audio-level-label {
+            flex: 0 0 8px;
+            font-size: 8px;
+            line-height: 8px;
+        }
+        .audio-level-panel-group .audio-level-btn {
+            flex: 1 1 22px;
+            min-width: 30px;
+            min-height: 14px;
+            max-height: 26px;
+            padding: 0 1px;
         }
 
         /* ── Audio viz resize controls ── */
@@ -2418,18 +2442,51 @@
         #scopesToggleBtn.active { color: #4add20; }
         #waveformToggleBtn.active:hover,
         #scopesToggleBtn.active:hover { background: rgba(74,221,32,0.1); color: #4add20; }
-        .audio-level-group {
+        .audio-level-toolbar {
             display: none;
+            flex: 0 0 34px;
             align-items: center;
-            gap: 2px;
-            margin-left: 1px;
+            justify-content: flex-end;
+            gap: 4px;
+            padding: 4px 10px;
+            box-sizing: border-box;
+            background: #14161b;
+            border-bottom: 1px solid #30343d;
         }
         .audio-level-label {
-            color: #666;
-            font: 8px/1 monospace;
-            letter-spacing: 0.04em;
+            color: #c5c9d1;
+            font: 700 9px/1 monospace;
+            letter-spacing: 0.05em;
             text-transform: uppercase;
-            margin-right: 1px;
+            text-align: center;
+        }
+        .audio-level-btn {
+            min-width: 32px;
+            min-height: 22px;
+            padding: 2px 4px;
+            border: 1px solid #555b66;
+            border-radius: 4px;
+            background: #24272e;
+            color: #d3d6dc;
+            font: 700 9px/1 monospace;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .audio-level-btn:hover {
+            background: #30343b;
+            border-color: #858b96;
+            color: #fff;
+        }
+        .audio-level-btn.active {
+            background: #f0a030;
+            border-color: #ffc15c;
+            color: #111;
+            box-shadow: 0 0 0 1px rgba(255, 193, 92, 0.18);
+        }
+        .audio-level-btn:focus-visible {
+            outline: 2px solid #ffd083;
+            outline-offset: 1px;
         }
         .analysis-btn svg { width: 20px; height: 20px; display: block; }
         .analysis-btn:focus { outline: none; }
@@ -2844,11 +2901,6 @@
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
-                <div class="audio-level-group" id="audioLevelGroup" role="group" aria-label="Waveform and spectrogram level scaling">
-                    <span class="audio-level-label">Level</span>
-                    <button class="mode-sub-btn" data-audio-level="fit" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
-                    <button class="mode-sub-btn" data-audio-level="ref" onclick="setAudioVizLevelMode('ref'); this.blur();" title="Ref: true waveform amplitude at 0 dBFS and a fixed −70 to 0 dBFS spectrogram scale">Ref</button>
-                </div>
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
             </div><!-- /headerRight -->
@@ -2867,6 +2919,11 @@
         </div>
 
         <div class="comparison-view" id="comparisonView">
+            <div class="audio-level-toolbar" id="audioLevelAudioToolbar" role="group" aria-label="Waveform and spectrogram scale">
+                <span class="audio-level-label">Scale</span>
+                <button class="audio-level-btn active" data-audio-level="fit" aria-pressed="true" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
+                <button class="audio-level-btn" data-audio-level="ref" aria-pressed="false" onclick="setAudioVizLevelMode('ref'); this.blur();" title="Ref: true waveform amplitude at 0 dBFS and a fixed −70 to 0 dBFS spectrogram scale">Ref</button>
+            </div>
             <div class="asset-container" id="assetContainer">
                 <!-- Layout controls for side-by-side mode -->
                 <div class="asset-layer" id="layerOriginal">
@@ -2959,7 +3016,11 @@
                         <canvas id="panelWaveformCanvas" role="img" aria-label="Audio waveform"></canvas>
                         <div class="spectrogram-cursor" id="waveformCursor"></div>
                     </div>
-                    <div class="audio-viz-right"></div>
+                    <div class="audio-viz-right audio-level-panel-group" id="audioLevelPanelGroup" role="group" aria-label="Waveform and spectrogram scale">
+                        <span class="audio-level-label">Scale</span>
+                        <button class="audio-level-btn active" data-audio-level="fit" aria-pressed="true" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
+                        <button class="audio-level-btn" data-audio-level="ref" aria-pressed="false" onclick="setAudioVizLevelMode('ref'); this.blur();" title="Ref: true waveform amplitude at 0 dBFS and a fixed −70 to 0 dBFS spectrogram scale">Ref</button>
+                    </div>
                 </div>
                 <div id="audioVizSplitter" title="Drag to adjust waveform/spectrogram split"></div>
                 <div class="audio-viz-row spectrogram-row">
@@ -3023,7 +3084,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.23';
+        const APP_VERSION = '3.12.24';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4995,10 +5056,14 @@
 
         function _syncAudioVizLevelButtons() {
             document.querySelectorAll('[data-audio-level]').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.audioLevel === audioVizLevelMode);
+                const active = btn.dataset.audioLevel === audioVizLevelMode;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-pressed', active ? 'true' : 'false');
             });
-            const group = document.getElementById('audioLevelGroup');
-            if (group) group.style.display = (hasVideos || hasAudios) ? 'flex' : 'none';
+            const panelGroup = document.getElementById('audioLevelPanelGroup');
+            if (panelGroup) panelGroup.style.display = (hasVideos && !_noVideoMode) ? 'flex' : 'none';
+            const audioToolbar = document.getElementById('audioLevelAudioToolbar');
+            if (audioToolbar) audioToolbar.style.display = (hasAudios || _noVideoMode) ? 'flex' : 'none';
         }
 
         function setAudioVizLevelMode(mode) {
@@ -5013,8 +5078,8 @@
             }
             if (hasAudios || _noVideoMode) redrawAllAudioSlotCanvases();
             showToast(mode === 'fit'
-                ? 'Audio level: Fit (normalized per asset)'
-                : 'Audio level: Ref (fixed dBFS scale)');
+                ? 'Audio scale: Fit (normalized per asset)'
+                : 'Audio scale: Ref (fixed dBFS scale)');
         }
 
         // computeWaveformChannel, computeWaveformData, runSTFT, computeSpectrogramChannel,
@@ -6369,6 +6434,7 @@
                     toggleAudioViz();
                 }
             }
+            _syncAudioVizLevelButtons();
         }
 
         function toggleBwMode() {
@@ -9604,6 +9670,7 @@
             _noVideoMode = false;
             _noVideoLayoutSnapshot = null;
             _bwMode = false;
+            _syncAudioVizLevelButtons();
 
             // Reset file input
             document.getElementById('multiFileInput').value = '';
@@ -12286,7 +12353,7 @@
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
-            <p><strong>Fit / Ref level scaling:</strong> The shared header control applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
+            <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
             <h2>Audio Timeline Interaction</h2>
             <p>In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.</p>
@@ -12477,6 +12544,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.24</h3>
+            <ul>
+                <li><strong>Fit / Ref now lives with the audio visualization it changes.</strong> Video places the Scale control beside the waveform; audio-only review uses one shared toolbar above the canvases. Higher-contrast buttons and clear pressed states remain legible in the dark theme.</li>
+            </ul>
             <h3>v3.12.23</h3>
             <ul>
                 <li><strong>Scrub sound now follows the frame actually shown and matches normal playback volume.</strong> This tightens picture/sound correspondence without sacrificing stereo spatial cues.</li>

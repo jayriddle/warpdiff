@@ -111,6 +111,29 @@ function extractFn(name, src = SRC) {
         CFG.includes('exclude:') && CFG.includes('"*.md"'));
 }
 
+// Audio visualization scaling belongs beside the content it changes. Video gets
+// one control in the waveform utility rail; audio-only review gets one shared
+// toolbar above all canvases. The crowded global analysis strip owns neither.
+{
+  const analysisStrip = (HTML.match(/<div id="analysisStrip"[\s\S]*?<\/div>\s*<\/div><!-- \/headerRight -->/) || [''])[0];
+  check('one-owner[audio-scale-ui]: global analysis strip has no Fit/Ref scale controls',
+        !analysisStrip.includes('data-audio-level'));
+  check('one-owner[audio-scale-ui]: exactly two contextual Fit buttons',
+        countOf(HTML, 'data-audio-level="fit"') === 2);
+  check('one-owner[audio-scale-ui]: exactly two contextual Ref buttons',
+        countOf(HTML, 'data-audio-level="ref"') === 2);
+  check('one-owner[audio-scale-ui]: video scale control is in waveform utility rail',
+        /class="audio-viz-row waveform-row"[\s\S]*?id="audioLevelPanelGroup"/.test(HTML));
+  check('one-owner[audio-scale-ui]: audio-only scale control is shared above asset canvases',
+        HTML.includes('id="audioLevelAudioToolbar"') &&
+        HTML.indexOf('id="audioLevelAudioToolbar"') < HTML.indexOf('id="assetContainer"'));
+  const b = extractFn('_syncAudioVizLevelButtons');
+  check('one-owner[audio-scale-ui]: sync owner publishes aria-pressed state',
+        b.includes("setAttribute('aria-pressed', active ? 'true' : 'false')"));
+  check('one-owner[audio-scale-ui]: dedicated visible and active styles exist',
+        HTML.includes('.audio-level-btn {') && HTML.includes('.audio-level-btn.active {'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 1. SINGLE-OWNER GUARDS (multi-owner audit 2026-06-27, findings A–E)
 // ══════════════════════════════════════════════════════════════════════════════
