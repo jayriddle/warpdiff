@@ -102,6 +102,16 @@ function extractFn(name, src = SRC) {
   check('version-hash: no .nojekyll (it would disable the Pages-side substitution)',
         !existsSync(new URL('.nojekyll', ROOT)));
 
+  // Embedded consumers own their host lifecycle. WarpDiff may register its PWA
+  // worker only as a top-level app, and that worker may delete/cache only its
+  // explicitly owned namespace and runtime allowlist.
+  check('service-worker: registration is top-level-only',
+        /if \(!_inIframe && 'serviceWorker' in navigator\)/.test(HTML));
+  check('service-worker: activation deletes only WarpDiff version caches',
+        /keys\.filter\(k => k\.startsWith\('warpdiff-v'\) && k !== CACHE_NAME\)/.test(SW));
+  check('service-worker: fetch caching is restricted to the explicit runtime allowlist',
+        SW.includes('RUNTIME_URLS.has(url.href)') && !SW.includes("if (url.origin !== self.location.origin) return;"));
+
   // _config.yml must keep .md files out of the Pages build: themed .md pages
   // pull {% seo %} → jekyll-github-metadata → a GitHub API call at build time,
   // which fails the WHOLE deploy whenever api.github.com hiccups (observed
@@ -109,6 +119,33 @@ function extractFn(name, src = SRC) {
   const CFG = readFileSync(new URL('_config.yml', ROOT), 'utf8');
   check('pages-build: _config.yml excludes *.md (deploys must not depend on the GitHub API)',
         CFG.includes('exclude:') && CFG.includes('"*.md"'));
+}
+
+
+// The host-load protocol is one state machine: exact-origin/source acceptance,
+// one current request generation, cancellation, and correlated terminal replies.
+// Keeping these assertions together prevents a later embed-specific fork from
+// recreating the race in a second handler.
+{
+  check(`one-owner[host-load]: WARPDIFF_LOAD has one listener branch (got ${countOf(SRC, "event.data.type !== 'WARPDIFF_LOAD'")})`,
+        countOf(SRC, "event.data.type !== 'WARPDIFF_LOAD'") === 1);
+  check('one-owner[host-load]: acceptance requires the document exact origin',
+        SRC.includes('event.origin !== window.location.origin'));
+  check('one-owner[host-load]: each accepted request aborts the preceding fetch generation',
+        SRC.includes('_hostLoadAbortController.abort()') && SRC.includes('new AbortController()'));
+  check('one-owner[host-load]: READY and FAILED both echo requestId',
+        SRC.includes('const reply = { type, requestId: request.requestId, taskId: request.taskId }')
+        && SRC.includes("_hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY')")
+        && SRC.includes("_hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error)"));
+  check('one-owner[host-load]: protocol replies never use a wildcard target origin',
+        !/WARPDIFF_LOAD_(?:READY|FAILED)'[^\n]*\}, '\*'/.test(SRC));
+}
+
+// One corrupt preference must recover only that key and let startup continue.
+{
+  const b = (HTML.match(/const _prefs = \{[\s\S]*?\n        \};/) || [''])[0];
+  check('preferences: load catches malformed JSON and removes only the corrupt key',
+        b.includes('try') && b.includes('catch') && b.includes("localStorage.removeItem('pref_' + key)"));
 }
 
 // Audio visualization scaling belongs beside the content it changes. Video gets

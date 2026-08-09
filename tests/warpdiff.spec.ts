@@ -25,6 +25,8 @@ import fs from 'fs';
 
 const fixturesDir = path.join(__dirname, 'fixtures');
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Generate synthetic PNG fixtures (kept from old suite — very useful)
 function makeSizedPng(width: number, height: number, seed = 0): Buffer {
   const crc32 = (buf: Buffer): number => {
@@ -117,6 +119,88 @@ function ensureFixtures() {
 
   fs.writeFileSync(path.join(fixturesDir, 'readme.txt'), 'not an image');
 }
+
+test.describe('host-load protocol and embedded lifecycle', () => {
+  test('newer load wins when older fetch completes later; stale failure is silent', async ({ page }) => {
+    const image = path.join(fixturesDir, 'red.png');
+    await page.route('**/protocol-old.png', async route => {
+      await delay(250);
+      try { await route.fulfill({ path: image, contentType: 'image/png' }); } catch (_) {}
+    });
+    await page.route('**/protocol-new.png', route => route.fulfill({ path: image, contentType: 'image/png' }));
+    await page.goto('/');
+
+    await page.evaluate(() => {
+      (window as any).__hostReplies = [];
+      window.addEventListener('message', event => {
+        if(event.data && /^WARPDIFF_LOAD_(READY|FAILED)$/.test(event.data.type))
+          (window as any).__hostReplies.push(event.data);
+      });
+      const item = (url: string, name: string) => ({ signedUrl:url, name, contentType:'image/png', lastModified:0 });
+      window.postMessage({ type:'WARPDIFF_LOAD', requestId:'old', taskId:'task-old', signedItems:[item('/protocol-old.png', 'old.png')] }, location.origin);
+      window.postMessage({ type:'WARPDIFF_LOAD', requestId:'new', taskId:'task-new', signedItems:[item('/protocol-new.png', 'new.png')] }, location.origin);
+    });
+
+    await expect.poll(() => page.evaluate(() => (window as any).__hostReplies)).toContainEqual(
+      expect.objectContaining({ type:'WARPDIFF_LOAD_READY', requestId:'new', taskId:'task-new' })
+    );
+    await delay(350);
+    await expect(page.locator('.asset-name').filter({ hasText:'new.png' })).toHaveCount(1);
+    expect(await page.evaluate(() => (window as any).__hostReplies)).toEqual([
+      expect.objectContaining({ type:'WARPDIFF_LOAD_READY', requestId:'new', taskId:'task-new' }),
+    ]);
+  });
+
+  test('same-origin parent is accepted and cross-origin parent is rejected', async ({ page }) => {
+    const image = path.join(fixturesDir, 'green.png');
+    await page.route('**/protocol-parent.png', route => route.fulfill({ path:image, contentType:'image/png' }));
+    await page.route('**/same-origin-host.html', route => route.fulfill({
+      contentType:'text/html',
+      body:`<!doctype html><iframe src="/"></iframe><script>
+        window.replies=[];
+        addEventListener('message',e=>{ if(e.data&&e.data.type==='WARPDIFF_LOAD_READY') window.replies.push(e.data); });
+        document.querySelector('iframe').addEventListener('load',e=>e.target.contentWindow.postMessage({type:'WARPDIFF_LOAD',requestId:'same',taskId:'same-task',signedItems:[{signedUrl:'/protocol-parent.png',name:'same.png',contentType:'image/png',lastModified:0}]},location.origin));
+      <\/script>`,
+    }));
+    await page.goto('/same-origin-host.html');
+    await expect.poll(() => page.evaluate(() => (window as any).replies)).toContainEqual(
+      expect.objectContaining({ requestId:'same', taskId:'same-task' })
+    );
+
+    await page.route('**/cross-origin-host.html', route => route.fulfill({
+      contentType:'text/html', body:'<!doctype html><iframe src="about:blank"></iframe>',
+    }));
+    await page.goto('/cross-origin-host.html');
+    await page.evaluate(() => {
+      const frame = document.querySelector('iframe') as HTMLIFrameElement;
+      frame.src = 'http://127.0.0.1:8080/';
+      (window as any).replies = [];
+      frame.addEventListener('load', () => frame.contentWindow!.postMessage({
+        type:'WARPDIFF_LOAD', requestId:'cross', taskId:'cross-task',
+        signedItems:[{signedUrl:'http://127.0.0.1:8080/tests/fixtures/green.png',name:'cross.png',contentType:'image/png',lastModified:0}],
+      }, 'http://127.0.0.1:8080'), { once:true });
+    });
+    await delay(500);
+    expect(await page.evaluate(() => (window as any).replies)).toEqual([]);
+  });
+
+  test('embedded WarpDiff does not register a service worker', async ({ page }) => {
+    await page.route('**/embedded-host.html', route => route.fulfill({
+      contentType:'text/html', body:'<!doctype html><iframe src="/"></iframe>',
+    }));
+    await page.goto('/embedded-host.html');
+    await page.locator('iframe').contentFrame().locator('.header').waitFor();
+    await delay(500);
+    expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(r => r.scope))).toEqual([]);
+  });
+});
+
+test('corrupt persisted preference recovers without aborting startup', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('pref_audioVizVisible', '{broken'));
+  await page.goto('/');
+  await expect(page.locator('.header')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('pref_audioVizVisible'))).toBeNull();
+});
 
 // ---------------------------------------------------------------------------
 // Test Helpers (modernized for current app)

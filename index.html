@@ -3084,7 +3084,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.25';
+        const APP_VERSION = '3.12.26';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3124,7 +3124,15 @@
         const _prefs = {
             load(key, fallback) {
                 const v = localStorage.getItem('pref_' + key);
-                return v === null ? fallback : JSON.parse(v);
+                if (v === null) return fallback;
+                try {
+                    return JSON.parse(v);
+                } catch (_) {
+                    // One damaged value must not abort the entire classic-script
+                    // startup. Recover only the key whose value is invalid.
+                    localStorage.removeItem('pref_' + key);
+                    return fallback;
+                }
             },
             save(key, value) {
                 localStorage.setItem('pref_' + key, JSON.stringify(value));
@@ -4690,6 +4698,54 @@
         let _ihwaPullRetries = 0;
         const _IHWA_MAX_RETRIES = 3;
         const _IHWA_RETRY_MS    = 2000;
+        let _hostLoadGeneration = 0;
+        let _hostLoadAbortController = null;
+        let _hostLoadRequest = null;
+        let _viewLoadGeneration = null;
+
+        function _hostLoadIsCurrent(generation) {
+            return !!_hostLoadRequest && _hostLoadRequest.generation === generation;
+        }
+
+        function _hostLoadReply(request, type, error) {
+            if (!request || !_hostLoadIsCurrent(request.generation) || !request.replyWindow) return;
+            const reply = { type, requestId: request.requestId, taskId: request.taskId };
+            if (error) reply.error = String(error);
+            request.replyWindow.postMessage(reply, request.replyOrigin);
+        }
+
+        function _hostLoadReady(generation) {
+            if (!_hostLoadIsCurrent(generation) || _hostLoadRequest.terminal) return;
+            _hostLoadRequest.terminal = true;
+            _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
+        }
+
+        function _hostLoadFailed(request, error) {
+            if (!request || !_hostLoadIsCurrent(request.generation) || request.terminal) return;
+            request.terminal = true;
+            _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
+        }
+
+        function _hostLoadBegin(event) {
+            if (_hostLoadAbortController) _hostLoadAbortController.abort();
+            _hostLoadAbortController = new AbortController();
+            const request = {
+                generation: ++_hostLoadGeneration,
+                requestId: event.data.requestId || null,
+                taskId: event.data.taskId || null,
+                replyWindow: event.source,
+                replyOrigin: event.origin,
+                signal: _hostLoadAbortController.signal,
+                terminal: false,
+            };
+            _hostLoadRequest = request;
+            // Clear the preceding task as soon as the new request is accepted,
+            // not after its fetches finish. A failed/slow load must never leave
+            // old media visible beneath a new host task.
+            clearAllMedia();
+            _viewLoadGeneration = request.generation;
+            return request;
+        }
 
         function _ihwaPullReset(msg, isError) {
             clearTimeout(_ihwaPullTimer);
@@ -4710,7 +4766,7 @@
             _ihwaPullTimer = setTimeout(() => {
                 _ihwaPullReset('Extension not responding — try refreshing the IHWA page', true);
             }, 12000);
-            window.postMessage({ type: 'WARPDIFF_PULL' }, '*');
+            window.postMessage({ type: 'WARPDIFF_PULL' }, window.location.origin);
         }
 
         function _ihwaPullRetry() {
@@ -4722,7 +4778,7 @@
                 setTimeout(() => {
                     const btn = document.getElementById('ihwaPullBtn');
                     if (btn && btn.disabled) // only if a pull session is still active
-                        window.postMessage({ type: 'WARPDIFF_PULL' }, '*');
+                        window.postMessage({ type: 'WARPDIFF_PULL' }, window.location.origin);
                 }, _IHWA_RETRY_MS);
             } else {
                 _ihwaPullReset('No media files found — try refreshing the IHWA page', true);
@@ -4730,10 +4786,14 @@
         }
 
         window.addEventListener('message', async (event) => {
-            if (event.source !== window || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
+            if (event.origin !== window.location.origin) return;
+            if ((event.source !== window && event.source !== window.parent) || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
+
+            const request = _hostLoadBegin(event);
 
             if (event.data.error) {
                 _ihwaPullReset(event.data.error + ' — try refreshing the IHWA page', true);
+                _hostLoadFailed(request, event.data.error);
                 return;
             }
 
@@ -4742,7 +4802,7 @@
                 try {
                     const t0 = performance.now();
                     const filePromises = event.data.signedItems.map(async item => {
-                        const resp = await fetch(item.signedUrl, { credentials: 'omit' });
+                        const resp = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
                         if (!resp.ok) throw new Error(`${resp.status} fetching ${item.name}`);
                         const blob = await resp.blob();
                         return new File([blob], item.name, {
@@ -4751,23 +4811,33 @@
                         });
                     });
                     const files = await Promise.all(filePromises);
+                    if (!_hostLoadIsCurrent(request.generation)) return;
                     console.log(`[IHWA] Direct fetch: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
 
                     _ihwaPullReset();
-                    handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null });
+                    if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
+                        _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                    }
                     return;
                 } catch (e) {
+                    if (!_hostLoadIsCurrent(request.generation) || e.name === 'AbortError') return;
                     // CORS or network error — fall back to base64 via background
                     console.warn('[IHWA] Direct fetch failed, requesting fallback:', e.message);
-                    // Reuse existing timer — still waiting for a WARPDIFF_LOAD response
-                    window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, '*');
+                    // The extension's same-window transport can ask its background
+                    // for base64. Embedded hosts get a correlated terminal failure.
+                    if (event.source === window) {
+                        window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, window.location.origin);
+                    } else {
+                        _hostLoadFailed(request, e && e.message || e);
+                    }
                     return;
                 }
             }
 
             // Fallback path: base64-encoded files from background
             if (!event.data.files || event.data.files.length === 0) {
-                _ihwaPullRetry(); // may be a race on IHWA page refresh — retry before giving up
+                if (event.source === window) _ihwaPullRetry();
+                else _hostLoadFailed(request, 'No media files were supplied');
                 return;
             }
 
@@ -4786,10 +4856,13 @@
                 });
             });
             const files = await Promise.all(filePromises);
+            if (!_hostLoadIsCurrent(request.generation)) return;
             console.log(`[IHWA] Base64 fallback: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
 
             _ihwaPullReset();
-            handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType });
+            if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
+                _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+            }
         });
 
 
@@ -4801,20 +4874,21 @@
 
             if (mediaFiles.length < 1 || mediaFiles.length > 3) {
                 showLoadToast(`${mediaFiles.length} files received — WarpDiff supports 1–3 (single review, A vs B, or A vs B vs C)`, true, 8000);
-                return;
+                return false;
             }
 
             // Reject mixed audio + non-audio loads
             const audioCount = mediaFiles.filter(f => f.type.startsWith('audio/')).length;
             if (audioCount > 0 && audioCount < mediaFiles.length) {
                 showLoadToast('Cannot mix audio with image/video files — load all audio or all image/video', true, 8000);
-                return;
+                return false;
             }
 
             // Always start from a clean slate so stale state from a previous load
             // (e.g., a mediaData.original left over from a prior 3-file session) never
             // bleeds into the new load. This mirrors resetAll() but without the dialog.
-            clearAllMedia();
+            if (!(opts && opts.alreadyCleared)) clearAllMedia();
+            _viewLoadGeneration = (opts && opts.loadGeneration) || null;
             _ihwaMode = !!(opts && opts.skipToast);
             _taskType = (opts && opts.taskType) || null;
             _ihwaSlotLabels = (opts && opts.slotLabels) || null;
@@ -4861,6 +4935,7 @@
                 // 1 file: single asset review
                 loadFile('editA', sortedFiles[0]);
             }
+            return true;
         }
 
         // ── Audio Visualization ──────────────────────────────────────────
@@ -11303,7 +11378,9 @@
                     .map(l => l.querySelector('video'))
                     .filter(Boolean);
 
+                const activationGeneration = _viewLoadGeneration;
                 function startFadeIn() {
+                    if (activationGeneration !== _viewLoadGeneration) return;
                     hideLoading();
                     // Apply the persisted global mute to the freshly loaded media
                     // (and refresh the button) — a muted user stays muted on load.
@@ -11318,6 +11395,9 @@
                     // Eagerly decode audio for all slots so scrub snippet audio works
                     // without requiring the user to open the waveform panel first.
                     _ensureAudioVizDecoded();
+                    // Host readiness means the complete media batch reached the
+                    // same first-frame boundary used by the visible UI.
+                    _hostLoadReady(activationGeneration);
                     // Wait for positionLabelsToMedia to commit wrapper dimensions before
                     // revealing layers. Without this guard a race between startFadeIn's
                     // rAF chain and the layout rAF chain can make layers briefly visible
@@ -11377,7 +11457,7 @@
                     // Safety timeout — fires well before ffmpeg wasm blocks the main thread.
                     // Guard with viewActivating so a stale timeout from a previous load
                     // batch doesn't call startFadeIn() after the user has already reloaded.
-                    setTimeout(() => { if (remaining > 0 && viewActivating) { remaining = 0; startFadeIn(); } }, 500);
+                    setTimeout(() => { if (remaining > 0 && viewActivating && activationGeneration === _viewLoadGeneration) { remaining = 0; startFadeIn(); } }, 500);
                 }
 
                 // Show video controls if any videos or audio
@@ -12021,7 +12101,7 @@
             if (changelogVer) changelogVer.textContent = 'v' + APP_VERSION;
 
             // Register service worker for PWA / offline caching
-            if ('serviceWorker' in navigator) {
+            if (!_inIframe && 'serviceWorker' in navigator) {
                 navigator.serviceWorker.register('sw.js');
             }
         });
@@ -12544,6 +12624,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.26</h3>
+            <ul>
+                <li><strong>Embedded host loads are now correlated and cancelable.</strong> Newer requests supersede stale fetches, readiness is acknowledged only after media activation, and exact-origin parents are supported without a vendor-only patch.</li>
+                <li><strong>Embedding no longer installs WarpDiff's service worker.</strong> Standalone caching is restricted to WarpDiff's own versioned runtime assets, and malformed preferences recover one key at a time.</li>
+            </ul>
             <h3>v3.12.25</h3>
             <ul>
                 <li><strong>Long spectrogram analysis is now genuinely bounded.</strong> Hour-scale and high-sample-rate media adapt their timeline sampling to a fixed frame budget instead of growing into gigabyte-sized FFT buffers.</li>
