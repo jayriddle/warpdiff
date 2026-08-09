@@ -6,7 +6,7 @@
 - **PWA/Service Worker**: `sw.js` uses network-first caching with `CACHE_NAME` synced to `APP_VERSION`. Offline-capable without excessive storage bloat.
 
 ## Audio Memory Optimizations
-- **Scrub audio**: Downsampled to mono 22.05 kHz (`_downsampleForScrub()`) — ~5-8× smaller than full stereo 48 kHz. Full quality retained *only* for Opus sync slots in Chrome for accurate A/V playback.
+- **Scrub audio**: Downsampled per channel to 22.05 kHz (`_downsampleForScrub()`) while preserving stereo phase and placement. Full quality is retained *only* for Opus sync slots in Chrome for accurate A/V playback.
 - **AudioBuffer management**: `audioFileBuffers[slot]` deleted after decode. Decoded `AudioBuffer` lives in `_audioSlotVizData[slot].audioBuffer`; freed when `_audioSlotVizData = {}` in `clearAllMedia()`.
 - **AudioContext lifecycle**: Lazy-created via `getAudioContext()`. Closed and nulled in `clearAllMedia()` — `audioContext.close().catch(() => {}); audioContext = null` — so browser fully reclaims audio resources between loads. Fresh context created on next `getAudioContext()` call.
 - **Stale decode guard**: `_audioDecodeGen[slot]` counter incremented before each `decodeAudioData` call; captured in closure; checked before any state write in `.then()`. Prevents a slow decode completing after reload from writing `_audioSlotVizData` against a new batch. Reset to `{}` in `clearAllMedia()`.

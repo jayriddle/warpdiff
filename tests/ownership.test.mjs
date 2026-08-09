@@ -900,7 +900,8 @@ function extractFn(name, src = SRC) {
   // C5: passive fps detection uses a single-chain guard.
   const fps = extractFn('_setupFpsDetection');
   check('sweep[C5]: fps detection guarded against concurrent chains (detecting flag)',
-        fps.includes('let detecting = false') && fps.includes('detected || detecting'));
+        fps.includes('let detecting = false') && fps.includes('if (detecting) return') &&
+        fps.includes('cancelVideoFrameCallback(detectionRvfcId)'));
 
   // C6: the RVFC exact-time loop wrap suppresses handlers under _bulkSyncActive.
   const wrap = extractFn('_loopWrapToInPoint');
@@ -1036,6 +1037,73 @@ function extractFn(name, src = SRC) {
         extractFn('_updateOpusSyncRate').includes('_startOpusSyncAudio(slot, video.currentTime)'));
   check('audio-timeline: seeks re-anchor pending intentional leading silence',
         extractFn('setupVideoHandlers').includes('waitingForTimelineStart'));
+}
+
+// Scrub preview level follows the same saved master volume as normal playback.
+// The scrub path uses Web Audio directly, so this explicit mapping is the one
+// owner that prevents it bypassing HTMLMediaElement.volume at unity gain.
+{
+  check('one-owner[scrub-level]: _scrubOutputGain is defined exactly once',
+        countOf(SRC, 'function _scrubOutputGain(') === 1);
+  if (countOf(SRC, 'function _scrubOutputGain(') === 1) {
+    const { _scrubOutputGain } = new Function(
+      extractFn('_scrubOutputGain') + '\nreturn { _scrubOutputGain };'
+    )();
+    check('scrub-level: 100% maps to unity', _scrubOutputGain(100) === 1);
+    check('scrub-level: 25% maps to 0.25', _scrubOutputGain(25) === 0.25);
+    check('scrub-level: out-of-range preferences are clamped',
+          _scrubOutputGain(-10) === 0 && _scrubOutputGain(140) === 1);
+    check('one-owner[scrub-level]: playScrubSnippet uses the mapping for its envelope',
+          extractFn('playScrubSnippet').includes('_scrubOutputGain('));
+  }
+}
+
+// Playback chrome follows the last PRESENTED frame and glides no farther than
+// one source-frame interval. Transport/loop decisions deliberately continue to
+// use raw media.currentTime; this helper owns visuals only.
+{
+  check('one-owner[visual-clock]: _projectVisualTime is defined exactly once',
+        countOf(SRC, 'function _projectVisualTime(') === 1);
+  if (countOf(SRC, 'function _projectVisualTime(') === 1) {
+    const { _projectVisualTime } = new Function(
+      extractFn('_projectVisualTime') + '\nreturn { _projectVisualTime };'
+    )();
+    check('visual-clock: starts at the presented frame timestamp',
+          _projectVisualTime(2, 1000, 1000, 1, 1 / 24, 2.2) === 2);
+    check('visual-clock: glides continuously between presentations',
+          Math.abs(_projectVisualTime(2, 1000, 1020, 1, 1 / 24, 2.2) - 2.02) < 1e-9);
+    check('visual-clock: never runs more than one frame ahead of the picture',
+          Math.abs(_projectVisualTime(2, 1000, 1100, 1, 1 / 24, 2.2) - (2 + 1 / 24)) < 1e-9);
+    check('visual-clock: missing presentation metadata falls back to media time',
+          _projectVisualTime(NaN, NaN, 1100, 1, 1 / 24, 2.2) === 2.2);
+    const loop = extractFn('startProgressUpdateLoop');
+    check('one-owner[visual-clock]: progress loop projects visuals but loop logic keeps raw currentTime',
+          loop.includes('_projectVisualTime(') && loop.includes('const t = primary.currentTime'));
+  }
+}
+
+// A WebCodecs scrub session announces the exact PTS after a canvas paint. The
+// controller can therefore schedule audio from what the observer actually saw,
+// instead of from a pointer target the decoder has not displayed yet.
+{
+  check('one-owner[scrub-presentation]: session exposes one paint-listener setter',
+        countOf(SRC, 'setPaintListener(listener)') === 1);
+  check('scrub-presentation: both async and cache-hit paints notify their displayed PTS',
+        countOf(SRC, '_notifyPaint(lastPaintedPts)') === 2);
+}
+
+// Pending play is a transport concern. A later pause/scrub must invalidate the
+// intent so a delayed canplay event cannot restart playback behind the user.
+{
+  check('one-owner[play-intent]: cancellation owner is defined exactly once',
+        countOf(SRC, 'function _cancelPendingPlayIntent(') === 1);
+  if (countOf(SRC, 'function _cancelPendingPlayIntent(') === 1) {
+    check('play-intent: pause cancels before pausing elements',
+          extractFn('pauseAllMedia').includes('_cancelPendingPlayIntent()'));
+    check('play-intent: play rejection is handled by the retry owner',
+          extractFn('playAllMedia').includes('_playMediaWithIntent(') &&
+          extractFn('_playMediaWithIntent').includes('_armPlayRetry('));
+  }
 }
 
 // Scrub storage may lower sample rate, but it must never collapse channels:

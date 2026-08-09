@@ -178,6 +178,7 @@ function _createScrubVideoSession(bytes) {
     let scrubDir = 0;          // -1 backward, +1 forward (consecutive requests)
     let runIsPrefetch = false; // current run is speculative: cache, never paint
     let prefetchedKey = -1;    // GOP keyframe already prefetched (don't repeat)
+    let paintListener = null;  // controller-owned presentation clock for scrub audio
     // How far into the current GOP to start fetching the previous one. It has to
     // be long enough that the speculative decode FINISHES before the user gets
     // there: a GOP costs ~100 ms at 2560×1440 while a drag covers ~3 frames per
@@ -188,6 +189,11 @@ function _createScrubVideoSession(bytes) {
     // (requests that painted nothing at all: 8 → 0).
     const PREFETCH_LEAD = Math.max(12, Math.round(maxGop * 0.6));
     let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
+
+    function _notifyPaint(pts) {
+        if (!paintListener) return;
+        try { paintListener(pts); } catch (_) {}
+    }
 
     // Paint at most once per display frame. Decode can outrun the display by an
     // order of magnitude (a whole GOP decodes in a burst); painting every output
@@ -202,6 +208,7 @@ function _createScrubVideoSession(bytes) {
             ctx2d.drawImage(f, 0, 0, canvas.width, canvas.height);
             lastPaintedPts = f.timestamp / 1e6;
             framesPainted++;
+            _notifyPaint(lastPaintedPts);
         }
         f.close();
     }
@@ -356,6 +363,10 @@ function _createScrubVideoSession(bytes) {
         get cacheStats() { return { frames: cache.size, bytes: cacheBytes, hits: cacheHits }; },
         get frameColorSpace() { return _lastFrameColorSpace; },
 
+        setPaintListener(listener) {
+            paintListener = typeof listener === 'function' ? listener : null;
+        },
+
         attach(canvasEl, colorSpaceOverride) {
             canvas = canvasEl;
             canvas.width = info.codedWidth || 640;
@@ -423,6 +434,7 @@ function _createScrubVideoSession(bytes) {
                 cacheHits++;
                 framesPainted++;
                 lastPaintedPts = pts;
+                _notifyPaint(lastPaintedPts);
                 targetPts = pts;
                 paintFloor = pts - frameDur * 0.5;
                 if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
@@ -514,6 +526,7 @@ function _createScrubVideoSession(bytes) {
             try { decoder.close(); } catch (_) {}
             canvas = null;
             ctx2d = null;
+            paintListener = null;
         }
     };
 }

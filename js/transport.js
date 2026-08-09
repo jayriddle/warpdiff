@@ -34,6 +34,56 @@ function _startOpusSyncForPlayingSlots(timeForSlot) {
     }
 }
 
+let _playIntentGeneration = 0;
+const _pendingPlayRetries = new Map();
+
+function _cancelPendingPlayIntent() {
+    _playIntentGeneration++;
+    for (const [media, listener] of _pendingPlayRetries) {
+        media.removeEventListener('canplay', listener);
+    }
+    _pendingPlayRetries.clear();
+}
+
+function _reconcilePlayPauseButton(generation) {
+    if (generation !== undefined && generation !== _playIntentGeneration) return;
+    const playing = getAllPlayableMedia().some(media => !media.paused && !media.ended);
+    _updatePlayPauseBtn(playing);
+    if (!playing) _stopAllOpusSyncAudio();
+}
+
+function _armPlayRetry(media, generation) {
+    if (generation !== _playIntentGeneration || _pendingPlayRetries.has(media)) return;
+    const retry = () => {
+        _pendingPlayRetries.delete(media);
+        if (generation !== _playIntentGeneration || !media.paused) return;
+        _playMediaWithIntent(media, generation);
+    };
+    _pendingPlayRetries.set(media, retry);
+    media.addEventListener('canplay', retry, { once: true });
+}
+
+function _playMediaWithIntent(media, generation) {
+    let result;
+    try { result = media.play(); }
+    catch (_) {
+        _armPlayRetry(media, generation);
+        _reconcilePlayPauseButton(generation);
+        return;
+    }
+    Promise.resolve(result).then(() => {
+        if (generation !== _playIntentGeneration) {
+            if (!media.paused) media.pause();
+            return;
+        }
+        _reconcilePlayPauseButton(generation);
+    }).catch(() => {
+        if (generation !== _playIntentGeneration) return;
+        _armPlayRetry(media, generation);
+        _reconcilePlayPauseButton(generation);
+    });
+}
+
 // Effective loop region — the single source of truth for "where does playback
 // wrap". Custom in/out points win; otherwise, with 2+ videos loaded, all videos
 // loop TOGETHER over [0, shortest effective duration] so they stay sync-locked
@@ -73,6 +123,8 @@ function _applyNativeLoopPolicy() {
 
 function playAllMedia() {
     _resetFrameStepCursor();
+    _cancelPendingPlayIntent();
+    const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     // Suspend retained scrub sessions before playback: idle-but-configured
     // VideoDecoders hold hardware pipelines and starve 2–3 playing <video>
@@ -82,7 +134,7 @@ function playAllMedia() {
     // them). See index.html.
     if (!isDragging) _suspendScrubSessions();
     _applyNativeLoopPolicy();
-    getAllPlayableMedia().forEach(m => { m.play().catch(() => {}); });
+    getAllPlayableMedia().forEach(m => _playMediaWithIntent(m, playGeneration));
     _startOpusSyncForPlayingSlots(v => v.currentTime);
     startProgressUpdateLoop();
     _updatePlayPauseBtn(true);
@@ -93,6 +145,7 @@ function playAllMedia() {
 
 function pauseAllMedia() {
     _resetFrameStepCursor();
+    _cancelPendingPlayIntent();
     _bulkSyncActive = true;
     getAllPlayableMedia().forEach(m => m.pause());
     _snapAllVideosToFrame();
@@ -190,6 +243,7 @@ function _snapAllVideosToFrame() {
 
 function setupAudioHandlers(audio, slot) {
     audio.addEventListener('play', function() {
+        _reconcilePlayPauseButton();
         if (isDragging || _bulkSyncActive) return;
         syncMedia(audio, a => {
             a.play().catch(() => {});
@@ -201,6 +255,7 @@ function setupAudioHandlers(audio, slot) {
     });
 
     audio.addEventListener('pause', function() {
+        _reconcilePlayPauseButton();
         if (isDragging || _bulkSyncActive) return;
         syncMedia(audio, a => { if (!a.paused) a.pause(); });
     });
@@ -526,6 +581,16 @@ function _normalizeFpsInterval(mediaDelta, presentedFrameDelta) {
     return mediaDelta / frames;
 }
 
+function _projectVisualTime(presentedTime, presentedAt, now, rate, frameDuration, mediaTime) {
+    if (!Number.isFinite(presentedTime) || !Number.isFinite(presentedAt) ||
+        !Number.isFinite(now) || !Number.isFinite(frameDuration) || frameDuration <= 0) {
+        return mediaTime;
+    }
+    const speed = Number.isFinite(rate) && rate > 0 ? rate : 1;
+    const elapsed = Math.max(0, (now - presentedAt) / 1000) * speed;
+    return Math.max(0, presentedTime + Math.min(elapsed, frameDuration));
+}
+
 function _setupFpsDetection(video, slot) {
     if (typeof video.requestVideoFrameCallback !== 'function') {
         videoFrameRates[video.src] = 30;
@@ -539,16 +604,26 @@ function _setupFpsDetection(video, slot) {
     let lastTs = null;
     let lastPresentedFrames = null;
     let detected = false;
-    let detecting = false;   // single-chain guard: at most one detection RVFC in flight
+    let detecting = false;   // single-chain guard: at most one presentation RVFC in flight
+    let detectionRvfcId = null;
+
+    function requestNextFrame() {
+        detectionRvfcId = video.requestVideoFrameCallback(onFrame);
+    }
 
     function onFrame(now, metadata) {
-        if (detected) { detecting = false; return; }
+        detectionRvfcId = null;
         // Chain ended before enough samples (pause/seek/ended) — release the
         // guard so the next 'play' can start a clean pass instead of two chains
         // racing the same sample buffer.
         if (video.paused || video.ended) { detecting = false; return; }
+        // This same single RVFC chain owns the visual presentation anchor after
+        // FPS detection completes. Keeping it here avoids a second callback
+        // chain racing the detector or the loop-point callback.
+        video._visualPresentedTime = metadata.mediaTime;
+        video._visualPresentedAt = now;
         const presentedFrames = Number(metadata.presentedFrames);
-        if (lastTs !== null) {
+        if (!detected && lastTs !== null) {
             const presentedDelta = lastPresentedFrames !== null && Number.isFinite(presentedFrames)
                 ? presentedFrames - lastPresentedFrames
                 : 1;
@@ -557,11 +632,8 @@ function _setupFpsDetection(video, slot) {
         }
         lastTs = metadata.mediaTime;
         lastPresentedFrames = Number.isFinite(presentedFrames) ? presentedFrames : null;
-        if (intervals.length < _FPS_SAMPLE_COUNT) {
-            video.requestVideoFrameCallback(onFrame);
-        } else {
+        if (!detected && intervals.length >= _FPS_SAMPLE_COUNT) {
             detected = true;
-            detecting = false;
             // Base the frame duration on the MEDIAN interval, not the minimum.
             // The minimum is the single least robust statistic available here:
             // one spuriously small delta sets the dropped-frame threshold for
@@ -592,6 +664,7 @@ function _setupFpsDetection(video, slot) {
             updateAssetInfoBar(slot, { fps: `${snapped} fps` });
             updateDurationDisplay(slot, video.duration, snapped);
         }
+        requestNextFrame();
     }
 
     // A run boundary must not bridge into a bogus delta: drop the anchor, keep
@@ -601,10 +674,12 @@ function _setupFpsDetection(video, slot) {
     video.addEventListener('seeking', function() {
         lastTs = null;
         lastPresentedFrames = null;
+        video._visualPresentedTime = NaN;
+        video._visualPresentedAt = NaN;
     });
 
     video.addEventListener('play', function() {
-        if (detected || detecting) return;
+        if (detecting) return;
         detecting = true;
         // Do NOT clear the accumulated intervals. Detection needs
         // _FPS_SAMPLE_COUNT frames (~1.3 s at 24 fps) and resetting on every
@@ -616,7 +691,34 @@ function _setupFpsDetection(video, slot) {
         // band to the drift lock. Samples now carry across sessions.
         lastTs = null;
         lastPresentedFrames = null;
-        video.requestVideoFrameCallback(onFrame);
+        requestNextFrame();
+    });
+
+    const stopTracking = function() {
+        if (detectionRvfcId !== null && typeof video.cancelVideoFrameCallback === 'function') {
+            video.cancelVideoFrameCallback(detectionRvfcId);
+        }
+        detectionRvfcId = null;
+        detecting = false;
+    };
+    video.addEventListener('pause', stopTracking);
+    video.addEventListener('ended', stopTracking);
+}
+
+function _scheduleNativeScrubAudio(video) {
+    if (!isDragging || hasAudios) return;
+    const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
+    const activeLayer = getLayer(activeSlot);
+    if (!activeLayer || video !== activeLayer.querySelector('video')) return;
+    // A healthy WebCodecs canvas owns presentation timing instead. This path is
+    // the native-seek fallback (Safari/Firefox, unsupported codecs, or a stalled
+    // overlay). seeked says decode completed; the following animation frame lets
+    // the compositor paint before its matching audio grain begins.
+    if (_scrubOverlayEffective(video)) return;
+    const dragToken = _scrubOverlayDragToken;
+    requestAnimationFrame(() => {
+        if (!isDragging || dragToken !== _scrubOverlayDragToken) return;
+        playScrubSnippet(video.currentTime);
     });
 }
 
@@ -642,6 +744,7 @@ function setupVideoHandlers(video, slot) {
 
     video.addEventListener('play', function() {
         _resetFrameStepCursor();
+        _reconcilePlayPauseButton();
         // Frame-accurate loop enforcement runs even during bulk sync — the 'play'
         // event fires after the transition to playing, so this is the correct
         // moment to start the RVFC chain. Guarding it on _bulkSyncActive (as the
@@ -663,6 +766,7 @@ function setupVideoHandlers(video, slot) {
     });
 
     video.addEventListener('pause', function() {
+        _reconcilePlayPauseButton();
         if (_bulkSyncActive) return;
         // Reaching the natural end fires 'pause' then 'ended'. Under a managed
         // loop region the 'ended' handler is about to wrap everyone back to the
@@ -711,6 +815,7 @@ function setupVideoHandlers(video, slot) {
     });
     
     video.addEventListener('seeked', function() {
+        if (isDragging) _scheduleNativeScrubAudio(video);
         if (isDragging && !isGridMode) {
             // Only the active (scrubbed) video drives the reactive-seek chain. A
             // stray 'seeked' from a non-active element (a late-landing seek queued
@@ -776,9 +881,14 @@ function setupVideoHandlers(video, slot) {
 
 function restartAllVideos() {
     _resetFrameStepCursor();
+    _cancelPendingPlayIntent();
+    const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
-    getAllPlayableMedia().forEach(m => { m.currentTime = startTime; m.play().catch(() => {}); });
+    getAllPlayableMedia().forEach(m => {
+        m.currentTime = startTime;
+        _playMediaWithIntent(m, playGeneration);
+    });
     _startOpusSyncForPlayingSlots(() => startTime);
     startProgressUpdateLoop();
     setTimeout(() => { _bulkSyncActive = false; }, 50);

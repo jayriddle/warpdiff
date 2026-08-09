@@ -3023,7 +3023,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.22';
+        const APP_VERSION = '3.12.23';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3304,11 +3304,11 @@
         // syncMedia → js/transport.js
 
         // Shared progress display — delegates to audio or video format
-        function updateMediaProgress(media) {
+        function updateMediaProgress(media, timeOverride) {
             if (hasAudios) {
                 updateAudioProgress(media);
             } else {
-                updateVideoProgress(media);
+                updateVideoProgress(media, timeOverride);
             }
         }
 
@@ -4273,6 +4273,14 @@
                         }
                         _scrubOverlayCanvases[slot] = canvasEl;
                     }
+                    // The canvas paint is the presentation event for this path.
+                    // Schedule the active slot's scrub audio from that exact PTS,
+                    // not from a pointer target that may still be decoding.
+                    session.setPaintListener(pts => {
+                        if (token !== _scrubOverlayDragToken || !isDragging) return;
+                        const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
+                        if (slot === activeSlot) playScrubSnippet(pts);
+                    });
                     session.attach(canvasEl);
                     canvasEl.style.visibility = ''; // may have been hidden by a prior stalled drag (canvases are reused)
                     wrapper.appendChild(canvasEl);
@@ -4332,6 +4340,10 @@
         // stale-frame flash.
         function _scrubOverlayEnd() {
             _scrubOverlayDragToken++;
+            for (const slot in _scrubOverlayLive) {
+                const session = _scrubOverlayLive[slot];
+                if (session && typeof session.setPaintListener === 'function') session.setPaintListener(null);
+            }
             const liveSlots = Object.keys(_scrubOverlayLive);
             _scrubOverlayLive = {};
             _scrubOverlayLastT = null;
@@ -4806,11 +4818,18 @@
         let _scrubSourceRate = 1;
         let _scrubSourceSnippetLen = 0;
         let _scrubSourceFadeLen = 0;
+        let _scrubSourceLevel = 1;
         let _scrubLastTime = 0;
         const _SCRUB_SNIPPET_LEN = 0.08;  // 80ms snippet
         const _SCRUB_FADE = 0.01;         // 10ms fade in/out
         const _SCRUB_THROTTLE = 50;       // min ms between new snippets
         const _SCRUB_PHASE_SEARCH = 0.008; // max ±8ms target adjustment (< 1/5 frame at 24fps)
+
+        function _scrubOutputGain(volumePercent) {
+            const value = Number(volumePercent);
+            if (!Number.isFinite(value)) return 1;
+            return Math.max(0, Math.min(1, value / 100));
+        }
 
         function _scrubEnvelopeGain(elapsed, snippetLen, fadeLen) {
             if (elapsed <= 0 || snippetLen <= 0) return 0;
@@ -4823,7 +4842,7 @@
         function _holdScrubGain(ctx) {
             if (!_scrubGain) return;
             const elapsed = Math.max(0, ctx.currentTime - _scrubSourceStartCtx);
-            const held = _scrubEnvelopeGain(elapsed, _scrubSourceSnippetLen, _scrubSourceFadeLen);
+            const held = _scrubEnvelopeGain(elapsed, _scrubSourceSnippetLen, _scrubSourceFadeLen) * _scrubSourceLevel;
             _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
             _scrubGain.gain.setValueAtTime(held, ctx.currentTime);
         }
@@ -4899,6 +4918,7 @@
             const snippetLen = Math.min(_SCRUB_SNIPPET_LEN, buf.duration - offset);
             const outputSnippetLen = snippetLen / rate;
             const fadeLen = Math.min(_SCRUB_FADE, outputSnippetLen / 2);
+            const outputLevel = _scrubOutputGain(_prefs.load('volume', 100));
 
             // Fade out previous snippet smoothly
             if (_scrubGain) {
@@ -4914,9 +4934,9 @@
             gain.connect(ctx.destination);
             // Fade in
             gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(1, ctx.currentTime + fadeLen);
+            gain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + fadeLen);
             // Fade out before end
-            gain.gain.setValueAtTime(1, ctx.currentTime + outputSnippetLen - fadeLen);
+            gain.gain.setValueAtTime(outputLevel, ctx.currentTime + outputSnippetLen - fadeLen);
             gain.gain.linearRampToValueAtTime(0, ctx.currentTime + outputSnippetLen);
 
             const source = ctx.createBufferSource();
@@ -4934,11 +4954,21 @@
             _scrubSourceRate = rate;
             _scrubSourceSnippetLen = outputSnippetLen;
             _scrubSourceFadeLen = fadeLen;
+            _scrubSourceLevel = outputLevel;
             source.onended = () => {
                 if (_scrubSource === source) {
                     _scrubSource = null; _scrubGain = null; _scrubSourceBuffer = null;
+                    _scrubSourceLevel = 1;
                 }
             };
+        }
+
+        // Resume inside the trusted pointer event. Calling resume only when the
+        // first asynchronous frame/seek completes is too late on browsers that
+        // enforce user-gesture activation for Web Audio.
+        function _primeScrubAudioContext() {
+            const ctx = getAudioContext();
+            if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
         }
 
         function stopScrubSnippet() {
@@ -4953,6 +4983,7 @@
                 _scrubSource = null;
                 _scrubGain = null;
                 _scrubSourceBuffer = null;
+                _scrubSourceLevel = 1;
             }
         }
 
@@ -7461,7 +7492,15 @@
                 }
 
                 if (primary && !primary.paused) {
-                    updateMediaProgress(primary);
+                    const visualTime = hasAudios ? primary.currentTime : _projectVisualTime(
+                        primary._visualPresentedTime,
+                        primary._visualPresentedAt,
+                        performance.now(),
+                        primary.playbackRate,
+                        1 / (videoFrameRates[primary.src] || 30),
+                        primary.currentTime
+                    );
+                    updateMediaProgress(primary, visualTime);
                     if (_noVideoMode) updateAllAudioSlotCursors(primary);
                     if (hasAudios) {
                         if (isDragging) return;
@@ -7675,8 +7714,9 @@
             return video.duration;
         }
 
-        function updateVideoProgress(video) {
+        function updateVideoProgress(video, timeOverride) {
             const duration = _getEffectiveDuration(video);
+            const currentTime = timeOverride !== undefined ? timeOverride : video.currentTime;
             getProgressEls(); // ensure cache is warm (no-op after first call)
 
             // Guard against NaN when video metadata isn't ready yet
@@ -7687,12 +7727,12 @@
                 return;
             }
 
-            updateProgressBarForLoop(video.currentTime, duration);
-            updateVideoProgressFromTime(video, video.currentTime, duration);
-            updateSpectrogramCursor(video);
+            updateProgressBarForLoop(currentTime, duration);
+            updateVideoProgressFromTime(video, currentTime, duration);
+            updateSpectrogramCursor(video, currentTime);
             // Update ARIA for screen readers
             const pc = document.getElementById('videoProgressContainer');
-            if (pc) { pc.setAttribute('aria-valuemax', duration); pc.setAttribute('aria-valuenow', video.currentTime); }
+            if (pc) { pc.setAttribute('aria-valuemax', duration); pc.setAttribute('aria-valuenow', currentTime); }
         }
 
         // Show a warning toast when a frame-based TC format is selected in audio-only mode.
@@ -8083,7 +8123,9 @@
                     updateVideoProgressFromTime(video, t);
                     updateSpectrogramCursor(video, t);
                 }
-                playScrubSnippet(t);
+                // Video audio is scheduled by the frame-presentation owner:
+                // WebCodecs canvas paint on Chrome, seeked+rAF on native paths.
+                if (hasAudios) playScrubSnippet(t);
             }
 
             function progressBarXToTime(e) {
@@ -8158,7 +8200,9 @@
                     updateSpectrogramCursor(media, t); // t, not stale currentTime (overlay scrubs skip seeks)
                     if (_noVideoMode) updateAllAudioSlotCursors(media);
                 }
-                playScrubSnippet(t);
+                // Video audio is scheduled by the frame-presentation owner:
+                // WebCodecs canvas paint on Chrome, seeked+rAF on native paths.
+                if (hasAudios) playScrubSnippet(t);
             }
 
             let _scrubCanvas = null; // canvas being scrubbed (null = progress bar scrub)
@@ -8183,6 +8227,8 @@
                     || (e.target.id === 'spectrogramCanvas' ? e.target : null);
                 if (!canvas) return;
                 _resetFrameStepCursor();
+                _cancelPendingPlayIntent();
+                _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
                 // A mousedown while "dragging" means the previous drag's mouseup
                 // was lost — finalize it (restores muted states, suspends
@@ -8250,6 +8296,8 @@
 
             progressContainer.addEventListener('mousedown', function(e) {
                 _resetFrameStepCursor();
+                _cancelPendingPlayIntent();
+                _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
 
                 // A mousedown while "dragging" means the previous drag's mouseup
@@ -12020,6 +12068,7 @@
             get audioVizLevelMode() { return audioVizLevelMode; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
+            scrubOutputGain(value) { return _scrubOutputGain(value); },
             scrubAudioInfo(slot, atTime = 0) {
                 const buf = _videoAudioBuffers[slot];
                 if (!buf) return null;
@@ -12122,6 +12171,8 @@
                 async decodeProbe(slot, t) {
                     const s = await _scrubOverlayGetSession(slot);
                     if (!s) return null;
+                    let presentedPts = NaN;
+                    s.setPaintListener(pts => { presentedPts = pts; });
                     s.attach(document.createElement('canvas'));
                     s.request(t);
                     await new Promise(r => setTimeout(r, 1500));
@@ -12130,6 +12181,7 @@
                         samples: s.sampleCount,
                         framesPainted: s.framesPainted,
                         lastPaintedPts: s.lastPaintedPts,
+                        presentedPts,
                         dead: s.dead
                     };
                 },
@@ -12425,6 +12477,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.23</h3>
+            <ul>
+                <li><strong>Scrub sound now follows the frame actually shown and matches normal playback volume.</strong> This tightens picture/sound correspondence without sacrificing stereo spatial cues.</li>
+                <li><strong>Playback indicators move more evenly and remain truthful.</strong> The progress bar, timecode, and audio cursor follow presented-frame timing, while canceled or rejected play requests can no longer restart unexpectedly or leave the control showing Pause.</li>
+            </ul>
             <h3>v3.12.22</h3>
             <ul>
                 <li><strong>Waveforms and spectrograms now share a persistent Fit / Ref level control.</strong> Fit reveals the detail in each asset; Ref preserves true waveform amplitude and uses a common −70 to 0 dBFS spectrogram scale for honest level comparisons.</li>

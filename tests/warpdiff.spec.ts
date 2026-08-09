@@ -1777,6 +1777,16 @@ test.describe('Decoded audio timeline placement', () => {
     expect(phase.displacement).toBeLessThanOrEqual(0.0081);
     expect(phase.correlation).toBeGreaterThan(0.9);
   });
+
+  test('scrub preview level follows the normal playback volume', async ({ page }) => {
+    await page.goto('/');
+    const levels = await page.evaluate(() => ({
+      full: (window as any).__testAPI.scrubOutputGain(100),
+      quarter: (window as any).__testAPI.scrubOutputGain(25),
+      muted: (window as any).__testAPI.scrubOutputGain(0),
+    }));
+    expect(levels).toEqual({ full: 1, quarter: 0.25, muted: 0 });
+  });
 });
 
 test.describe('WebCodecs scrub decoder', () => {
@@ -1805,6 +1815,7 @@ test.describe('WebCodecs scrub decoder', () => {
     expect(probe.framesPainted).toBeGreaterThanOrEqual(1);
     expect(probe.lastPaintedPts).toBeGreaterThan(2.0);
     expect(probe.lastPaintedPts).toBeLessThanOrEqual(2.6);
+    expect(probe.presentedPts).toBeCloseTo(probe.lastPaintedPts, 6);
   });
 
   test('session is cached per slot and cleared on reset', async ({ page }) => {
@@ -1944,6 +1955,19 @@ test.describe('WebCodecs scrub decoder', () => {
       {}, { timeout: 2000 }
     );
     expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayLive())).toBe(false);
+  });
+});
+
+test.describe('Cancelable play intent', () => {
+  test('a rejected play request restores the truthful paused control', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm']);
+    await page.evaluate(() => {
+      const media = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      media.play = () => Promise.reject(new DOMException('blocked', 'NotAllowedError'));
+      (window as any).playAllMedia();
+    });
+    await expect(page.locator('#playPauseBtn')).toHaveText('▶');
   });
 });
 

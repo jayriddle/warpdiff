@@ -186,6 +186,8 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
+During video scrubbing, preview audio is anchored to the frame WarpDiff actually displays and follows the same master volume as normal playback. During normal playback, the progress bar, timecode, and waveform/spectrogram cursor glide between presented frames for smoother visual motion; loop and synchronization decisions still use the video's unmodified media clock.
+
 If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
 
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
