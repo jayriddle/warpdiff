@@ -3084,7 +3084,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.24';
+        const APP_VERSION = '3.12.25';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -7094,10 +7094,10 @@
 
 
 
-        function updateAllAudioSlotCursors(primaryAudio) {
+        function updateAllAudioSlotCursors(primaryAudio, timeOverride) {
             if (!primaryAudio || !primaryAudio.duration) return;
             const maxDur = _audioMaxDuration || primaryAudio.duration;
-            const t = primaryAudio.currentTime;
+            const t = timeOverride !== undefined ? timeOverride : primaryAudio.currentTime;
             const labelMarginCss = 30; // matches drawAudioSlotCanvas label margin
 
             document.querySelectorAll('.audio-slot-cursor').forEach(cursor => {
@@ -7567,7 +7567,7 @@
                         primary.currentTime
                     );
                     updateMediaProgress(primary, visualTime);
-                    if (_noVideoMode) updateAllAudioSlotCursors(primary);
+                    if (_noVideoMode) updateAllAudioSlotCursors(primary, visualTime);
                     if (hasAudios) {
                         if (isDragging) return;
                         const t = primary.currentTime;
@@ -12544,6 +12544,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.25</h3>
+            <ul>
+                <li><strong>Long spectrogram analysis is now genuinely bounded.</strong> Hour-scale and high-sample-rate media adapt their timeline sampling to a fixed frame budget instead of growing into gigabyte-sized FFT buffers.</li>
+                <li><strong>Ref spectrogram levels are calibrated to dBFS.</strong> Hann-window gain is compensated, and audio-only video cursors now follow the same presented-frame clock as the progress bar and timecode.</li>
+            </ul>
             <h3>v3.12.24</h3>
             <ul>
                 <li><strong>Fit / Ref now lives with the audio visualization it changes.</strong> Video places the Scale control beside the waveform; audio-only review uses one shared toolbar above the canvases. Higher-contrast buttons and clear pressed states remain legible in the dark theme.</li>

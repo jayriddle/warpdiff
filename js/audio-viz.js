@@ -117,7 +117,16 @@ function runSTFT(channelData, fftSize, hop) {
     if (numFrames <= 0) return null;
 
     const win = new Float32Array(fftSize);
-    for (let i = 0; i < fftSize; i++) win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+    let windowSum = 0;
+    for (let i = 0; i < fftSize; i++) {
+        win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+        windowSum += win[i];
+    }
+    // Coherent-gain normalization: a bin-centred full-scale sine must read
+    // 0 dBFS in Ref mode. The previous `/ halfBins` scale omitted the Hann
+    // window's 0.5 coherent gain and reported every spectral tone ~6.02 dB low.
+    // DC is not mirrored, so it receives half the one-sided spectral scale.
+    const spectralScale = 2 / Math.max(windowSum, 1e-12);
 
     const halfBins = fftSize / 2;
     const frames = new Array(numFrames);
@@ -136,7 +145,8 @@ function runSTFT(channelData, fftSize, hop) {
         // so it can use a clip-relative window (ceil − 70 dB) shared across channels.
         const mags = new Float32Array(halfBins);
         for (let i = 0; i < halfBins; i++) {
-            const mag = Math.sqrt(re[i] * re[i] + im[i] * im[i]) / halfBins;
+            const mag = Math.sqrt(re[i] * re[i] + im[i] * im[i]) *
+                (i === 0 ? spectralScale / 2 : spectralScale);
             const db = 20 * Math.log10(Math.max(mag, 1e-10));
             mags[i] = db;
             if (db > maxDb) maxDb = db;
@@ -147,20 +157,28 @@ function runSTFT(channelData, fftSize, hop) {
     return { frames, halfBins, maxDb };
 }
 
-function _spectrogramPlan(durationSeconds) {
+function _spectrogramPlan(durationSeconds, sampleRate = 48000) {
     // The dual-resolution 8192/2048 analysis is valuable on ordinary clips, but
     // its 128-sample hop scales to ~112,500 frames per channel at five minutes.
     // That made a stereo QC reference monopolize the main thread for ~50 s and
     // created enormous intermediate arrays. Long clips use a single 2048-point
-    // FFT with 50% overlap: the whole timeline and full audible band are still
-    // sampled, while fine low-frequency resolution yields to bounded work.
-    return Number(durationSeconds) >= 120
-        ? { loFFT: 2048, hiFFT: 2048, hop: 1024 }
-        : { loFFT: 8192, hiFFT: 2048, hop: 128 };
+    // FFT and an adaptive hop capped at 8192 frames per channel. A fixed 1024
+    // hop was only a constant-factor reduction: a one-hour stereo file still
+    // built ~337k frames / ~1.3 GiB of raw STFT arrays. The adaptive hop keeps
+    // full-timeline sampling while bounding those arrays to ~64 MiB for stereo.
+    const duration = Number(durationSeconds);
+    if (!(duration >= 120)) return { loFFT: 8192, hiFFT: 2048, hop: 128 };
+    const fftSize = 2048;
+    const maxFrames = 8192;
+    const sr = Number.isFinite(Number(sampleRate)) && Number(sampleRate) > 0
+        ? Number(sampleRate) : 48000;
+    const totalSamples = Math.max(fftSize, Math.ceil(duration * sr));
+    const boundedHop = Math.ceil((totalSamples - fftSize) / (maxFrames - 1));
+    return { loFFT: fftSize, hiFFT: fftSize, hop: Math.max(1024, boundedHop) };
 }
 
 function computeSpectrogramChannel(channelData, sampleRate) {
-    const plan = _spectrogramPlan(channelData.length / sampleRate);
+    const plan = _spectrogramPlan(channelData.length / sampleRate, sampleRate);
     const hop = plan.hop;
     const loFFT = plan.loFFT;
     const hiFFT = plan.hiFFT;

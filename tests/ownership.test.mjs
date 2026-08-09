@@ -844,17 +844,45 @@ function extractFn(name, src = SRC) {
   // Long media must not run the ordinary dual-resolution 8192/2048 FFT over
   // every 128-sample hop. A five-minute stereo reference created ~225k FFT
   // frames and blocked the UI for roughly 50 seconds during load. Long clips
-  // retain complete timeline coverage with a single, smaller FFT instead.
+  // retain complete timeline coverage with a single, smaller FFT instead, and
+  // the frame count must remain capped for hour-scale/high-rate sources.
   let spectrogramPlan = () => null;
   try {
     spectrogramPlan = new Function(`return (${extractFn('_spectrogramPlan')})`)();
   } catch {}
   const shortPlan = spectrogramPlan(10);
-  const longPlan = spectrogramPlan(300);
+  const longPlan = spectrogramPlan(300, 48000);
+  const hourPlan = spectrogramPlan(3600, 48000);
+  const highRatePlan = spectrogramPlan(3600, 192000);
+  const plannedFrames = (seconds, sampleRate, plan) =>
+    Math.floor((seconds * sampleRate - plan.loFFT) / plan.hop) + 1;
   check('spectrogram-plan: ordinary clips keep dual-resolution detail',
         shortPlan && shortPlan.loFFT === 8192 && shortPlan.hiFFT === 2048 && shortPlan.hop === 128);
   check('spectrogram-plan: five-minute clips use bounded single-resolution analysis',
-        longPlan && longPlan.loFFT === 2048 && longPlan.hiFFT === 2048 && longPlan.hop === 1024);
+        longPlan && longPlan.loFFT === 2048 && longPlan.hiFFT === 2048 && longPlan.hop >= 1024);
+  check('spectrogram-plan: hour-scale 48 kHz analysis is capped at 8192 frames/channel',
+        hourPlan && plannedFrames(3600, 48000, hourPlan) <= 8192);
+  check('spectrogram-plan: cap also holds for high sample-rate media',
+        highRatePlan && plannedFrames(3600, 192000, highRatePlan) <= 8192);
+  check('spectrogram-plan: channel computation supplies the real sample rate',
+        extractFn('computeSpectrogramChannel').includes(
+          '_spectrogramPlan(channelData.length / sampleRate, sampleRate)'));
+
+  let runSTFT = () => null;
+  try {
+    runSTFT = new Function(
+      extractFn('fft') + '\n' + extractFn('runSTFT') + '\nreturn runSTFT;'
+    )();
+  } catch {}
+  const fftSize = 2048;
+  const bin = 64;
+  const fullScaleTone = new Float32Array(fftSize);
+  for (let i = 0; i < fftSize; i++) {
+    fullScaleTone[i] = Math.sin(2 * Math.PI * bin * i / fftSize);
+  }
+  const calibrated = runSTFT(fullScaleTone, fftSize, fftSize);
+  check('spectrogram-ref: a full-scale bin-centred sine measures 0 dBFS',
+        calibrated && Math.abs(calibrated.maxDb) < 0.05);
 
   let waveformScale = () => NaN;
   let spectrogramIndex = () => NaN;
@@ -1102,6 +1130,11 @@ function extractFn(name, src = SRC) {
     const loop = extractFn('startProgressUpdateLoop');
     check('one-owner[visual-clock]: progress loop projects visuals but loop logic keeps raw currentTime',
           loop.includes('_projectVisualTime(') && loop.includes('const t = primary.currentTime'));
+    const cursors = extractFn('updateAllAudioSlotCursors');
+    check('visual-clock: no-video cursors accept and use the presented-time override',
+          cursors.includes('timeOverride') &&
+          cursors.includes('timeOverride !== undefined ? timeOverride : primaryAudio.currentTime') &&
+          loop.includes('updateAllAudioSlotCursors(primary, visualTime)'));
   }
 }
 

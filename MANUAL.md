@@ -165,11 +165,11 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 ## Audio Visualization
 
 Press **W** to toggle the waveform and spectrogram panel below the video controls.
-For clips of two minutes or longer, WarpDiff uses a bounded full-timeline spectrogram with lower fine-frequency resolution so loading remains responsive; playback, waveform, loudness metrics, and scrub audio remain full-duration.
+For clips of two minutes or longer, WarpDiff uses a bounded full-timeline spectrogram with lower fine-frequency resolution. Analysis adapts its hop to cap each channel at 8,192 FFT frames, so hour-scale and high-sample-rate media cannot create ever-growing spectrogram buffers; playback, waveform, loudness metrics, and scrub audio remain full-duration.
 
 The shared **Fit / Ref** control changes the level scale for both displays and remembers your choice:
 - **Fit** normalizes each asset's waveform to its own peak and scales its spectrogram to its strongest energy. Use it to reveal quiet detail.
-- **Ref** preserves true waveform amplitude against 0 dBFS and gives every spectrogram the same fixed −70 to 0 dBFS color scale. Use it for honest level comparisons between assets.
+- **Ref** preserves true waveform amplitude against 0 dBFS and gives every spectrogram the same calibrated −70 to 0 dBFS color scale. Use it for honest level comparisons between assets.
 
 In **Ref**, the waveform uses dB color coding:
 - **Green** — normal levels (below -6dB)

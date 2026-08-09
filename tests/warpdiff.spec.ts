@@ -1619,6 +1619,32 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
     await expect(ref).toHaveCSS('color', 'rgb(211, 214, 220)');
   });
 
+  test('no-video mode cursors honor the presented-time override', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm']);
+    await page.evaluate(() => (window as any).toggleNoVideoMode());
+    await expect(page.locator('body')).toHaveClass(/\bno-video\b/);
+    await page.waitForFunction(() => {
+      const cursor = document.querySelector('.audio-slot-cursor') as HTMLElement | null;
+      return !!cursor && !!cursor.parentElement && cursor.parentElement.offsetWidth > 100;
+    });
+
+    const positions = await page.evaluate(() => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      const cursor = document.querySelector('.audio-slot-cursor') as HTMLElement;
+      const wrapper = cursor.parentElement as HTMLElement;
+      video.pause();
+      video.currentTime = 0;
+      (window as any).updateAllAudioSlotCursors(video, 0);
+      const atZero = parseFloat(cursor.style.left);
+      (window as any).updateAllAudioSlotCursors(video, video.duration / 2);
+      const atHalf = parseFloat(cursor.style.left);
+      return { atZero, atHalf, width: wrapper.offsetWidth };
+    });
+
+    expect(positions.atHalf - positions.atZero).toBeGreaterThan(positions.width * 0.35);
+  });
+
   test('loading a new set clears stale loop points and resets the spectrogram cursor', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
