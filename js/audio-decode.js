@@ -6,6 +6,15 @@
 // resolve via the shared global scope of classic <script>s (same as js/hotkeys.js).
 // Single decode owners per concern; see tests/ownership.test.mjs for the guards.
 
+function _nextAudioDecodeGeneration() {
+    _audioDecodeEpoch += 1;
+    return _audioDecodeEpoch;
+}
+
+function _videoAudioDecodeIsCurrent(slot, gen) {
+    return _videoAudioDecodeGen[slot] === gen;
+}
+
 function _audioBufferTimeForTimeline(timelineTime, timelineStart) {
     const start = Number.isFinite(timelineStart) && timelineStart > 0 ? timelineStart : 0;
     return timelineTime - start;
@@ -16,7 +25,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     // let a stale completion write this slot's viz/metrics/Opus state (or mute
     // the *new* video). Mirrors the audio-only decodeAndComputeAudioSlotViz; the
     // captured gen is threaded through _decodeAudioWebCodecs → _finalizeAudioViz.
-    _videoAudioDecodeGen[slot] = (_videoAudioDecodeGen[slot] || 0) + 1;
+    _videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration();
     const gen = _videoAudioDecodeGen[slot];
     // Each decode is authoritative about Opus-pending — clear any stale flag so a
     // previous file's pending state can't spuriously activate sync on this one.
@@ -25,6 +34,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     const arrayBuffer = source instanceof File
         ? await source.arrayBuffer()
         : source;
+    if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
 
     // Detect Opus from file bytes — needed to activate Chrome sync correction.
     // Scan first and last 64KB for 'Opus' (MP4) or 'A_OPUS' (WebM).
@@ -95,18 +105,20 @@ async function decodeAndComputeAudioViz(slot, source) {
         ]);
         _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
     } catch (e) {
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         if (typeof AudioDecoder !== 'undefined') {
             console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
             _opusSyncPending[slot] = true;
             _decodeAudioWebCodecs(slot, arrayBuffer, gen);
         } else {
             console.warn('Audio decode failed for', slot, e);
-            _onAllDecodeFailed(slot);
+            _onAllDecodeFailed(slot, false, gen);
         }
     }
 }
 
-function _onAllDecodeFailed(slot, audioConfirmed) {
+function _onAllDecodeFailed(slot, audioConfirmed, gen) {
+    if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
     if (_ffmpegCommands[slot]) return; // already registered
     const filename = mediaData[slot] && mediaData[slot].name;
     if (!filename) return;
@@ -143,9 +155,14 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
 
     // If this slot just finished a transcode, advance toast to 'done' now
     if (_ffmpegTranscoding[slot] && _ffmpegTranscoding[slot].phase === 'computing') {
-        _ffmpegTranscoding[slot] = { phase: 'done' };
+        const doneState = { phase: 'done', loadEpoch: _ffmpegLoadEpoch };
+        _ffmpegTranscoding[slot] = doneState;
         _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
-        setTimeout(() => { delete _ffmpegTranscoding[slot]; }, 3000);
+        setTimeout(() => {
+            if (doneState.loadEpoch === _ffmpegLoadEpoch && _ffmpegTranscoding[slot] === doneState) {
+                delete _ffmpegTranscoding[slot];
+            }
+        }, 3000);
     }
     delete audioFileBuffers[slot];
 
@@ -202,11 +219,12 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
 }
 
 function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
+    if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
     if (typeof AudioDecoder === 'undefined') {
         console.warn('WebCodecs AudioDecoder not available for', slot);
         return;
     }
-    _webcodecsStarted();
+    _webcodecsStarted(slot, gen);
 
     const bytes = new Uint8Array(arrayBuffer);
 
@@ -223,8 +241,8 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         extracted = _demuxWebMAudio(bytes);
     } else {
         console.warn('Unknown container format for', slot);
-        _onAllDecodeFailed(slot);
-        _webcodecsFinished();
+        _onAllDecodeFailed(slot, false, gen);
+        _webcodecsFinished(slot, gen);
         return;
     }
 
@@ -233,11 +251,11 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         // For video files with no unsupported codec detected, empty chunks means
         // no audio track — not a codec problem. Avoid triggering ffmpeg.
         if (mediaData[slot] && mediaData[slot].type === 'video' && !_byteScannedCodec[slot]) {
-            _markSlotNoAudio(slot);
+            if (_videoAudioDecodeIsCurrent(slot, gen)) _markSlotNoAudio(slot);
         } else {
-            _onAllDecodeFailed(slot);
+            _onAllDecodeFailed(slot, false, gen);
         }
-        _webcodecsFinished();
+        _webcodecsFinished(slot, gen);
         return;
     }
 
@@ -253,8 +271,8 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
     if (_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(_demuxedCodec)) {
         console.warn('[webcodecs] ' + slot + ': primary codec ' + _demuxedCodec + ' is unsupported — registering for transcode');
         const filename = mediaData[slot] && mediaData[slot].name;
-        if (filename) _registerFfmpegCommand(slot, filename, _demuxedCodec);
-        _webcodecsFinished();
+        if (filename && _videoAudioDecodeIsCurrent(slot, gen)) _registerFfmpegCommand(slot, filename, _demuxedCodec);
+        _webcodecsFinished(slot, gen);
         return;
     }
 
@@ -300,8 +318,8 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
     } catch (err) {
         console.warn('AudioDecoder configure failed for', slot, err);
         try { decoder.close(); } catch (_) {}  // sole decode exit that skipped close()
-        _onAllDecodeFailed(slot, true); // audio packets were already demuxed
-        _webcodecsFinished();
+        _onAllDecodeFailed(slot, true, gen); // audio packets were already demuxed
+        _webcodecsFinished(slot, gen);
         return;
     }
 
@@ -317,12 +335,16 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
 
     decoder.flush().then(() => {
         try { decoder.close(); } catch (_) {}
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) {
+            _webcodecsFinished(slot, gen);
+            return;
+        }
         if (decodeError || decodedChunks.length === 0) {
             // If some chunks decoded before the error, use what we have
             if (decodedChunks.length === 0) {
                 console.warn('WebCodecs decode produced no output for', slot);
-                _onAllDecodeFailed(slot, true); // audio packets were demuxed
-                _webcodecsFinished();
+                _onAllDecodeFailed(slot, true, gen); // audio packets were demuxed
+                _webcodecsFinished(slot, gen);
                 return;
             }
         }
@@ -363,11 +385,15 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
         _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart || 0);
-        _webcodecsFinished();
+        _webcodecsFinished(slot, gen);
     }).catch(err => {
         console.warn('AudioDecoder flush failed for', slot, err);
         try { decoder.close(); } catch (_) {}
-        if (decodedChunks.length === 0) _onAllDecodeFailed(slot, true); // audio packets were demuxed
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) {
+            _webcodecsFinished(slot, gen);
+            return;
+        }
+        if (decodedChunks.length === 0) _onAllDecodeFailed(slot, true, gen); // audio packets were demuxed
         // If some chunks decoded before the error, use what we got
         if (decodedChunks.length > 0) {
             // Re-enter the success path with partial data
@@ -395,12 +421,12 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
             }, gen, extracted.timelineStart || 0);
         }
-        _webcodecsFinished();
+        _webcodecsFinished(slot, gen);
     });
 }
 
 function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
-    _audioDecodeGen[slot] = (_audioDecodeGen[slot] || 0) + 1;
+    _audioDecodeGen[slot] = _nextAudioDecodeGeneration();
     const gen = _audioDecodeGen[slot];
     const ctx = getAudioContext();
     ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
@@ -445,6 +471,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         // checkAllLoaded() prevents a double-activation when loadedmetadata later fires.
         if (!viewActivating) checkAllLoaded();
     }).catch(err => {
+        if (_audioDecodeGen[slot] !== gen) return;
         console.error('Audio decode error for slot ' + slot + ':', err);
         showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);
     });

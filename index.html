@@ -3084,7 +3084,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.26';
+        const APP_VERSION = '3.12.27';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4702,6 +4702,7 @@
         let _hostLoadAbortController = null;
         let _hostLoadRequest = null;
         let _viewLoadGeneration = null;
+        let _hostCapabilities = Object.freeze({ ffmpegTranscode: true });
 
         function _hostLoadIsCurrent(generation) {
             return !!_hostLoadRequest && _hostLoadRequest.generation === generation;
@@ -4743,6 +4744,10 @@
             // not after its fetches finish. A failed/slow load must never leave
             // old media visible beneath a new host task.
             clearAllMedia();
+            const capabilities = event.data && event.data.capabilities;
+            _hostCapabilities = Object.freeze({
+                ffmpegTranscode: !(capabilities && capabilities.ffmpegTranscode === false),
+            });
             _viewLoadGeneration = request.generation;
             return request;
         }
@@ -5387,7 +5392,17 @@
         let _ffmpegInstance   = null;
         let _ffmpegBusy       = false;  // true while a transcode is in progress
         let _ffmpegQueue      = [];     // slots waiting for the instance to free up
+        let _ffmpegLoadEpoch  = 0;      // invalidates commands/progress when media is cleared
         const _FFMPEG_WASM_SIZE = 24 * 1024 * 1024;
+        const _FFMPEG_UNAVAILABLE = 'In-browser transcoding is unavailable in this host. Transcode this file externally, then reload it.';
+
+        function _ffmpegTranscodeAvailable() {
+            return _hostCapabilities.ffmpegTranscode !== false;
+        }
+
+        function _ffmpegCommandIsCurrent(slot, info) {
+            return !!info && info.loadEpoch === _ffmpegLoadEpoch && _ffmpegCommands[slot] === info;
+        }
 
         // Called when a video slot is confirmed to have no audio track.
         // Shows a brief toast and updates the waveform canvas placeholder text.
@@ -5416,7 +5431,12 @@
             const ext  = (filename.match(/(\.[^.]+)$/) || ['', '.mp4'])[1];
             const base = filename.slice(0, filename.length - ext.length);
             const cmd  = 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i "' + filename + '" -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart "' + base + '_aac' + ext + '"';
-            _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd };
+            _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd, loadEpoch: _ffmpegLoadEpoch };
+            if (!_ffmpegTranscodeAvailable()) {
+                _ffmpegTranscoding[slot] = { phase: 'unavailable', error: _FFMPEG_UNAVAILABLE };
+                _updateTranscodeToast(slot);
+                return;
+            }
             _transcodeSlot(slot); // auto-start
         }
 
@@ -5488,7 +5508,9 @@
 
             const note = document.createElement('div');
             note.className = 'fp-note';
-            note.textContent = 'Run the command in a terminal, then reload the transcoded file. Or use "Transcode in browser" — no install required.';
+            note.textContent = !_ffmpegTranscodeAvailable()
+                ? _FFMPEG_UNAVAILABLE
+                : 'Run the command in a terminal, then reload the transcoded file. Or use "Transcode in browser" — no install required.';
             body.appendChild(note);
 
             const wasmNote = document.createElement('div');
@@ -5523,7 +5545,7 @@
 
             // Don't let a lower-priority phase overwrite an actively-running one.
             // transcode/computing/init/download all outrank queued.
-            const PRIORITY = { transcode: 3, computing: 3, init: 3, download: 2, queued: 1, error: 0 };
+            const PRIORITY = { transcode: 3, computing: 3, init: 3, download: 2, queued: 1, error: 0, unavailable: 0 };
             const myP = state ? (PRIORITY[state.phase] ?? 0) : 0;
             for (const [s, st] of Object.entries(_ffmpegTranscoding)) {
                 if (s === slot) continue;
@@ -5591,7 +5613,7 @@
                 fill.style.animation = '';
                 fill.style.width = '100%';
                 _xcodeToastTimer = setTimeout(() => el.classList.remove('visible'), 2500);
-            } else if (state.phase === 'error') {
+            } else if (state.phase === 'error' || state.phase === 'unavailable') {
                 icon.classList.add('error');
                 fill.classList.add('error');
                 label.textContent = slotName + ' — ' + (state.error || 'Transcode failed');
@@ -5600,7 +5622,11 @@
                 _xcodeToastTimer = setTimeout(() => el.classList.remove('visible'), 5000);
             }
 
-            requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+            const renderEpoch = _ffmpegLoadEpoch;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                if (renderEpoch !== _ffmpegLoadEpoch || _ffmpegTranscoding[slot] !== state) return;
+                el.classList.add('visible');
+            }));
         }
 
         function _updateTranscodeDOM(slot) {
@@ -5656,8 +5682,11 @@
                 if (phaseEl)  { setPC(phaseEl, 'p-done'); phaseEl.textContent  = 'Done'; }
                 if (fillEl)   { setPC(fillEl,  'p-done'); fillEl.style.width   = '100%'; }
                 if (statusEl) { setPC(statusEl,'p-done'); statusEl.textContent = 'Slot reloaded — audio is now AAC'; }
-            } else if (phase === 'error') {
-                if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; }
+            } else if (phase === 'error' || phase === 'unavailable') {
+                if (btn) {
+                    btn.disabled = phase === 'unavailable';
+                    btn.textContent = phase === 'unavailable' ? 'Unavailable while embedded' : '↺ Retry';
+                }
                 if (phaseEl)  { setPC(phaseEl, 'p-error'); phaseEl.textContent  = 'Error'; }
                 if (fillEl)   { setPC(fillEl,  'p-error'); }
                 if (statusEl) { setPC(statusEl,'p-error'); statusEl.textContent = error || 'Transcoding failed'; }
@@ -5699,6 +5728,7 @@
         }
 
         async function _loadFfmpeg(onPhase) {
+            if (!_ffmpegTranscodeAvailable()) throw new Error(_FFMPEG_UNAVAILABLE);
             if (_ffmpegLoaded && _ffmpegInstance) return _ffmpegInstance;
             if (_ffmpegLoadingPromise) return _ffmpegLoadingPromise;
 
@@ -5784,6 +5814,11 @@
         async function _transcodeSlot(slot) {
             const info = _ffmpegCommands[slot];
             if (!info) return;
+            if (!_ffmpegTranscodeAvailable()) {
+                _ffmpegTranscoding[slot] = { phase: 'unavailable', error: _FFMPEG_UNAVAILABLE };
+                _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
+                return;
+            }
             const existing = _ffmpegTranscoding[slot];
             if (existing && existing.phase !== 'error' && existing.phase !== 'queued') return;
 
@@ -5809,7 +5844,7 @@
 
         async function _transcodeSlotRun(slot) {
             const info = _ffmpegCommands[slot];
-            if (!info) return;
+            if (!_ffmpegCommandIsCurrent(slot, info)) return;
             const existing = _ffmpegTranscoding[slot];
             if (existing && existing.phase !== 'error' && existing.phase !== 'queued') return;
 
@@ -5827,6 +5862,7 @@
             const duration = videoEl && videoEl.duration > 0 ? videoEl.duration : 0;
 
             function onPhase(evt) {
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
                 if (evt.phase === 'download') {
                     _ffmpegTranscoding[slot] = Object.assign(
                         _ffmpegTranscoding[slot] || {},
@@ -5847,10 +5883,13 @@
             try {
                 ff = await _loadFfmpeg(onPhase);
             } catch (e) {
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
                 _ffmpegTranscoding[slot] = { phase: 'error', error: 'Could not load FFmpeg: ' + e.message };
                 _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
                 return;
             }
+
+            if (!_ffmpegCommandIsCurrent(slot, info)) return;
 
             if (_ffmpegTranscoding[slot].phase !== 'transcode') {
                 _ffmpegTranscoding[slot] = { phase: 'transcode', pct: 0, eta: 0 };
@@ -5864,6 +5903,7 @@
                 // ffmpeg.wasm versions, so don't filter on type.
                 const message = (entry && entry.message) || '';
                 if (message) _ffStderr.push((entry.type || '?') + ': ' + message);
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
                 const m = message.match(/time=(\d+):(\d+):(\d+\.\d+)/);
                 if (!m || duration <= 0) return;
                 const t   = parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3]);
@@ -5877,7 +5917,9 @@
 
             try {
                 const { fetchFile } = window.FFmpeg;
-                ff.FS('writeFile', inputName, await fetchFile(srcFile));
+                const inputData = await fetchFile(srcFile);
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
+                ff.FS('writeFile', inputName, inputData);
                 // Wait for the browser to paint the "Transcoding audio…" toast before
                 // ff.run() blocks the main thread.
                 //
@@ -5894,6 +5936,10 @@
                 // fires in the next task cycle. The compositor is showing the pulsing
                 // "Transcoding audio…" bar before ff.run() takes over the main thread.
                 await new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+                if (!_ffmpegCommandIsCurrent(slot, info)) {
+                    try { ff.FS('unlink', inputName); } catch (_) {}
+                    return;
+                }
                 // Transcode flags (defensive against DTS-HD MA 5.1 / Blu-ray-rip quirks
                 // such as the stsd entry lying with `mp4a` fourcc while the bitstream is
                 // actually DTS):
@@ -5938,6 +5984,8 @@
                 _ffmpegLoaded = false;
                 _ffmpegInstance = null;
 
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
+
                 // Transition immediately to computing phase — viz decode may take several seconds
                 _ffmpegTranscoding[slot] = { phase: 'computing' };
                 _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
@@ -5955,6 +6003,7 @@
                 // Reset instance so next attempt gets a fresh wasm context
                 _ffmpegLoaded = false;
                 _ffmpegInstance = null;
+                if (!_ffmpegCommandIsCurrent(slot, info)) return;
                 console.error('[ffmpeg] transcode error:', e);
                 _ffmpegTranscoding[slot] = { phase: 'error', error: e.message || 'Transcode failed' };
                 _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
@@ -6026,17 +6075,20 @@
         // Fallback for browsers where decodeAudioData fails (e.g. Safari + Opus).
         // Parses MP4 or WebM container to extract Opus audio packets, then
         // decodes them via WebCodecs AudioDecoder to get PCM for waveform viz.
-        let _webcodecsPending = 0;
-        function _webcodecsStarted() {
-            if (_webcodecsPending === 0) showToast('Decoding audio\u2026', 10000);
-            _webcodecsPending++;
+        const _webcodecsPending = new Set();
+        function _webcodecsHasCurrentPending() {
+            return Object.values(_videoAudioDecodeGen).some(gen => _webcodecsPending.has(gen));
         }
-        function _webcodecsFinished() {
-            _webcodecsPending--;
-            if (_webcodecsPending <= 0) {
-                _webcodecsPending = 0;
-                showToast('Audio decoded', 1500);
-            }
+        function _webcodecsStarted(slot, gen) {
+            if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+            const alreadyDecodingCurrentMedia = _webcodecsHasCurrentPending();
+            _webcodecsPending.add(gen);
+            if (!alreadyDecodingCurrentMedia) showToast('Decoding audio\u2026', 10000);
+        }
+        function _webcodecsFinished(slot, gen) {
+            _webcodecsPending.delete(gen);
+            if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+            if (!_webcodecsHasCurrentPending()) showToast('Audio decoded', 1500);
         }
 
         // _decodeAudioWebCodecs → js/audio-decode.js
@@ -6795,6 +6847,7 @@
 
         let _audioSlotVizData = {};  // { slot: { waveform, spectrogram, audioBuffer } }
         let _audioDecodeGen = {};    // { slot: number } — audio-only (decodeAndComputeAudioSlotViz) decode generation; guards stale completions
+        let _audioDecodeEpoch = 0;   // monotonic across clear/reload; prevents generation-number reuse (ABA)
         // Separate generation for the video/W-panel decode path (decodeAndComputeAudioViz →
         // _finalizeAudioViz). MUST be distinct from _audioDecodeGen: for audio-only slots BOTH
         // decoders run (SlotViz at load + Viz lazily via _ensureAudioVizDecoded), so a shared
@@ -9631,8 +9684,23 @@
             audioFileBuffers = {};
             audioMetrics = {};
             _audioSlotVizData = {};
+            // Clearing the current-token maps invalidates every pending completion.
+            // _audioDecodeEpoch intentionally does not reset: the next load must never
+            // reuse a token that an older async decode may still hold.
             _audioDecodeGen = {};
             _videoAudioDecodeGen = {};
+            _webcodecsPending.clear();
+            _ffmpegLoadEpoch += 1;
+            _byteScannedCodec = {};
+            _ffmpegCommands = {};
+            _ffmpegTranscoding = {};
+            _ffmpegQueue = [];
+            const transcodeToast = document.getElementById('xcodeToast');
+            if (transcodeToast) transcodeToast.classList.remove('visible');
+            const transcodePanel = document.getElementById('ffmpegPanel');
+            const transcodeBackdrop = document.getElementById('ffmpegBackdrop');
+            if (transcodePanel) transcodePanel.classList.remove('open');
+            if (transcodeBackdrop) transcodeBackdrop.classList.remove('open');
             _audioMaxDuration = 0;
             _audioVizDecodeStarted = false;
             // audioVizVisible persists across loads (saved in localStorage)
@@ -12624,6 +12692,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.27</h3>
+            <ul>
+                <li><strong>Clearing or replacing media can no longer revive an older audio analysis.</strong> Decode generations remain unique across reloads, so late async completions cannot overwrite the current comparison.</li>
+                <li><strong>Hosts that omit FFmpeg now report unsupported audio honestly.</strong> Embed owners declare the capability explicitly, so other iframe hosts retain transcoding while constrained hosts explain that external conversion and reload are required.</li>
+            </ul>
             <h3>v3.12.26</h3>
             <ul>
                 <li><strong>Embedded host loads are now correlated and cancelable.</strong> Newer requests supersede stale fetches, readiness is acknowledged only after media activation, and exact-origin parents are supported without a vendor-only patch.</li>

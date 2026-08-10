@@ -80,6 +80,12 @@ The fallback routing is **`_onAllDecodeFailed(slot, audioConfirmed)`**:
 - Returned `extracted` shape: `{ chunks: [{timestamp, data}], sampleRate, channels, codec, description, preSkip, maxSamples, timelineStart }`. `preSkip` and `maxSamples` are applied post-decode to trim encoder priming and edit-list-truncated tails. `timelineStart` is the sum of leading empty edit-list entries (`media_time === -1`) in movie timescale units; decoded scrub audio and Chromium's Opus replacement subtract it when mapping video time to buffer time. `_demuxMP4Audio(data, true)` is the metadata-only path used before `decodeAudioData`: it walks only track timing boxes and does not build/copy audio packets.
 
 ### ffmpeg.wasm transcode
+- Host packaging is explicit: a `WARPDIFF_LOAD` envelope may set
+  `capabilities.ffmpegTranscode=false` when that host omits the local bundle. Iframe topology alone
+  never disables FFmpeg; standalone and generic iframe deployments keep the normal lazy loader.
+- Every command is tagged with the monotonic `_ffmpegLoadEpoch`. Clear/reload invalidates command
+  identity, queued work, progress, delayed toast paints, and completion cleanup; async preparation
+  must re-check identity immediately before `ff.run()` so obsolete work cannot start or touch a new load.
 - Loaded once (~24 MB), single-threaded (the bundled build is built with `--disable-pthreads`). Each `ff.run()` invocation exits the wasm instance, so `_ffmpegLoaded` and `_ffmpegInstance` are reset after every run and the next slot in `_ffmpegQueue` triggers a fresh load.
 - `_ffmpegQueue` is sorted by `assetOrder` on each push so Ref → A → B order is preserved regardless of which decode fails first.
 - Standard transcode command (use as a template for unsupported-codec → AAC):

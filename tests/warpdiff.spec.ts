@@ -193,6 +193,87 @@ test.describe('host-load protocol and embedded lifecycle', () => {
     await delay(500);
     expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).map(r => r.scope))).toEqual([]);
   });
+
+  test('embedded unsupported-audio fallback is explicit and never requests FFmpeg', async ({ page }) => {
+    const ffmpegRequests: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/ffmpeg/')) ffmpegRequests.push(request.url());
+    });
+    await page.route('**/embedded-ffmpeg-host.html', route => route.fulfill({
+      contentType: 'text/html', body: '<!doctype html><iframe src="/"></iframe>',
+    }));
+    await page.route('**/ffmpeg/**', route => route.abort());
+    await page.goto('/embedded-ffmpeg-host.html');
+    const frame = page.locator('iframe').contentFrame();
+    await frame.locator('.header').waitFor();
+
+    await page.locator('iframe').evaluate((element: HTMLIFrameElement) => {
+      element.contentWindow!.postMessage({
+        type: 'WARPDIFF_LOAD', requestId: 'capability', taskId: 'capability',
+        capabilities: { ffmpegTranscode: false }, error: 'capability probe',
+      }, location.origin);
+    });
+
+    await frame.locator('body').evaluate(() => {
+      (window as any).eval("audioFileBuffers.original = new File([new Uint8Array([0])], 'unsupported.mp4', { type: 'video/mp4' })");
+      (window as any)._registerFfmpegCommand('original', 'unsupported.mp4', 'ec-3');
+    });
+
+    await expect(frame.locator('#xcodeToast')).toContainText(
+      'In-browser transcoding is unavailable in this host'
+    );
+    await delay(100);
+    expect(ffmpegRequests).toEqual([]);
+
+    const secondRegistration = await frame.locator('body').evaluate(() => {
+      (window as any).clearAllMedia();
+      (window as any)._registerFfmpegCommand('original', 'second.mp4', 'ac-3');
+      return (window as any).eval('({ filename:_ffmpegCommands.original.filename, codec:_ffmpegCommands.original.codec })');
+    });
+    expect(secondRegistration).toEqual({ filename: 'second.mp4', codec: 'ac-3' });
+    expect(ffmpegRequests).toEqual([]);
+  });
+
+  test('iframe hosts retain FFmpeg unless they explicitly disable the capability', async ({ page }) => {
+    const ffmpegRequests: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/ffmpeg/')) ffmpegRequests.push(request.url());
+    });
+    await page.route('**/generic-ffmpeg-host.html', route => route.fulfill({
+      contentType: 'text/html', body: '<!doctype html><iframe src="/"></iframe>',
+    }));
+    await page.route('**/ffmpeg/**', route => route.abort());
+    await page.goto('/generic-ffmpeg-host.html');
+    const frame = page.locator('iframe').contentFrame();
+    await frame.locator('.header').waitFor();
+    await frame.locator('body').evaluate(() => {
+      (window as any).eval("audioFileBuffers.original = new File([new Uint8Array([0])], 'generic.mp4', { type: 'video/mp4' })");
+      (window as any)._registerFfmpegCommand('original', 'generic.mp4', 'ec-3');
+    });
+    await expect.poll(() => ffmpegRequests.length).toBeGreaterThan(0);
+  });
+
+  test('standalone WarpDiff can load a present FFmpeg runtime', async ({ page }) => {
+    const requested: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/ffmpeg/')) requested.push(request.url());
+    });
+    await page.route('**/ffmpeg/ffmpeg.min.js', route => route.fulfill({
+      contentType: 'text/javascript',
+      body: 'window.FFmpeg={createFFmpeg:function(){return {load:async function(){}}}};',
+    }));
+    await page.route('**/ffmpeg/ffmpeg-core.wasm', route => route.fulfill({
+      contentType: 'application/wasm', body: Buffer.from([0, 97, 115, 109]),
+    }));
+    await page.goto('/');
+    const loaded = await page.evaluate(async () => {
+      const ff = await (window as any)._loadFfmpeg(() => {});
+      return !!ff;
+    });
+    expect(loaded).toBe(true);
+    expect(requested.some(url => url.endsWith('/ffmpeg/ffmpeg.min.js'))).toBe(true);
+    expect(requested.some(url => url.endsWith('/ffmpeg/ffmpeg-core.wasm'))).toBe(true);
+  });
 });
 
 test('corrupt persisted preference recovers without aborting startup', async ({ page }) => {
@@ -200,6 +281,219 @@ test('corrupt persisted preference recovers without aborting startup', async ({ 
   await page.goto('/');
   await expect(page.locator('.header')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('pref_audioVizVisible'))).toBeNull();
+});
+
+test('audio-only decode from a cleared load cannot overwrite a newer completion', async ({ page }) => {
+  await page.goto('/');
+  const winningMarker = await page.evaluate(async () => {
+    const w = window as any;
+    const originals = {
+      getAudioContext: w.getAudioContext,
+      computeWaveformData: w.computeWaveformData,
+      computeSpectrogramData: w.computeSpectrogramData,
+      computeAudioMetrics: w.computeAudioMetrics,
+      updateAudioInfoBar: w.updateAudioInfoBar,
+      updateDurationDisplay: w.updateDurationDisplay,
+      drawAudioSlotCanvas: w.drawAudioSlotCanvas,
+      checkAllLoaded: w.checkAllLoaded,
+      updateLoadingStatus: w.updateLoadingStatus,
+      updateMetricSpans: w._updateMetricSpans,
+    };
+    const resolvers: Array<(value: any) => void> = [];
+    try {
+      w.getAudioContext = () => ({
+        decodeAudioData: () => new Promise(resolve => resolvers.push(resolve)),
+      });
+      w.computeWaveformData = (buffer: any) => [buffer.marker];
+      w.computeSpectrogramData = () => [];
+      w.computeAudioMetrics = () => ({ stBlks: [] });
+      w.updateAudioInfoBar = () => {};
+      w.updateDurationDisplay = () => {};
+      w.drawAudioSlotCanvas = () => {};
+      w.checkAllLoaded = () => {};
+      w.updateLoadingStatus = () => {};
+      w._updateMetricSpans = () => {};
+
+      w.decodeAndComputeAudioSlotViz('original', new ArrayBuffer(1));
+      w.clearAllMedia();
+      w.decodeAndComputeAudioSlotViz('original', new ArrayBuffer(1));
+      if (resolvers.length !== 2) throw new Error(`expected 2 pending decodes, got ${resolvers.length}`);
+
+      const fakeBuffer = (marker: string) => ({ duration: 1, marker });
+      resolvers[1](fakeBuffer('new'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+      resolvers[0](fakeBuffer('old'));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      return w.eval('_audioSlotVizData.original.audioBuffer.marker');
+    } finally {
+      Object.assign(w, originals);
+      w.clearAllMedia();
+    }
+  });
+  expect(winningMarker).toBe('new');
+});
+
+test('failed video-audio decode from a cleared load cannot mark the newer slot as silent', async ({ page }) => {
+  await page.goto('/');
+  const staleFailureMarkedNewSlot = await page.evaluate(async () => {
+    const w = window as any;
+    const originalGetAudioContext = w.getAudioContext;
+    const originalAudioDecoder = w.AudioDecoder;
+    const pending: Array<{ reject:(error: Error) => void }> = [];
+    try {
+      w.AudioDecoder = undefined;
+      w.getAudioContext = () => ({
+        decodeAudioData: () => new Promise((_, reject) => pending.push({ reject })),
+      });
+      w.eval("mediaData.original = { name:'old.mp4', type:'video' }");
+      const oldDecode = w.decodeAndComputeAudioViz('original', new ArrayBuffer(8));
+      w.clearAllMedia();
+      w.eval("mediaData.original = { name:'new.mp4', type:'video' }");
+      const newDecode = w.decodeAndComputeAudioViz('original', new ArrayBuffer(8));
+      if (pending.length !== 2) throw new Error(`expected 2 pending decodes, got ${pending.length}`);
+
+      pending[0].reject(new Error('old decode failed late'));
+      await oldDecode;
+      const staleMarked = w.eval("_noAudioSlots.has('original')");
+
+      pending[1].reject(new Error('finish current probe'));
+      await newDecode;
+      return staleMarked;
+    } finally {
+      w.getAudioContext = originalGetAudioContext;
+      w.AudioDecoder = originalAudioDecoder;
+      w.clearAllMedia();
+    }
+  });
+  expect(staleFailureMarkedNewSlot).toBe(false);
+});
+
+test('clear during FFmpeg file preparation prevents the obsolete transcode from starting', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const w = window as any;
+    const originalFFmpeg = w.FFmpeg;
+    const originalApply = w._applyTranscodedFile;
+    let resolveFetch: ((data: Uint8Array) => void) | undefined;
+    let runCount = 0;
+    let applyCount = 0;
+    const ff = {
+      setLogger() {},
+      FS(op: string) { if (op === 'readFile') return new Uint8Array([9]); },
+      run() { runCount++; return Promise.resolve(); },
+    };
+    try {
+      w.FFmpeg = { fetchFile: () => new Promise<Uint8Array>(resolve => { resolveFetch = resolve; }) };
+      w._applyTranscodedFile = () => { applyCount++; };
+      w.__testFfmpegInstance = ff;
+      w.eval(`
+        _ffmpegLoaded = true;
+        _ffmpegInstance = window.__testFfmpegInstance;
+        mediaData.original = { name:'old.mp4', type:'video', src:'' };
+        audioFileBuffers.original = new File([new Uint8Array([1])], 'old.mp4', { type:'video/mp4' });
+      `);
+      w._registerFfmpegCommand('original', 'old.mp4', 'ec-3');
+      for (let i = 0; i < 50 && !resolveFetch; i++) await new Promise(resolve => setTimeout(resolve, 10));
+      if (!resolveFetch) throw new Error('FFmpeg fetchFile was not reached');
+
+      w.clearAllMedia();
+      w.eval("mediaData.original = { name:'new.mp4', type:'video', src:'new' }");
+      resolveFetch(new Uint8Array([1]));
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      return {
+        runCount,
+        applyCount,
+        state: w.eval('({ busy:_ffmpegBusy, commands:Object.keys(_ffmpegCommands), queue:_ffmpegQueue.slice(), trans:Object.keys(_ffmpegTranscoding) })'),
+      };
+    } finally {
+      w.FFmpeg = originalFFmpeg;
+      w._applyTranscodedFile = originalApply;
+      delete w.__testFfmpegInstance;
+      w.clearAllMedia();
+    }
+  });
+  expect(result).toEqual({
+    runCount: 0,
+    applyCount: 0,
+    state: { busy: false, commands: [], queue: [], trans: [] },
+  });
+});
+
+test('an older transcode done timer cannot delete a newer load state', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const w = window as any;
+    const originalSetTimeout = w.setTimeout;
+    const callSetTimeout = originalSetTimeout.bind(w);
+    const originals = {
+      computeWaveformData: w.computeWaveformData,
+      computeSpectrogramData: w.computeSpectrogramData,
+      computeAudioMetrics: w.computeAudioMetrics,
+      updateMetricSpans: w._updateMetricSpans,
+      updateAudioVisForSlot: w.updateAudioVisForSlot,
+    };
+    try {
+      w.setTimeout = (fn: TimerHandler, ms?: number, ...args: any[]) =>
+        callSetTimeout(fn, ms === 3000 ? 20 : ms, ...args);
+      w.computeWaveformData = () => [];
+      w.computeSpectrogramData = () => [];
+      w.computeAudioMetrics = () => ({ stBlks: [] });
+      w._updateMetricSpans = () => {};
+      w.updateAudioVisForSlot = () => {};
+
+      const buffer = new AudioBuffer({ length: 16, numberOfChannels: 1, sampleRate: 48000 });
+      w.eval('_videoAudioDecodeGen.original = 777; _ffmpegTranscoding.original = { phase:"computing" }');
+      w._finalizeAudioViz('original', buffer, 777);
+      const armed = w.eval('_ffmpegTranscoding.original.phase');
+      w.clearAllMedia();
+      w.eval('_ffmpegTranscoding.original = { phase:"transcode", marker:"new-load" }');
+      await new Promise(resolve => callSetTimeout(resolve, 80));
+      return { armed, after: w.eval('_ffmpegTranscoding.original') };
+    } finally {
+      Object.assign(w, originals);
+      w.setTimeout = originalSetTimeout;
+      w.clearAllMedia();
+    }
+  });
+  expect(result).toEqual({ armed: 'done', after: { phase: 'transcode', marker: 'new-load' } });
+});
+
+test('a queued transcode toast cannot repaint itself after clear', async ({ page }) => {
+  await page.goto('/');
+  const visibleAfterClear = await page.evaluate(async () => {
+    const w = window as any;
+    w.eval('_ffmpegTranscoding.original = { phase:"queued" }');
+    w._updateTranscodeToast('original');
+    w.clearAllMedia();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return document.getElementById('xcodeToast')?.classList.contains('visible') || false;
+  });
+  expect(visibleAfterClear).toBe(false);
+});
+
+test('stale WebCodecs completion cannot announce success after clear', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(() => {
+    const w = window as any;
+    const originalShowToast = w.showToast;
+    const messages: string[] = [];
+    try {
+      w.showToast = (message: string) => { messages.push(message); };
+      const gen = w._nextAudioDecodeGeneration();
+      w.eval(`_videoAudioDecodeGen.original = ${gen}`);
+      w._webcodecsStarted('original', gen);
+      w.clearAllMedia();
+      messages.length = 0;
+      w._webcodecsFinished('original', gen);
+      return { messages, pending: w.eval('_webcodecsPending.size') };
+    } finally {
+      w.showToast = originalShowToast;
+      w.clearAllMedia();
+    }
+  });
+  expect(result).toEqual({ messages: [], pending: 0 });
 });
 
 // ---------------------------------------------------------------------------

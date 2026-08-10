@@ -221,8 +221,8 @@ function extractFn(name, src = SRC) {
   check('one-owner[decode-gen]: _finalizeAudioViz bails on stale generation',
         fin.includes('_videoAudioDecodeGen[slot] !== gen'));
   const viz = extractFn('decodeAndComputeAudioViz');
-  check('one-owner[decode-gen]: decodeAndComputeAudioViz bumps _videoAudioDecodeGen at entry',
-        viz.includes('_videoAudioDecodeGen[slot] = (_videoAudioDecodeGen[slot] || 0) + 1'));
+  check('one-owner[decode-gen]: decodeAndComputeAudioViz allocates a monotonic generation at entry',
+        viz.includes('_videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration()'));
 }
 
 // (E) The two audio decoders own SEPARATE generation counters. For audio-only
@@ -236,8 +236,16 @@ function extractFn(name, src = SRC) {
         !fin.includes('_audioDecodeGen'));
   check('one-owner[gen-split]: decodeAndComputeAudioSlotViz uses ONLY the audio-only counter',
         slot.includes('_audioDecodeGen[slot]') && !slot.includes('_videoAudioDecodeGen'));
-  check('one-owner[gen-split]: both counters reset on clearAllMedia',
-        SRC.includes('_audioDecodeGen = {}') && SRC.includes('_videoAudioDecodeGen = {}'));
+  check('one-owner[gen-split]: audio-only decode allocates from the shared monotonic epoch',
+        slot.includes('_audioDecodeGen[slot] = _nextAudioDecodeGeneration()'));
+  check(`one-owner[decode-epoch]: one allocator owns the monotonic epoch (got ${countOf(SRC, 'function _nextAudioDecodeGeneration(')})`,
+        countOf(SRC, 'function _nextAudioDecodeGeneration(') === 1);
+  const nextGen = extractFn('_nextAudioDecodeGeneration');
+  check('one-owner[decode-epoch]: allocator advances _audioDecodeEpoch',
+        nextGen.includes('_audioDecodeEpoch += 1'));
+  check('one-owner[decode-epoch]: clear invalidates current tokens but never resets the epoch',
+        SRC.includes('_audioDecodeGen = {}') && SRC.includes('_videoAudioDecodeGen = {}') &&
+        !extractFn('clearAllMedia').includes('_audioDecodeEpoch ='));
 }
 
 // (D) Opus-sync (re)start has a single owner. Both transports (playAllMedia and
@@ -257,6 +265,68 @@ function extractFn(name, src = SRC) {
     check(`one-owner[opus-start]: ${fn} delegates to the owner (no inline _startOpusSyncAudio)`,
           b.includes('_startOpusSyncForPlayingSlots(') && !b.includes('_startOpusSyncAudio('));
   }
+}
+
+// A host that omits the large local FFmpeg bundle declares that capability in
+// WARPDIFF_LOAD. The upstream contract must remain honest without assuming all
+// iframes have the same packaging, and must guard every runtime entry point.
+{
+  const register = extractFn('_registerFfmpegCommand');
+  const load = extractFn('_loadFfmpeg');
+  const transcode = extractFn('_transcodeSlot');
+  const transcodeRun = extractFn('_transcodeSlotRun');
+  const finalize = extractFn('_finalizeAudioViz');
+  const updateToast = extractFn('_updateTranscodeToast');
+  const hostBegin = extractFn('_hostLoadBegin');
+  check('one-owner[host-capability]: WARPDIFF_LOAD explicitly owns FFmpeg availability',
+        hostBegin.includes('capabilities.ffmpegTranscode === false') &&
+        countOf(SRC, 'function _ffmpegTranscodeAvailable(') === 1);
+  check('one-owner[embedded-ffmpeg]: registration reports declared unavailability instead of auto-starting',
+        register.includes('if (!_ffmpegTranscodeAvailable())') &&
+        register.indexOf('if (!_ffmpegTranscodeAvailable())') < register.indexOf('_transcodeSlot(slot)'));
+  check('one-owner[embedded-ffmpeg]: loader rejects unavailable use before any runtime work',
+        load.indexOf('if (!_ffmpegTranscodeAvailable())') < load.indexOf('_ffmpegLoadingPromise'));
+  check('one-owner[embedded-ffmpeg]: transcode entry point independently guards declared unavailability',
+        transcode.includes('if (!_ffmpegTranscodeAvailable())') && transcode.includes("phase: 'unavailable'"));
+  const clear = extractFn('clearAllMedia');
+  check('one-owner[ffmpeg-load-state]: clear invalidates command identity and removes per-load UI state',
+        clear.includes('_ffmpegLoadEpoch += 1') && clear.includes('_ffmpegCommands = {}') &&
+        clear.includes('_ffmpegTranscoding = {}') && clear.includes('_ffmpegQueue = []'));
+  check('one-owner[ffmpeg-load-state]: async preparation rechecks command identity before starting ff.run',
+        transcodeRun.indexOf('const inputData = await fetchFile(srcFile)') <
+          transcodeRun.indexOf('if (!_ffmpegCommandIsCurrent(slot, info)) return', transcodeRun.indexOf('const inputData = await fetchFile(srcFile)')) &&
+        transcodeRun.indexOf('if (!_ffmpegCommandIsCurrent(slot, info)) {', transcodeRun.indexOf('requestAnimationFrame')) <
+          transcodeRun.indexOf('await ff.run(...ffArgs)'));
+  check('one-owner[ffmpeg-load-state]: delayed done cleanup is epoch- and identity-scoped',
+        finalize.includes('doneState.loadEpoch === _ffmpegLoadEpoch') &&
+        finalize.includes('_ffmpegTranscoding[slot] === doneState'));
+  check('one-owner[ffmpeg-load-state]: delayed toast paint is epoch- and identity-scoped',
+        updateToast.includes('renderEpoch !== _ffmpegLoadEpoch') &&
+        updateToast.includes('_ffmpegTranscoding[slot] !== state'));
+}
+
+// Every video-audio terminal path — success OR failure — must prove it still
+// owns the slot generation before mutating current media state.
+{
+  const failOwner = extractFn('_onAllDecodeFailed');
+  const native = extractFn('decodeAndComputeAudioViz');
+  const webcodecs = extractFn('_decodeAudioWebCodecs');
+  const decoder = extractFn('_decodeWithAudioDecoder');
+  check(`one-owner[decode-current]: one current-generation predicate (got ${countOf(SRC, 'function _videoAudioDecodeIsCurrent(')})`,
+        countOf(SRC, 'function _videoAudioDecodeIsCurrent(') === 1);
+  check('one-owner[decode-failure]: terminal failure owner rejects stale generations',
+        failOwner.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return'));
+  check('one-owner[decode-failure]: native and WebCodecs async paths carry generation to failure routing',
+        native.includes('_onAllDecodeFailed(slot, false, gen)') &&
+        webcodecs.includes('_onAllDecodeFailed(slot, false, gen)') &&
+        decoder.includes('_onAllDecodeFailed(slot, true, gen)'));
+  const webcodecsFinished = extractFn('_webcodecsFinished');
+  check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
+        webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&
+        webcodecsFinished.indexOf('if (!_videoAudioDecodeIsCurrent(slot, gen)) return') <
+          webcodecsFinished.indexOf("showToast('Audio decoded'"));
+  check('one-owner[decode-current]: clear removes load-scoped WebCodecs pending identities',
+        extractFn('clearAllMedia').includes('_webcodecsPending.clear()'));
 }
 
 // (F) Decode pipeline ownership: each decode function has exactly one definition,
