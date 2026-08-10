@@ -274,6 +274,66 @@ test.describe('host-load protocol and embedded lifecycle', () => {
     expect(requested.some(url => url.endsWith('/ffmpeg/ffmpeg.min.js'))).toBe(true);
     expect(requested.some(url => url.endsWith('/ffmpeg/ffmpeg-core.wasm'))).toBe(true);
   });
+
+  test('standalone manual AC-3 load uses the real FFmpeg/WASM core and reloads audible AAC', async ({ page }) => {
+    test.setTimeout(180_000);
+    const requested = new Set<string>();
+    const runCommands: string[] = [];
+    page.on('request', request => {
+      if (request.url().includes('/ffmpeg/')) requested.add(new URL(request.url()).pathname);
+    });
+    page.on('console', message => {
+      if (message.text().includes('[ffmpeg]') && message.text().includes('run:')) runCommands.push(message.text());
+    });
+
+    await page.goto('/');
+    await page.locator('#multiFileInput').setInputFiles(path.join(fixturesDir, 'ac3_video.mp4'));
+    await expect.poll(async () => page.evaluate(() => (window as any).eval('mediaData.editA && mediaData.editA.name')), {
+      timeout: 150_000,
+      message: 'real FFmpeg transcode never replaced the manually loaded AC-3 source',
+    }).toBe('ac3_video_aac.mp4');
+    await expect.poll(async () => page.evaluate(() => (window as any).eval('!!_videoAudioBuffers.editA')), {
+      timeout: 30_000,
+      message: 'transcoded AAC never decoded into the playback/scrub audio buffer',
+    }).toBe(true);
+    await expect.poll(async () => page.evaluate(() => (window as any).eval('Object.keys(_ffmpegTranscoding).length')), {
+      timeout: 10_000,
+      message: 'completed transcode state did not clean itself up',
+    }).toBe(0);
+
+    const result = await page.evaluate(() => {
+      const w = window as any;
+      const buffer = w.eval('_videoAudioBuffers.editA');
+      const channel = buffer.getChannelData(0);
+      let peak = 0;
+      for (let i = 0; i < channel.length; i++) peak = Math.max(peak, Math.abs(channel[i]));
+      const video = w.getLayer('editA')?.querySelector('video') as HTMLVideoElement | null;
+      return {
+        peak,
+        duration: buffer.duration,
+        videoDuration: video && video.duration,
+        videoReadyState: video && video.readyState,
+        noAudio: w.eval("_noAudioSlots.has('editA')"),
+        state: w.eval(`({
+          commands:Object.keys(_ffmpegCommands), queue:_ffmpegQueue.slice(),
+          transcoding:Object.keys(_ffmpegTranscoding), busy:_ffmpegBusy,
+          loaded:_ffmpegLoaded, hasInstance:!!_ffmpegInstance
+        })`),
+      };
+    });
+    expect(result.peak).toBeGreaterThan(0.01);
+    expect(result.duration).toBeGreaterThan(0.8);
+    expect(result.videoDuration).toBeGreaterThan(0.8);
+    expect(result.videoReadyState).toBeGreaterThanOrEqual(1);
+    expect(result.noAudio).toBe(false);
+    expect(result.state).toEqual({
+      commands: [], queue: [], transcoding: [], busy: false, loaded: false, hasInstance: false,
+    });
+    expect(runCommands.some(command => command.includes('-c:a aac'))).toBe(true);
+    expect([...requested].some(url => url.endsWith('/ffmpeg/ffmpeg.min.js'))).toBe(true);
+    expect([...requested].some(url => url.endsWith('/ffmpeg/ffmpeg-core.js'))).toBe(true);
+    expect([...requested].some(url => url.endsWith('/ffmpeg/ffmpeg-core.wasm'))).toBe(true);
+  });
 });
 
 test('corrupt persisted preference recovers without aborting startup', async ({ page }) => {

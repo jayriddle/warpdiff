@@ -17,6 +17,8 @@ const sentinels = [
   path.join(fixturesDir, 'audio_offset.mp4'),
   // MP4 whose stereo soundtrack is pure side information (L = -R).
   path.join(fixturesDir, 'side_lr.mp4'),
+  // Browser-incompatible AC-3 soundtrack: exercises the real ffmpeg.wasm fallback.
+  path.join(fixturesDir, 'ac3_video.mp4'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

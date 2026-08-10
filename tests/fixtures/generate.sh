@@ -50,6 +50,15 @@ ffmpeg -hide_banner -loglevel error -y \
     -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k \
     -movflags +faststart "$OUT/side_lr.mp4"
 
+# Browser-incompatible soundtrack with browser-compatible H.264 picture. A manual load must route
+# through the bundled ffmpeg.wasm core, copy the picture, convert AC-3 to AAC, reload, and decode
+# audible PCM. Kept tiny because the real-WASM Playwright case compiles a ~23 MiB core.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "color=c=blue:size=128x72:rate=12:duration=1" \
+    -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=1" \
+    -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -crf 35 -pix_fmt yuv420p \
+    -c:a ac3 -b:a 96k -shortest -movflags +faststart "$OUT/ac3_video.mp4"
+
 # HDR-tagged clip (BT.2020 + PQ colr box) — the scrub decoder must REFUSE these
 # (Chrome tone-maps HDR <video>; canvas drawImage doesn't) and fall back to
 # native scrubbing. Content is SDR testsrc; only the tagging matters.
@@ -109,3 +118,4 @@ touch -t 202401030000 "$OUT/portrait.mp4"    "$OUT/track.mp3"
 touch -t 202401040000 "$OUT/pq_hdr.mp4"
 touch -t 202401050000 "$OUT/audio_offset.mp4"
 touch -t 202401060000 "$OUT/side_lr.mp4"
+touch -t 202401070000 "$OUT/ac3_video.mp4"
