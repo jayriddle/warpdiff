@@ -107,7 +107,23 @@ function computeWaveformData(audioBuffer, numBuckets) {
             if (a > peak) peak = a;
         }
     }
-    return { L, R, peak };
+    return { L, R, peak, duration: audioBuffer.duration };
+}
+
+// ONE presentation-layout owner for every decoded-audio visualization. Decoded sample zero may
+// begin after timeline zero, and the buffer may end before the video; both intervals stay visibly
+// blank instead of stretching PCM to fill the canvas.
+function _audioVizTimelineLayout(timelineStart, audioDuration, timelineDuration, drawWidth) {
+    const duration = Number.isFinite(timelineDuration) && timelineDuration > 0
+        ? timelineDuration
+        : Math.max(0, timelineStart || 0) + Math.max(0, audioDuration || 0);
+    if (!(duration > 0) || !(drawWidth > 0)) return { x: 0, width: 0 };
+    const start = Math.max(0, Math.min(duration, Number.isFinite(timelineStart) ? timelineStart : 0));
+    const end = Math.max(start, Math.min(duration, start + Math.max(0, audioDuration || 0)));
+    return {
+        x: drawWidth * start / duration,
+        width: drawWidth * (end - start) / duration,
+    };
 }
 
 // --- Spectrogram computation ---

@@ -1195,6 +1195,22 @@ function extractFn(name, src = SRC) {
         extractFn('_updateOpusSyncRate').includes('_startOpusSyncAudio(slot, video.currentTime)'));
   check('audio-timeline: seeks re-anchor pending intentional leading silence',
         extractFn('setupVideoHandlers').includes('waitingForTimelineStart'));
+
+  const { _audioVizTimelineLayout } = new Function(
+    extractFn('_audioVizTimelineLayout') + '\nreturn { _audioVizTimelineLayout };'
+  )();
+  const delayed = _audioVizTimelineLayout(0.144, 9.8346666667, 10, 1000);
+  check('audio-viz-timeline: delayed PCM leaves the encoded leading and trailing gaps blank',
+        Math.abs(delayed.x - 14.4) < 1e-9
+        && Math.abs(delayed.width - 983.46666667) < 1e-8);
+  check('audio-viz-timeline: zero-origin audio remains a benign full-width rendering',
+        JSON.stringify(_audioVizTimelineLayout(0, 10, 10, 1000)) === JSON.stringify({ x:0, width:1000 }));
+  check('one-owner[audio-viz-timeline]: every waveform, spectrogram, and LUFS surface routes through one layout owner',
+        countOf(SRC, 'function _audioVizTimelineLayout(') === 1
+        && countOf(SRC, '_audioVizTimelineLayout(') >= 5
+        && extractFn('drawWaveformToCanvas').includes('_audioTimelineStarts[slot]')
+        && extractFn('drawSpectrogram').includes('_audioTimelineStarts[slot]')
+        && extractFn('drawAudioSlotCanvas').includes('_audioTimelineStarts[slot]'));
 }
 
 // Scrub preview level follows the same saved master volume as normal playback.

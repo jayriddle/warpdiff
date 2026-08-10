@@ -3084,7 +3084,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.27';
+        const APP_VERSION = '3.12.28';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5162,7 +5162,7 @@
                 : 'Audio scale: Ref (fixed dBFS scale)');
         }
 
-        // computeWaveformChannel, computeWaveformData, runSTFT, computeSpectrogramChannel,
+        // computeWaveformChannel, computeWaveformData, _audioVizTimelineLayout, runSTFT, computeSpectrogramChannel,
         // computeSpectrogramData, WAVEFORM_DB_*, WAVEFORM_ZONES, WAVEFORM_DB_LEVELS,
         // drawWaveformChannelSmooth, drawWaveformDbGrid → js/audio-viz.js
 
@@ -5197,23 +5197,33 @@
             // Mode 0 or 1: draw waveform
             const data = waveformData[slot];
             if (_audioWaveMode !== 2 && data && data.L && data.L.length > 0) {
+                const layer = getLayer(slot);
+                const media = layer ? (layer.querySelector('video') || layer.querySelector('audio')) : null;
+                const timelineDuration = media ? _getEffectiveDuration(media) : data.duration;
+                const audioLayout = _audioVizTimelineLayout(_audioTimelineStarts[slot] || 0,
+                    data.duration, timelineDuration, w);
                 const amplitudeScale = _waveformScaleForMode(data.peak, audioVizLevelMode);
+                ctx.save();
+                ctx.translate(audioLayout.x, 0);
                 if (data.R) {
                     const chH = h / 2;
-                    drawWaveformChannelSmooth(ctx, data.L, w, 0, chH, amplitudeScale);
-                    drawWaveformChannelSmooth(ctx, data.R, w, h / 2, chH, amplitudeScale);
-                    if (audioVizLevelMode === 'ref') {
-                        drawWaveformDbGrid(ctx, w, 0, chH / 2);
-                        drawWaveformDbGrid(ctx, w, h / 2, chH / 2);
-                    }
+                    drawWaveformChannelSmooth(ctx, data.L, audioLayout.width, 0, chH, amplitudeScale);
+                    drawWaveformChannelSmooth(ctx, data.R, audioLayout.width, h / 2, chH, amplitudeScale);
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                     ctx.beginPath();
                     ctx.moveTo(0, h / 2);
-                    ctx.lineTo(w, h / 2);
+                    ctx.lineTo(audioLayout.width, h / 2);
                     ctx.stroke();
                 } else {
-                    drawWaveformChannelSmooth(ctx, data.L, w, 0, h, amplitudeScale);
-                    if (audioVizLevelMode === 'ref') drawWaveformDbGrid(ctx, w, 0, h / 2);
+                    drawWaveformChannelSmooth(ctx, data.L, audioLayout.width, 0, h, amplitudeScale);
+                }
+                ctx.restore();
+                if (audioVizLevelMode === 'ref') {
+                    if (data.R) {
+                        const chH = h / 2;
+                        drawWaveformDbGrid(ctx, w, 0, chH / 2);
+                        drawWaveformDbGrid(ctx, w, h / 2, chH / 2);
+                    } else drawWaveformDbGrid(ctx, w, 0, h / 2);
                 }
                 // Dim regions outside loop markers
                 if (_loopInPoint !== null && _loopOutPoint !== null) {
@@ -5235,7 +5245,12 @@
             const stBlks = audioMetrics[slot] && audioMetrics[slot].stBlks;
             if (_audioWaveMode > 0 && stBlks && stBlks.length >= 2) {
                 const intLUFS = audioMetrics[slot].integratedLUFS;
-                drawLufsEnvelope(ctx, stBlks, intLUFS, 0, w, 0, h, 1);
+                const data = waveformData[slot];
+                const layer = getLayer(slot);
+                const media = layer ? (layer.querySelector('video') || layer.querySelector('audio')) : null;
+                const audioLayout = _audioVizTimelineLayout(_audioTimelineStarts[slot] || 0,
+                    data ? data.duration : 0, media ? _getEffectiveDuration(media) : (data ? data.duration : 0), w);
+                drawLufsEnvelope(ctx, stBlks, intLUFS, audioLayout.x, audioLayout.width, 0, h, 1);
             }
         }
 
@@ -5260,6 +5275,8 @@
             canvas.height = h * (window.devicePixelRatio || 1);
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const spec = spectrogramData[slot];
             if (!spec || !spec.L || !spec.L.frames.length) return;
@@ -5292,7 +5309,15 @@
 
             const sr = spec.sampleRate;
             const numBins = spec.L.frames[0].length;
-            const imgData = ctx.createImageData(canvas.width, canvas.height);
+            const layer = getLayer(slot);
+            const media = layer ? (layer.querySelector('video') || layer.querySelector('audio')) : null;
+            const audioDuration = waveformData[slot] ? waveformData[slot].duration : 0;
+            const audioLayout = _audioVizTimelineLayout(_audioTimelineStarts[slot] || 0,
+                audioDuration, media ? _getEffectiveDuration(media) : audioDuration, canvas.width);
+            const audioX = Math.round(audioLayout.x);
+            const audioW = Math.max(0, Math.round(audioLayout.width));
+            if (!audioW) return;
+            const imgData = ctx.createImageData(audioW, canvas.height);
             const pixels = imgData.data;
 
             if (spec.R && spec.R.frames.length) {
@@ -5301,19 +5326,19 @@
                 const halfH = Math.floor((canvas.height - specGap) / 2);
                 const rTop = halfH + specGap;
                 const rHeight = canvas.height - rTop;
-                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, halfH, sr,
+                drawSpectrogramRegion(pixels, audioW, spec.L.frames, numBins, 0, halfH, sr,
                     spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
-                drawSpectrogramRegion(pixels, canvas.width, spec.R.frames, numBins, rTop, rHeight, sr,
+                drawSpectrogramRegion(pixels, audioW, spec.R.frames, numBins, rTop, rHeight, sr,
                     spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
-                ctx.putImageData(imgData, 0, 0);
+                ctx.putImageData(imgData, audioX, 0);
                 // Fill gap with background color
                 ctx.fillStyle = '#111';
-                ctx.fillRect(0, halfH, canvas.width, specGap);
+                ctx.fillRect(audioX, halfH, audioW, specGap);
             } else {
                 // Mono: full height
-                drawSpectrogramRegion(pixels, canvas.width, spec.L.frames, numBins, 0, canvas.height, sr,
+                drawSpectrogramRegion(pixels, audioW, spec.L.frames, numBins, 0, canvas.height, sr,
                     spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
-                ctx.putImageData(imgData, 0, 0);
+                ctx.putImageData(imgData, audioX, 0);
             }
             // Dim regions outside loop markers
             if (_loopInPoint !== null && _loopOutPoint !== null) {
@@ -6448,7 +6473,7 @@
                 audioBuffer: buf,
                 lufsEnvelope: audioMetrics[slot] ? audioMetrics[slot].stBlks : null,
             };
-            _audioMaxDuration = Math.max(_audioMaxDuration, buf.duration);
+            _audioMaxDuration = Math.max(_audioMaxDuration, (_audioTimelineStarts[slot] || 0) + buf.duration);
         }
 
         function _drawDecodingPlaceholder(slot, _retries) {
@@ -7035,11 +7060,12 @@
             ctx.fillRect(0, 0, labelMargin, canvas.height);
 
             const slotDuration = vizData.audioBuffer.duration;
-            const maxDuration = _audioMaxDuration || slotDuration;
-            // Fraction of drawable width this file actually fills
+            const timelineStart = _audioTimelineStarts[slot] || 0;
+            const maxDuration = _audioMaxDuration || (timelineStart + slotDuration);
             const drawableW = canvas.width - labelMargin;
-            const fillFrac = slotDuration / maxDuration;
-            const fillW = Math.round(drawableW * fillFrac);
+            const audioLayout = _audioVizTimelineLayout(timelineStart, slotDuration, maxDuration, drawableW);
+            const audioX = labelMargin + Math.round(audioLayout.x);
+            const fillW = Math.round(audioLayout.width);
 
             const waveH = Math.round(canvas.height * 0.4);
             const specH = canvas.height - waveH;
@@ -7052,7 +7078,7 @@
             // Mode 0 or 1: draw the waveform first
             if (_audioWaveMode !== 2) {
                 ctx.save();
-                ctx.translate(labelMargin, wfPad);
+                ctx.translate(audioX, wfPad);
                 const wf = vizData.waveform;
                 const amplitudeScale = _waveformScaleForMode(wf.peak, audioVizLevelMode);
 
@@ -7092,7 +7118,7 @@
             if (_audioWaveMode > 0 && vizData.lufsEnvelope && vizData.lufsEnvelope.length >= 2) {
                 const intLUFS = audioMetrics[slot] ? audioMetrics[slot].integratedLUFS : null;
                 drawLufsEnvelope(ctx, vizData.lufsEnvelope, intLUFS,
-                    labelMargin, fillW, wfPad, wfInnerH, dpr);
+                    audioX, fillW, wfPad, wfInnerH, dpr);
             }
 
             // ── Waveform/Spectrogram divider ──
@@ -7105,7 +7131,7 @@
 
             // ── Spectrogram (bottom 60%) ──
             ctx.fillStyle = '#111';
-            ctx.fillRect(labelMargin, waveH, fillW, specH);
+            ctx.fillRect(audioX, waveH, fillW, specH);
             const spec = vizData.spectrogram;
             if (spec && spec.L && spec.L.frames.length) {
                 const numBins = spec.L.frames[0].length;
@@ -7120,19 +7146,23 @@
                         spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
                     drawSpectrogramRegion(imgData.data, fillW, spec.R.frames, numBins, halfSpecH + specGap, rHeight, sr,
                         spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
-                    ctx.putImageData(imgData, labelMargin, waveH);
+                    ctx.putImageData(imgData, audioX, waveH);
                 } else {
                     const imgData = ctx.createImageData(fillW, specH);
                     drawSpectrogramRegion(imgData.data, fillW, spec.L.frames, numBins, 0, specH, sr,
                         spectrogramPalette, spectrogramLogScale, spec.floorDb, spec.ceilDb, audioVizLevelMode);
-                    ctx.putImageData(imgData, labelMargin, waveH);
+                    ctx.putImageData(imgData, audioX, waveH);
                 }
             }
 
-            // Dim the empty region beyond the file's duration
-            if (fillFrac < 1) {
+            // Dim timeline intervals outside the decoded audio presentation range.
+            if (audioX > labelMargin) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fillRect(labelMargin + fillW, 0, canvas.width - labelMargin - fillW, canvas.height);
+                ctx.fillRect(labelMargin, 0, audioX - labelMargin, canvas.height);
+            }
+            if (audioX + fillW < canvas.width) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(audioX + fillW, 0, canvas.width - audioX - fillW, canvas.height);
             }
 
             // ── Dim regions outside loop in/out points ──
@@ -7143,8 +7173,8 @@
                 if (loopInX > labelMargin) {
                     ctx.fillRect(labelMargin, 0, loopInX - labelMargin, canvas.height);
                 }
-                if (loopOutX < labelMargin + fillW) {
-                    ctx.fillRect(loopOutX, 0, labelMargin + fillW - loopOutX, canvas.height);
+                if (loopOutX < audioX + fillW) {
+                    ctx.fillRect(Math.max(loopOutX, audioX), 0, audioX + fillW - Math.max(loopOutX, audioX), canvas.height);
                 }
             }
 
@@ -12283,6 +12313,13 @@
             get audioVizLevelMode() { return audioVizLevelMode; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
+            audioVizLayout(slot, width = 1000) {
+                const data = waveformData[slot];
+                const layer = getLayer(slot);
+                const media = layer ? (layer.querySelector('video') || layer.querySelector('audio')) : null;
+                return _audioVizTimelineLayout(_audioTimelineStarts[slot] || 0,
+                    data ? data.duration : 0, media ? _getEffectiveDuration(media) : (data ? data.duration : 0), width);
+            },
             scrubOutputGain(value) { return _scrubOutputGain(value); },
             scrubAudioInfo(slot, atTime = 0) {
                 const buf = _videoAudioBuffers[slot];
@@ -12692,6 +12729,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.28</h3>
+            <ul>
+                <li><strong>Audio visualizations now preserve the source timeline.</strong> Waveforms, spectrograms, and LUFS envelopes leave real leading and trailing gaps blank instead of stretching decoded audio to fill the video.</li>
+            </ul>
             <h3>v3.12.27</h3>
             <ul>
                 <li><strong>Clearing or replacing media can no longer revive an older audio analysis.</strong> Decode generations remain unique across reloads, so late async completions cannot overwrite the current comparison.</li>

@@ -2230,6 +2230,12 @@ test.describe('Decoded audio timeline placement', () => {
     expect(starts.editA).toBe(0);
     expect(starts.editB).toBeGreaterThan(0.1);
     expect(starts.editB).toBeLessThan(0.25);
+    const layout = await page.evaluate(() => (window as any).__testAPI.audioVizLayout('editB', 1000));
+    expect(layout.x).toBeGreaterThan(50);
+    expect(layout.x).toBeLessThan(125);
+    expect(layout.width).toBeGreaterThan(700);
+    expect(layout.width).toBeLessThan(850);
+    expect(layout.x + layout.width).toBeLessThan(950);
   });
 
   test('video scrub audio preserves anti-phase stereo side information', async ({ page }) => {

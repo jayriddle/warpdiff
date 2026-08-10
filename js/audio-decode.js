@@ -450,7 +450,8 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         _audioMaxDuration = 0;
         assetOrder.forEach(s => {
             if (_audioSlotVizData[s]) {
-                _audioMaxDuration = Math.max(_audioMaxDuration, _audioSlotVizData[s].audioBuffer.duration);
+                _audioMaxDuration = Math.max(_audioMaxDuration,
+                    (_audioTimelineStarts[s] || 0) + _audioSlotVizData[s].audioBuffer.duration);
             }
         });
 

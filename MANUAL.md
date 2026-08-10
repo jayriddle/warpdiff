@@ -165,6 +165,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 ## Audio Visualization
 
 Press **W** to toggle the waveform and spectrogram panel below the video controls.
+If a video's audio track begins late or ends early, the waveform, spectrogram, and LUFS envelope preserve those presentation gaps as blank timeline intervals.
 For clips of two minutes or longer, WarpDiff uses a bounded full-timeline spectrogram with lower fine-frequency resolution. Analysis adapts its hop to cap each channel at 8,192 FFT frames, so hour-scale and high-sample-rate media cannot create ever-growing spectrogram buffers; playback, waveform, loudness metrics, and scrub audio remain full-duration.
 
 The shared **Fit / Ref** control changes the level scale for both displays and remembers your choice:
