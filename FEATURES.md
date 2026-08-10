@@ -68,6 +68,8 @@ Press `W` to toggle waveform and spectrogram views. The shared **Fit / Ref** con
 
 Scrub previews retain the soundtrack's placement on the video timeline, including intentional leading silence. Native playback remains browser-managed; Chromium's Web Audio replacement for affected Opus files uses the same offset-aware mapping.
 
+If a video container does not expose an audio start timestamp, WarpDiff shows a persistent warning naming the affected slot. Decoded-audio views and tools keep their fallback timeline, native playback is not shifted, and the warning asks you to verify A/V sync. A confirmed start at 0 does not warn.
+
 ## Audio file comparison
 
 Load 1–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), file size, and EBU R128 metrics (integrated LUFS, LRA, true peak). Press `E` to cycle between waveform, waveform + LUFS envelope, and LUFS envelope only.

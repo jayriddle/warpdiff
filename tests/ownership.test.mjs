@@ -1182,8 +1182,9 @@ function extractFn(name, src = SRC) {
 // Shared Chromium/Safari scrub mapping is pure timeline math. Negative buffer
 // time means the playhead is in intentional leading silence.
 {
-  const { _audioBufferTimeForTimeline } = new Function(
-    extractFn('_audioBufferTimeForTimeline') + '\nreturn { _audioBufferTimeForTimeline };'
+  const { _audioBufferTimeForTimeline, _audioTimelineWarningText } = new Function(
+    extractFn('_audioBufferTimeForTimeline') + '\n' + extractFn('_audioTimelineWarningText')
+    + '\nreturn { _audioBufferTimeForTimeline, _audioTimelineWarningText };'
   )();
   check('audio-timeline: before soundtrack start maps to silence',
         _audioBufferTimeForTimeline(0.1, 0.166) < 0);
@@ -1191,6 +1192,23 @@ function extractFn(name, src = SRC) {
         Math.abs(_audioBufferTimeForTimeline(0.166, 0.166)) < 1e-9);
   check('audio-timeline: zero-offset files retain direct mapping',
         _audioBufferTimeForTimeline(1.25, 0) === 1.25);
+  check('audio-timeline-alert: unknown video timing is named and actionable',
+        /A, B/.test(_audioTimelineWarningText(['A', 'B']))
+        && /verify A\/V sync/.test(_audioTimelineWarningText(['A'])));
+  check('audio-timeline-alert: an empty unknown-slot list stays silent (known-zero control)',
+        _audioTimelineWarningText([]) === '');
+  const setTimeline = extractFn('_setAudioTimelineMetadata');
+  const renderAlert = extractFn('_renderAudioTimelineAlert');
+  const finalize = extractFn('_finalizeAudioViz');
+  const clear = extractFn('clearAllMedia');
+  check('one-owner[audio-timeline-confidence]: one setter preserves zero-vs-unknown and owns the alert',
+        countOf(SRC, 'function _setAudioTimelineMetadata(') === 1
+        && setTimeline.includes('_audioTimelineStartKnown[slot] = known')
+        && setTimeline.includes('_renderAudioTimelineAlert()')
+        && finalize.includes('_setAudioTimelineMetadata(slot, timelineStart)')
+        && renderAlert.includes("_audioTimelineStartKnown[slot] === false")
+        && clear.includes('_audioTimelineStartKnown = {}')
+        && clear.includes('_renderAudioTimelineAlert()'));
   check('audio-timeline: pending Opus rate changes reschedule intentional leading silence',
         extractFn('_updateOpusSyncRate').includes('_startOpusSyncAudio(slot, video.currentTime)'));
   check('audio-timeline: seeks re-anchor pending intentional leading silence',

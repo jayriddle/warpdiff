@@ -20,6 +20,32 @@ function _audioBufferTimeForTimeline(timelineTime, timelineStart) {
     return timelineTime - start;
 }
 
+function _audioTimelineWarningText(slotLabels) {
+    if (!Array.isArray(slotLabels) || slotLabels.length === 0) return '';
+    return 'Audio start timestamp unavailable for ' + slotLabels.join(', ') +
+        ' — the container does not expose where audio begins. Decoded-audio views and tools are using a fallback timeline; verify A/V sync.';
+}
+
+// One owner for both the numeric fallback used by decoded-audio tools and the confidence attached to
+// it. Numeric zero can be authoritative, so confidence must not be inferred from the stored number.
+function _setAudioTimelineMetadata(slot, timelineStart) {
+    const known = Number.isFinite(timelineStart);
+    _audioTimelineStarts[slot] = known && timelineStart > 0 ? timelineStart : 0;
+    _audioTimelineStartKnown[slot] = known;
+    _renderAudioTimelineAlert();
+}
+
+function _renderAudioTimelineAlert() {
+    const el = document.getElementById('audioTimingAlert');
+    if (!el) return;
+    const unknown = assetOrder.filter(slot =>
+        mediaData[slot] && mediaData[slot].type === 'video' && _audioTimelineStartKnown[slot] === false
+    ).map(slotLabel);
+    const text = _audioTimelineWarningText(unknown);
+    el.hidden = !text;
+    el.textContent = text;
+}
+
 async function decodeAndComputeAudioViz(slot, source) {
     // Generation guard: a reload/clear during the async decode below must not
     // let a stale completion write this slot's viz/metrics/Opus state (or mute
@@ -41,7 +67,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     const bytes = new Uint8Array(arrayBuffer);
     const isMP4 = bytes.length > 7 &&
         bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
-    let timelineStart = 0;
+    let timelineStart = null;
     if (isMP4) {
         try {
             const timing = _demuxMP4Audio(bytes, true);
@@ -136,15 +162,13 @@ function _onAllDecodeFailed(slot, audioConfirmed, gen) {
     _registerFfmpegCommand(slot, filename, codec);
 }
 
-function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = 0) {
+function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     // Drop stale completions — a reload/clear during the async decode chain
     // bumps _videoAudioDecodeGen, so this slot no longer belongs to this decode.
     // Without this, a previous file's decode could overwrite the new slot's
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
-    _audioTimelineStarts[slot] = Number.isFinite(timelineStart) && timelineStart > 0
-        ? timelineStart
-        : 0;
+    _setAudioTimelineMetadata(slot, timelineStart);
     waveformData[slot] = computeWaveformData(audioBuffer, 600);
     spectrogramData[slot] = computeSpectrogramData(audioBuffer);
     const _mf = computeAudioMetrics(audioBuffer);
@@ -384,7 +408,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         };
         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
-        _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart || 0);
+        _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart);
         _webcodecsFinished(slot, gen);
     }).catch(err => {
         console.warn('AudioDecoder flush failed for', slot, err);
@@ -419,7 +443,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
                 numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
                 duration: duration, length: totalFrames,
                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
-            }, gen, extracted.timelineStart || 0);
+            }, gen, extracted.timelineStart);
         }
         _webcodecsFinished(slot, gen);
     });

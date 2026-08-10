@@ -958,6 +958,25 @@
             opacity: 1;
         }
 
+        .audio-timing-alert {
+            position: fixed;
+            top: 58px;
+            right: 14px;
+            max-width: min(460px, calc(100vw - 28px));
+            padding: 9px 12px;
+            border: 1px solid rgba(245, 197, 66, 0.55);
+            border-radius: 7px;
+            background: rgba(56, 43, 10, 0.96);
+            color: #ffe7a1;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+            box-shadow: 0 3px 18px rgba(0,0,0,0.5);
+            z-index: 3000;
+            pointer-events: none;
+        }
+        .audio-timing-alert[hidden] { display: none; }
+
         /* First-play muted nudge — the actionable safety net (real toast styling
            + an Enable action). Shown once per session at first play while muted,
            only when there's audio-bearing media to miss. */
@@ -2976,6 +2995,7 @@
                 </div>
 
                 <div class="toast" id="toast"></div>
+                <div class="audio-timing-alert" id="audioTimingAlert" role="alert" hidden></div>
 
             </div>
         </div>
@@ -3084,7 +3104,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.28';
+        const APP_VERSION = '3.12.29';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5393,6 +5413,7 @@
 
         let _videoAudioBuffers = {}; // { slot: AudioBuffer } — for video scrub audio
         let _audioTimelineStarts = {}; // { slot: seconds } — first decoded sample's position on the video timeline
+        let _audioTimelineStartKnown = {}; // { slot: boolean } — distinguishes authoritative 0 from a fallback 0
 
         // ── Unsupported-codec detection + ffmpeg.wasm transcode ─────────────
         // Browsers cannot decode AC-3, EAC-3, DTS, or TrueHD. When the MP4
@@ -9711,6 +9732,8 @@
             _scrubSlotByVideo = null;
             _videoAudioBuffers = {};
             _audioTimelineStarts = {};
+            _audioTimelineStartKnown = {};
+            _renderAudioTimelineAlert();
             audioFileBuffers = {};
             audioMetrics = {};
             _audioSlotVizData = {};
@@ -12313,6 +12336,7 @@
             get audioVizLevelMode() { return audioVizLevelMode; },
             get audioMetrics() { return audioMetrics; },
             get _audioTimelineStarts() { return { ..._audioTimelineStarts }; },
+            get _audioTimelineStartKnown() { return { ..._audioTimelineStartKnown }; },
             audioVizLayout(slot, width = 1000) {
                 const data = waveformData[slot];
                 const layer = getLayer(slot);
@@ -12729,6 +12753,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.29</h3>
+            <ul>
+                <li><strong>Videos now flag unknown audio timing metadata.</strong> If a container does not expose where its audio starts, a persistent warning identifies the affected slot and asks you to verify A/V sync. A confirmed start at 0 remains silent.</li>
+            </ul>
             <h3>v3.12.28</h3>
             <ul>
                 <li><strong>Audio visualizations now preserve the source timeline.</strong> Waveforms, spectrograms, and LUFS envelopes leave real leading and trailing gaps blank instead of stretching decoded audio to fill the video.</li>

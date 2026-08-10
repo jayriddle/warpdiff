@@ -21,6 +21,8 @@ WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions 
 
 **Duplicate detection:** If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears at the top of the screen.
 
+**Audio timing warning:** If a video's container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. WarpDiff does not shift native playback; the warning applies to decoded-audio views and tools using a fallback timeline. Videos whose containers explicitly report a start at 0 do not trigger it.
+
 **Reset:** Click the **Reset** button (visible after loading) to clear all files and start over.
 
 ---

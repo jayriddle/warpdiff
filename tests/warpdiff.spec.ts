@@ -2219,6 +2219,24 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
 });
 
 test.describe('Decoded audio timeline placement', () => {
+  test('unknown container audio timing is alerted while authoritative zero stays silent', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm']);
+    await page.waitForFunction(() =>
+      (window as any).__testAPI?._audioTimelineStartKnown?.editA === false,
+      {}, { timeout: 15000 });
+    await expect(page.locator('#audioTimingAlert')).toBeVisible();
+    await expect(page.locator('#audioTimingAlert')).toContainText('A');
+    await expect(page.locator('#audioTimingAlert')).toContainText('verify A/V sync');
+
+    await loadMedia(page, ['landscape_a.mp4']);
+    await page.waitForFunction(() =>
+      (window as any).__testAPI?._audioTimelineStartKnown?.editA === true,
+      {}, { timeout: 15000 });
+    expect((await getVar(page, '_audioTimelineStarts')).editA).toBe(0);
+    await expect(page.locator('#audioTimingAlert')).toBeHidden();
+  });
+
   test('MP4 leading empty edit is retained for scrub-audio mapping', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'audio_offset.mp4']);
