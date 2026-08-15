@@ -3104,7 +3104,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.29';
+        const APP_VERSION = '3.12.35';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4228,6 +4228,12 @@
         let _scrubCachedControlsH = null; // controlsH cached at drag-start
         let _scrubSeekPending = false;   // true while a reactive seek is in flight (Stack mode drag)
         let _scrubNextTime    = null;    // latest queued seek target while _scrubSeekPending
+        // Pointer-owned end state, deliberately independent of currentTime:
+        // final seeks settle asynchronously, and corrected Opus duration can be
+        // shorter than video.duration. It also suppresses a seek-induced ended
+        // event until the user explicitly starts playback again.
+        let _scrubAtTimelineEnd = false;
+        let _scrubGestureGeneration = 0; // cancels a deferred resume when a newer drag starts/clear occurs
 
         // ── WebCodecs scrub overlay (Chrome smooth-scrub, see js/scrub-video.js) ──
         let _scrubVideoSessions = {};    // { slot: session | 'failed' | Promise<session|null> }
@@ -4237,6 +4243,9 @@
         let _scrubSlotByVideo = null;    // Map<video el → slot>, built at drag start
         let _scrubOverlayLastT = null;   // latest drag time (replayed when a session becomes ready mid-drag)
         let _scrubOverlayLastDirect = true; // was the latest request a discrete seek (paint target only, no fast-forward)?
+        let _scrubOverlayPendingT = null; // latest target waiting for the shared display-frame dispatch
+        let _scrubOverlayPendingDirect = true;
+        let _scrubOverlayDispatchRaf = 0;
         let _scrubOverlayDragToken = 0;  // invalidates async session init from a previous drag
         let _scrubOverlayPaint = {};     // { slot: {count, at, started} } — per-slot paint-progress tracker (stall detection)
         const _SCRUB_OVERLAY_STALL_MS = 350; // no paint progress for this long while dragging ⇒ overlay stalled, fall back to <video> seek
@@ -4332,6 +4341,16 @@
             return (mediaData[slot] && mediaData[slot].type === 'video') ? [slot] : [];
         }
 
+        // One WebCodecs paint stream is regular enough to clock its matching
+        // scrub grains. With 2–3 visible videos, decoder contention makes those
+        // paint callbacks bursty even while pointer events remain steady; an
+        // 90 ms grain can then end before the next paint and expose an audible
+        // gap. Multi-video Grid scrubs therefore follow the shared pointer
+        // timeline. Audio-only scrubs have no video presentation clock either.
+        function _scrubAudioUsesPointerClock() {
+            return hasAudios || _scrubOverlaySlots().length > 1;
+        }
+
         // Kick off session init for each slot at drag start (async; each slot's
         // overlay appears whenever its session is ready, possibly mid-drag).
         function _scrubOverlayBegin(slots) {
@@ -4368,7 +4387,7 @@
                     session.setPaintListener(pts => {
                         if (token !== _scrubOverlayDragToken || !isDragging) return;
                         const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
-                        if (slot === activeSlot) playScrubSnippet(pts);
+                        if (slot === activeSlot && !_scrubAudioUsesPointerClock()) _feedScrubAudio(pts);
                     });
                     session.attach(canvasEl);
                     canvasEl.style.visibility = ''; // may have been hidden by a prior stalled drag (canvases are reused)
@@ -4382,14 +4401,34 @@
             });
         }
 
-        // Record the drag time and paint every live overlay. Sessions clamp the
-        // target to their own last sample, so differing durations are safe.
-        function _scrubOverlayRequestAll(t, direct) {
-            _scrubOverlayLastT = t;
-            _scrubOverlayLastDirect = !!direct;
+        // Fan one latest target per display frame to every live session. Raw
+        // pointer events can arrive much faster than the display (and used to
+        // make 2–3 decoders repeatedly retarget work that could never be shown).
+        // The first direct/click target is immediate for low click latency;
+        // subsequent drag targets share this single rAF owner. Sessions still
+        // clamp independently, so differing durations remain safe.
+        function _dispatchScrubOverlayRequest() {
+            _scrubOverlayDispatchRaf = 0;
+            if (_scrubOverlayPendingT === null) return;
+            const t = _scrubOverlayPendingT;
+            const direct = _scrubOverlayPendingDirect;
+            _scrubOverlayPendingT = null;
             for (const slot in _scrubOverlayLive) {
                 const s = _scrubOverlayLive[slot];
                 if (s && !s.dead) s.request(t, direct);
+            }
+        }
+
+        function _scrubOverlayRequestAll(t, direct) {
+            const firstTarget = _scrubOverlayLastT === null;
+            _scrubOverlayLastT = t;
+            _scrubOverlayLastDirect = !!direct;
+            _scrubOverlayPendingT = t;
+            _scrubOverlayPendingDirect = !!direct;
+            if (firstTarget && direct) {
+                _dispatchScrubOverlayRequest();
+            } else if (!_scrubOverlayDispatchRaf) {
+                _scrubOverlayDispatchRaf = requestAnimationFrame(_dispatchScrubOverlayRequest);
             }
         }
 
@@ -4429,6 +4468,11 @@
         // stale-frame flash.
         function _scrubOverlayEnd() {
             _scrubOverlayDragToken++;
+            if (_scrubOverlayDispatchRaf) {
+                cancelAnimationFrame(_scrubOverlayDispatchRaf);
+                _scrubOverlayDispatchRaf = 0;
+            }
+            _scrubOverlayPendingT = null;
             for (const slot in _scrubOverlayLive) {
                 const session = _scrubOverlayLive[slot];
                 if (session && typeof session.setPaintListener === 'function') session.setPaintListener(null);
@@ -4980,16 +5024,26 @@
         let _scrubSourceSnippetLen = 0;
         let _scrubSourceFadeLen = 0;
         let _scrubSourceLevel = 1;
-        let _scrubLastTime = 0;
-        const _SCRUB_SNIPPET_LEN = 0.08;  // 80ms snippet
+        let _scrubAudioClockId = 0;
+        let _scrubAudioTargetT = null;
+        let _scrubAudioTargetSetAt = 0;
+        let _scrubAudioLastEmittedT = null;
+        const _SCRUB_OUTPUT_LEN = 0.09;   // 90ms at every playback rate (source span scales with rate)
         const _SCRUB_FADE = 0.01;         // 10ms fade in/out
-        const _SCRUB_THROTTLE = 50;       // min ms between new snippets
+        const _SCRUB_AUDIO_CLOCK_MS = 50; // steady cadence, independent of pointer/decoder event bursts
+        const _SCRUB_AUDIO_IDLE_MS = 130; // stop after the pointer/presentation clock holds still
         const _SCRUB_PHASE_SEARCH = 0.008; // max ±8ms target adjustment (< 1/5 frame at 24fps)
 
         function _scrubOutputGain(volumePercent) {
             const value = Number(volumePercent);
             if (!Number.isFinite(value)) return 1;
             return Math.max(0, Math.min(1, value / 100));
+        }
+
+        function _scrubGrainLengths(rate, sourceRemaining) {
+            const safeRate = Math.max(0.01, Number(rate) || 1);
+            const source = Math.min(_SCRUB_OUTPUT_LEN * safeRate, Math.max(0, sourceRemaining));
+            return { source, output: source / safeRate };
         }
 
         function _scrubEnvelopeGain(elapsed, snippetLen, fadeLen) {
@@ -5053,11 +5107,10 @@
         }
 
         function playScrubSnippet(time) {
-            const now = performance.now();
-            if (now - _scrubLastTime < _SCRUB_THROTTLE) return;
-            _scrubLastTime = now;
-
             const ctx = getAudioContext();
+            // Scrub audio has exactly one owner: the explicitly selected slot.
+            // Grid may decode/paint three videos, but it never creates preview
+            // audio for the two unselected slots.
             const slot = currentAudioSource || assetOrder[currentAssetIndex];
             if (isMuted || audioMuteStates[slot]) return; // respect global + per-slot mute (Web Audio bypasses video.muted)
             const vizData = _audioSlotVizData[slot];
@@ -5067,7 +5120,7 @@
             // Silence is part of the timeline. In particular, a leading empty
             // MP4 edit must not clamp to sample zero and repeat the first sound.
             if (offset < 0 || offset >= buf.duration) {
-                stopScrubSnippet();
+                _stopScrubAudioNodes();
                 return;
             }
             const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
@@ -5076,8 +5129,12 @@
                     Math.max(0, ctx.currentTime - _scrubSourceStartCtx) * _scrubSourceRate;
                 offset = _phaseAlignScrubOffset(buf, offset, priorOffset, rate);
             }
-            const snippetLen = Math.min(_SCRUB_SNIPPET_LEN, buf.duration - offset);
-            const outputSnippetLen = snippetLen / rate;
+            // Hold the OUTPUT grain length steady. The old fixed source span
+            // shrank to 40ms at 2×, shorter than its 50ms scheduling interval,
+            // which guaranteed gaps even with perfectly regular callbacks.
+            const grainLengths = _scrubGrainLengths(rate, buf.duration - offset);
+            const snippetLen = grainLengths.source;
+            const outputSnippetLen = grainLengths.output;
             const fadeLen = Math.min(_SCRUB_FADE, outputSnippetLen / 2);
             const outputLevel = _scrubOutputGain(_prefs.load('volume', 100));
 
@@ -5124,6 +5181,40 @@
             };
         }
 
+        // Feed the newest target into one steady selected-audio clock. Pointer
+        // events and decoder paint callbacks can both arrive in bursts; neither
+        // cadence should be audible. The clock emits only when the target has
+        // advanced and lets overlapping grains bridge the 50ms intervals.
+        function _scrubAudioTick() {
+            _scrubAudioClockId = 0;
+            if (!isDragging || _scrubAudioTargetT === null) {
+                _stopScrubAudioNodes();
+                return;
+            }
+            const recent = performance.now() - _scrubAudioTargetSetAt < _SCRUB_AUDIO_IDLE_MS;
+            if (!recent) {
+                _scrubAudioLastEmittedT = null;
+                _stopScrubAudioNodes();
+                return;
+            }
+            if (_scrubAudioTargetT !== _scrubAudioLastEmittedT) {
+                playScrubSnippet(_scrubAudioTargetT);
+                _scrubAudioLastEmittedT = _scrubAudioTargetT;
+            }
+            _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
+        }
+
+        function _feedScrubAudio(time) {
+            if (!Number.isFinite(time)) return;
+            _scrubAudioTargetT = time;
+            _scrubAudioTargetSetAt = performance.now();
+            if (!_scrubAudioClockId) {
+                playScrubSnippet(time);
+                _scrubAudioLastEmittedT = time;
+                _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
+            }
+        }
+
         // Resume inside the trusted pointer event. Calling resume only when the
         // first asynchronous frame/seek completes is too late on browsers that
         // enforce user-gesture activation for Web Audio.
@@ -5132,7 +5223,7 @@
             if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
         }
 
-        function stopScrubSnippet() {
+        function _stopScrubAudioNodes() {
             const ctx = getAudioContext();
             if (_scrubGain) {
                 _holdScrubGain(ctx);
@@ -5146,6 +5237,15 @@
                 _scrubSourceBuffer = null;
                 _scrubSourceLevel = 1;
             }
+        }
+
+        function stopScrubSnippet() {
+            if (_scrubAudioClockId) clearTimeout(_scrubAudioClockId);
+            _scrubAudioClockId = 0;
+            _scrubAudioTargetT = null;
+            _scrubAudioTargetSetAt = 0;
+            _scrubAudioLastEmittedT = null;
+            _stopScrubAudioNodes();
         }
 
         // fft, buildPalette, spectrogramPalettes, paletteNames → js/audio-viz.js
@@ -6806,22 +6906,26 @@
             }
         }
 
-        function toggleDiffMode() {
-            if (hasAudios) { showToast('Difference mode not available for audio'); return; }
+        function _setDiffMode(enabled, announce = true) {
+            _diffMode = enabled;
             const pairs = _getDiffPairs();
-            if (pairs.length === 0) { showToast('Need at least 2 files for difference mode'); return; }
-
-            _diffMode = !_diffMode;
             if (_diffMode) {
                 _ensureDiffCanvas();
                 _diffCanvas.style.display = 'block';
                 drawDiffComposite();
-                showToast('Difference: ' + _diffPairLabel(pairs[_diffPairIndex]));
+                if (announce) showToast('Difference: ' + _diffPairLabel(pairs[_diffPairIndex]));
             } else {
                 if (_diffCanvas) _diffCanvas.style.display = 'none';
-                showToast('Difference off');
+                if (announce) showToast('Difference off');
             }
             _updateDiffInfoBar();
+        }
+
+        function toggleDiffMode() {
+            if (hasAudios) { showToast('Difference mode not available for audio'); return; }
+            const pairs = _getDiffPairs();
+            if (pairs.length === 0) { showToast('Need at least 2 files for difference mode'); return; }
+            _setDiffMode(!_diffMode);
         }
 
         function cycleDiffPair() {
@@ -8309,6 +8413,7 @@
                 if (!video || isNaN(video.duration)) return;
 
                 const seekDur = hasAudios ? (_audioMaxDuration || video.duration) : _getEffectiveDuration(video);
+                _scrubAtTimelineEnd = seekDur > 0 && seekDur - pct * seekDur <= 0.05;
                 if (_elProgressBar) {
                     updateProgressBarForLoop(pct * seekDur, seekDur);
                 }
@@ -8368,9 +8473,10 @@
                     updateVideoProgressFromTime(video, t);
                     updateSpectrogramCursor(video, t);
                 }
-                // Video audio is scheduled by the frame-presentation owner:
-                // WebCodecs canvas paint on Chrome, seeked+rAF on native paths.
-                if (hasAudios) playScrubSnippet(t);
+                // In a multi-video Grid, decoded-frame callbacks become bursty
+                // under contention, so the steady pointer timeline owns audio.
+                // Single-video audio remains presentation-clocked.
+                if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t);
             }
 
             function progressBarXToTime(e) {
@@ -8397,6 +8503,7 @@
                 if (!media || isNaN(media.duration)) return;
 
                 const seekDur = hasAudios ? (_audioMaxDuration || media.duration) : _getEffectiveDuration(media);
+                _scrubAtTimelineEnd = seekDur > 0 && seekDur - pct * seekDur <= 0.05;
                 // Clamp to half a frame before end so loop can't wrap to 0
                 const fps = videoFrameRates[media.src] || 30;
                 const endGuard = 0.5 / fps;
@@ -8445,9 +8552,9 @@
                     updateSpectrogramCursor(media, t); // t, not stale currentTime (overlay scrubs skip seeks)
                     if (_noVideoMode) updateAllAudioSlotCursors(media);
                 }
-                // Video audio is scheduled by the frame-presentation owner:
-                // WebCodecs canvas paint on Chrome, seeked+rAF on native paths.
-                if (hasAudios) playScrubSnippet(t);
+                // See scrubToPosition: multi-video Grid audio follows this
+                // steady target cadence; one-video audio follows painted frames.
+                if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t);
             }
 
             let _scrubCanvas = null; // canvas being scrubbed (null = progress bar scrub)
@@ -8479,6 +8586,9 @@
                 // was lost — finalize it (restores muted states, suspends
                 // overlays) before starting fresh, or its snapshot is clobbered.
                 if (isDragging) endScrubDrag(null);
+                _scrubGestureGeneration++;
+                _scrubAtTimelineEnd = false;
+                wasPlaying = false;
                 _scrubCanvas = canvas;
                 isDragging = true;
                 _activeLastSeekTime = 0;
@@ -8548,6 +8658,9 @@
                 // A mousedown while "dragging" means the previous drag's mouseup
                 // was lost — finalize it before starting fresh (see endScrubDrag).
                 if (isDragging) endScrubDrag(null);
+                _scrubGestureGeneration++;
+                _scrubAtTimelineEnd = false;
+                wasPlaying = false;
 
                 // Check if clicking on a loop marker — start marker drag instead of scrub
                 const marker = e.target.closest('.loop-marker');
@@ -8751,8 +8864,11 @@
                         }
                     }
 
-                    // Don't resume playback if scrubbed to the very end — play() would wrap to 0
-                    const _scrubAtEnd = _scrubVideo && _scrubVideo.duration - _scrubVideo.currentTime < 0.05;
+                    // The pointer target owns this decision. currentTime may still
+                    // expose the previous settled seek, and raw video.duration can
+                    // exceed the corrected audio timeline, so comparing those two
+                    // values intermittently resumed playback at the right edge.
+                    const _scrubAtEnd = _scrubAtTimelineEnd;
 
                     // (No muted-state restore — scrub no longer touches .muted; see the
                     // scrub-start note. The mute routing was never disturbed during the drag.)
@@ -8773,9 +8889,15 @@
                     stopScrubSnippet();
                     if (wasPlaying && !_scrubAtEnd) {
                         // Defer play by one frame so the browser finalizes the seek
-                        // before resuming — prevents stale-position race on quick taps
-                        requestAnimationFrame(() => playAllMedia());
+                        // before resuming. Revalidate ownership: a newer drag may
+                        // begin before this callback, and must cancel the old resume.
+                        const resumeGeneration = _scrubGestureGeneration;
+                        requestAnimationFrame(() => {
+                            if (resumeGeneration === _scrubGestureGeneration &&
+                                !isDragging && !_scrubAtTimelineEnd) playAllMedia();
+                        });
                     }
+                    wasPlaying = false;
                     if (!hasAudios && videoScopesVisible) requestAnimationFrame(() => updateVideoScopes());
                 }
             }
@@ -9216,6 +9338,13 @@
 
             if (isGridMode || !getLoadedSlotCount()) {
                 strip.style.display = 'none';
+                if (!getLoadedSlotCount()) {
+                    strip.className = '';
+                    strip.querySelectorAll('.sih-name, .sih-resolution, .sih-aspect, .sih-fps, .sih-duration, .sih-lufs, .sih-lra, .sih-tp, .sih-zoom')
+                        .forEach(el => { el.textContent = ''; });
+                    const tt = document.getElementById('sihTooltip');
+                    if (tt) { tt.innerHTML = ''; tt.style.display = 'none'; }
+                }
                 _updateSihAccentBar(null);
                 return;
             }
@@ -9649,6 +9778,10 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _scrubGestureGeneration++;
+            _scrubAtTimelineEnd = false;
+            // Restore the active label while the loaded-slot context still exists.
+            if (_diffMode) _setDiffMode(false, false);
             _blobUrls.forEach(url => URL.revokeObjectURL(url));
             _blobUrls = [];
             mediaData.original = null;
@@ -9663,11 +9796,8 @@
             hasVideos = false;
             hasAudios = false;
             hasImages = false;
-            // Reset difference mode
-            _diffMode = false;
             _diffPairIndex = 0;
             _diffOffscreen = null;   // release the native-resolution compositing canvas (up to ~33 MB at 4K)
-            if (_diffCanvas) { _diffCanvas.style.display = 'none'; }
             zoomLevel = 1;
             splitZoomLevel = null;
             splitStepZoom = 1.0;
@@ -9882,6 +10012,7 @@
             if (fgStrip) fgStrip.innerHTML = '';
             const fgCount = document.getElementById('frameGalleryCount');
             if (fgCount) fgCount.textContent = '0';
+            _updateStackInfoStrip();
         }
 
         function resetAll() {
@@ -9905,7 +10036,7 @@
         function togglePlayPause() {
             const els = getAllPlayableMedia();
             if (els.length === 0) return;
-            if (els[0].paused) playAllMedia(); else pauseAllMedia();
+            if (_isAnyMediaPlaying()) pauseAllMedia(); else playAllMedia();
         }
 
         // restartAllVideos → js/transport.js
@@ -10991,7 +11122,7 @@
                 if (!isGridMode) {
                     isGridMode = true;
                     // Turn off diff mode when entering grid
-                    if (_diffMode) { _diffMode = false; if (_diffCanvas) _diffCanvas.style.display = 'none'; }
+                    if (_diffMode) _setDiffMode(false, false);
                     selectAudioSource(currentAudioSource);
                 }
                 layoutMode = targetMode;
@@ -12345,6 +12476,9 @@
                     data ? data.duration : 0, media ? _getEffectiveDuration(media) : (data ? data.duration : 0), width);
             },
             scrubOutputGain(value) { return _scrubOutputGain(value); },
+            scrubGrainLengths(rate, sourceRemaining = 10) {
+                return _scrubGrainLengths(rate, sourceRemaining);
+            },
             scrubAudioInfo(slot, atTime = 0) {
                 const buf = _videoAudioBuffers[slot];
                 if (!buf) return null;
@@ -12370,6 +12504,7 @@
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
             get isDragging() { return isDragging; },
+            get scrubAudioClockMode() { return _scrubAudioUsesPointerClock() ? 'pointer' : 'presentation'; },
             // Multi-video sync-lock state: effective loop region + per-video
             // clock/rate/nudge/native-loop snapshot (order = getAllVideos order)
             get _loopBounds() { return _getLoopBounds(); },
@@ -12409,6 +12544,9 @@
                     _audioTimelineStarts[slot] = timelineStart;
                     _opusSyncSlots[slot] = true;
                     _opusSyncActive = true;
+                    // Match the production finalize path: the corrected media
+                    // duration is the decoded buffer plus any leading timeline gap.
+                    _opusSyncDuration[slot] = timelineStart + seconds;
                 },
                 state(slot) {
                     return {
@@ -12443,6 +12581,30 @@
                 cacheStats(slot) {
                     const s = _scrubVideoSessions[slot];
                     return (s && typeof s.close === 'function') ? s.cacheStats : null;
+                },
+                async dispatchProbe(targets) {
+                    if (isDragging || _scrubOverlayDispatchRaf) return null;
+                    const calls = [];
+                    const savedLive = _scrubOverlayLive;
+                    const savedLastT = _scrubOverlayLastT;
+                    const savedLastDirect = _scrubOverlayLastDirect;
+                    const savedPendingT = _scrubOverlayPendingT;
+                    const savedPendingDirect = _scrubOverlayPendingDirect;
+                    _scrubOverlayLive = {
+                        a: { dead: false, request(t, direct) { calls.push({ slot: 'a', t, direct }); } },
+                        b: { dead: false, request(t, direct) { calls.push({ slot: 'b', t, direct }); } },
+                    };
+                    // A prior target makes this exercise the drag/rAF path, not
+                    // the deliberately immediate first-click path.
+                    _scrubOverlayLastT = 0;
+                    for (const t of targets) _scrubOverlayRequestAll(t, false);
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    _scrubOverlayLive = savedLive;
+                    _scrubOverlayLastT = savedLastT;
+                    _scrubOverlayLastDirect = savedLastDirect;
+                    _scrubOverlayPendingT = savedPendingT;
+                    _scrubOverlayPendingDirect = savedPendingDirect;
+                    return calls;
                 },
                 async decodeProbe(slot, t) {
                     const s = await _scrubOverlayGetSession(slot);
@@ -12753,6 +12915,31 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.35</h3>
+            <ul>
+                <li><strong>Multi-video scrubbing now sends one shared target per display frame.</strong> High-rate pointer input no longer makes every visible decoder repeatedly chase intermediate positions that could never be displayed.</li>
+                <li><strong>Selected scrub audio now follows a steady clock.</strong> Only the chosen track is previewed, with overlapping grains of consistent audible length at every playback speed, so decoder and pointer-event bursts do not create avoidable gaps.</li>
+            </ul>
+            <h3>v3.12.34</h3>
+            <ul>
+                <li><strong>Scrubbing past the timeline end now stays stopped.</strong> End detection follows the pointer target—even when corrected audio duration differs from the container—and stale scrub callbacks can no longer restart playback.</li>
+            </ul>
+            <h3>v3.12.33</h3>
+            <ul>
+                <li><strong>Pause now works throughout the full tail of unequal-length comparisons.</strong> After a shorter video ends, Space correctly stops any longer video that is still playing.</li>
+            </ul>
+            <h3>v3.12.32</h3>
+            <ul>
+                <li><strong>Selected audio now stays smooth while scrubbing multiple videos in Grid.</strong> The preview follows the steady shared scrub timeline instead of inheriting gaps from competing video decoders.</li>
+            </ul>
+            <h3>v3.12.31</h3>
+            <ul>
+                <li><strong>Reset now clears the Stack header completely.</strong> After removing the last asset, its filename, resolution, timing, metrics, and zoom no longer remain in the header.</li>
+            </ul>
+            <h3>v3.12.30</h3>
+            <ul>
+                <li><strong>Leaving a stacked difference comparison now restores every Grid label.</strong> Switching to Grid no longer leaves the active asset labeled “Diff: A–B” after the difference overlay closes.</li>
+            </ul>
             <h3>v3.12.29</h3>
             <ul>
                 <li><strong>Videos now flag unknown audio timing metadata.</strong> If a container does not expose where its audio starts, a persistent warning identifies the affected slot and asks you to verify A/V sync. A confirmed start at 0 remains silent.</li>

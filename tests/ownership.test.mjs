@@ -410,6 +410,8 @@ function extractFn(name, src = SRC) {
   const svh = extractFn('setupVideoHandlers');
   check('one-owner[sync-lock]: end-of-media pause does not cascade under a managed loop',
         svh.includes('if (video.ended && _getLoopBounds() !== null) return;'));
+  check('one-owner[sync-lock]: seek-induced ended events cannot restart playback during/end-held scrub',
+        svh.includes('if (isDragging || _scrubAtTimelineEnd) return;'));
   check('one-owner[sync-lock]: ended-wrap is bulk-synced like the other transports',
         /addEventListener\('ended'[\s\S]*?_bulkSyncActive = true;[\s\S]*?addEventListener\('seeked'/.test(svh));
   check('one-owner[sync-lock]: drift lock waits for in-flight seeks (v.seeking)',
@@ -441,6 +443,13 @@ function extractFn(name, src = SRC) {
   check('one-owner[scrub-session]: playAllMedia SUSPENDS scrub decoders (never full-closes — that refetches the file per scrub)',
         extractFn('playAllMedia').includes('_suspendScrubSessions()') &&
         !extractFn('playAllMedia').includes('_releaseScrubSessions'));
+  const endDrag = extractFn('endScrubDrag');
+  check('scrub[end-hold]: resume decision uses the pointer-owned timeline end, never raw duration/currentTime',
+        endDrag.includes('const _scrubAtEnd = _scrubAtTimelineEnd') &&
+        !endDrag.includes('_scrubVideo.duration - _scrubVideo.currentTime'));
+  check('scrub[resume-owner]: deferred resume is canceled by a newer scrub gesture',
+        endDrag.includes('resumeGeneration === _scrubGestureGeneration') &&
+        endDrag.includes('!isDragging && !_scrubAtTimelineEnd'));
   const sv = readFileSync(new URL('js/scrub-video.js', ROOT), 'utf8');
   check('scrub[suspend]: suspend() closes the decoder but keeps the frame cache and bytes',
         /suspend\(\)\s*\{/.test(sv) && (() => {
@@ -479,8 +488,16 @@ function extractFn(name, src = SRC) {
         /request\(t,\s*direct\)/.test(sv));
   check('scrub[direct]: a direct forward seek paints target-only (no GOP fast-forward)',
         sv.includes('(direct || pts < lastPaintedPts) ? pts - frameDur : lastPaintedPts'));
-  check('scrub[direct]: _scrubOverlayRequestAll forwards direct-ness to the session',
-        extractFn('_scrubOverlayRequestAll').includes('s.request(t, direct)'));
+  check('scrub[dispatch]: one shared rAF dispatcher forwards the latest target to every session',
+        countOf(SRC, 'function _dispatchScrubOverlayRequest(') === 1 &&
+        extractFn('_dispatchScrubOverlayRequest').includes('s.request(t, direct)'));
+  const requestAll = extractFn('_scrubOverlayRequestAll');
+  check('scrub[dispatch]: target intake coalesces drag work but sends the first direct target immediately',
+        requestAll.includes('requestAnimationFrame(_dispatchScrubOverlayRequest)') &&
+        requestAll.includes('firstTarget && direct') &&
+        requestAll.includes('_scrubOverlayPendingT = t'));
+  check('scrub[dispatch]: drag teardown cancels a queued decoder dispatch',
+        extractFn('_scrubOverlayEnd').includes('cancelAnimationFrame(_scrubOverlayDispatchRaf)'));
   check('scrub[direct]: scrub handlers request direct until the pointer actually drags',
         countOf(SRC, '_scrubOverlayRequestAll(t, !_scrubDragMoved)') === 2);
   check(`switch[repaint]: _repaintActiveVideoOnSwitch defined once (got ${countOf(SRC, 'function _repaintActiveVideoOnSwitch(')})`,
@@ -1287,6 +1304,25 @@ function extractFn(name, src = SRC) {
         countOf(SRC, 'setPaintListener(listener)') === 1);
   check('scrub-presentation: both async and cache-hit paints notify their displayed PTS',
         countOf(SRC, '_notifyPaint(lastPaintedPts)') === 2);
+  const clock = extractFn('_scrubAudioUsesPointerClock');
+  const begin = extractFn('_scrubOverlayBegin');
+  const progressScrub = extractFn('scrubToPosition');
+  const canvasScrub = extractFn('canvasScrubToPosition');
+  check('one-owner[scrub-audio-clock]: multi-video Grid contention routes through the pointer clock',
+        countOf(SRC, 'function _scrubAudioUsesPointerClock(') === 1 &&
+        clock.includes('_scrubOverlaySlots().length > 1') &&
+        begin.includes('!_scrubAudioUsesPointerClock()') &&
+        progressScrub.includes('if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t)') &&
+        canvasScrub.includes('if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t)'));
+  const feed = extractFn('_feedScrubAudio');
+  const tick = extractFn('_scrubAudioTick');
+  check('one-owner[scrub-audio-cadence]: events feed one steady clock rather than emitting grains directly',
+        countOf(SRC, 'function _feedScrubAudio(') === 1 &&
+        feed.includes('_scrubAudioTargetT = time') &&
+        feed.includes('setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS)') &&
+        tick.includes('_scrubAudioTargetT !== _scrubAudioLastEmittedT'));
+  check('one-owner[scrub-audio-source]: preview grains resolve only the selected audio slot',
+        extractFn('playScrubSnippet').includes('currentAudioSource || assetOrder[currentAssetIndex]'));
 }
 
 // Pending play is a transport concern. A later pause/scrub must invalidate the
@@ -1301,6 +1337,21 @@ function extractFn(name, src = SRC) {
           extractFn('playAllMedia').includes('_playMediaWithIntent(') &&
           extractFn('_playMediaWithIntent').includes('_armPlayRetry('));
   }
+}
+
+// Play/pause is comparison-wide state. In Full range mode the first/shorter
+// element can be ended while a longer element is still playing, so neither the
+// button nor the reconciler may infer transport state from DOM order.
+{
+  check('one-owner[play-state]: comparison-wide playing predicate is defined once',
+        countOf(SRC, 'function _isAnyMediaPlaying(') === 1);
+  const toggle = extractFn('togglePlayPause');
+  const reconcile = extractFn('_reconcilePlayPauseButton');
+  check('play-state: toggle and button reconciler share the comparison-wide predicate',
+        toggle.includes('if (_isAnyMediaPlaying()) pauseAllMedia(); else playAllMedia();') &&
+        reconcile.includes('const playing = _isAnyMediaPlaying()'));
+  check('play-state: toggle never uses the first element as transport authority',
+        !toggle.includes('els[0].paused'));
 }
 
 // Scrub storage may lower sample rate, but it must never collapse channels:
@@ -1395,8 +1446,13 @@ function extractFn(name, src = SRC) {
         countOf(SRC, 'function _holdAudioParam(') === 0 &&
         play.includes('_phaseAlignScrubOffset(buf, offset, priorOffset, rate)') &&
         play.includes('_holdScrubGain(ctx)') &&
-        play.includes('const outputSnippetLen = snippetLen / rate') &&
-        extractFn('stopScrubSnippet').includes('_holdScrubGain(ctx)'));
+        play.includes('const outputSnippetLen = grainLengths.output') &&
+        extractFn('_stopScrubAudioNodes').includes('_holdScrubGain(ctx)') &&
+        extractFn('stopScrubSnippet').includes('_stopScrubAudioNodes()'));
+  check('scrub-grain-duration: output duration stays constant when playback rate changes',
+        countOf(SRC, 'function _scrubGrainLengths(') === 1 &&
+        play.includes('_scrubGrainLengths(rate, buf.duration - offset)') &&
+        play.includes('const outputSnippetLen = grainLengths.output'));
 }
 
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.

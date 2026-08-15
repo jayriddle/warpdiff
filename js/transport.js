@@ -45,9 +45,17 @@ function _cancelPendingPlayIntent() {
     _pendingPlayRetries.clear();
 }
 
+// Transport state belongs to the whole comparison, not whichever media element
+// happens to be first in DOM order. In Full range mode a shorter clip can be
+// ended/paused while a longer clip is still playing its tail; Space must pause
+// that tail instead of interpreting the first clip's paused state as "Play".
+function _isAnyMediaPlaying() {
+    return getAllPlayableMedia().some(media => !media.paused && !media.ended);
+}
+
 function _reconcilePlayPauseButton(generation) {
     if (generation !== undefined && generation !== _playIntentGeneration) return;
-    const playing = getAllPlayableMedia().some(media => !media.paused && !media.ended);
+    const playing = _isAnyMediaPlaying();
     _updatePlayPauseBtn(playing);
     if (!playing) _stopAllOpusSyncAudio();
 }
@@ -124,6 +132,7 @@ function _applyNativeLoopPolicy() {
 function playAllMedia() {
     _resetFrameStepCursor();
     _cancelPendingPlayIntent();
+    _scrubAtTimelineEnd = false;
     const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     // Suspend retained scrub sessions before playback: idle-but-configured
@@ -718,7 +727,7 @@ function _scheduleNativeScrubAudio(video) {
     const dragToken = _scrubOverlayDragToken;
     requestAnimationFrame(() => {
         if (!isDragging || dragToken !== _scrubOverlayDragToken) return;
-        playScrubSnippet(video.currentTime);
+        _feedScrubAudio(video.currentTime);
     });
 }
 
@@ -779,6 +788,10 @@ function setupVideoHandlers(video, slot) {
     });
 
     video.addEventListener('ended', function() {
+        // Scrub owns transport at the right edge. A paused seek can surface an
+        // ended event during or just after mouseup; treating it as natural
+        // playback completion would wrap and call play() behind the user's back.
+        if (isDragging || _scrubAtTimelineEnd) return;
         // When a managed loop region is active (custom points OR multi-video
         // sync loop) native looping is off, so the native end-of-video restart
         // from 0 can't fight our synchronized seek-back. The RVFC out-point
@@ -882,6 +895,7 @@ function setupVideoHandlers(video, slot) {
 function restartAllVideos() {
     _resetFrameStepCursor();
     _cancelPendingPlayIntent();
+    _scrubAtTimelineEnd = false;
     const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;

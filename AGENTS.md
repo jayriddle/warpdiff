@@ -97,8 +97,10 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 - J/K speed handlers call `_updateOpusSyncRate(rate)` which re-anchors the timeline (`startVideo` updated to current expected position, `startCtx` to current `ctx.currentTime`) before assigning the new `source.playbackRate.value`.
 
 ### Scrub audio preview
-- 80 ms snippet via Web Audio at scrub time, throttled at `_SCRUB_THROTTLE` ms.
-- `source.playbackRate.value = PLAYBACK_RATES[playbackRateIndex]` so scrub preview matches the user's selected speed (not always 1×).
+- Exactly one preview-audio owner: `playScrubSnippet` resolves `currentAudioSource` (or the active Stack slot fallback). Grid may decode/paint three videos, but never creates scrub audio for the two unselected slots.
+- Pointer/presentation events feed `_feedScrubAudio`; a steady 50 ms clock emits only the newest changed target and stops after 130 ms idle. Multi-video Grid uses the shared pointer timeline because competing decoder-paint callbacks are bursty; single-video scrubbing follows the displayed-frame callback.
+- Grains have a constant 90 ms **output** duration at every playback rate: the source span scales by `PLAYBACK_RATES[playbackRateIndex]`. Adjacent grains overlap and use the existing 10 ms held-gain ramps plus bounded ±8 ms phase alignment.
+- WebCodecs scrub targets are also globally rAF-coalesced: raw pointer events record the newest time, then one display-frame owner fans that target to all visible sessions. The first direct/click target remains immediate.
 - Storage: full-quality `AudioBuffer` for Chrome Opus slots (needed for Opus sync replacement). Channel-preserving 22050 Hz downsample via `_downsampleForScrub()` for everything else; retaining stereo phase roughly halves PCM storage versus 48 kHz instead of discarding channels.
 
 ### Audio & video metrics

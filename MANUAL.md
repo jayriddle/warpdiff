@@ -189,13 +189,13 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
-During video scrubbing, preview audio is anchored to the frame WarpDiff actually displays and follows the same master volume as normal playback. During normal playback, the progress bar, timecode, and waveform/spectrogram cursor glide between presented frames for smoother visual motion; loop and synchronization decisions still use the video's unmodified media clock.
+During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During normal playback, the progress bar, timecode, and waveform/spectrogram cursor glide between presented frames for smoother visual motion; loop and synchronization decisions still use the video's unmodified media clock.
 
 If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
 
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
 
-Successive scrub snippets are phase-aligned within a bounded ±8 ms neighbourhood before they overlap. This prevents steady centered tones—and similar voiced material—from thinning or dropping out as the pointer moves, without moving the preview by as much as one video frame.
+Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
 
 ---
 

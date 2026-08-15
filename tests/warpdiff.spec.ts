@@ -1107,6 +1107,22 @@ test.describe('Difference Mode', () => {
     expect(await getVar(page, 'diffMode')).toBeFalsy();
     expect(await diffCanvas.evaluate(el => (el as HTMLCanvasElement).style.display)).toBe('none');
   });
+
+  test('switching to Grid exits image diff mode and restores info-bar labels', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.keyboard.press('d');
+    await expect(page.locator('.asset-layer.active .asset-info-bar .asset-name')).toContainText(/DIFF:/i);
+
+    await page.keyboard.press('g');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode === true,
+      {}, { timeout: 5000 });
+
+    expect(await getVar(page, 'diffMode')).toBeFalsy();
+    const labels = await page.locator('.asset-info-bar .asset-name').allTextContents();
+    expect(labels.every(label => !/DIFF:/i.test(label))).toBe(true);
+  });
 });
 
 test.describe('Reset', () => {
@@ -1121,6 +1137,24 @@ test.describe('Reset', () => {
     await page.locator('#resetBtn').click();
     await expect(page.locator('#comparisonView')).not.toBeVisible();
     await expect(page.locator('#landingCta')).toBeVisible();
+  });
+
+  test('reset clears the Stack header after a single video', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4']);
+    const stackInfo = page.locator('#stackInfoStrip');
+    await expect(stackInfo).toBeVisible();
+    await expect(stackInfo.locator('.sih-resolution')).not.toHaveText('');
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#resetBtn').click();
+
+    await expect(stackInfo).toBeHidden();
+    const retainedValues = await stackInfo.locator(
+      '.sih-name, .sih-resolution, .sih-aspect, .sih-fps, .sih-duration, .sih-lufs, .sih-lra, .sih-tp, .sih-zoom'
+    ).allTextContents();
+    expect(retainedValues.every(value => value === '')).toBe(true);
+    await expect(page.locator('#sihTooltip')).toHaveText('');
   });
 
   test('second load clears progress bar to 0', async ({ page }) => {
@@ -1628,6 +1662,27 @@ test.describe('Multi-video sync-lock', () => {
     expect(Math.abs(a.t - b.t)).toBeLessThan(0.15);
   });
 
+  test('Space pauses a longer video after the shorter video has ended in Full range', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    // Unequal durations default to Full: the 3 s clip holds at its end while
+    // the 4 s clip keeps playing. This is the state where the old toggle read
+    // only vids[0].paused and mistakenly issued Play instead of Pause.
+    await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'full',
+      {}, { timeout: 5000 });
+    await seekVideos(page, 2.7);
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForFunction(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return vids.length === 2 && vids[0].ended && !vids[1].paused && vids[1].currentTime > 3;
+    }, {}, { timeout: 4000 });
+
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    const states = await videoTimes(page);
+    expect(states.every(state => state.paused)).toBe(true);
+  });
+
   test('frame stepping holds sync across MIXED frame rates', async ({ page }) => {
     // Regression (v3.12.5): stepFrame() advanced each video by one of its OWN
     // frames from its OWN clock, so a 24/30 pair drifted 8.3 ms per step and
@@ -1835,6 +1890,24 @@ test.describe('Difference mode (video)', () => {
     expect(await getVar(page, 'diffMode')).toBeFalsy();
     expect(await overlay.evaluate(el => (el as HTMLCanvasElement).style.display)).toBe('none');
     await expect(activeName).not.toContainText(/DIFF:/i);
+  });
+
+  test('switching to Grid exits video diff mode and restores info-bar labels', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await enterStack(page);
+    await page.keyboard.press('d');
+    await expect(page.locator('.asset-layer.active .asset-info-bar .asset-name')).toContainText(/DIFF:/i);
+
+    await page.keyboard.press('g');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode === true,
+      {}, { timeout: 5000 });
+
+    expect(await getVar(page, 'diffMode')).toBeFalsy();
+    const labels = await page.locator('.asset-info-bar .asset-name').allTextContents();
+    expect(labels.every(label => !/DIFF:/i.test(label))).toBe(true);
+    expect(await page.locator('#diffOverlay').evaluate(
+      el => (el as HTMLCanvasElement).style.display)).toBe('none');
   });
 });
 
@@ -2300,6 +2373,14 @@ test.describe('Decoded audio timeline placement', () => {
     }));
     expect(levels).toEqual({ full: 1, quarter: 0.25, muted: 0 });
   });
+
+  test('scrub grains keep the same audible duration at every playback rate', async ({ page }) => {
+    await page.goto('/');
+    const lengths = await page.evaluate(() => [0.5, 1, 2].map(rate =>
+      (window as any).__testAPI.scrubGrainLengths(rate)));
+    expect(lengths.map((v: { output: number }) => v.output)).toEqual([0.09, 0.09, 0.09]);
+    expect(lengths.map((v: { source: number }) => v.source)).toEqual([0.045, 0.09, 0.18]);
+  });
 });
 
 test.describe('WebCodecs scrub decoder', () => {
@@ -2311,6 +2392,25 @@ test.describe('WebCodecs scrub decoder', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  });
+
+  test('multi-video Grid uses the steady pointer clock for scrub audio', async ({ page }) => {
+    expect(await getVar(page, 'isGridMode')).toBe(true);
+    expect(await getVar(page, 'scrubAudioClockMode')).toBe('pointer');
+
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode === false,
+      {}, { timeout: 5000 });
+    expect(await getVar(page, 'scrubAudioClockMode')).toBe('presentation');
+  });
+
+  test('multi-video scrub dispatches only the latest target once per display frame', async ({ page }) => {
+    const calls = await page.evaluate(() =>
+      (window as any).__testAPI.scrubVideo.dispatchProbe([0.25, 0.5, 0.75]));
+    expect(calls).toEqual([
+      { slot: 'a', t: 0.75, direct: false },
+      { slot: 'b', t: 0.75, direct: false },
+    ]);
   });
 
   test('decodes a sparse-GOP target and paints frames up to it', async ({ page }) => {
@@ -2579,6 +2679,58 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await page.waitForFunction(() => !(window as any).__testAPI.isDragging, {}, { timeout: 2000 });
     expect(await mutedStates(page)).toEqual(baseline);
+    await page.mouse.up();
+  });
+
+  test('dragging past a corrected timeline end does not resume playback', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm']);
+    // Model a container whose raw video duration extends beyond the decoded
+    // audio timeline (the Chrome Opus correction case). The old release guard
+    // compared currentTime with raw video.duration, decided this was not the
+    // end, and restarted playback one animation frame after mouseup.
+    await page.evaluate(() => (window as any).__testAPI.opus.installTestBuffer('editA', 2));
+    await startPlayback(page);
+
+    const box = (await page.locator('#videoProgressContainer').boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.4, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 1.2, y, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+
+    const state = await page.evaluate(() => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      return { paused: video.paused, time: video.currentTime };
+    });
+    expect(state.paused).toBe(true);
+    expect(state.time).toBeLessThanOrEqual(2.01);
+  });
+
+  test('an ended signal during a paused scrub cannot start a managed loop', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.waitForFunction(() => (window as any).__testAPI?._loopBounds !== null,
+      {}, { timeout: 5000 });
+
+    const box = (await page.locator('#videoProgressContainer').boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.95, y);
+    await page.mouse.down();
+    expect(await getVar(page, 'isDragging')).toBe(true);
+
+    // Reproduce the browser race deterministically: a seek at the final frame
+    // reports ended while scrub—not playback—owns the timeline. The managed
+    // loop handler previously wrapped to zero and called play() on every clip.
+    await page.evaluate(() => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      video.dispatchEvent(new Event('ended'));
+    });
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-layer video'))
+        .every(video => (video as HTMLVideoElement).paused))).toBe(true);
     await page.mouse.up();
   });
 });
