@@ -7,6 +7,7 @@ let _wipePairIndex = 0;
 let _wipePosition = 0.5;
 let _wipeDragging = false;
 let _wipeInternalSwitch = false;
+let _wipeAnalysisSide = 0;
 
 function _getWipePairs() {
     return typeof _getDiffPairs === 'function' ? _getDiffPairs() : [];
@@ -27,8 +28,59 @@ function _wipePairText(pair) {
     return pair ? _wipeSlotText(pair[0]) + '–' + _wipeSlotText(pair[1]) : '';
 }
 
+function _wipeAnalysisSlot() {
+    const pair = _wipePair();
+    return pair ? pair[_wipeAnalysisSide] : null;
+}
+
+function _setWipeAnalysisSide(side, announce = true) {
+    _wipeAnalysisSide = Number(side) === 1 ? 1 : 0;
+    const nameEl = document.querySelector('#stackInfoStrip .sih-name');
+    if (_wipeMode && nameEl) _renderWipePairChooser(nameEl);
+    if (typeof updateVideoScopes === 'function' && videoScopesVisible) updateVideoScopes();
+    if (announce && _wipeMode) {
+        const slot = _wipeAnalysisSlot();
+        showToast('Analysis: ' + _wipeSlotText(slot) + ' (' + (_wipeAnalysisSide ? 'right' : 'left') + ')');
+    }
+}
+
+function _wipeSlotAtPoint(x, y) {
+    if (!_wipeMode || isGridMode) return null;
+    const pair = _wipePair();
+    const baseLayer = pair && getLayer(pair[0]);
+    const base = baseLayer && baseLayer.querySelector('.video-wrapper');
+    if (!base) return null;
+    const rect = base.getBoundingClientRect();
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+    return pair[x < rect.left + rect.width * _wipePosition ? 0 : 1];
+}
+
+// The reveal wrapper is the base asset's full presentation plate. For a
+// mismatched aspect ratio, the actual image occupies a centered contain rect
+// inside that plate; the loupe must map against the image, not the matte.
+function _wipeMediaContentRect(slot, wrapper, media) {
+    const plate = wrapper.getBoundingClientRect();
+    const { w: origW, h: origH } = mediaDims(media);
+    const { nw, nh } = _rotatedDims(slot, origW, origH);
+    if (!nw || !nh || !plate.width || !plate.height) return plate;
+    const scale = Math.min(plate.width / nw, plate.height / nh);
+    const width = nw * scale;
+    const height = nh * scale;
+    return {
+        left: plate.left + (plate.width - width) / 2,
+        top: plate.top + (plate.height - height) / 2,
+        right: plate.left + (plate.width + width) / 2,
+        bottom: plate.top + (plate.height + height) / 2,
+        width,
+        height,
+    };
+}
+
 function _renderWipePairChooser(nameEl) {
     const pairs = _getWipePairs();
+    const focusedKey = nameEl.contains(document.activeElement)
+        ? document.activeElement.dataset.wipeFocusKey
+        : '';
     nameEl.replaceChildren();
     nameEl.classList.add('wipe-pair-chooser');
     nameEl.setAttribute('role', 'group');
@@ -45,15 +97,48 @@ function _renderWipePairChooser(nameEl) {
         option.className = 'wipe-pair-option';
         option.classList.toggle('active', index === _wipePairIndex);
         option.setAttribute('aria-pressed', index === _wipePairIndex ? 'true' : 'false');
+        option.dataset.wipeFocusKey = 'pair-' + index;
         option.textContent = _wipePairText(pair);
         option.title = 'Compare ' + _wipePairText(pair);
         option.addEventListener('click', e => {
             e.stopPropagation();
             selectWipePair(index, true);
-            option.blur();
         });
         nameEl.appendChild(option);
     });
+
+    const target = document.createElement('span');
+    target.className = 'wipe-analysis-target';
+    target.setAttribute('role', 'group');
+    target.setAttribute('aria-label', 'Wipe analysis source');
+    const targetPrefix = document.createElement('span');
+    targetPrefix.className = 'wipe-target-prefix';
+    targetPrefix.textContent = 'TARGET';
+    target.appendChild(targetPrefix);
+    const pair = _wipePair();
+    if (pair) pair.forEach((slot, side) => {
+        const option = document.createElement('button');
+        const sideText = side ? 'R' : 'L';
+        option.type = 'button';
+        option.className = 'wipe-side-option';
+        option.classList.toggle('active', side === _wipeAnalysisSide);
+        option.setAttribute('aria-pressed', side === _wipeAnalysisSide ? 'true' : 'false');
+        option.setAttribute('aria-label', 'Use ' + _wipeSlotText(slot) + ' on ' + (side ? 'right' : 'left') + ' for scopes and rotation');
+        option.dataset.wipeFocusKey = 'side-' + side;
+        option.textContent = sideText + '·' + _wipeSlotText(slot);
+        option.title = 'Scopes and rotation: ' + _wipeSlotText(slot) + ' (' + (side ? 'right' : 'left') + ')';
+        option.addEventListener('click', e => {
+            e.stopPropagation();
+            _setWipeAnalysisSide(side, true);
+        });
+        target.appendChild(option);
+    });
+    nameEl.appendChild(target);
+
+    if (focusedKey) {
+        const replacement = nameEl.querySelector('[data-wipe-focus-key="' + focusedKey + '"]');
+        if (replacement) replacement.focus({ preventScroll: true });
+    }
 }
 
 function _updateWipeButton() {
@@ -169,6 +254,7 @@ function _activateWipePair(announce = true) {
     _renderWipeLayers();
     _syncWipeGeometry();
     _updateWipeButton();
+    if (videoScopesVisible) updateVideoScopes();
     if (announce) showToast('Wipe: ' + _wipePairText(pair));
 }
 
@@ -191,6 +277,7 @@ function _setWipeMode(enabled, announce = true) {
         if (_diffMode) _setDiffMode(false, false);
         _wipeMode = true;
         document.body.classList.add('wipe-mode');
+        _setWipeAnalysisSide(0, false);
         _activateWipePair(false);
         if (announce) showToast('Wipe: ' + _wipePairText(_wipePair()));
     } else {
@@ -201,6 +288,7 @@ function _setWipeMode(enabled, announce = true) {
         _renderWipeLayers();
         _updateWipeButton();
         if (wasEnabled && getLoadedSlotCount() && !isGridMode) applyZoom();
+        if (wasEnabled && videoScopesVisible) updateVideoScopes();
         if (wasEnabled && announce) showToast('Wipe off');
     }
     _updateWipeButton();
@@ -231,12 +319,19 @@ function selectWipePair(index, announce = true) {
 function _selectWipeSlot(slot) {
     if (!_wipeMode) return false;
     const pair = _wipePair();
-    if (!pair || pair[0] === slot) return true;
+    if (!pair) return true;
+    const currentSide = pair.indexOf(slot);
+    if (currentSide >= 0) {
+        _setWipeAnalysisSide(currentSide, true);
+        return true;
+    }
     const pairs = _getWipePairs();
     let next = pairs.findIndex(p => p[0] === pair[0] && p[1] === slot);
     if (next < 0) next = pairs.findIndex(p => p.includes(slot));
     if (next >= 0 && next !== _wipePairIndex) {
         selectWipePair(next, true);
+        const selectedPair = _wipePair();
+        _setWipeAnalysisSide(selectedPair && selectedPair[1] === slot ? 1 : 0, false);
     }
     return true;
 }
@@ -268,6 +363,7 @@ function _setupWipeController() {
     divider.dataset.bound = '1';
     divider.addEventListener('pointerdown', e => {
         if (!_wipeMode || e.button !== 0) return;
+        divider.focus({ preventScroll: true });
         e.preventDefault();
         e.stopPropagation();
         _setWipeDragging(true);

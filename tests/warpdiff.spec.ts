@@ -725,6 +725,8 @@ test.describe('View Modes (Stack/Grid)', () => {
   test('S key switches to Stack mode', async ({ page }) => {
     await page.keyboard.press('s');
     expect(await isGridMode(page)).toBe(false);
+    await page.keyboard.press('s');
+    expect(await isGridMode(page)).toBe(false);
   });
 
   test('G key switches to Grid mode', async ({ page }) => {
@@ -732,6 +734,8 @@ test.describe('View Modes (Stack/Grid)', () => {
     await page.keyboard.press('s');
     expect(await isGridMode(page)).toBe(false);
 
+    await page.keyboard.press('g');
+    expect(await isGridMode(page)).toBe(true);
     await page.keyboard.press('g');
     expect(await isGridMode(page)).toBe(true);
   });
@@ -2132,6 +2136,7 @@ test.describe('Image Wipe', () => {
     await page.getByRole('button', { name: 'Ref–B', exact: true }).click();
     expect(await getVar(page, 'wipePair')).toEqual(['original', 'editB']);
     await expect(page.locator('.wipe-pair-option.active')).toHaveText('Ref–B');
+    await expect(page.getByRole('button', { name: 'Ref–B', exact: true })).toBeFocused();
     await page.keyboard.press('Shift+q');
     expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
     await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
@@ -2139,6 +2144,62 @@ test.describe('Image Wipe', () => {
     expect(await getVar(page, 'wipePair')).toEqual(['original', 'editA']);
     await page.keyboard.press('ArrowLeft');
     expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+    await page.keyboard.press('ArrowDown');
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+    await page.keyboard.press('ArrowUp');
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+  });
+
+  test('analysis target controls scopes and rotation while loupe follows the visible side', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.keyboard.press('q');
+
+    expect(await getVar(page, 'wipeAnalysisSide')).toBe(0);
+    expect(await getVar(page, 'wipeAnalysisSlot')).toBe('editA');
+    await page.getByRole('button', { name: /Use B on right for scopes and rotation/ }).click();
+    expect(await getVar(page, 'wipeAnalysisSide')).toBe(1);
+    expect(await getVar(page, 'scopeSourceSlot')).toBe('editB');
+
+    await page.keyboard.press('v');
+    await expect(page.locator('#scopesSourceIndicator')).toHaveText('SCOPES · B · RIGHT');
+    await page.keyboard.press('Alt+ArrowRight');
+    expect((await getVar(page, 'slotRotations')).editA).toBe(0);
+    expect((await getVar(page, 'slotRotations')).editB).toBe(90);
+
+    await page.keyboard.press('z');
+    const plate = await page.locator('.asset-layer.wipe-base .video-wrapper').boundingBox();
+    expect(plate).not.toBeNull();
+    await page.mouse.move(plate!.x + plate!.width * 0.25, plate!.y + plate!.height * 0.5);
+    await expect(page.locator('#pixelMagnifier')).toHaveAttribute('data-source-slot', 'editA');
+    await page.mouse.move(plate!.x + plate!.width * 0.75, plate!.y + plate!.height * 0.5);
+    await expect(page.locator('#pixelMagnifier')).toHaveAttribute('data-source-slot', 'editB');
+  });
+
+  test('wipe controls remain usable and clear of header actions in a narrow window', async ({ page }) => {
+    await page.setViewportSize({ width: 680, height: 720 });
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png']);
+    await page.keyboard.press('s');
+    await page.keyboard.press('q');
+
+    const layout = await page.evaluate(() => {
+      const chooser = document.querySelector('.wipe-pair-chooser')!.getBoundingClientRect();
+      const header = document.querySelector('.header')!.getBoundingClientRect();
+      const help = document.querySelector('#helpBtn')!.getBoundingClientRect();
+      const grid = document.querySelector('#gridIconBtn')!.getBoundingClientRect();
+      const buttonAt = (r: DOMRect) => document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        .map(el => el.closest('button')).find(Boolean) as HTMLButtonElement | undefined;
+      return {
+        chooserBelowHeader: chooser.top >= header.bottom,
+        helpTop: buttonAt(help)?.id,
+        gridTop: buttonAt(grid)?.id,
+      };
+    });
+    expect(layout.chooserBelowHeader).toBe(true);
+    expect(layout.helpTop).toBe('helpBtn');
+    expect(layout.gridTop).toBe('gridIconBtn');
   });
 
   test('clicking the plate snaps the divider while pan drags and outside clicks do not', async ({ page }) => {
@@ -2155,6 +2216,15 @@ test.describe('Image Wipe', () => {
     await page.mouse.click(plate!.x + plate!.width * 0.72, plate!.y + plate!.height * 0.5);
     expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
 
+    const beforeJitter = { x: await getVar(page, 'panOffsetX'), y: await getVar(page, 'panOffsetY') };
+    await page.mouse.move(plate!.x + plate!.width * 0.72, plate!.y + plate!.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(plate!.x + plate!.width * 0.72 + 3, plate!.y + plate!.height * 0.5 + 1);
+    await page.mouse.up();
+    expect(await getVar(page, 'panOffsetX')).toBe(beforeJitter.x);
+    expect(await getVar(page, 'panOffsetY')).toBe(beforeJitter.y);
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
+
     await page.mouse.click(Math.max(1, plate!.x - 5), plate!.y + plate!.height * 0.5);
     expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
 
@@ -2163,6 +2233,17 @@ test.describe('Image Wipe', () => {
     await page.mouse.move(plate!.x + plate!.width * 0.3 + 32, plate!.y + plate!.height * 0.5 + 12);
     await page.mouse.up();
     expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
+  });
+
+  test('clicking the divider focuses its keyboard slider', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.keyboard.press('q');
+    await page.locator('#wipeDivider').click();
+    await expect(page.locator('#wipeDivider')).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.51, 2);
   });
 
   test('wipe follows zoom and rotation, then exits cleanly for Grid', async ({ page }) => {

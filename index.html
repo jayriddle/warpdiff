@@ -1313,6 +1313,33 @@
         .wipe-pair-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .wipe-pair-option.active { background: #2d7cff; color: #fff; }
         .wipe-pair-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
+        .wipe-analysis-target {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            margin-left: 4px;
+            padding-left: 5px;
+            border-left: 1px solid rgba(145,185,255,0.28);
+        }
+        .wipe-target-prefix {
+            padding-right: 2px;
+            color: #71829c;
+            font: 800 8px/1 monospace;
+            letter-spacing: 0.06em;
+        }
+        .wipe-side-option {
+            min-height: 20px;
+            padding: 2px 5px;
+            border: 0;
+            border-radius: 4px;
+            background: transparent;
+            color: #91a2bd;
+            font: 700 9px/1 monospace;
+            cursor: pointer;
+        }
+        .wipe-side-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .wipe-side-option.active { background: rgba(74,221,32,0.2); color: #a9f29a; box-shadow: inset 0 0 0 1px rgba(74,221,32,0.6); }
+        .wipe-side-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
         body.wipe-mode #stackInfoStrip.sih-wipe {
             position: absolute;
             left: 50%;
@@ -1332,6 +1359,17 @@
            Removing the redundant strip also prevents overlap on narrow headers. */
         body.wipe-mode #modeStrip,
         body.wipe-mode #iconSep1 { display: none !important; }
+        @media (max-width: 880px) {
+            body.wipe-mode #stackInfoStrip.sih-wipe {
+                top: calc(100% + 6px);
+                max-width: calc(100vw - 16px);
+                padding: 2px;
+                transform: translateX(-50%);
+                border-radius: 6px;
+                background: rgba(21,21,21,0.94);
+                box-shadow: 0 2px 10px rgba(0,0,0,0.55);
+            }
+        }
         /* Slot-colored accent bar — absolutely positioned at top of header,
            width/left set by JS to span from label pill to zoom pill */
         #sihAccentBar {
@@ -2188,6 +2226,14 @@
             max-height: 500px;
             padding-top: 4px;
             padding-bottom: 4px;
+        }
+        .scopes-source-indicator {
+            min-height: 14px;
+            padding: 0 2px 3px;
+            color: #a9f29a;
+            font: 700 9px/1.2 monospace;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
         .scopes-row {
             display: flex;
@@ -3106,6 +3152,7 @@
         </div>
         <div class="video-controls" id="videoControls">
             <div class="scopes-panel" id="scopesPanel">
+                <div class="scopes-source-indicator" id="scopesSourceIndicator" aria-live="polite"></div>
                 <div class="scopes-row">
                     <div class="audio-viz-row">
                         <div class="audio-viz-label"><span id="histogramLabel">RGB (log)</span></div>
@@ -3210,7 +3257,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.36';
+        const APP_VERSION = '3.12.37';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4024,6 +4071,11 @@
         }
 
         function findWrapperUnderCursor(x, y) {
+            if (_wipeMode && !isGridMode) {
+                const slot = _wipeSlotAtPoint(x, y);
+                const layer = slot && getLayer(slot);
+                return layer ? layer.querySelector('.video-wrapper') : null;
+            }
             const wrappers = document.querySelectorAll('.video-wrapper');
             for (const w of wrappers) {
                 // Stack mode stacks every wrapper at the SAME viewport coords, so
@@ -4073,7 +4125,7 @@
             ctx.fillText(label, magnifierSize - 4, magnifierSize - 3);
         }
 
-        function drawMagnifierCanvas(magEl, media, relX, relY, screenScale, screenX, screenY, rotation = 0) {
+        function drawMagnifierCanvas(magEl, media, relX, relY, screenScale, screenX, screenY, rotation = 0, sourceLabel = '') {
             const natW = media.naturalWidth || media.videoWidth;
             const natH = media.naturalHeight || media.videoHeight;
             if (!natW || !natH) { magEl.classList.remove('active'); return; }
@@ -4086,7 +4138,7 @@
             const srcW = magnifierSize / (magnifierZoom * effectiveScale);
             const srcX = nativeX - srcW / 2;
             const srcY = nativeY - srcW / 2;
-            const label = magnifierZoom + '×';
+            const label = (sourceLabel ? sourceLabel + ' · ' : '') + magnifierZoom + '×';
             const id = magEl.id;
 
             if (media instanceof HTMLVideoElement) {
@@ -4232,14 +4284,17 @@
             document.getElementById('pixelMagnifier1').classList.remove('active');
             document.getElementById('pixelMagnifier2').classList.remove('active');
 
-            if (!wrapper) { mag.classList.remove('active'); return; }
+            if (!wrapper) { mag.classList.remove('active'); delete mag.dataset.sourceSlot; return; }
 
-            // In overlay mode, multiple wrappers overlap; use the active layer's media & wrapper
+            // In Stack, use the active layer except during a wipe, where the visible
+            // side under the cursor owns the loupe sample.
             let media, targetWrapper;
             if (!isGridMode) {
-                const activeLayer = document.querySelector('.asset-layer.active');
-                if (!activeLayer) { mag.classList.remove('active'); return; }
-                targetWrapper = activeLayer.querySelector('.video-wrapper');
+                const targetLayer = _wipeMode
+                    ? wrapper.closest('.asset-layer')
+                    : document.querySelector('.asset-layer.active');
+                if (!targetLayer) { mag.classList.remove('active'); return; }
+                targetWrapper = targetLayer.querySelector('.video-wrapper');
                 media = targetWrapper ? targetWrapper.querySelector('img, video, canvas.audio-viz-slot-canvas') : null;
             } else {
                 targetWrapper = wrapper;
@@ -4251,17 +4306,26 @@
             const natH = media.naturalHeight || media.videoHeight;
             if (!natW || !natH) { mag.classList.remove('active'); return; }
 
-            // Map cursor to normalized 0..1 coords within the wrapper
-            const rect = targetWrapper.getBoundingClientRect();
-            const relX = (e.clientX - rect.left) / rect.width;
-            const relY = (e.clientY - rect.top) / rect.height;
-
             // Find per-slot rotation so we can remap visual coords → original image coords
             const slotForWrapper = assetOrder.find(s => {
                 const l = getLayer(s);
                 return l && l.contains(targetWrapper);
             });
             const slotRot = slotForWrapper ? (_slotRotation[slotForWrapper] || 0) : 0;
+
+            // A wipe reveal can be letterboxed inside the base asset's plate. Map
+            // against the actual contained image rect and hide over neutral matte.
+            const rect = (_wipeMode && !isGridMode && slotForWrapper)
+                ? _wipeMediaContentRect(slotForWrapper, targetWrapper, media)
+                : targetWrapper.getBoundingClientRect();
+            if (e.clientX < rect.left || e.clientX > rect.right ||
+                e.clientY < rect.top || e.clientY > rect.bottom) {
+                mag.classList.remove('active');
+                delete mag.dataset.sourceSlot;
+                return;
+            }
+            const relX = (e.clientX - rect.left) / rect.width;
+            const relY = (e.clientY - rect.top) / rect.height;
 
             // For rotated 90°/270° slots, the wrapper width equals the original image HEIGHT,
             // so screen-pixels-per-native-pixel must be computed against the effective natW.
@@ -4278,7 +4342,9 @@
             else if (slotRot === 270) { origRelX = 1 - relY;   origRelY = relX;     }
 
             // Draw primary loupe at cursor
-            drawMagnifierCanvas(mag, media, origRelX, origRelY, effectiveScale, e.clientX, e.clientY, slotRot);
+            mag.dataset.sourceSlot = slotForWrapper || '';
+            drawMagnifierCanvas(mag, media, origRelX, origRelY, effectiveScale, e.clientX, e.clientY,
+                slotRot, _wipeMode && slotForWrapper ? _wipeSlotText(slotForWrapper) : '');
 
             // In split mode, draw linked loupes on other visible media
             if (isGridMode && magnifierLinked) {
@@ -4610,6 +4676,9 @@
             }
         }
         let isPanning = false;
+        let _panPending = false;
+        let _panPointerStartX = 0;
+        let _panPointerStartY = 0;
         let expectedFileCount = 0; // set by handleMultipleFiles; checkAllLoaded waits for this many
         let panStartX = 0;
         let panStartY = 0;
@@ -6857,6 +6926,10 @@
         function getActiveMediaElement() {
             // Get the media element for the currently active/hovered asset
             if (!isGridMode) {
+                if (_wipeMode) {
+                    const layer = getLayer(_wipeAnalysisSlot());
+                    return layer ? layer.querySelector('video, img') : null;
+                }
                 const activeLayer = document.querySelector('.asset-layer.active');
                 return activeLayer ? activeLayer.querySelector('video, img') : null;
             }
@@ -6866,8 +6939,23 @@
             return layer ? layer.querySelector('video, img') : null;
         }
 
+        function _scopeSourceSlot() {
+            return _wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex];
+        }
+
+        function _updateScopesSourceIndicator() {
+            const indicator = document.getElementById('scopesSourceIndicator');
+            if (!indicator) return;
+            const slot = _scopeSourceSlot();
+            if (!slot) { indicator.textContent = ''; return; }
+            const source = _wipeMode ? _wipeSlotText(slot) : slotLabel(slot);
+            const side = _wipeMode ? (_wipeAnalysisSide ? ' · RIGHT' : ' · LEFT') : '';
+            indicator.textContent = 'SCOPES · ' + source + side;
+        }
+
         function updateVideoScopes() {
             if (!videoScopesVisible) return;
+            _updateScopesSourceIndicator();
             const media = getActiveMediaElement();
             if (!media) return;
             // For videos, skip if not ready
@@ -9848,16 +9936,27 @@
             e.preventDefault();
             // Cancel any in-progress snap-back so the user takes control immediately.
             if (_snapAnimId) { cancelAnimationFrame(_snapAnimId); _snapAnimId = null; }
-            isPanning = true;
+            _panPending = !!_wipeMode;
+            isPanning = !_panPending;
+            _panPointerStartX = e.clientX;
+            _panPointerStartY = e.clientY;
             panStartX = e.clientX - panOffsetX;
             panStartY = e.clientY - panOffsetY;
-            document.getElementById('assetContainer').classList.add('panning');
+            if (isPanning) document.getElementById('assetContainer').classList.add('panning');
             // Cache active layer's vw — avoids DOM queries in the hot mousemove path.
             _panLayer = document.querySelector('.asset-layer.active');
             _panVw    = _panLayer ? _panLayer.querySelector('.video-wrapper') : null;
         }
 
         function handlePanMove(e) {
+            if (_panPending) {
+                const dx = e.clientX - _panPointerStartX;
+                const dy = e.clientY - _panPointerStartY;
+                if (dx * dx + dy * dy <= 16) return;
+                _panPending = false;
+                isPanning = true;
+                document.getElementById('assetContainer').classList.add('panning');
+            }
             if (!isPanning) return;
             e.preventDefault();
 
@@ -9887,6 +9986,11 @@
         }
 
         function handlePanEnd(e) {
+            if (_panPending) {
+                _panPending = false;
+                _panVw = null; _panLayer = null;
+                return;
+            }
             if (!isPanning) return;
             isPanning = false;
             _panVw = null; _panLayer = null;
@@ -12076,26 +12180,20 @@
             // ── View ──
             { id: 'overlayMode', defaultKey: 's', label: 'Stack mode', section: 'view',
               fn: () => {
-                  const allThreeLoaded = getLoadedSlotCount() === 3;
-                  if (isGridMode) { setViewMode('overlay'); }
-                  else if (hasAudios) {
-                      if (allThreeLoaded) { gridInlineMode = true; setViewMode('offset'); } else { setViewMode('vertical'); }
-                  } else if (allThreeLoaded) { setViewMode('offset'); }
-                  else { setViewMode(layoutMode); }
+                  if (isGridMode) setViewMode('overlay');
               } },
             { id: 'stackZoomMode', defaultKey: '\\', label: 'Stack: Fit / Balance zoom', section: 'view',
               fn: () => { if (!isGridMode) _toggleStackZoomMode(); } },
             { id: 'gridMode', defaultKey: 'g', label: 'Grid mode', section: 'view',
               fn: () => {
+                  if (isGridMode) return;
                   const allThreeVisible = getVisibleSlots().length === 3;
                   if (hasAudios) {
-                      if (!isGridMode) {
-                          if (allThreeVisible) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
-                      } else { setViewMode('overlay'); }
+                      if (allThreeVisible) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
                   } else if (allThreeVisible) {
-                      if (!isGridMode) setViewMode('offset'); else setViewMode('overlay');
+                      setViewMode('offset');
                   } else {
-                      if (!isGridMode) setViewMode(layoutMode); else setViewMode('overlay');
+                      setViewMode(layoutMode);
                   }
               } },
             { id: 'toggleOffset', defaultKey: '3', label: 'Grid: Inline / Offset', section: 'view',
@@ -12130,9 +12228,9 @@
                   showToast('Ad Astra ' + (off ? 'OFF' : 'ON'));
               } },
             { id: 'rotateCW',  defaultKey: 'ArrowRight', alt: true, label: 'Rotate CW 90°',  section: 'view', paired: 'rotate',
-              fn: () => { _rotateSlot(assetOrder[currentAssetIndex], 90); } },
+              fn: () => { _rotateSlot(_wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex], 90); } },
             { id: 'rotateCCW', defaultKey: 'ArrowLeft',  alt: true, label: 'Rotate CCW 90°', section: 'view', paired: 'rotate',
-              fn: () => { _rotateSlot(assetOrder[currentAssetIndex], -90); } },
+              fn: () => { _rotateSlot(_wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex], -90); } },
 
             // ── Zoom ──
             { id: 'zoomFit', defaultKey: '0', label: 'Zoom to fit screen', section: 'zoom',
@@ -12194,8 +12292,8 @@
 
             // ── Transport ──
             { id: 'prevAsset', defaultKey: 'ArrowLeft', altKey: 'ArrowUp', label: 'Previous asset', section: 'transport',
-              fn: () => {
-                  if (_wipeMode) { cycleWipePair(-1); return; }
+              fn: e => {
+                  if (_wipeMode) { if (e && e.key !== 'ArrowUp') cycleWipePair(-1); return; }
                   if (_diffMode) {
                       const pairs = _getDiffPairs();
                       if (pairs.length > 1) {
@@ -12211,8 +12309,8 @@
                   if (mediaData[assetOrder[ni]] && !_hiddenSlots.has(assetOrder[ni])) switchToAsset(ni);
               } },
             { id: 'nextAsset', defaultKey: 'ArrowRight', altKey: 'ArrowDown', label: 'Next asset', section: 'transport',
-              fn: () => {
-                  if (_wipeMode) { cycleWipePair(1); return; }
+              fn: e => {
+                  if (_wipeMode) { if (e && e.key !== 'ArrowDown') cycleWipePair(1); return; }
                   if (_diffMode) {
                       const pairs = _getDiffPairs();
                       if (pairs.length > 1) {
@@ -12599,6 +12697,10 @@
             get wipeMode() { return _wipeMode; },
             get wipePosition() { return _wipePosition; },
             get wipePair() { return _wipePair(); },
+            get wipeAnalysisSide() { return _wipeAnalysisSide; },
+            get wipeAnalysisSlot() { return _wipeAnalysisSlot(); },
+            get scopeSourceSlot() { return _scopeSourceSlot(); },
+            get slotRotations() { return { ..._slotRotation }; },
             setWipePosition(value) { _setWipePosition(value); },
             cycleWipePair(delta = 1) { cycleWipePair(delta); },
             get audioVizVisible() { return audioVizVisible; },
@@ -12852,7 +12954,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the asset arrow keys cycle them in the same order. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. When the cutoff has keyboard focus, arrow keys adjust it precisely and Shift+arrow makes larger steps. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The L/R target in that control selects which complete asset feeds the scopes and receives <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation; the scopes panel labels its source. The zoom loupe instead follows the visible side under the cursor and labels the sampled asset. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
 
             <h2>Difference Mode</h2>
             <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
@@ -12915,8 +13017,8 @@
                 <tr><td><kbd>[ ]</kbd></td><td>Resize zoom loupe</td></tr>
                 <tr><td><kbd>← → ↑ ↓</kbd></td><td>Switch asset</td></tr>
                 <tr><td><kbd>Alt+← / Alt+→</kbd></td><td>Rotate active asset 90°</td></tr>
-                <tr><td><kbd>S</kbd></td><td>Toggle Stack mode</td></tr>
-                <tr><td><kbd>G</kbd></td><td>Toggle Grid mode</td></tr>
+                <tr><td><kbd>S</kbd></td><td>Switch to Stack mode</td></tr>
+                <tr><td><kbd>G</kbd></td><td>Switch to Grid mode</td></tr>
                 <tr><td><kbd>\</kbd></td><td>Stack: Fit / Balance zoom toggle</td></tr>
                 <tr><td><kbd>3</kbd></td><td>Toggle Grid layout (Inline ↔ Offset)</td></tr>
                 <tr><td><kbd>Shift+1 / 2 / 3</kbd></td><td>Toggle Grid slot visibility</td></tr>
@@ -13089,6 +13191,12 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.37</h3>
+            <ul>
+                <li><strong>Wipe analysis now follows an explicit Left/Right target.</strong> Scopes identify and analyze that selected asset, rotation applies to it without leaving wipe, and the zoom loupe samples and labels whichever visible side is under the cursor—even with mismatched aspect ratios.</li>
+                <li><strong>Wipe controls are more resilient and accessible.</strong> The centered control moves below crowded narrow headers, pair selection preserves keyboard focus, clicking the divider focuses its slider, only left/right arrows cycle pairs, and small click jitter no longer pans the plate.</li>
+                <li><strong>Stack and Grid shortcuts are now direct.</strong> S always selects Stack and G always selects Grid instead of toggling when the requested mode is already active.</li>
+            </ul>
             <h3>v3.12.36</h3>
             <ul>
                 <li><strong>Image comparisons now support a live wipe in Stack.</strong> Pair order matches Grid order (first asset left, second right), clicking the plate snaps the cutoff, and the centered header control directly selects Ref–A, Ref–B, or A–B. The idle guide disappears while dragging, neutral presentation mattes prevent aspect-ratio bleed-through, and zoom, pan, rotation, resize, and pair cycling remain aligned. Video wipe stays gated while compositor behavior is validated.</li>

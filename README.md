@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.36
+**Current version:** 3.12.37
 
 ---
 
@@ -51,9 +51,9 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Gallery clears when new media is loaded
 
 **Analysis**
-- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff, or directly select Ref–A, Ref–B, or A–B in the centered header control
+- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff, or directly select Ref–A, Ref–B, or A–B in the centered header control. The loupe follows the visible side under the cursor; the header's explicit Left/Right target selects the source used by scopes and rotation
 - `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Ref–A, Ref–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
-- `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
+- `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes. The scopes panel always identifies its current source
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default); the shared **Fit / Ref** control switches between per-asset detail and a fixed dBFS reference scale, while encoded leading/trailing audio gaps remain aligned to the video timeline
 - Scrub audio preserves intentional soundtrack offsets and leading silence from the video container
 - If a video container does not expose an audio start timestamp, WarpDiff keeps playback unchanged and shows a persistent warning identifying the affected slot so you can verify A/V sync

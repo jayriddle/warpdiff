@@ -60,11 +60,13 @@ Press `D` in Stack mode to overlay a pixel-difference composite of two assets. I
 
 ## Image wipe
 
-Press `Q` in Stack mode to compare two images through a draggable hard cutoff. The pair follows Grid order: its first asset is left of the cutoff and its second asset is right. Click anywhere inside the comparison plate to snap the cutoff there; pointer movement beyond the click threshold remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary, then disappears while the pointer is held down for an unobstructed comparison. The centered header control directly selects `Ref–A`, `Ref–B`, or `A–B`; `Shift+Q` and the arrow keys cycle those pairs in the same order. Each side is rendered as a complete presentation plate, including a neutral matte around mismatched aspect ratios, so one asset cannot bleed through the other asset's letterboxed region. The reveal image is clipped as a real DOM layer, so zoom, pan, rotation, and resize stay aligned without rasterizing the source. Wipe and Difference modes are mutually exclusive. Video wipe remains disabled while its hardware-compositor behavior is validated.
+Press `Q` in Stack mode to compare two images through a draggable hard cutoff. The pair follows Grid order: its first asset is left of the cutoff and its second asset is right. Click anywhere inside the comparison plate to snap the cutoff there; pointer movement beyond the click threshold remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary, then disappears while the pointer is held down for an unobstructed comparison. The centered header control directly selects `Ref–A`, `Ref–B`, or `A–B`; `Shift+Q` and the left/right arrows cycle those pairs in the same order.
+
+The header also has an explicit **Left / Right analysis target**. Scopes and `Alt+←` / `Alt+→` rotation follow that selected side, and the scopes panel labels its source. The zoom loupe is spatial instead: it samples whichever side is visible under the cursor and identifies that source in the loupe. Each side is rendered as a complete presentation plate, including a neutral matte around mismatched aspect ratios, so one asset cannot bleed through the other asset's letterboxed region. The reveal image is clipped as a real DOM layer, so zoom, pan, rotation, and resize stay aligned without rasterizing the source. Wipe and Difference modes are mutually exclusive. Video wipe remains disabled while its hardware-compositor behavior is validated.
 
 ## Video scopes
 
-Press `V` to toggle the video scopes panel. Three scopes are displayed side by side — click the histogram or waveform to cycle through modes:
+Press `V` to toggle the video scopes panel. Its source is always identified above the scopes; during a wipe it follows the explicit Left/Right analysis target. Three scopes are displayed side by side — click the histogram or waveform to cycle through modes:
 
 - **Histogram** — RGB → RGB + luma → CDF (cumulative distribution)
 - **Waveform** — luma → RGB parade → RGB overlay

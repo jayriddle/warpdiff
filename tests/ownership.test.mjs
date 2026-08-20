@@ -87,6 +87,8 @@ function extractFn(name, src = SRC) {
   const userDocs = [README, FEATURES, MANUAL];
   check('docs: README, FEATURES, and MANUAL all cover image wipe',
         userDocs.every(doc => /image wipe/i.test(doc)));
+  check('docs: wipe analysis target is documented with scopes and rotation',
+        userDocs.every(doc => /wipe[\s\S]{0,1400}(scope|loupe)[\s\S]{0,500}rotat/i.test(doc)));
   check('docs: user docs describe current Fit / Balance Stack modes',
         userDocs.every(doc => doc.includes('Fit') && doc.includes('Balance')));
   check('docs: retired Match · GT Stack terminology is absent',
@@ -95,11 +97,15 @@ function extractFn(name, src = SRC) {
         FEATURES.includes('(`Shift+W`, `P`)'));
   check('docs: MANUAL keyboard reference includes rotation and loop-range controls',
         MANUAL.includes('**Alt+← / Alt+→**') && MANUAL.includes('**Shift+L**'));
+  check('docs: MANUAL describes S/G as direct mode selection',
+        MANUAL.includes('| Press **S** | Switch to Stack mode |') &&
+        MANUAL.includes('| Press **G** | Switch to Grid mode |'));
   const embeddedManual = (HTML.match(/<div class="manual-content">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="quick-start-backdrop"/) || [])[1] || '';
   check('docs: in-app Manual covers wipe, Difference, Balance, and shared loop points',
         embeddedManual.includes('<h2>Image Wipe</h2>')
         && embeddedManual.includes('<h2>Difference Mode</h2>')
         && embeddedManual.includes('Fit vs. Balance')
+        && embeddedManual.includes('The L/R target')
         && embeddedManual.includes('Loop points are shared across all clips'));
   check('docs: in-app Manual does not claim loop points are per asset',
         !embeddedManual.includes('Loop points are saved per asset'));
@@ -461,6 +467,12 @@ function extractFn(name, src = SRC) {
         countOf(SRC, '_wipeDragging =') === 2 &&
         extractFn('_setWipeDragging').includes('_wipeDragging = !!enabled') &&
         extractFn('_setWipeDragging').includes("classList.toggle('wipe-dragging'"));
+  check('one-owner[wipe]: _setWipeAnalysisSide owns the analysis-side state',
+        countOf(SRC, '_wipeAnalysisSide =') === 2 &&
+        extractFn('_setWipeAnalysisSide').includes('_wipeAnalysisSide = Number(side) === 1 ? 1 : 0'));
+  check('one-owner[wipe]: scopes and rotation resolve through the analysis target',
+        extractFn('getActiveMediaElement').includes('_wipeAnalysisSlot()') &&
+        countOf(SRC, '_rotateSlot(_wipeMode ? _wipeAnalysisSlot()') === 2);
   check(`one-owner[wipe]: _syncWipeGeometry defined once (got ${countOf(SRC, 'function _syncWipeGeometry(')})`,
         countOf(SRC, 'function _syncWipeGeometry(') === 1);
   const wipeGeometry = extractFn('_syncWipeGeometry');
@@ -899,9 +911,12 @@ function extractFn(name, src = SRC) {
         /const _RATE_TRIM_IS_SMOOTH = !_IS_WEBKIT_MEDIA;/.test(SRC));
   // Stack stacks every wrapper at the same coords; on WebKit the inactive ones
   // are now laid out (opacity-hidden) instead of display:none, so cursor
-  // hit-testing must consult the layer rather than rely on zero-size rects.
+  // hit-testing must consult the layer rather than rely on zero-size rects. A
+  // wipe is the explicit exception: its visible side owns the hit.
+  const wrapperHitTest = extractFn('findWrapperUnderCursor');
   check('webkit-switch: wrapper hit-test ignores inactive Stack layers',
-        /findWrapperUnderCursor[\s\S]{0,900}?!isGridMode[\s\S]{0,200}?classList\.contains\('active'\)/.test(SRC));
+        wrapperHitTest.includes("if (_wipeMode && !isGridMode)") &&
+        wrapperHitTest.includes("!layer.classList.contains('active')"));
   check('webkit-switch: _beginSeamlessSwitch bypasses the double-buffer on WebKit',
         /_beginSeamlessSwitch\(oldLayer, newVideo\) \{[\s\S]{0,700}?!_RATE_TRIM_IS_SMOOTH\) return;/.test(SRC));
   {
