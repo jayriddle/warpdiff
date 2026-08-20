@@ -87,8 +87,9 @@ function extractFn(name, src = SRC) {
   const userDocs = [README, FEATURES, MANUAL];
   check('docs: README, FEATURES, and MANUAL all cover image wipe',
         userDocs.every(doc => /image wipe/i.test(doc)));
-  check('docs: wipe analysis target is documented with scopes and rotation',
-        userDocs.every(doc => /wipe[\s\S]{0,1400}(scope|loupe)[\s\S]{0,500}rotat/i.test(doc)));
+  check('docs: wipe scopes source and cursor-side rotation are documented',
+        userDocs.every(doc => /image wipe/i.test(doc) && /scope/i.test(doc)
+          && /(cursor|pointer)/i.test(doc) && /rotat/i.test(doc)));
   check('docs: user docs describe current Fit / Balance Stack modes',
         userDocs.every(doc => doc.includes('Fit') && doc.includes('Balance')));
   check('docs: retired Match · GT Stack terminology is absent',
@@ -105,7 +106,7 @@ function extractFn(name, src = SRC) {
         embeddedManual.includes('<h2>Image Wipe</h2>')
         && embeddedManual.includes('<h2>Difference Mode</h2>')
         && embeddedManual.includes('Fit vs. Balance')
-        && embeddedManual.includes('The L/R target')
+        && embeddedManual.includes('scopes panel provides its own source selector')
         && embeddedManual.includes('Loop points are shared across all clips'));
   check('docs: in-app Manual does not claim loop points are per asset',
         !embeddedManual.includes('Loop points are saved per asset'));
@@ -467,12 +468,12 @@ function extractFn(name, src = SRC) {
         countOf(SRC, '_wipeDragging =') === 2 &&
         extractFn('_setWipeDragging').includes('_wipeDragging = !!enabled') &&
         extractFn('_setWipeDragging').includes("classList.toggle('wipe-dragging'"));
-  check('one-owner[wipe]: _setWipeAnalysisSide owns the analysis-side state',
-        countOf(SRC, '_wipeAnalysisSide =') === 2 &&
-        extractFn('_setWipeAnalysisSide').includes('_wipeAnalysisSide = Number(side) === 1 ? 1 : 0'));
-  check('one-owner[wipe]: scopes and rotation resolve through the analysis target',
-        extractFn('getActiveMediaElement').includes('_wipeAnalysisSlot()') &&
-        countOf(SRC, '_rotateSlot(_wipeMode ? _wipeAnalysisSlot()') === 2);
+  check('one-owner[wipe]: _setWipeScopeSide owns the scope-side state',
+        countOf(SRC, '_wipeScopeSide =') === 2 &&
+        extractFn('_setWipeScopeSide').includes('_wipeScopeSide = Number(side) === 1 ? 1 : 0'));
+  check('one-owner[wipe]: scopes resolve through their source and rotation through cursor side',
+        extractFn('getActiveMediaElement').includes('_wipeScopeSlot()') &&
+        countOf(SRC, '_rotateWipeSide(') === 3);
   check(`one-owner[wipe]: _syncWipeGeometry defined once (got ${countOf(SRC, 'function _syncWipeGeometry(')})`,
         countOf(SRC, 'function _syncWipeGeometry(') === 1);
   const wipeGeometry = extractFn('_syncWipeGeometry');

@@ -2150,31 +2150,35 @@ test.describe('Image Wipe', () => {
     expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
   });
 
-  test('analysis target controls scopes and rotation while loupe follows the visible side', async ({ page }) => {
+  test('scopes choose their source while loupe and rotation follow the visible side', async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']);
     await page.keyboard.press('s');
     await page.keyboard.press('q');
 
-    expect(await getVar(page, 'wipeAnalysisSide')).toBe(0);
-    expect(await getVar(page, 'wipeAnalysisSlot')).toBe('editA');
-    await page.getByRole('button', { name: /Use B on right for scopes and rotation/ }).click();
-    expect(await getVar(page, 'wipeAnalysisSide')).toBe(1);
-    expect(await getVar(page, 'scopeSourceSlot')).toBe('editB');
-
+    await expect(page.locator('.wipe-analysis-target')).toHaveCount(0);
+    expect(await getVar(page, 'wipeScopeSide')).toBe(0);
+    expect(await getVar(page, 'wipeScopeSlot')).toBe('editA');
     await page.keyboard.press('v');
-    await expect(page.locator('#scopesSourceIndicator')).toHaveText('SCOPES · B · RIGHT');
-    await page.keyboard.press('Alt+ArrowRight');
-    expect((await getVar(page, 'slotRotations')).editA).toBe(0);
-    expect((await getVar(page, 'slotRotations')).editB).toBe(90);
+    await page.getByRole('button', { name: /Use B on right for scopes/ }).click();
+    expect(await getVar(page, 'wipeScopeSide')).toBe(1);
+    expect(await getVar(page, 'scopeSourceSlot')).toBe('editB');
+    await expect(page.locator('#scopesSourceIndicator')).toContainText('SCOPES SOURCE');
+    await expect(page.locator('.scopes-source-option.active')).toHaveText('B · R');
 
     await page.keyboard.press('z');
     const plate = await page.locator('.asset-layer.wipe-base .video-wrapper').boundingBox();
     expect(plate).not.toBeNull();
     await page.mouse.move(plate!.x + plate!.width * 0.25, plate!.y + plate!.height * 0.5);
     await expect(page.locator('#pixelMagnifier')).toHaveAttribute('data-source-slot', 'editA');
+    await page.keyboard.press('Alt+ArrowRight');
+    expect((await getVar(page, 'slotRotations')).editA).toBe(90);
+    expect((await getVar(page, 'slotRotations')).editB).toBe(0);
     await page.mouse.move(plate!.x + plate!.width * 0.75, plate!.y + plate!.height * 0.5);
     await expect(page.locator('#pixelMagnifier')).toHaveAttribute('data-source-slot', 'editB');
+    await page.keyboard.press('Alt+ArrowRight');
+    expect((await getVar(page, 'slotRotations')).editA).toBe(90);
+    expect((await getVar(page, 'slotRotations')).editB).toBe(90);
   });
 
   test('wipe controls remain usable and clear of header actions in a narrow window', async ({ page }) => {

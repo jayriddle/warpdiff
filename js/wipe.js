@@ -7,7 +7,7 @@ let _wipePairIndex = 0;
 let _wipePosition = 0.5;
 let _wipeDragging = false;
 let _wipeInternalSwitch = false;
-let _wipeAnalysisSide = 0;
+let _wipeScopeSide = 0;
 
 function _getWipePairs() {
     return typeof _getDiffPairs === 'function' ? _getDiffPairs() : [];
@@ -28,19 +28,17 @@ function _wipePairText(pair) {
     return pair ? _wipeSlotText(pair[0]) + '–' + _wipeSlotText(pair[1]) : '';
 }
 
-function _wipeAnalysisSlot() {
+function _wipeScopeSlot() {
     const pair = _wipePair();
-    return pair ? pair[_wipeAnalysisSide] : null;
+    return pair ? pair[_wipeScopeSide] : null;
 }
 
-function _setWipeAnalysisSide(side, announce = true) {
-    _wipeAnalysisSide = Number(side) === 1 ? 1 : 0;
-    const nameEl = document.querySelector('#stackInfoStrip .sih-name');
-    if (_wipeMode && nameEl) _renderWipePairChooser(nameEl);
+function _setWipeScopeSide(side, announce = true) {
+    _wipeScopeSide = Number(side) === 1 ? 1 : 0;
     if (typeof updateVideoScopes === 'function' && videoScopesVisible) updateVideoScopes();
     if (announce && _wipeMode) {
-        const slot = _wipeAnalysisSlot();
-        showToast('Analysis: ' + _wipeSlotText(slot) + ' (' + (_wipeAnalysisSide ? 'right' : 'left') + ')');
+        const slot = _wipeScopeSlot();
+        showToast('Scopes: ' + _wipeSlotText(slot) + ' (' + (_wipeScopeSide ? 'right' : 'left') + ')');
     }
 }
 
@@ -53,6 +51,15 @@ function _wipeSlotAtPoint(x, y) {
     const rect = base.getBoundingClientRect();
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
     return pair[x < rect.left + rect.width * _wipePosition ? 0 : 1];
+}
+
+function _rotateWipeSide(delta) {
+    const slot = _lastMouseEvent && _wipeSlotAtPoint(_lastMouseEvent.clientX, _lastMouseEvent.clientY);
+    if (!slot) {
+        showToast('Point to the wipe side you want to rotate');
+        return;
+    }
+    _rotateSlot(slot, delta);
 }
 
 // The reveal wrapper is the base asset's full presentation plate. For a
@@ -106,34 +113,6 @@ function _renderWipePairChooser(nameEl) {
         });
         nameEl.appendChild(option);
     });
-
-    const target = document.createElement('span');
-    target.className = 'wipe-analysis-target';
-    target.setAttribute('role', 'group');
-    target.setAttribute('aria-label', 'Wipe analysis source');
-    const targetPrefix = document.createElement('span');
-    targetPrefix.className = 'wipe-target-prefix';
-    targetPrefix.textContent = 'TARGET';
-    target.appendChild(targetPrefix);
-    const pair = _wipePair();
-    if (pair) pair.forEach((slot, side) => {
-        const option = document.createElement('button');
-        const sideText = side ? 'R' : 'L';
-        option.type = 'button';
-        option.className = 'wipe-side-option';
-        option.classList.toggle('active', side === _wipeAnalysisSide);
-        option.setAttribute('aria-pressed', side === _wipeAnalysisSide ? 'true' : 'false');
-        option.setAttribute('aria-label', 'Use ' + _wipeSlotText(slot) + ' on ' + (side ? 'right' : 'left') + ' for scopes and rotation');
-        option.dataset.wipeFocusKey = 'side-' + side;
-        option.textContent = sideText + '·' + _wipeSlotText(slot);
-        option.title = 'Scopes and rotation: ' + _wipeSlotText(slot) + ' (' + (side ? 'right' : 'left') + ')';
-        option.addEventListener('click', e => {
-            e.stopPropagation();
-            _setWipeAnalysisSide(side, true);
-        });
-        target.appendChild(option);
-    });
-    nameEl.appendChild(target);
 
     if (focusedKey) {
         const replacement = nameEl.querySelector('[data-wipe-focus-key="' + focusedKey + '"]');
@@ -277,7 +256,7 @@ function _setWipeMode(enabled, announce = true) {
         if (_diffMode) _setDiffMode(false, false);
         _wipeMode = true;
         document.body.classList.add('wipe-mode');
-        _setWipeAnalysisSide(0, false);
+        _setWipeScopeSide(0, false);
         _activateWipePair(false);
         if (announce) showToast('Wipe: ' + _wipePairText(_wipePair()));
     } else {
@@ -321,17 +300,12 @@ function _selectWipeSlot(slot) {
     const pair = _wipePair();
     if (!pair) return true;
     const currentSide = pair.indexOf(slot);
-    if (currentSide >= 0) {
-        _setWipeAnalysisSide(currentSide, true);
-        return true;
-    }
+    if (currentSide >= 0) return true;
     const pairs = _getWipePairs();
     let next = pairs.findIndex(p => p[0] === pair[0] && p[1] === slot);
     if (next < 0) next = pairs.findIndex(p => p.includes(slot));
     if (next >= 0 && next !== _wipePairIndex) {
         selectWipePair(next, true);
-        const selectedPair = _wipePair();
-        _setWipeAnalysisSide(selectedPair && selectedPair[1] === slot ? 1 : 0, false);
     }
     return true;
 }

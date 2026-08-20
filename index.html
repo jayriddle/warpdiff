@@ -1313,33 +1313,6 @@
         .wipe-pair-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .wipe-pair-option.active { background: #2d7cff; color: #fff; }
         .wipe-pair-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
-        .wipe-analysis-target {
-            display: inline-flex;
-            align-items: center;
-            gap: 2px;
-            margin-left: 4px;
-            padding-left: 5px;
-            border-left: 1px solid rgba(145,185,255,0.28);
-        }
-        .wipe-target-prefix {
-            padding-right: 2px;
-            color: #71829c;
-            font: 800 8px/1 monospace;
-            letter-spacing: 0.06em;
-        }
-        .wipe-side-option {
-            min-height: 20px;
-            padding: 2px 5px;
-            border: 0;
-            border-radius: 4px;
-            background: transparent;
-            color: #91a2bd;
-            font: 700 9px/1 monospace;
-            cursor: pointer;
-        }
-        .wipe-side-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
-        .wipe-side-option.active { background: rgba(74,221,32,0.2); color: #a9f29a; box-shadow: inset 0 0 0 1px rgba(74,221,32,0.6); }
-        .wipe-side-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
         body.wipe-mode #stackInfoStrip.sih-wipe {
             position: absolute;
             left: 50%;
@@ -1359,7 +1332,7 @@
            Removing the redundant strip also prevents overlap on narrow headers. */
         body.wipe-mode #modeStrip,
         body.wipe-mode #iconSep1 { display: none !important; }
-        @media (max-width: 880px) {
+        @media (max-width: 720px) {
             body.wipe-mode #stackInfoStrip.sih-wipe {
                 top: calc(100% + 6px);
                 max-width: calc(100vw - 16px);
@@ -2234,7 +2207,24 @@
             font: 700 9px/1.2 monospace;
             letter-spacing: 0.06em;
             text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
+        .scopes-source-prefix { color: #71829c; }
+        .scopes-source-option {
+            min-height: 20px;
+            padding: 2px 7px;
+            border: 0;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+            color: #91a2bd;
+            font: 700 9px/1 monospace;
+            cursor: pointer;
+        }
+        .scopes-source-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .scopes-source-option.active { background: rgba(74,221,32,0.2); color: #a9f29a; box-shadow: inset 0 0 0 1px rgba(74,221,32,0.6); }
+        .scopes-source-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
         .scopes-row {
             display: flex;
             gap: 4px;
@@ -3257,7 +3247,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.37';
+        const APP_VERSION = '3.12.38';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -6927,7 +6917,7 @@
             // Get the media element for the currently active/hovered asset
             if (!isGridMode) {
                 if (_wipeMode) {
-                    const layer = getLayer(_wipeAnalysisSlot());
+                    const layer = getLayer(_wipeScopeSlot());
                     return layer ? layer.querySelector('video, img') : null;
                 }
                 const activeLayer = document.querySelector('.asset-layer.active');
@@ -6940,17 +6930,45 @@
         }
 
         function _scopeSourceSlot() {
-            return _wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex];
+            return _wipeMode ? _wipeScopeSlot() : assetOrder[currentAssetIndex];
         }
 
         function _updateScopesSourceIndicator() {
             const indicator = document.getElementById('scopesSourceIndicator');
             if (!indicator) return;
+            const focusedSide = indicator.contains(document.activeElement)
+                ? document.activeElement.dataset.scopeSide
+                : '';
+            indicator.replaceChildren();
             const slot = _scopeSourceSlot();
-            if (!slot) { indicator.textContent = ''; return; }
-            const source = _wipeMode ? _wipeSlotText(slot) : slotLabel(slot);
-            const side = _wipeMode ? (_wipeAnalysisSide ? ' · RIGHT' : ' · LEFT') : '';
-            indicator.textContent = 'SCOPES · ' + source + side;
+            if (!slot) return;
+            const prefix = document.createElement('span');
+            prefix.className = 'scopes-source-prefix';
+            prefix.textContent = _wipeMode ? 'SCOPES SOURCE' : 'SCOPES ·';
+            indicator.appendChild(prefix);
+            if (!_wipeMode) {
+                const source = document.createElement('span');
+                source.textContent = slotLabel(slot);
+                indicator.appendChild(source);
+                return;
+            }
+            const pair = _wipePair();
+            pair.forEach((pairSlot, side) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'scopes-source-option';
+                option.classList.toggle('active', side === _wipeScopeSide);
+                option.setAttribute('aria-pressed', side === _wipeScopeSide ? 'true' : 'false');
+                option.setAttribute('aria-label', 'Use ' + _wipeSlotText(pairSlot) + ' on ' + (side ? 'right' : 'left') + ' for scopes');
+                option.dataset.scopeSide = String(side);
+                option.textContent = _wipeSlotText(pairSlot) + ' · ' + (side ? 'R' : 'L');
+                option.addEventListener('click', () => _setWipeScopeSide(side, true));
+                indicator.appendChild(option);
+            });
+            if (focusedSide) {
+                const replacement = indicator.querySelector('[data-scope-side="' + focusedSide + '"]');
+                if (replacement) replacement.focus({ preventScroll: true });
+            }
         }
 
         function updateVideoScopes() {
@@ -12228,9 +12246,9 @@
                   showToast('Ad Astra ' + (off ? 'OFF' : 'ON'));
               } },
             { id: 'rotateCW',  defaultKey: 'ArrowRight', alt: true, label: 'Rotate CW 90°',  section: 'view', paired: 'rotate',
-              fn: () => { _rotateSlot(_wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex], 90); } },
+              fn: () => { if (_wipeMode) _rotateWipeSide(90); else _rotateSlot(assetOrder[currentAssetIndex], 90); } },
             { id: 'rotateCCW', defaultKey: 'ArrowLeft',  alt: true, label: 'Rotate CCW 90°', section: 'view', paired: 'rotate',
-              fn: () => { _rotateSlot(_wipeMode ? _wipeAnalysisSlot() : assetOrder[currentAssetIndex], -90); } },
+              fn: () => { if (_wipeMode) _rotateWipeSide(-90); else _rotateSlot(assetOrder[currentAssetIndex], -90); } },
 
             // ── Zoom ──
             { id: 'zoomFit', defaultKey: '0', label: 'Zoom to fit screen', section: 'zoom',
@@ -12697,8 +12715,8 @@
             get wipeMode() { return _wipeMode; },
             get wipePosition() { return _wipePosition; },
             get wipePair() { return _wipePair(); },
-            get wipeAnalysisSide() { return _wipeAnalysisSide; },
-            get wipeAnalysisSlot() { return _wipeAnalysisSlot(); },
+            get wipeScopeSide() { return _wipeScopeSide; },
+            get wipeScopeSlot() { return _wipeScopeSlot(); },
             get scopeSourceSlot() { return _scopeSourceSlot(); },
             get slotRotations() { return { ..._slotRotation }; },
             setWipePosition(value) { _setWipePosition(value); },
@@ -12954,7 +12972,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The L/R target in that control selects which complete asset feeds the scopes and receives <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation; the scopes panel labels its source. The zoom loupe instead follows the visible side under the cursor and labels the sampled asset. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
 
             <h2>Difference Mode</h2>
             <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
@@ -13191,6 +13209,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.38</h3>
+            <ul>
+                <li><strong>The wipe header is focused on the comparison again.</strong> Its centered control now shows only the active pair; scopes choose and clearly label their source inside the scopes panel.</li>
+                <li><strong>Wipe tools now follow where you are working.</strong> The zoom loupe and rotation act on the visible side under the cursor, and their labels or confirmation messages identify the affected asset.</li>
+            </ul>
             <h3>v3.12.37</h3>
             <ul>
                 <li><strong>Wipe analysis now follows an explicit Left/Right target.</strong> Scopes identify and analyze that selected asset, rotation applies to it without leaving wipe, and the zoom loupe samples and labels whichever visible side is under the cursor—even with mismatched aspect ratios.</li>

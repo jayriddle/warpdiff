@@ -240,14 +240,14 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 Press **Q** in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is on the left and the second is on the right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the boundary while idle and disappears while the pointer is held down. With three images, the centered header control directly selects **Ref–A**, **Ref–B**, or **A–B**. For mismatched aspect ratios, each asset includes a neutral matte so either side can fully replace the other without the underlying image bleeding through. Drag the cutoff left or right, or click the divider to focus it and use the arrow keys for precise adjustment. Hold **Shift** while pressing an arrow key for larger steps.
 
-The header's **L / R target buttons** choose which complete asset feeds the video scopes and receives `Alt+←` / `Alt+→` rotation. The scopes panel displays that source. The zoom loupe follows the visible side under the cursor instead, and its label identifies which asset is being magnified. On narrow windows, the wipe control moves just below the header so it cannot cover the Help or view-mode buttons.
+The wipe header shows only what is being compared. When video scopes are open, the scopes panel provides its own source selector and clearly labels the complete asset being analyzed. The zoom loupe and `Alt+←` / `Alt+→` rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. On narrow windows, the wipe control moves just below the header so it cannot cover the Help or view-mode buttons.
 
 | Shortcut | Action |
 |----------|--------|
 | **Q** | Toggle image wipe on/off |
 | **Shift+Q** or **← →** | Cycle Ref–A, Ref–B, and A–B |
 | **Header pair control** | Select any comparison directly |
-| **Header L / R target** | Select the source for scopes and rotation |
+| **Scopes source buttons** | Select which complete asset feeds the scopes |
 
 Wipe follows Stack zoom, pan, rotation, and resize. Up/down arrows do not change the comparison pair unless the focused divider is using them for position adjustment. Difference mode and wipe are mutually exclusive. Video wipe is not available yet.
 
