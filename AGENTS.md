@@ -16,6 +16,7 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 - `js/mp4-demux.js` — pure MP4/WebM audio demuxers (`_demuxMP4Audio` / `_demuxWebMAudio`) plus the video sample-table demuxer for scrubbing (`_demuxMP4Video`: stsd/stss/stsz/stsc/stco/stts/ctts/elst → decode-order samples with elst-shifted pts, avcC/hvcC config, RFC 6381 codec strings). No app-state deps.
 - `js/scrub-video.js` — WebCodecs scrub decoder sessions (`_createScrubVideoSession`): per-slot VideoDecoder, GOP-run feeding with reorder margin, rAF-coalesced painting, decoded-frame ImageBitmap cache. Consumed by the overlay controller in `index.html`. No app-state deps (canvas injected via `attach`).
 - `js/timecode.js` — pure timecode formatters (`_formatTcForCopy`, `_formatTcForMarker`); only app dep is the `_prefs.load` default-format lookup. State-coupled builders stay inline.
+- `js/wipe.js` — Stack-mode real-layer wipe controller (`_wipe*` state, pair cycling, divider pointer/keyboard handling, shared reveal geometry). **Stateful** (shares globals). Currently gated to images; the DOM/clip-path architecture is intended for later video compositor validation.
 - `js/opus-sync.js` — the Chrome Opus A/V sync engine (`_opusSync*` state, `_startOpusSyncAudio`/`_stopOpusSyncAudio`/`_syncOpusAudioToVideo`/`_updateOpusSyncRate`/`_updateOpusSyncGains`, `_OPUS_FADE`). **Stateful** (shares globals). Owns the deferred-start-window invariant (see below).
 - `js/audio-decode.js` — the three-tier audio decode pipeline: `decodeAndComputeAudioViz`, `decodeAndComputeAudioSlotViz`, `_decodeAudioWebCodecs`, `_decodeWithAudioDecoder`, `_finalizeAudioViz`, `_onAllDecodeFailed`. **Stateful** — reads/writes inline globals (`mediaData`, `_opusSync*`, `waveformData`, the two decode-generation counters) via shared global scope.
 - `js/transport.js` — playback/transport: `playAllMedia`/`pauseAllMedia`/`restartAllVideos`, `stepFrame`, `syncVideos`/`syncMedia`, frame-accurate loop enforcement (`_startLoopRvfc` + `_loopWrapTimer`), and video/audio handler binding (`setupVideoHandlers`/`setupAudioHandlers`/`_setupFpsDetection`). **Stateful** (shares globals). Holds the single-owner targets for the ownership guards.
@@ -36,7 +37,7 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 ### Layout
 - Stack mode `applyZoom()` supports two zoom reference modes toggled by `\` (`_stackZoomMode`):
   - **Fit** (default) — `_perAssetFits[slot] = min(viewW/nw, viewH/nh)`; `fitZoom` = smallest per-asset fit; each asset fills the viewport independently.
-  - **Match** — `fitZoom = _perAssetFits['original']`; all assets rendered at the GT slot's fit scale so spatial scale is consistent across assets. Only available when the GT slot is loaded; `_toggleStackZoomMode()` no-ops with a toast otherwise. Pill indicator in header shows `Fit` (gray) or `Match · GT` (orange).
+  - **Balance** — all assets receive the same rendered screen area: `T = min(perAssetFit² × sourceArea)`, then each slot uses `sqrt(T/sourceArea)`. The minimum fitted area guarantees no asset overflows at default zoom. Entering Balance saves Fit zoom/pan; returning to Fit restores them.
 - Equal-area layout for mixed orientations (Grid inline mode): `A = min((availW/Σ√ri)², availH²·min(ri))`.
 - Grid layout auto-picks horizontal vs vertical via `pickBestGridLayout(n)` — computes rendered area for each option given viewport dimensions and asset aspect ratios; re-evaluated on resize.
 - Three-phase layout: measure → compute geometry → DOM write. Debounced functions use the pattern `functionNameDebounced` wrapping `functionName`.
@@ -132,6 +133,16 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 - **Single-owner discipline**: each piece of stateful behavior should have ONE owner (one function that writes it; everyone else routes through it). The ownership harness (`tests/ownership.test.mjs`) enforces this for the audited cases — when adding/refactoring an owner, update the corresponding guard.
 - **`APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` must be kept in sync on every version bump** (now guarded by the ownership harness). The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
 - Add a "What's New" entry inside `#changelogPopup` (search for `<h3>v3.x.y</h3>`) on each version bump. The popup auto-shows on version change.
+
+## Documentation Ownership
+
+There is no named human `CODEOWNERS` assignment. Documentation ownership is instead defined by surface:
+
+- `README.md` owns the concise product/release overview and current version.
+- `FEATURES.md` owns the complete capability inventory.
+- `MANUAL.md` owns the detailed user workflow and keyboard reference.
+- `index.html` owns the in-app Manual, Getting Started panel, and What's New history; keep those aligned with the Markdown docs where their scope overlaps.
+- Every user-facing behavior change must update all affected surfaces in the same commit. `tests/ownership.test.mjs` guards version alignment, retired terminology, core feature coverage, and known shortcut/documentation drift.
 
 ## Testing
 

@@ -1,7 +1,7 @@
 {
   "name": "warpdiff",
   "version": "1.0.0",
-  "description": "A browser-based visual comparison tool for reviewing 2–3 versions of images or videos side-by-side, stacked, or in overlay mode.",
+  "description": "A browser-based Stack and Grid comparison tool for reviewing 1–3 images, videos, or audio files.",
   "main": "index.js",
   "scripts": {
     "test": "npx playwright test",

@@ -1,6 +1,6 @@
 # WarpDiff User Manual
 
-WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions of images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
+WarpDiff is a browser-based comparison tool for reviewing 1–3 images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
 
 ---
 
@@ -13,8 +13,9 @@ WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions 
 
 **File requirements:**
 - 1, 2, or 3 files (images, videos, or audio files)
-- 2 files → assigned to **Edit A** and **Edit B**
-- 3 files → assigned to **Source**, **A**, and **B** (labeled by asset type — e.g. SOURCE / IMAGE EDIT A / IMAGE EDIT B)
+- All files in one comparison must be the same media type; mixed image/video/audio selections are rejected
+- 2 files → assigned to **A** and **B**
+- 3 files → assigned to **Ref**, **A**, and **B** by default; the reference is labeled **GT** for audio, and connected review tasks may supply more specific labels such as Source or Response
 - Files are automatically sorted oldest → newest by last-modified timestamp
 
 **Timestamp warning:** If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable — check that the right file landed in the right slot.
@@ -33,12 +34,12 @@ WarpDiff is a browser-based visual comparison tool for reviewing 2–3 versions 
 The default mode. One asset is visible at a time, layered on top of the others. Use the arrow keys or the asset buttons in the header to switch between assets.
 
 ### Grid (2 files)
-Both assets displayed side-by-side with a gap between them. Assets are scaled so their shorter sides match — meaning a crop or zoom of another image will appear smaller, keeping the subject at the same physical size on screen.
+Both assets are displayed side-by-side or top-to-bottom with a small gap between them. WarpDiff chooses the orientation that gives the assets the most useful rendered area and re-evaluates it when the window changes size.
 
 The layout auto-picks horizontal (left/right) or vertical (top/bottom) based on viewport dimensions and aspect ratios, re-evaluated on resize.
 
 ### Grid (3 files)
-All three assets displayed in a grid. Press **3** to toggle between Inline (columns or rows, auto-picked by aspect ratio) and Offset (original on the left, edits stacked on the right — more space-efficient so assets appear larger).
+All three assets are displayed in a grid. Press **3** to toggle between Inline (columns or rows, auto-picked by aspect ratio) and Offset (Ref on the left, A/B paired on the right — often more space-efficient).
 
 ---
 
@@ -82,7 +83,7 @@ Zoom and pan are available in **Stack mode only**.
 | **−** | Zoom out |
 | **0** | Zoom to fit |
 | **1** | Zoom to 100% (actual pixels) |
-| **\\** | Toggle Fit / Match zoom mode |
+| **\\** | Toggle Fit / Balance zoom mode |
 | **Click and drag** | Pan (when zoomed in) |
 
 Zoom range: 5% – 3200%. Each step multiplies/divides by √2 (~1.41×).
@@ -91,19 +92,15 @@ In **Grid mode**, pressing **1** toggles between fit-to-panel and 100% native pi
 
 A zoom indicator appears in the info bar showing the current scale as a percentage (e.g. `150%`).
 
-### Fit vs. Match zoom
+### Fit vs. Balance zoom
 
 A pill indicator in the header shows the current Stack zoom mode. Press **\\** or click the pill to toggle.
 
 - **Fit** (default) — each asset independently fills the viewport at whatever scale best uses the available space. A portrait image and a landscape image each fill the screen on their own terms. Best for comparing files with different formats, crops, or aspect ratios.
 
-- **Match · GT** — all assets are displayed at the same spatial scale, anchored to the **GT slot**. This means a 1-pixel feature in GT appears the same physical size on screen regardless of which asset you're viewing. Best for judging subtle edits, compression artifacts, or quality differences where the content is the same across all files.
+- **Balance** — all assets are scaled to the same rendered screen area. Portrait, square, and landscape assets receive equal visual weight without being forced to the same pixel scale, and the fit calculation prevents overflow at the default zoom.
 
-> **What is GT?** WarpDiff assigns loaded files to three slots based on save time: **GT** (Ground Truth — the oldest file, your reference or original), **A**, and **B**. GT is the baseline you're comparing against.
-
-Match mode requires a GT slot to be loaded. If you load only two files without a GT (e.g. two edited versions with no original), pressing **\\** shows a reminder and stays in Fit mode.
-
-**Best used when assets have the same or similar resolution** — for example, the same 1080p shot encoded two different ways. If GT is significantly lower resolution than A or B, those assets will overflow or appear much smaller than GT at fit zoom, since all are locked to GT's spatial scale. In that case, Fit mode is more appropriate.
+Balance is most useful when different aspect ratios make one asset dominate the screen in Fit. Use Fit when seeing each asset at its own largest possible size is more important. Switching back to Fit restores the zoom and pan position you had before entering Balance.
 
 ---
 
@@ -135,7 +132,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **Duration** (right of bar) | Total length |
 | **Speaker icon** | Mute/unmute the active audio source. When muted it shows an amber **Muted** label, and the muted state is remembered across new file loads and future sessions |
 | **Volume slider** | Adjust volume |
-| **GT / A / B buttons** | Select which asset's audio to hear |
+| **S or GT / A / B buttons** | Select which asset's audio to hear (the reference button is S for image/video review and GT for audio-only review) |
 
 **Keyboard shortcuts:**
 
@@ -152,11 +149,11 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **Shift+L** | Loop range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute (persists across loads and sessions) |
 
-**Audio source selector:** Only one audio track plays at a time. Click GT, A, or B to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
+**Audio source selector:** Only one audio track plays at a time. Click the reference, A, or B button to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
 
 **Persistent mute:** The master mute (the speaker icon / **M**) is sticky — once you mute, WarpDiff stays muted when you load a new comparison and the next time you open it. The muted button shows an amber **Muted** label so the state is always clear, and the first time you press play while muted a brief reminder offers a one-click **Enable**. (The per-source GT/A/B mutes still reset with each new comparison.)
 
-**Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Loop points are **shared across all clips** — one region applies to every clip and stays put when you switch the active clip. Clear by setting new points or reloading.
+**Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Loop points are **shared across all clips** — one region applies to every clip and stays put when you switch the active clip. Double-tap **Esc** to clear both markers.
 
 **Sync-locked looping:** With two or more videos loaded, playback loops all of them together, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Clips start a frame or two apart (a decoder start race); on Chrome the lock closes that within about a third of a second of pressing play. On Safari the clips are instead left to run free during playback (rate corrections make WebKit present video unevenly) and are aligned exactly when you pause, which is when frame accuracy matters. Custom loop points take precedence when set.
 
@@ -201,7 +198,7 @@ Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-al
 
 ## Audio File Comparison
 
-Load 2–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them side-by-side in Grid mode. Each audio slot displays a waveform (top 40%) and spectrogram (bottom 60%) with frequency labels.
+Load 1–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as stacked slots in Grid mode. Each audio slot displays a waveform (top 40%) and spectrogram (bottom 60%) with frequency labels.
 
 **Info bar** shows audio metadata: sample rate (e.g. `48 kHz`), channels (`Mono` / `Stereo`), bit depth (e.g. `24-bit` for lossless, or codec name like `MP3` for lossy), file size, and duration.
 
@@ -239,6 +236,20 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 ---
 
+## Image Wipe
+
+Press **Q** in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is on the left and the second is on the right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the boundary while idle and disappears while the pointer is held down. With three images, the centered header control directly selects **Ref–A**, **Ref–B**, or **A–B**. For mismatched aspect ratios, each asset includes a neutral matte so either side can fully replace the other without the underlying image bleeding through. Drag the cutoff left or right to reveal either side, or focus it and use the arrow keys for precise adjustment. Hold **Shift** while pressing an arrow key for larger steps.
+
+| Shortcut | Action |
+|----------|--------|
+| **Q** | Toggle image wipe on/off |
+| **Shift+Q** or **← →** | Cycle Ref–A, Ref–B, and A–B |
+| **Header pair control** | Select any comparison directly |
+
+Wipe follows Stack zoom, pan, rotation, and resize. Difference mode and wipe are mutually exclusive. Video wipe is not available yet.
+
+---
+
 ## Difference Mode
 
 Press **D** in Stack mode to overlay a pixel-difference composite of the current asset and another. Identical pixels appear black; differences glow in proportion to the delta — the brighter the pixel, the larger the difference.
@@ -246,7 +257,7 @@ Press **D** in Stack mode to overlay a pixel-difference composite of the current
 | Shortcut | Action |
 |----------|--------|
 | **D** | Toggle difference mode on/off |
-| **Shift+D** or **← →** | Cycle through diff pairs (Source–A, Source–B, A–B) |
+| **Shift+D** or **← →** | Cycle through diff pairs (Ref–A, Ref–B, A–B) |
 
 With 2 files loaded there is one pair (A–B). With 3 files there are three pairs — use **Shift+D** or the arrow keys to cycle through them. A toast shows the active pair label each time you switch.
 
@@ -256,7 +267,7 @@ Difference mode uses the canvas `difference` composite operation for hardware-ac
 
 ## Mixed Orientation Layout
 
-When loading assets with different orientations (e.g. landscape and portrait videos together), the grid layout uses an **equal-area algorithm** so each asset has roughly the same visual weight regardless of aspect ratio. The Offset grid layout is not available for mixed orientations — the app uses the equal-area inline grid instead.
+When loading assets with different orientations (e.g. landscape and portrait videos together), Inline Grid uses an **equal-area algorithm** so each asset has roughly the same visual weight regardless of aspect ratio. Offset remains available for three assets; press **3** to switch between the two layouts.
 
 ---
 
@@ -277,12 +288,14 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 | **3** | Toggle Grid layout (Inline ↔ Offset) |
 | **Shift+1 / 2 / 3** | Toggle slot visibility (Grid mode) |
 | **F** | Fullscreen |
+| **Alt+← / Alt+→** | Rotate the active asset 90° counterclockwise / clockwise |
 
 ### Zoom & Pan
 | Key | Action |
 |-----|--------|
 | **0** | Zoom to fit |
 | **1** | Zoom to 100% / fit to panel |
+| **\\** | Toggle Stack Fit / Balance zoom |
 | **+** / **−** | Zoom in/out (or loupe magnification) |
 | **Z** | Toggle zoom loupe |
 | **Shift+Z** | Toggle linked zoom (Grid) |
@@ -297,6 +310,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 | **R** | Restart |
 | **J** / **K** | Slower / Faster |
 | **I** / **O** | Loop in / out |
+| **Shift+L** | Toggle loop range: Sync / Full |
 | **M** | Mute |
 
 ### Analysis
@@ -309,6 +323,8 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 | **P** | Cycle spectrogram color palette |
 | **D** | Toggle difference mode (Stack) |
 | **Shift+D** | Cycle diff pair |
+| **Q** | Toggle image wipe (Stack) |
+| **Shift+Q** | Cycle wipe pair |
 | **B** | Toggle black & white |
 | **N** | Toggle no-video mode (audio focus) |
 | **Shift+G** | Grab frame to gallery |
@@ -337,7 +353,11 @@ The following settings are saved to your browser and persist across sessions and
 - Zoom loupe size and magnification level
 - Linked zoom on/off
 - Volume level
+- Master mute
+- Stack Fit / Balance mode and per-slot rotation
+- Audio visualization visibility, height, split, and Fit / Ref level scaling
 - Spectrogram scale (linear/log) and color palette
+- Timecode display and copy format
 - Custom hotkey bindings
 
 ---
@@ -377,5 +397,6 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 
 - **1 to 3 files only** — loading 4+ files is not supported
 - **Images, videos, and audio only** — other file types are ignored
+- **One media type per comparison** — images, videos, and audio cannot be mixed in the same load
 - **Pan available in Stack mode only**
 - **Audio:** one track at a time; others are automatically muted

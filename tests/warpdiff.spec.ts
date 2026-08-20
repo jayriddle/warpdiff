@@ -1030,6 +1030,33 @@ test.describe('Grid Layout Direction', () => {
     expect(layout).toBe('horizontal');
   });
 
+  test('side-by-side images have a visible gap between A and B', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['tall.png', 'tall.png']);
+    await page.waitForFunction(() => (window as any).__testAPI?.layoutMode === 'horizontal',
+      {}, { timeout: 5000 });
+    const gap = await page.evaluate(() => {
+      const a = document.querySelector('#layerEditA .video-wrapper')!.getBoundingClientRect();
+      const b = document.querySelector('#layerEditB .video-wrapper')!.getBoundingClientRect();
+      return b.left - a.right;
+    });
+    expect(gap).toBeGreaterThanOrEqual(3.5);
+  });
+
+  test('stacked videos have a visible gap between A and B', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 1200 });
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => (window as any).__testAPI?.layoutMode === 'vertical',
+      {}, { timeout: 5000 });
+    const gap = await page.evaluate(() => {
+      const a = document.querySelector('#layerEditA .video-wrapper')!.getBoundingClientRect();
+      const b = document.querySelector('#layerEditB .video-wrapper')!.getBoundingClientRect();
+      return b.top - a.bottom;
+    });
+    expect(gap).toBeGreaterThanOrEqual(1.5);
+  });
+
   test('layout re-evaluates correctly after S→G round-trip', async ({ page }) => {
     await page.goto('/');
     // Portrait images → horizontal layout in Grid mode
@@ -2016,6 +2043,197 @@ test.describe('Hotkey reassignment via localStorage.customHotkeys', () => {
     expect(keymap['y']).not.toBe('mute');
     expect(await getVar(pageClean, '_customKeys')).toEqual({});
     await ctxClean.close();
+  });
+});
+
+test.describe('Image Wipe', () => {
+  test('Q enables a draggable real-layer wipe in Stack mode', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+
+    await expect(page.locator('body')).toHaveClass(/wipe-mode/);
+    await expect(page.locator('#wipeDivider')).toBeVisible();
+    await expect(page.locator('#stackInfoStrip .sih-name')).toBeVisible();
+    await expect(page.locator('.wipe-pair-prefix')).toHaveText('WIPE');
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
+    const wipeHeader = await page.locator('#stackInfoStrip .sih-name').evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return { center: r.left + r.width / 2, viewportCenter: innerWidth / 2, right: r.right };
+    });
+    expect(wipeHeader.center).toBeCloseTo(wipeHeader.viewportCenter, 0);
+    expect(wipeHeader.right).toBeLessThanOrEqual(900);
+    await expect(page.locator('#stackInfoStrip .sih-resolution')).not.toBeVisible();
+    expect(await getVar(page, 'wipeMode')).toBe(true);
+    expect(await page.locator('.asset-layer.wipe-base').count()).toBe(1);
+    expect(await page.locator('.asset-layer.wipe-reveal').count()).toBe(1);
+
+    const geometry = await page.evaluate(() => {
+      const base = document.querySelector('.asset-layer.wipe-base .video-wrapper')!.getBoundingClientRect();
+      const reveal = document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!.getBoundingClientRect();
+      const divider = document.querySelector('#wipeDivider')!.getBoundingClientRect();
+      const clip = getComputedStyle(document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!).clipPath;
+      return {
+        base: { x: base.x, y: base.y, w: base.width, h: base.height },
+        reveal: { x: reveal.x, y: reveal.y, w: reveal.width, h: reveal.height },
+        dividerCenter: divider.x + divider.width / 2,
+        clip,
+      };
+    });
+    expect(geometry.reveal).toEqual(geometry.base);
+    expect(geometry.dividerCenter).toBeCloseTo(geometry.base.x + geometry.base.w / 2, 0);
+    expect(geometry.clip).toContain('50%');
+    const dividerPresentation = await page.locator('#wipeDivider').evaluate(el => ({
+      children: el.childElementCount,
+      before: getComputedStyle(el, '::before').content,
+      beforeOpacity: getComputedStyle(el, '::before').opacity,
+      after: getComputedStyle(el, '::after').content,
+      background: getComputedStyle(el).backgroundImage,
+    }));
+    expect(dividerPresentation.children).toBe(0);
+    expect(dividerPresentation.before).not.toBe('none');
+    expect(dividerPresentation.beforeOpacity).toBe('1');
+    expect(dividerPresentation.after).toBe('none');
+    expect(dividerPresentation.background).toBe('none');
+
+    const dividerBox = await page.locator('#wipeDivider').boundingBox();
+    expect(dividerBox).not.toBeNull();
+    await page.mouse.move(dividerBox!.x + dividerBox!.width / 2, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.down();
+    await expect(page.locator('body')).toHaveClass(/wipe-dragging/);
+    expect(await page.locator('#wipeDivider').evaluate(el => getComputedStyle(el, '::before').opacity)).toBe('0');
+    await page.mouse.move(geometry.base.x + geometry.base.w * 0.25, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.up();
+    await expect(page.locator('body')).not.toHaveClass(/wipe-dragging/);
+    expect(await page.locator('#wipeDivider').evaluate(el => getComputedStyle(el, '::before').opacity)).toBe('1');
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.25, 2);
+    expect(await page.locator('.asset-layer.wipe-reveal .video-wrapper').evaluate(el => getComputedStyle(el).clipPath)).toContain('25%');
+    const quarter = await page.locator('#wipeDivider').evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return r.x + r.width / 2;
+    });
+    expect(quarter).toBeCloseTo(geometry.base.x + geometry.base.w * 0.25, 0);
+  });
+
+  test('three-image wipe cycles all comparison pairs', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+    expect(await getVar(page, 'wipePair')).toEqual(['original', 'editA']);
+    expect(await page.locator('.wipe-pair-option').allTextContents()).toEqual(['Ref–A', 'Ref–B', 'A–B']);
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('Ref–A');
+    await expect(page.locator('#modeStrip')).not.toBeVisible();
+    await page.getByRole('button', { name: 'Ref–B', exact: true }).click();
+    expect(await getVar(page, 'wipePair')).toEqual(['original', 'editB']);
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('Ref–B');
+    await page.keyboard.press('Shift+q');
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
+    await page.keyboard.press('ArrowRight');
+    expect(await getVar(page, 'wipePair')).toEqual(['original', 'editA']);
+    await page.keyboard.press('ArrowLeft');
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+  });
+
+  test('clicking the plate snaps the divider while pan drags and outside clicks do not', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+
+    const plate = await page.locator('.asset-layer.wipe-base .video-wrapper').boundingBox();
+    expect(plate).not.toBeNull();
+    expect(await page.locator('#assetContainer').evaluate(el => getComputedStyle(el).cursor)).toBe('ew-resize');
+
+    await page.mouse.click(plate!.x + plate!.width * 0.72, plate!.y + plate!.height * 0.5);
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
+
+    await page.mouse.click(Math.max(1, plate!.x - 5), plate!.y + plate!.height * 0.5);
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
+
+    await page.mouse.move(plate!.x + plate!.width * 0.3, plate!.y + plate!.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(plate!.x + plate!.width * 0.3 + 32, plate!.y + plate!.height * 0.5 + 12);
+    await page.mouse.up();
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.72, 2);
+  });
+
+  test('wipe follows zoom and rotation, then exits cleanly for Grid', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['tall.png', 'wide.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+    await page.keyboard.press('+');
+    await page.keyboard.press('Alt+ArrowRight');
+    const aligned = await page.evaluate(() => {
+      const a = document.querySelector('.asset-layer.wipe-base .video-wrapper')!.getBoundingClientRect();
+      const b = document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!.getBoundingClientRect();
+      return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+             Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
+    });
+    expect(aligned).toBe(true);
+
+    await page.keyboard.press('g');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
+    expect(await getVar(page, 'wipeMode')).toBe(false);
+    await expect(page.locator('body')).not.toHaveClass(/wipe-mode/);
+    await expect(page.locator('#wipeDivider')).not.toBeVisible();
+    expect(await page.locator('.asset-layer.wipe-base, .asset-layer.wipe-reveal').count()).toBe(0);
+  });
+
+  test('square-versus-portrait wipe uses an opaque presentation plate', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['fourth.png', 'tall.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+    await page.evaluate(() => (window as any).__testAPI.setWipePosition(0));
+
+    const plate = await page.evaluate(() => {
+      const base = document.querySelector('.asset-layer.wipe-base .video-wrapper')!;
+      const reveal = document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!;
+      const a = base.getBoundingClientRect();
+      const b = reveal.getBoundingClientRect();
+      return {
+        background: getComputedStyle(reveal).backgroundColor,
+        clip: getComputedStyle(reveal).clipPath,
+        aligned: Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+                 Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
+      };
+    });
+    expect(plate.background).toBe('rgb(8, 8, 8)');
+    expect(plate.clip).toContain('0%');
+    expect(plate.aligned).toBe(true);
+  });
+
+  test('video wipe remains explicitly gated', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+    expect(await getVar(page, 'wipeMode')).toBe(false);
+    await expect(page.locator('#toast')).toContainText('Video wipe is not available yet');
+  });
+
+  test('Difference mode takes ownership from wipe', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('q');
+    await page.keyboard.press('d');
+    expect(await getVar(page, 'wipeMode')).toBe(false);
+    expect(await getVar(page, 'diffMode')).toBe(true);
+    await expect(page.locator('#wipeDivider')).not.toBeVisible();
   });
 });
 

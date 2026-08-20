@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.35
+**Current version:** 3.12.36
 
 ---
 
@@ -12,7 +12,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 Comparing two versions of an image, video, or audio file shouldn't require flipping between tabs, exporting screenshots, or piecing together a custom diff in Photoshop. Existing tools either don't handle all three media types, can't align frames precisely, or don't surface the technical signals — color, audio levels, frame timing — that determine whether a change is actually correct.
 
-WarpDiff is an opinionated answer to that problem: load 2 or 3 assets in any combination of image / video / audio, align them frame-accurately, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
+WarpDiff is an opinionated answer to that problem: load 1–3 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 
@@ -24,6 +24,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - **Stack** (`S`) — flip between assets with arrow keys, same position/zoom
 - **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout; `3` toggles inline / offset
 - Mixed orientations use equal-area layout so each asset has the same visual weight
+- `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
 
 **Zoom loupe** (`Z`)
 - Pixel-level inspection without changing your view
@@ -31,10 +32,10 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Sync-locked playback across all assets — with 2+ videos, they loop together over the shortest clip and stay frame-aligned in both Stack and Grid mode, so A/B comparison holds across loop passes (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
+- Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)
-- Per-source audio switching (GT/A/B) with individual mute
+- Per-source audio switching (S or GT / A / B) with individual mute
 - Scrub preview follows the displayed frame, preserves stereo placement, and uses the same master volume as normal playback
 - Master mute (`M`) that persists across loads and sessions — reviewing muted stays muted, with an amber **Muted** label and a first-play reminder
 - `I`/`O` loop in/out points, Shift+drag on timeline
@@ -50,7 +51,8 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Gallery clears when new media is loaded
 
 **Analysis**
-- `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Source–A, Source–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
+- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff, or directly select Ref–A, Ref–B, or A–B in the centered header control
+- `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Ref–A, Ref–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default); the shared **Fit / Ref** control switches between per-asset detail and a fixed dBFS reference scale, while encoded leading/trailing audio gaps remain aligned to the video timeline
 - Scrub audio preserves intentional soundtrack offsets and leading silence from the video container
@@ -82,10 +84,10 @@ Files auto-sort oldest → newest by timestamp. See [MANUAL.md](MANUAL.md) for f
 
 ### Architecture
 
-- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS (~11,700 lines), with cohesive subsystems extracted into classic `<script>` files under `js/`: `audio-viz.js` (waveform/spectrogram + EBU R128), `scopes.js` (video scopes), `hotkeys.js`, `mp4-demux.js` (pure MP4/WebM audio demuxers), `audio-decode.js` (three-tier decode pipeline), `transport.js` (playback/sync/loop ownership), and `starfield.js`. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
+- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, image wipe, transport, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
 - **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release (enforced by the ownership test harness, which also checks every `js/*.js` is in the service-worker precache).
 - **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
-- **Two test layers** — a Playwright suite (real headless Chromium) covering loop in/out, diff modes, pan bounds, hotkey reassignment, grid layout, and audio-viz rendering; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, build/version hygiene, and pure-function logic without a browser.
+- **Two test layers** — a Playwright suite (real headless Chromium) covering transport, difference and wipe modes, pan/zoom, hotkey reassignment, layouts, and audio visualization; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, documentation/build/version hygiene, and pure-function logic without a browser.
 
 ### Design principles
 

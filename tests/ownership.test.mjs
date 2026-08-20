@@ -79,6 +79,31 @@ function extractFn(name, src = SRC) {
   check(`version-sync: README Current version (${readmeVer}) === APP_VERSION (${appVer})`,
         readmeVer && appVer && readmeVer === appVer);
 
+  // Documentation has four deliberately different surfaces. Guard the small
+  // set of facts that previously drifted between them while leaving prose and
+  // level of detail free to suit each audience.
+  const FEATURES = readFileSync(new URL('FEATURES.md', ROOT), 'utf8');
+  const MANUAL = readFileSync(new URL('MANUAL.md', ROOT), 'utf8');
+  const userDocs = [README, FEATURES, MANUAL];
+  check('docs: README, FEATURES, and MANUAL all cover image wipe',
+        userDocs.every(doc => /image wipe/i.test(doc)));
+  check('docs: user docs describe current Fit / Balance Stack modes',
+        userDocs.every(doc => doc.includes('Fit') && doc.includes('Balance')));
+  check('docs: retired Match · GT Stack terminology is absent',
+        userDocs.every(doc => !doc.includes('Match · GT') && !doc.includes('Fit vs. Match')));
+  check('docs: FEATURES uses P for the spectrogram palette shortcut',
+        FEATURES.includes('(`Shift+W`, `P`)'));
+  check('docs: MANUAL keyboard reference includes rotation and loop-range controls',
+        MANUAL.includes('**Alt+← / Alt+→**') && MANUAL.includes('**Shift+L**'));
+  const embeddedManual = (HTML.match(/<div class="manual-content">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="quick-start-backdrop"/) || [])[1] || '';
+  check('docs: in-app Manual covers wipe, Difference, Balance, and shared loop points',
+        embeddedManual.includes('<h2>Image Wipe</h2>')
+        && embeddedManual.includes('<h2>Difference Mode</h2>')
+        && embeddedManual.includes('Fit vs. Balance')
+        && embeddedManual.includes('Loop points are shared across all clips'));
+  check('docs: in-app Manual does not claim loop points are per asset',
+        !embeddedManual.includes('Loop points are saved per asset'));
+
   // Every js/*.js the page loads must be in the SW precache, or offline PWA breaks.
   const loaded = [...HTML.matchAll(/<script src="(js\/[^"]+\.js)"/g)].map(m => m[1]);
   const missing = loaded.filter(src => !SW.includes(`'${src}'`));
@@ -416,6 +441,34 @@ function extractFn(name, src = SRC) {
         /addEventListener\('ended'[\s\S]*?_bulkSyncActive = true;[\s\S]*?addEventListener\('seeked'/.test(svh));
   check('one-owner[sync-lock]: drift lock waits for in-flight seeks (v.seeking)',
         drift.includes('if (v.seeking) continue;'));
+}
+
+// Image wipe ownership: mode transitions route through _setWipeMode, divider
+// position routes through _setWipePosition, and _syncWipeGeometry is the sole
+// writer of the reveal inset + divider geometry. This keeps mode teardown,
+// accessibility state, and the two real DOM layers from drifting apart.
+{
+  check(`one-owner[wipe]: _setWipeMode defined once (got ${countOf(SRC, 'function _setWipeMode(')})`,
+        countOf(SRC, 'function _setWipeMode(') === 1);
+  check('one-owner[wipe]: _setWipeMode owns both enabled and disabled state writes',
+        countOf(SRC, '_wipeMode =') === 3 &&
+        extractFn('_setWipeMode').includes('_wipeMode = true') &&
+        extractFn('_setWipeMode').includes('_wipeMode = false'));
+  check('one-owner[wipe]: _setWipePosition owns every divider-position write',
+        countOf(SRC, '_wipePosition =') === 2 &&
+        extractFn('_setWipePosition').includes('_wipePosition = Math.max'));
+  check('one-owner[wipe]: _setWipeDragging owns drag state and its body class',
+        countOf(SRC, '_wipeDragging =') === 2 &&
+        extractFn('_setWipeDragging').includes('_wipeDragging = !!enabled') &&
+        extractFn('_setWipeDragging').includes("classList.toggle('wipe-dragging'"));
+  check(`one-owner[wipe]: _syncWipeGeometry defined once (got ${countOf(SRC, 'function _syncWipeGeometry(')})`,
+        countOf(SRC, 'function _syncWipeGeometry(') === 1);
+  const wipeGeometry = extractFn('_syncWipeGeometry');
+  check('one-owner[wipe]: geometry owner writes reveal inset and divider position',
+        countOf(SRC, "reveal.style.clipPath = 'inset(") === 1 &&
+        wipeGeometry.includes("reveal.style.clipPath = 'inset(") &&
+        countOf(SRC, 'divider.style.left =') === 1 &&
+        wipeGeometry.includes('divider.style.left ='));
 }
 
 // (I) Scrub-session lifecycle (2026-07 three-video scrub fix; suspend/resume
