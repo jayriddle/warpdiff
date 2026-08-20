@@ -722,20 +722,16 @@ test.describe('View Modes (Stack/Grid)', () => {
     expect(await isGridMode(page)).toBe(true);
   });
 
-  test('S key switches to Stack mode', async ({ page }) => {
+  test('S key toggles between Stack and Grid', async ({ page }) => {
     await page.keyboard.press('s');
     expect(await isGridMode(page)).toBe(false);
     await page.keyboard.press('s');
-    expect(await isGridMode(page)).toBe(false);
+    expect(await isGridMode(page)).toBe(true);
   });
 
-  test('G key switches to Grid mode', async ({ page }) => {
-    // Start in Stack to test G key
-    await page.keyboard.press('s');
-    expect(await isGridMode(page)).toBe(false);
-
+  test('G key toggles between Stack and Grid', async ({ page }) => {
     await page.keyboard.press('g');
-    expect(await isGridMode(page)).toBe(true);
+    expect(await isGridMode(page)).toBe(false);
     await page.keyboard.press('g');
     expect(await isGridMode(page)).toBe(true);
   });

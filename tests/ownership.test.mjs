@@ -98,9 +98,9 @@ function extractFn(name, src = SRC) {
         FEATURES.includes('(`Shift+W`, `P`)'));
   check('docs: MANUAL keyboard reference includes rotation and loop-range controls',
         MANUAL.includes('**Alt+← / Alt+→**') && MANUAL.includes('**Shift+L**'));
-  check('docs: MANUAL describes S/G as direct mode selection',
-        MANUAL.includes('| Press **S** | Switch to Stack mode |') &&
-        MANUAL.includes('| Press **G** | Switch to Grid mode |'));
+  check('docs: MANUAL describes both S and G as Stack/Grid toggles',
+        MANUAL.includes('| Press **S** | Toggle between Stack and Grid |') &&
+        MANUAL.includes('| Press **G** | Toggle between Stack and Grid |'));
   const embeddedManual = (HTML.match(/<div class="manual-content">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="quick-start-backdrop"/) || [])[1] || '';
   check('docs: in-app Manual covers wipe, Difference, Balance, and shared loop points',
         embeddedManual.includes('<h2>Image Wipe</h2>')

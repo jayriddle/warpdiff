@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.38
+**Current version:** 3.12.39
 
 ---
 
@@ -21,8 +21,9 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 ## Features
 
 **View modes**
-- **Stack** (`S`) — flip between assets with arrow keys, same position/zoom
-- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout; `3` toggles inline / offset
+- **Stack** — flip between assets with arrow keys, same position/zoom
+- **Grid** — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout; `3` toggles inline / offset
+- Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid
 - Mixed orientations use equal-area layout so each asset has the same visual weight
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
 

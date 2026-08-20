@@ -68,8 +68,8 @@ These shortcuts are no-ops in Stack mode or when a slot isn't loaded.
 | Action | Result |
 |--------|--------|
 | Click **STACK** / **GRID** in header | Switch to that mode |
-| Press **S** | Switch to Stack mode |
-| Press **G** | Switch to Grid mode |
+| Press **S** | Toggle between Stack and Grid |
+| Press **G** | Toggle between Stack and Grid |
 
 ---
 
@@ -286,8 +286,8 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 ### View Mode
 | Key | Action |
 |-----|--------|
-| **S** | Stack mode |
-| **G** | Grid mode |
+| **S** | Toggle Stack / Grid |
+| **G** | Toggle Stack / Grid |
 | **3** | Toggle Grid layout (Inline ↔ Offset) |
 | **Shift+1 / 2 / 3** | Toggle slot visibility (Grid mode) |
 | **F** | Fullscreen |

@@ -3042,7 +3042,7 @@
             <div id="analysisStrip" style="display:none; align-items:center; gap:4px;">
                 <!-- Grid mode group: icon + Inline/Offset sub-options -->
                 <div class="mode-group" id="gridModeGroup">
-                    <button class="analysis-btn" id="gridIconBtn" title="Grid mode (G)"></button>
+                    <button class="analysis-btn" id="gridIconBtn" title="Grid mode (G toggles Stack / Grid)"></button>
                     <div id="gridSubOptions" style="display:none; align-items:center; gap:2px;">
                         <button class="mode-sub-btn" id="inlineModeBtn">Inline</button>
                         <button class="mode-sub-btn" id="offsetModeBtn">Offset</button>
@@ -3050,7 +3050,7 @@
                 </div>
                 <!-- Stack mode group: icon + Fit/Balance sub-options -->
                 <div class="mode-group" id="stackModeGroup">
-                    <button class="analysis-btn" id="stackIconBtn" title="Stack mode (S)"></button>
+                    <button class="analysis-btn" id="stackIconBtn" title="Stack mode (S toggles Stack / Grid)"></button>
                     <div id="stackSubOptions" style="display:none; align-items:center; gap:2px;">
                         <button class="mode-sub-btn" id="fitModeBtn">Fit</button>
                         <button class="mode-sub-btn" id="balanceModeBtn">Balance</button>
@@ -3247,7 +3247,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.38';
+        const APP_VERSION = '3.12.39';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3375,8 +3375,8 @@
                 [_SVG_LOAD, 'Load files <kbd>L</kbd>'],
                 [_SVG_RESET, 'Reset'],
                 [_SVG_HELP, 'Help <kbd>?</kbd>'],
-                [_SVG_STACK, 'Stack mode <kbd>S</kbd>'],
-                [_SVG_GRID, 'Grid mode <kbd>G</kbd>'],
+                [_SVG_STACK, 'Stack / Grid toggle <kbd>S</kbd>'],
+                [_SVG_GRID, 'Stack / Grid toggle <kbd>G</kbd>'],
                 [_SVG_WAVEFORM, 'Audio waveform + spectrogram <kbd>W</kbd>'],
                 [_SVG_SCOPES, 'Video scopes <kbd>V</kbd>']
             ].map(function(r) {
@@ -12190,30 +12190,34 @@
         // Fields: id, defaultKey, shift (optional), label, section (for grouping),
         //         global (works outside comparison view), fn (callback).
         // Actions with `paired` share a row in the panel (e.g. frame back/forward).
+        function _toggleStackGridMode() {
+            if (isGridMode) {
+                setViewMode('overlay');
+                return;
+            }
+            const allThreeVisible = getVisibleSlots().length === 3;
+            if (hasAudios) {
+                if (allThreeVisible) { gridInlineMode = true; setViewMode('offset'); }
+                else setViewMode('vertical');
+            } else if (allThreeVisible) {
+                setViewMode('offset');
+            } else {
+                setViewMode(layoutMode);
+            }
+        }
+
         const _hotkeyActions = [
             // ── Files ──
             { id: 'loadFiles', defaultKey: 'l', label: 'Load files', section: 'files', global: true,
               fn: () => { document.getElementById('multiFileInput').click(); } },
 
             // ── View ──
-            { id: 'overlayMode', defaultKey: 's', label: 'Stack mode', section: 'view',
-              fn: () => {
-                  if (isGridMode) setViewMode('overlay');
-              } },
+            { id: 'overlayMode', defaultKey: 's', label: 'Toggle Stack / Grid', section: 'view',
+              fn: _toggleStackGridMode },
             { id: 'stackZoomMode', defaultKey: '\\', label: 'Stack: Fit / Balance zoom', section: 'view',
               fn: () => { if (!isGridMode) _toggleStackZoomMode(); } },
-            { id: 'gridMode', defaultKey: 'g', label: 'Grid mode', section: 'view',
-              fn: () => {
-                  if (isGridMode) return;
-                  const allThreeVisible = getVisibleSlots().length === 3;
-                  if (hasAudios) {
-                      if (allThreeVisible) { gridInlineMode = true; setViewMode('offset'); } else setViewMode('vertical');
-                  } else if (allThreeVisible) {
-                      setViewMode('offset');
-                  } else {
-                      setViewMode(layoutMode);
-                  }
-              } },
+            { id: 'gridMode', defaultKey: 'g', label: 'Toggle Stack / Grid', section: 'view',
+              fn: _toggleStackGridMode },
             { id: 'toggleOffset', defaultKey: '3', label: 'Grid: Inline / Offset', section: 'view',
               fn: () => {
                   if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
@@ -12940,8 +12944,8 @@
                 <tr><th>Action</th><th>Result</th></tr>
                 <tr><td>Click stack icon (overlapping squares) in header</td><td>Switch to Stack mode</td></tr>
                 <tr><td>Click grid icon (four squares) in header</td><td>Switch to Grid mode</td></tr>
-                <tr><td>Press <kbd>S</kbd></td><td>Switch to Stack mode</td></tr>
-                <tr><td>Press <kbd>G</kbd></td><td>Switch to Grid mode</td></tr>
+                <tr><td>Press <kbd>S</kbd></td><td>Toggle between Stack and Grid</td></tr>
+                <tr><td>Press <kbd>G</kbd></td><td>Toggle between Stack and Grid</td></tr>
             </table>
 
             <h2>Zoom &amp; Pan</h2>
@@ -13035,8 +13039,8 @@
                 <tr><td><kbd>[ ]</kbd></td><td>Resize zoom loupe</td></tr>
                 <tr><td><kbd>← → ↑ ↓</kbd></td><td>Switch asset</td></tr>
                 <tr><td><kbd>Alt+← / Alt+→</kbd></td><td>Rotate active asset 90°</td></tr>
-                <tr><td><kbd>S</kbd></td><td>Switch to Stack mode</td></tr>
-                <tr><td><kbd>G</kbd></td><td>Switch to Grid mode</td></tr>
+                <tr><td><kbd>S</kbd></td><td>Toggle Stack / Grid</td></tr>
+                <tr><td><kbd>G</kbd></td><td>Toggle Stack / Grid</td></tr>
                 <tr><td><kbd>\</kbd></td><td>Stack: Fit / Balance zoom toggle</td></tr>
                 <tr><td><kbd>3</kbd></td><td>Toggle Grid layout (Inline ↔ Offset)</td></tr>
                 <tr><td><kbd>Shift+1 / 2 / 3</kbd></td><td>Toggle Grid slot visibility</td></tr>
@@ -13209,6 +13213,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.39</h3>
+            <ul>
+                <li><strong>One-key Stack / Grid switching is restored.</strong> Press either <kbd>S</kbd> or <kbd>G</kbd> repeatedly to move back and forth between the two views without changing keys.</li>
+            </ul>
             <h3>v3.12.38</h3>
             <ul>
                 <li><strong>The wipe header is focused on the comparison again.</strong> Its centered control now shows only the active pair; scopes choose and clearly label their source inside the scopes panel.</li>

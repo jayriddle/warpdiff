@@ -8,8 +8,9 @@ Load 1–3 images, videos, or audio files of one media type by dragging and drop
 
 ## View modes
 
-- **Stack** (`S`) — flip between assets with arrow keys, same position and zoom
-- **Grid** (`G`) — side-by-side (2 files) or all three in a row/column (3 files), auto-picks the best layout; `3` toggles inline / offset
+- **Stack** — flip between assets with arrow keys, same position and zoom
+- **Grid** — side-by-side (2 files) or all three in a row/column (3 files), auto-picks the best layout; `3` toggles inline / offset
+- Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid.
 - Mixed orientations use an equal-area layout so each asset has the same visual weight.
 - Responsive grid layout auto-picks horizontal or vertical based on viewport dimensions and asset aspect ratios, re-evaluated on resize.
 
