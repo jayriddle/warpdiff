@@ -2981,6 +2981,46 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     await page.mouse.up();
   });
 
+  test('loading a new media set cancels the old drag without resuming the new media', async ({ page }) => {
+    await loadAndPlay(page);
+    await dragOnProgressBar(page, 0.2, 0.4);
+    expect(await getVar(page, 'isDragging')).toBe(true);
+
+    // Replacing a comparison calls clearAllMedia while the old pointer is still
+    // held. The old drag remembered that playback was active, so its later
+    // mouseup must not seek or resume this newly loaded pair.
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => {
+      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return videos.length === 2 && videos.every(video => video.readyState >= 1);
+    });
+    const beforeRelease = await page.evaluate(() => ({
+      dragging: (window as any).__testAPI.isDragging,
+      paused: Array.from(document.querySelectorAll('.asset-layer video'))
+        .map(video => (video as HTMLVideoElement).paused),
+    }));
+
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    const afterRelease = await page.evaluate(() => ({
+      dragging: (window as any).__testAPI.isDragging,
+      paused: Array.from(document.querySelectorAll('.asset-layer video'))
+        .map(video => (video as HTMLVideoElement).paused),
+    }));
+
+    expect(beforeRelease).toEqual({ dragging: false, paused: [true, true] });
+    expect(afterRelease).toEqual({ dragging: false, paused: [true, true] });
+
+    // Cancellation must not poison the next ordinary scrub/resume cycle.
+    await startPlayback(page);
+    await dragOnProgressBar(page, 0.3, 0.5);
+    await page.mouse.up();
+    await page.waitForFunction(() => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      return !(window as any).__testAPI.isDragging && video && !video.paused;
+    }, {}, { timeout: 2000 });
+  });
+
   test('dragging past a corrected timeline end does not resume playback', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm']);

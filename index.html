@@ -3247,7 +3247,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.39';
+        const APP_VERSION = '3.12.40';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4388,6 +4388,10 @@
         let _loopRangeMode = 'sync'; // default multi-clip loop range: 'sync' (wrap at shortest, frame-locked) | 'full' (wrap at longest, review full length)
         let _lastEscTime = 0;     // timestamp of last Esc press for double-tap detection
         let isDragging = false;   // true during progress bar or canvas scrub
+        // Installed by the DOM-ready scrub closure, which owns closure-local drag
+        // state. Media replacement routes through this cancel-only seam instead
+        // of the normal mouseup finalizer, which may seek and resume playback.
+        let _cancelActiveScrubForClear = () => {};
         let _scrubCachedHeaderH  = null; // headerH cached at drag-start to avoid offsetHeight reads per-frame
         let _scrubCachedControlsH = null; // controlsH cached at drag-start
         let _scrubSeekPending = false;   // true while a reactive seek is in flight (Stack mode drag)
@@ -8868,6 +8872,32 @@
 
             let _draggingLoopMarker = null; // 'in' or 'out' during loop marker drag
 
+            function _cancelScrubForMediaClear() {
+                if (!isDragging) return;
+                // A media/task boundary owns cancellation, never finalization:
+                // do not seek from the old pointer and do not carry the old
+                // wasPlaying intent into the replacement comparison.
+                isDragging = false;
+                wasPlaying = false;
+                _draggingLoopMarker = null;
+                _regionSelectStart = null;
+                _scrubCanvas = null;
+                _scrubVideo = null;
+                _scrubAllVideos = null;
+                _scrubContainerRect = null;
+                _scrubCachedHeaderH = null;
+                _scrubCachedControlsH = null;
+                _scrubSeekPending = false;
+                _scrubNextTime = null;
+                if (_scrubRelayoutRaf !== null) {
+                    cancelAnimationFrame(_scrubRelayoutRaf);
+                    _scrubRelayoutRaf = null;
+                }
+                _scrubOverlayEnd();
+                stopScrubSnippet();
+            }
+            _cancelActiveScrubForClear = _cancelScrubForMediaClear;
+
             progressContainer.addEventListener('mousedown', function(e) {
                 _resetFrameStepCursor();
                 _cancelPendingPlayIntent();
@@ -10028,6 +10058,7 @@
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
             _scrubGestureGeneration++;
+            _cancelActiveScrubForClear();
             _scrubAtTimelineEnd = false;
             // Restore the active label while the loaded-slot context still exists.
             if (_diffMode) _setDiffMode(false, false);
@@ -13213,6 +13244,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.40</h3>
+            <ul>
+                <li><strong>A replaced comparison now fully cancels an in-progress scrub.</strong> Releasing the old pointer after new media loads can no longer seek or start playback in the new comparison.</li>
+            </ul>
             <h3>v3.12.39</h3>
             <ul>
                 <li><strong>One-key Stack / Grid switching is restored.</strong> Press either <kbd>S</kbd> or <kbd>G</kbd> repeatedly to move back and forth between the two views without changing keys.</li>

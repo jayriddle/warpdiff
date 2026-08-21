@@ -675,9 +675,11 @@ function extractFn(name, src = SRC) {
 //     whose mouseup never arrives (release outside the window, Alt-Tab mid-drag, OS
 //     notification) left isDragging stuck true — playAllMedia stopped suspending
 //     scrub decoders (chunky playback) and the drift lock stood down permanently.
-//     endScrubDrag is the SOLE drag finalizer, reachable from mouseup AND three
-//     recovery paths: mousemove with no button held, window blur, and a mousedown
-//     arriving mid-"drag". (Scrub no longer touches .muted as of v3.12.2, so the
+//     endScrubDrag is the SOLE normal drag finalizer, reachable from mouseup AND
+//     three recovery paths: mousemove with no button held, window blur, and a
+//     mousedown arriving mid-"drag". A media/task clear is different: it routes
+//     through one cancel-only owner that cannot seek or resume the replacement.
+//     (Scrub no longer touches .muted as of v3.12.2, so the
 //     old muted-snapshot / double-audio failure mode is gone — see the scrub-start
 //     note in index.html.)
 {
@@ -700,6 +702,19 @@ function extractFn(name, src = SRC) {
   const esd = extractFn('endScrubDrag');
   check('recovery[drag-end]: finalizer tears down the scrub overlays',
         esd.includes('_scrubOverlayEnd()'));
+  check(`one-owner[drag-clear]: cancel-only scrub owner defined once (got ${countOf(SRC, 'function _cancelScrubForMediaClear(')})`,
+        countOf(SRC, 'function _cancelScrubForMediaClear(') === 1);
+  const cancel = extractFn('_cancelScrubForMediaClear');
+  check('one-owner[drag-clear]: media clear cancels closure-owned drag state without seeking or resuming',
+        cancel.includes('isDragging = false') && cancel.includes('wasPlaying = false') &&
+        cancel.includes('_draggingLoopMarker = null') && cancel.includes('_regionSelectStart = null') &&
+        cancel.includes('_scrubOverlayEnd()') && cancel.includes('stopScrubSnippet()') &&
+        !cancel.includes('scrubToPosition(') && !cancel.includes('canvasScrubToPosition(') &&
+        !cancel.includes('playAllMedia('));
+  const clear = extractFn('clearAllMedia');
+  check('one-owner[drag-clear]: clear invalidates deferred resume before routing through cancel-only owner',
+        clear.indexOf('_scrubGestureGeneration++') >= 0 &&
+        clear.indexOf('_scrubGestureGeneration++') < clear.indexOf('_cancelActiveScrubForClear()'));
 }
 
 // (M) Seamless mid-playback Stack switch (v3.11.9): a display:none <video>
