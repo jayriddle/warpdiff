@@ -6,6 +6,8 @@ Visual & audio comparison for creative review. Compare images, videos, or audio 
 
 Load 1–3 images, videos, or audio files of one media type by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time into Ref, A, and B (the reference is labeled GT for audio). A landing drop zone with hints appears when no files are loaded.
 
+While a comparison is preparing, the loading screen lists every assigned slot and filename with live milestones: **Opening**, **Reading metadata**, **Decoding first frame**, and **Ready**. Completed files are checked off while slower files retain an animated status. If one video is ready first, WarpDiff identifies the remaining video and explains that it is waiting so the complete comparison appears together. Longer waits add a large-file reminder, and manual loads can be canceled.
+
 ## View modes
 
 - **Stack** — flip between assets with arrow keys, same position and zoom

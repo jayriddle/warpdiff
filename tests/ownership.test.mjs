@@ -90,6 +90,9 @@ function extractFn(name, src = SRC) {
   check('docs: wipe scopes source and cursor-side rotation are documented',
         userDocs.every(doc => /image wipe/i.test(doc) && /scope/i.test(doc)
           && /(cursor|pointer)/i.test(doc) && /rotat/i.test(doc)));
+  check('docs: per-file loading progress and cancellation are documented',
+        userDocs.every(doc => /loading/i.test(doc) && /filename/i.test(doc)
+          && /read(y|iness)/i.test(doc) && /cancel/i.test(doc)));
   check('docs: user docs describe current Fit / Balance Stack modes',
         userDocs.every(doc => doc.includes('Fit') && doc.includes('Balance')));
   check('docs: retired Match · GT Stack terminology is absent',
@@ -106,6 +109,7 @@ function extractFn(name, src = SRC) {
         embeddedManual.includes('<h2>Image Wipe</h2>')
         && embeddedManual.includes('<h2>Difference Mode</h2>')
         && embeddedManual.includes('Fit vs. Balance')
+        && embeddedManual.includes('decodes the first visible frame')
         && embeddedManual.includes('scopes panel provides its own source selector')
         && embeddedManual.includes('Loop points are shared across all clips'));
   check('docs: in-app Manual does not claim loop points are per asset',

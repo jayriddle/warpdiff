@@ -18,6 +18,8 @@ WarpDiff is a browser-based comparison tool for reviewing 1–3 images, videos, 
 - 3 files → assigned to **Ref**, **A**, and **B** by default; the reference is labeled **GT** for audio, and connected review tasks may supply more specific labels such as Source or Response
 - Files are automatically sorted oldest → newest by last-modified timestamp
 
+**Loading progress:** While WarpDiff prepares a comparison, it lists every assigned slot and filename with live states for opening the file, reading metadata, decoding the first visible frame, and readiness. Completed files are checked off while slower files continue to animate. When one video finishes first, the message identifies which file is still being prepared and explains that WarpDiff is waiting to reveal the complete comparison together. A longer wait adds a reminder about large or complex files. Click **Cancel** to stop a manual load and return to the landing screen.
+
 **Timestamp warning:** If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable — check that the right file landed in the right slot.
 
 **Duplicate detection:** If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears at the top of the screen.

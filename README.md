@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.40
+**Current version:** 3.12.41
 
 ---
 
@@ -26,6 +26,10 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid
 - Mixed orientations use equal-area layout so each asset has the same visual weight
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
+
+**Loading feedback**
+- Each assigned slot and filename reports **Opening**, **Reading metadata**, **Decoding first frame**, or **Ready** while a comparison is prepared
+- Ready files are checked off while WarpDiff identifies the slower file, explains that every asset will appear together, and offers **Cancel** for manual loads
 
 **Zoom loupe** (`Z`)
 - Pixel-level inspection without changing your view

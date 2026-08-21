@@ -603,8 +603,115 @@
             font-size: 13px;
             color: #888;
             display: none;
+            width: min(440px, calc(100vw - 32px));
         }
         .landing-cta.loading .landing-status { display: block; }
+        .loading-progress-title {
+            margin-bottom: 10px;
+            color: #ccc;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .loading-progress-items {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .loading-progress-item {
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 5px 8px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
+            background: rgba(10,12,16,0.72);
+        }
+        .loading-progress-slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 27px;
+            height: 20px;
+            padding: 0 4px;
+            border-radius: 4px;
+            color: #111;
+            font-size: 10px;
+            font-weight: 900;
+        }
+        .loading-progress-slot.slot-original { background: var(--slot-original-bg, #2aa7c0); }
+        .loading-progress-slot.slot-editA { background: var(--slot-editA-bg, #f0bf0f); }
+        .loading-progress-slot.slot-editB { background: var(--slot-editB-bg, #da3e99); }
+        .loading-progress-file {
+            overflow: hidden;
+            color: #aaa;
+            font-size: 11px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .loading-progress-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #8190a8;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        .loading-progress-state::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border: 1.5px solid rgba(129,144,168,0.35);
+            border-top-color: #8190a8;
+            border-radius: 50%;
+            animation: loading-item-spin 0.8s linear infinite;
+        }
+        @keyframes loading-item-spin { to { transform: rotate(360deg); } }
+        .loading-progress-item.ready .loading-progress-state { color: #71d85c; }
+        .loading-progress-item.ready .loading-progress-state::before {
+            content: '✓';
+            width: auto;
+            height: auto;
+            border: 0;
+            animation: none;
+            color: #71d85c;
+            font-size: 12px;
+            font-weight: 900;
+        }
+        .loading-progress-item.error .loading-progress-state { color: #ff796f; }
+        .loading-progress-item.error .loading-progress-state::before {
+            content: '!';
+            width: auto;
+            height: auto;
+            border: 0;
+            animation: none;
+            color: #ff796f;
+            font-weight: 900;
+        }
+        .loading-progress-note {
+            min-height: 30px;
+            margin-top: 10px;
+            color: #68758a;
+            font-size: 10px;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .loading-progress-elapsed { color: #536075; }
+        .loading-progress-cancel {
+            display: block;
+            margin: 10px auto 0;
+            padding: 5px 10px;
+            border: 1px solid #3d4655;
+            border-radius: 5px;
+            background: rgba(20,24,31,0.9);
+            color: #8996a9;
+            font: 700 10px/1 monospace;
+            cursor: pointer;
+        }
+        .loading-progress-cancel:hover { border-color: #68758a; color: #d2d8e2; }
+        .loading-progress-cancel:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 2px; }
 
         .landing-title {
             font-size: 14px;
@@ -3073,7 +3180,7 @@
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
             </div>
-            <div class="landing-status" id="landingStatus">Loading…</div>
+            <div class="landing-status" id="landingStatus" role="status" aria-live="polite">Loading…</div>
         </div>
 
         <div class="comparison-view" id="comparisonView">
@@ -3247,7 +3354,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.40';
+        const APP_VERSION = '3.12.41';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4888,20 +4995,173 @@
         })();
 
         // --- Loading state (uses landing CTA starfield) ---
+        let _loadingProgressItems = [];
+        let _loadingProgressTitle = 'Loading…';
+        let _loadingProgressAssetType = 'file';
+        let _loadingProgressStartedAt = 0;
+        let _loadingProgressTimer = null;
+        let _loadingProgressLong = false;
+        let _loadingProgressCancelable = false;
+        let _loadingProgressToken = null;
+
+        function _loadingSlotLabel(slot, assetType, total) {
+            if (total === 1) return 'FILE';
+            if (slot === 'original') return assetType === 'audio file' ? 'GT' : 'REF';
+            return slot === 'editA' ? 'A' : 'B';
+        }
+
+        function _loadingLabelList(items) {
+            const labels = items.map(item => item.label);
+            if (labels.length < 2) return labels[0] || '';
+            if (labels.length === 2) return labels[0] + ' and ' + labels[1];
+            return labels.slice(0, -1).join(', ') + ', and ' + labels[labels.length - 1];
+        }
+
+        function _renderLoadingProgress() {
+            const status = document.getElementById('landingStatus');
+            if (!status) return;
+            const restoreCancelFocus = status.contains(document.activeElement)
+                && document.activeElement.classList.contains('loading-progress-cancel');
+            status.replaceChildren();
+
+            const title = document.createElement('div');
+            title.className = 'loading-progress-title';
+            title.textContent = _loadingProgressTitle;
+            status.appendChild(title);
+
+            if (_loadingProgressItems.length) {
+                const itemsEl = document.createElement('div');
+                itemsEl.className = 'loading-progress-items';
+                _loadingProgressItems.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'loading-progress-item ' + item.kind;
+                    row.dataset.loadingSlot = item.slot;
+
+                    const slot = document.createElement('span');
+                    slot.className = 'loading-progress-slot slot-' + item.slot;
+                    slot.textContent = item.label;
+
+                    const filename = document.createElement('span');
+                    filename.className = 'loading-progress-file';
+                    filename.textContent = item.name;
+                    filename.title = item.name;
+
+                    const state = document.createElement('span');
+                    state.className = 'loading-progress-state';
+                    state.textContent = item.state;
+
+                    row.append(slot, filename, state);
+                    itemsEl.appendChild(row);
+                });
+                status.appendChild(itemsEl);
+
+                const ready = _loadingProgressItems.filter(item => item.kind === 'ready');
+                const pending = _loadingProgressItems.filter(item => item.kind === 'working');
+                const note = document.createElement('div');
+                note.className = 'loading-progress-note';
+                if (ready.length && pending.length) {
+                    const readyVerb = ready.length === 1 ? ' is ready. ' : ' are ready. ';
+                    if (_loadingProgressAssetType === 'video') {
+                        const waitText = pending.length === 1
+                            ? 'Waiting for ' + _loadingLabelList(pending) + "'s first frame"
+                            : 'Waiting for ' + _loadingLabelList(pending) + ' to decode their first frames';
+                        note.append(_loadingLabelList(ready) + readyVerb
+                            + waitText + ' so every video appears together.');
+                    } else {
+                        note.append(_loadingLabelList(ready) + readyVerb
+                            + 'Waiting for ' + _loadingLabelList(pending) + ' to finish preparing.');
+                    }
+                } else if (ready.length === _loadingProgressItems.length) {
+                    note.append('All files are ready. Building the comparison…');
+                } else {
+                    note.append('WarpDiff will show the comparison when every file is ready.');
+                }
+                if (_loadingProgressLong) {
+                    note.append(document.createElement('br'));
+                    note.append('Large or complex video files can take a moment.');
+                }
+                const elapsed = document.createElement('span');
+                elapsed.className = 'loading-progress-elapsed';
+                elapsed.textContent = ' Working · ' + Math.max(0, Math.floor((performance.now() - _loadingProgressStartedAt) / 1000)) + 's';
+                note.append(document.createElement('br'), elapsed);
+                status.appendChild(note);
+            }
+
+            if (_loadingProgressCancelable) {
+                const cancel = document.createElement('button');
+                cancel.type = 'button';
+                cancel.className = 'loading-progress-cancel';
+                cancel.textContent = 'Cancel';
+                cancel.addEventListener('click', _cancelLoadingProgress);
+                status.appendChild(cancel);
+                if (restoreCancelFocus) cancel.focus({ preventScroll: true });
+            }
+        }
+
+        function _beginLoadingProgress(assignments, assetType, cancelable) {
+            clearInterval(_loadingProgressTimer);
+            _loadingProgressToken = {};
+            _loadingProgressAssetType = assetType;
+            _loadingProgressStartedAt = performance.now();
+            _loadingProgressLong = false;
+            _loadingProgressCancelable = !!cancelable;
+            _loadingProgressItems = assignments.map(({ slot, file }) => ({
+                slot,
+                label: _loadingSlotLabel(slot, assetType, assignments.length),
+                name: file.name,
+                state: 'Opening…',
+                kind: 'working'
+            }));
+            const plural = assignments.length > 1 ? 's' : '';
+            showLoading('Preparing ' + assignments.length + ' ' + assetType + plural + '…');
+            _loadingProgressTimer = setInterval(() => {
+                const elapsed = performance.now() - _loadingProgressStartedAt;
+                const elapsedEl = document.querySelector('#landingStatus .loading-progress-elapsed');
+                if (elapsedEl) elapsedEl.textContent = ' Working · ' + Math.floor(elapsed / 1000) + 's';
+                if (!_loadingProgressLong && elapsed >= 3000) {
+                    _loadingProgressLong = true;
+                    _renderLoadingProgress();
+                }
+            }, 1000);
+        }
+
+        function _setLoadingSlotState(slot, state, kind = 'working') {
+            const item = _loadingProgressItems.find(entry => entry.slot === slot);
+            if (!item) return;
+            item.state = state;
+            item.kind = kind;
+            _renderLoadingProgress();
+        }
+
+        function _cancelLoadingProgress() {
+            if (!_loadingProgressItems.length) return;
+            clearAllMedia();
+            showLoadToast('Loading canceled', false, 2500);
+        }
+
         function showLoading(msg) {
             const cta = document.getElementById('landingCta');
             cta.classList.remove('hidden');
             cta.classList.add('loading');
-            document.getElementById('landingStatus').textContent = msg || 'Loading…';
+            _loadingProgressTitle = msg || 'Loading…';
+            _renderLoadingProgress();
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(3, true);
         }
         function hideLoading() {
+            clearInterval(_loadingProgressTimer);
+            _loadingProgressTimer = null;
+            _loadingProgressItems = [];
+            _loadingProgressLong = false;
+            _loadingProgressCancelable = false;
             const cta = document.getElementById('landingCta');
             cta.classList.remove('loading');
+            const status = document.getElementById('landingStatus');
+            if (status) status.textContent = 'Loading…';
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(1, true);
         }
         function updateLoadingStatus(msg) {
-            document.getElementById('landingStatus').textContent = msg;
+            _loadingProgressTitle = msg;
+            if (document.getElementById('landingCta').classList.contains('loading')) _renderLoadingProgress();
         }
 
         // Setup drag and drop — listen on the whole page
@@ -5133,7 +5393,6 @@
             _taskType = (opts && opts.taskType) || null;
             _ihwaSlotLabels = (opts && opts.slotLabels) || null;
             const assetType = audioCount > 0 ? 'audio file' : mediaFiles.some(f => f.type.startsWith('video/')) ? 'video' : 'image';
-            showLoading('Loading ' + mediaFiles.length + ' ' + assetType + (mediaFiles.length > 1 ? 's' : '') + '…');
 
             // Tell checkAllLoaded() how many files to wait for before activating the view.
             // Without this, it fires at loadedCount=2 during a 3-file load and calls
@@ -5143,6 +5402,11 @@
 
             // Sort by lastModified timestamp (oldest to newest)
             const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
+            const assignedSlots = sortedFiles.length === 3
+                ? ['original', 'editA', 'editB']
+                : sortedFiles.length === 2 ? ['editA', 'editB'] : ['editA'];
+            const assignments = sortedFiles.map((file, i) => ({ slot: assignedSlots[i], file }));
+            _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
 
             // Check if any two files have near-identical timestamps (within 2 s).
             // This can happen when files are batch-exported and timestamps are equalised.
@@ -5156,24 +5420,9 @@
                 }
             }
 
-            if (sortedFiles.length === 3) {
-                // 3 files: oldest -> original, middle -> editA, newest -> editB
-                loadFile('original', sortedFiles[0]);
-                loadFile('editA', sortedFiles[1]);
-                loadFile('editB', sortedFiles[2]);
-                if (!opts?.skipToast && hasTimestampCollision) {
-                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
-                }
-            } else if (sortedFiles.length === 2) {
-                // 2 files: oldest -> editA, newest -> editB (no original)
-                loadFile('editA', sortedFiles[0]);
-                loadFile('editB', sortedFiles[1]);
-                if (!opts?.skipToast && hasTimestampCollision) {
-                    showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
-                }
-            } else {
-                // 1 file: single asset review
-                loadFile('editA', sortedFiles[0]);
+            assignments.forEach(({ slot, file }) => loadFile(slot, file));
+            if (!(opts && opts.skipToast) && hasTimestampCollision) {
+                showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
             }
             return true;
         }
@@ -7695,6 +7944,8 @@
         // ── loadAudioFile ────────────────────────────────────────────────
 
         function loadAudioFile(slot, file) {
+            const loadingToken = _loadingProgressToken;
+            _setLoadingSlotState(slot, 'Reading metadata…');
             // Use URL.createObjectURL(file) directly — avoids reading the file into an
             // ArrayBuffer just to create a Blob for the audio element (saves ~file_size RAM).
             const blobUrl = URL.createObjectURL(file);
@@ -7729,12 +7980,17 @@
             canvas.setAttribute('aria-label', 'Audio waveform and spectrogram for ' + slotLabel(slot));
 
             audio.addEventListener('loadedmetadata', function() {
+                if (loadingToken !== _loadingProgressToken) return;
                 updateDurationDisplay(slot, audio.duration);
                 const pc = document.getElementById('videoProgressContainer');
                 if (pc) { pc.setAttribute('aria-valuemax', audio.duration); pc.setAttribute('aria-valuenow', '0'); }
                 setupAudioHandlers(audio, slot);
                 checkAllLoaded();
             });
+            audio.addEventListener('error', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Could not open', 'error');
+            }, { once: true });
 
             hasAudios = true;
 
@@ -7768,11 +8024,15 @@
             updateLoadingStatus('Decoding audio…');
             const _reader = new FileReader();
             _reader.onload = () => {
+                if (loadingToken !== _loadingProgressToken) return;
                 const arrayBuffer = _reader.result;
                 audioFileBuffers[slot] = arrayBuffer;
+                _setLoadingSlotState(slot, 'Decoding audio…');
                 decodeAndComputeAudioSlotViz(slot, arrayBuffer);
             };
             _reader.onerror = () => {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Could not read', 'error');
                 showLoadToast(`Failed to read ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
@@ -7782,6 +8042,8 @@
         // ── loadVideoFile ────────────────────────────────────────────────
 
         function loadVideoFile(slot, file) {
+            const loadingToken = _loadingProgressToken;
+            _setLoadingSlotState(slot, 'Reading metadata…');
             const blobUrl = URL.createObjectURL(file);
             _blobUrls.push(blobUrl);
 
@@ -7801,6 +8063,8 @@
             video.volume = _prefs.load('volume', 100) / 100;
 
             video.addEventListener('loadedmetadata', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Decoding first frame…');
                 if (mediaData[slot]) {
                     mediaData[slot].w = video.videoWidth;
                     mediaData[slot].h = video.videoHeight;
@@ -7819,11 +8083,17 @@
                 positionLabelsToMediaDebounced();
                 _reevalGridLayoutOnDims();
             });
+            video.addEventListener('loadeddata', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Ready', 'ready');
+            }, { once: true });
 
             // If the browser can't load the file at all (unsupported container/codec),
             // mark the slot so checkAllLoaded() doesn't block on videoWidth > 0 forever.
             // The transcoded version will provide proper dimensions once ready.
             video.addEventListener('error', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
                 checkAllLoaded();
             });
@@ -7850,6 +8120,8 @@
         // ── loadImageFile ────────────────────────────────────────────────
 
         function loadImageFile(slot, file) {
+            const loadingToken = _loadingProgressToken;
+            _setLoadingSlotState(slot, 'Decoding image…');
             const blobUrl = URL.createObjectURL(file);
             _blobUrls.push(blobUrl);
 
@@ -7865,15 +8137,16 @@
             const { layer, mediaContainer } = prepareLayer(slot);
 
             const img = document.createElement('img');
-            img.src = blobUrl;
             img.addEventListener('load', async function() {
                 try {
                     await img.decode();
                 } catch (e) {
                     console.warn('Image decode error:', e);
                 }
+                if (loadingToken !== _loadingProgressToken) return;
 
                 if (mediaData[slot]) { mediaData[slot].w = img.naturalWidth; mediaData[slot].h = img.naturalHeight; }
+                _setLoadingSlotState(slot, 'Ready', 'ready');
                 updateResolutionDisplay(slot, img.naturalWidth, img.naturalHeight);
 
                 // checkAllLoaded() called here so positionLabelsToMedia()
@@ -7883,9 +8156,12 @@
                 _reevalGridLayoutOnDims();
             });
             img.onerror = function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _setLoadingSlotState(slot, 'Could not decode', 'error');
                 showLoadToast(`Failed to load ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
+            img.src = blobUrl;
             mediaContainer.appendChild(img);
 
             const infoBar = ensureInfoBar(layer, slot, VIDEO_IMAGE_INFO_BAR_HTML);
@@ -10057,6 +10333,8 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _loadingProgressToken = null;
+            hideLoading();
             _scrubGestureGeneration++;
             _cancelActiveScrubForClear();
             _scrubAtTimelineEnd = false;
@@ -12754,6 +13032,16 @@
             get wipeScopeSlot() { return _wipeScopeSlot(); },
             get scopeSourceSlot() { return _scopeSourceSlot(); },
             get slotRotations() { return { ..._slotRotation }; },
+            get loadingProgress() { return _loadingProgressItems.map(item => ({ ...item })); },
+            beginLoadingProgress(items, assetType = 'video', cancelable = true) {
+                _beginLoadingProgress(items.map(item => ({
+                    slot: item.slot,
+                    file: { name: item.name }
+                })), assetType, cancelable);
+            },
+            setLoadingSlotState(slot, state, kind = 'working') {
+                _setLoadingSlotState(slot, state, kind);
+            },
             setWipePosition(value) { _setWipePosition(value); },
             cycleWipePair(delta = 1) { cycleWipePair(delta); },
             get audioVizVisible() { return audioVizVisible; },
@@ -12957,6 +13245,7 @@
                 <li>3 files → assigned to <strong>Ref</strong>, <strong>A</strong>, and <strong>B</strong> by default; audio labels the reference <strong>GT</strong></li>
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
             </ul>
+            <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>
@@ -13244,6 +13533,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.12.41</h3>
+            <ul>
+                <li><strong>Slow video preparation now stays visibly active and specific.</strong> The loading screen lists each assigned slot and filename, checks off ready files, identifies which video is still decoding its first frame, explains why WarpDiff waits to reveal the comparison together, and offers Cancel.</li>
+            </ul>
             <h3>v3.12.40</h3>
             <ul>
                 <li><strong>A replaced comparison now fully cancels an in-progress scrub.</strong> Releasing the old pointer after new media loads can no longer seek or start playback in the new comparison.</li>

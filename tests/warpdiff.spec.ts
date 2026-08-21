@@ -656,6 +656,34 @@ test.describe('Page Load & Initial State', () => {
 });
 
 test.describe('File Loading & Slot Assignment', () => {
+  test('loading screen identifies ready and pending videos before revealing the comparison', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => {
+      document.getElementById('quickStartPopup')?.classList.remove('show');
+      document.getElementById('quickStartBackdrop')?.classList.remove('show');
+      (window as any).__testAPI.beginLoadingProgress([
+        { slot: 'editA', name: 'long-first-video.mp4' },
+        { slot: 'editB', name: 'second-video.mp4' },
+      ], 'video', true);
+      (window as any).__testAPI.setLoadingSlotState('editA', 'Ready', 'ready');
+      (window as any).__testAPI.setLoadingSlotState('editB', 'Decoding first frame…');
+    });
+
+    await expect(page.locator('.loading-progress-title')).toHaveText('Preparing 2 videos…');
+    await expect(page.locator('[data-loading-slot="editA"]')).toContainText('A');
+    await expect(page.locator('[data-loading-slot="editA"]')).toContainText('long-first-video.mp4');
+    await expect(page.locator('[data-loading-slot="editA"]')).toContainText('Ready');
+    await expect(page.locator('[data-loading-slot="editB"]')).toContainText('Decoding first frame…');
+    await expect(page.locator('.loading-progress-note')).toContainText(
+      "A is ready. Waiting for B's first frame so every video appears together."
+    );
+    await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('#landingCta')).not.toHaveClass(/loading/);
+    await expect(page.locator('.loading-progress-item')).toHaveCount(0);
+  });
+
   test('loads 1 file as single asset review', async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png']);

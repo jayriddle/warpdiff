@@ -494,9 +494,11 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         // hasn't fired). This unblocks the loading screen when the <audio> element
         // is slow to fire loadedmetadata. The viewActivating guard in
         // checkAllLoaded() prevents a double-activation when loadedmetadata later fires.
+        _setLoadingSlotState(slot, 'Ready', 'ready');
         if (!viewActivating) checkAllLoaded();
     }).catch(err => {
         if (_audioDecodeGen[slot] !== gen) return;
+        _setLoadingSlotState(slot, 'Could not decode', 'error');
         console.error('Audio decode error for slot ' + slot + ':', err);
         showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);
     });
