@@ -620,7 +620,7 @@
         }
         .loading-progress-item {
             display: grid;
-            grid-template-columns: 34px minmax(0, 1fr) auto;
+            grid-template-columns: 58px minmax(0, 1fr) auto;
             align-items: center;
             gap: 8px;
             min-height: 34px;
@@ -644,6 +644,7 @@
         .loading-progress-slot.slot-original { background: var(--slot-original-bg, #2aa7c0); }
         .loading-progress-slot.slot-editA { background: var(--slot-editA-bg, #f0bf0f); }
         .loading-progress-slot.slot-editB { background: var(--slot-editB-bg, #da3e99); }
+        .loading-progress-slot.slot-editC { background: var(--slot-editC-bg, #63c174); }
         .loading-progress-file {
             overflow: hidden;
             color: #aaa;
@@ -954,6 +955,11 @@
             height: calc((100% - 2px) / 2);
         }
 
+        /* 4-asset audio stack: four aligned timelines. */
+        body.vertical-stack.four-asset .asset-layer {
+            height: calc((100% - 6px) / 4);
+        }
+
         body.vertical-stack .asset-container {
             white-space: normal;
             overflow-y: visible;
@@ -1001,9 +1007,25 @@
         body.inline-rows #layerEditA   { grid-column: 1; grid-row: 2; }
         body.inline-rows #layerEditB   { grid-column: 1; grid-row: 3; }
 
+        /* Four-input Inline layout: an equal-weight 2×2 grid. The initial 1fr
+           tracks are a safe pre-layout fallback; positionLabelsToMedia replaces
+           them with content-sized tracks once all four assets are measured. */
+        body.quad-grid .asset-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            column-gap: 4px;
+            row-gap: 2px;
+            height: 100%;
+            overflow: hidden;
+            align-items: stretch;
+            justify-items: stretch;
+        }
+
         body.offset .asset-layer,
         body.inline-cols .asset-layer,
-        body.inline-rows .asset-layer {
+        body.inline-rows .asset-layer,
+        body.quad-grid .asset-layer {
             position: relative !important;
             width: 100% !important;
             height: 100% !important;
@@ -1018,7 +1040,8 @@
 
         body.offset .media-container,
         body.inline-cols .media-container,
-        body.inline-rows .media-container {
+        body.inline-rows .media-container,
+        body.quad-grid .media-container {
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
@@ -1199,6 +1222,8 @@
             --slot-editA-bar:    #302600;  --slot-editA-hi:     #706000;
             --slot-editB-bg:     #da3e99;  --slot-editB-txt:    #220018;
             --slot-editB-bar:    #320020;  --slot-editB-hi:     #7a1a50;
+            --slot-editC-bg:     #63c174;  --slot-editC-txt:    #071d0b;
+            --slot-editC-bar:    #17301c;  --slot-editC-hi:     #32683c;
         }
 
         /* Ghost pills — inline in modeStrip, same position as active pills, clearly distinct */
@@ -1218,14 +1243,17 @@
         .hidden-slot-pill.slot-original { color: var(--slot-original-bg); }
         .hidden-slot-pill.slot-editA    { color: var(--slot-editA-bg); }
         .hidden-slot-pill.slot-editB    { color: var(--slot-editB-bg); }
+        .hidden-slot-pill.slot-editC    { color: var(--slot-editC-bg); }
         /* Slot label: deep saturated fill, dark text — same in all states */
         #layerOriginal .asset-info-bar .asset-name { background: var(--slot-original-hi); color: var(--slot-original-bg); }
         #layerEditA    .asset-info-bar .asset-name { background: var(--slot-editA-hi);    color: var(--slot-editA-bg); }
         #layerEditB    .asset-info-bar .asset-name { background: var(--slot-editB-hi);    color: var(--slot-editB-bg); }
+        #layerEditC    .asset-info-bar .asset-name { background: var(--slot-editC-hi);    color: var(--slot-editC-bg); }
 
         #layerOriginal.active-audio .asset-info-bar .asset-name { background: var(--slot-original-bg); color: var(--slot-original-txt); }
         #layerEditA.active-audio    .asset-info-bar .asset-name { background: var(--slot-editA-bg);    color: var(--slot-editA-txt); }
         #layerEditB.active-audio    .asset-info-bar .asset-name { background: var(--slot-editB-bg);    color: var(--slot-editB-txt); }
+        #layerEditC.active-audio    .asset-info-bar .asset-name { background: var(--slot-editC-bg);    color: var(--slot-editC-txt); }
 
         /* Per-field color hierarchy — matches Stack header strip opacity levels */
         .asset-info-bar .asset-resolution { color: rgba(255,255,255,0.48); }
@@ -1390,6 +1418,7 @@
         #stackInfoStrip.sih-slot-original .sih-name { background: var(--slot-original-bg); color: var(--slot-original-txt); }
         #stackInfoStrip.sih-slot-editA    .sih-name { background: var(--slot-editA-bg);    color: var(--slot-editA-txt); }
         #stackInfoStrip.sih-slot-editB    .sih-name { background: var(--slot-editB-bg);    color: var(--slot-editB-txt); }
+        #stackInfoStrip.sih-slot-editC    .sih-name { background: var(--slot-editC-bg);    color: var(--slot-editC-txt); }
         #stackInfoStrip.sih-wipe .sih-name {
             background: rgba(45,124,255,0.2);
             box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
@@ -1594,6 +1623,7 @@
         #layerOriginal .asset-info-bar { background: var(--slot-original-bar); }
         #layerEditA    .asset-info-bar { background: var(--slot-editA-bar); }
         #layerEditB    .asset-info-bar { background: var(--slot-editB-bar); }
+        #layerEditC    .asset-info-bar { background: var(--slot-editC-bar); }
 
         /* Active-audio accent: a 1px slot-colored line on the info bar's top edge,
            inset from the rounded corners. Drawn as ::after (a full-width box-shadow
@@ -1601,6 +1631,7 @@
         #layerOriginal.active-audio .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-original-bg); }
         #layerEditA.active-audio    .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editA-bg); }
         #layerEditB.active-audio    .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editB-bg); }
+        #layerEditC.active-audio    .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editC-bg); }
         .asset-layer.active-audio .asset-info-bar::after {
             content: ''; position: absolute; top: 0; left: 7px; right: 7px; height: 1px;
             background: var(--ib-accent); pointer-events: none;
@@ -2706,6 +2737,123 @@
         #scopesToggleBtn.active { color: #4add20; }
         #waveformToggleBtn.active:hover,
         #scopesToggleBtn.active:hover { background: rgba(74,221,32,0.1); color: #4add20; }
+        #tileCheckToggleBtn.active { color: #46d7ff; }
+        #tileCheckToggleBtn.active:hover { background: rgba(70,215,255,0.1); color: #46d7ff; }
+
+        /* ── Seamless tile check ── */
+        .tile-check-panel {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 80;
+            min-width: 0;
+            min-height: 0;
+            flex-direction: column;
+            background: #080a0d;
+            color: #d8dce4;
+        }
+        .tile-check-panel.active { display: flex; }
+        .tile-check-toolbar {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            min-height: 42px;
+            padding: 7px 12px;
+            border-bottom: 1px solid #252a33;
+            background: #12151a;
+            box-sizing: border-box;
+        }
+        .tile-check-title {
+            color: #46d7ff;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .tile-check-source,
+        .tile-check-options,
+        .tile-check-results {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tile-check-source { min-width: 0; }
+        .tile-check-options { margin-left: auto; }
+        .tile-check-btn,
+        .tile-check-source-btn {
+            min-height: 25px;
+            padding: 4px 8px;
+            border: 1px solid #383e49;
+            border-radius: 4px;
+            background: #1b1f26;
+            color: #9199a7;
+            font: 700 10px/1 system-ui, -apple-system, sans-serif;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tile-check-btn:hover,
+        .tile-check-source-btn:hover { color: #fff; border-color: #667080; }
+        .tile-check-btn.active {
+            border-color: #2c8198;
+            background: #12323b;
+            color: #72e4ff;
+        }
+        .tile-check-source-btn.active {
+            border-color: var(--tile-slot-color, #46d7ff);
+            color: var(--tile-slot-color, #46d7ff);
+            background: color-mix(in srgb, var(--tile-slot-color, #46d7ff) 14%, #15191f);
+        }
+        .tile-check-source-btn {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tile-check-results {
+            padding: 7px 12px;
+            gap: 6px;
+            border-bottom: 1px solid #20252d;
+            background: #0e1115;
+            overflow-x: auto;
+        }
+        .tile-check-result {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 5px;
+            padding: 4px 7px;
+            border: 1px solid #303640;
+            border-radius: 4px;
+            background: #171b21;
+            white-space: nowrap;
+            font-size: 10px;
+        }
+        .tile-check-result-label { color: #798291; }
+        .tile-check-result-value { font-weight: 800; }
+        .tile-check-result-score { color: #707987; font-family: monospace; }
+        .tile-check-result.seamless .tile-check-result-value { color: #68dc72; }
+        .tile-check-result.review .tile-check-result-value { color: #f0b34a; }
+        .tile-check-result.visible-seam .tile-check-result-value { color: #ff6d68; }
+        .tile-check-result.overall { border-color: #45505f; }
+        .tile-check-stage { flex: 1; min-width: 0; min-height: 0; position: relative; }
+        #tileCheckCanvas { display: block; width: 100%; height: 100%; }
+        .tile-check-note {
+            padding: 6px 12px 8px;
+            color: #66707e;
+            background: #0e1115;
+            border-top: 1px solid #20252d;
+            font-size: 10px;
+            line-height: 1.35;
+            text-align: center;
+        }
+        @media (max-width: 760px) {
+            .tile-check-toolbar { gap: 6px; padding: 6px 8px; }
+            .tile-check-title { width: 100%; }
+            .tile-check-options { margin-left: 0; }
+            .tile-check-results { padding: 6px 8px; }
+            .tile-check-result { padding: 4px 6px; }
+            .tile-check-result-score { display: none; }
+        }
         .audio-level-toolbar {
             display: none;
             flex: 0 0 34px;
@@ -3085,6 +3233,7 @@
         #layerOriginal.active-audio .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-original-bg); }
         #layerEditA.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editA-bg); }
         #layerEditB.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editB-bg); }
+        #layerEditC.active-audio    .audio-slot-group > .asset-info-bar { box-shadow: none; --ib-accent: var(--slot-editC-bg); }
         .audio-canvas-wrap {
             position: relative;
             flex: 1;
@@ -3165,6 +3314,7 @@
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
                 <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Image wipe comparison (Q)" aria-pressed="false"></button>
+                <button class="analysis-btn" id="tileCheckToggleBtn" onclick="toggleTileCheck(); this.blur();" title="Seamless tile check (Y)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
@@ -3176,7 +3326,7 @@
                 <canvas class="dropzone-starfield" id="dropzoneStarfield"></canvas>
                 <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo">
             </div>
-            <div class="landing-title">Drop 1–3 files to review</div>
+            <div class="landing-title">Drop 1–4 files to review</div>
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
             </div>
@@ -3221,6 +3371,16 @@
                         <span class="asset-zoom"></span>
                     </div>
                 </div>
+                <div class="asset-layer" id="layerEditC">
+                    <div class="asset-info-bar">
+                        <span class="asset-name">C</span>
+                        <span class="asset-resolution">-</span>
+                        <span class="asset-aspect">-</span>
+                        <span class="asset-fps"></span>
+                        <span class="asset-duration"></span>
+                        <span class="asset-zoom"></span>
+                    </div>
+                </div>
 
                 <div id="wipeDivider" role="slider" aria-label="Wipe position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0"></div>
                 
@@ -3244,6 +3404,26 @@
 
                 <div class="toast" id="toast"></div>
                 <div class="audio-timing-alert" id="audioTimingAlert" role="alert" hidden></div>
+
+                <section class="tile-check-panel" id="tileCheckPanel" aria-label="Seamless tile check">
+                    <div class="tile-check-toolbar">
+                        <span class="tile-check-title">Tile Check</span>
+                        <div class="tile-check-source" id="tileCheckSource" role="group" aria-label="Image to analyze"></div>
+                        <div class="tile-check-options" role="group" aria-label="Tile preview options">
+                            <button class="tile-check-btn active" id="tileRepeatBtn" onclick="_setTileCheckView('repeat'); this.blur();" aria-pressed="true">3×3</button>
+                            <button class="tile-check-btn" id="tileOffsetBtn" onclick="_setTileCheckView('offset'); this.blur();" aria-pressed="false">Offset</button>
+                            <button class="tile-check-btn" id="tileHeatmapBtn" onclick="_toggleTileHeatmap(); this.blur();" aria-pressed="false">Heatmap</button>
+                        </div>
+                    </div>
+                    <div class="tile-check-results" id="tileCheckResults" aria-live="polite">
+                        <div class="tile-check-result overall" data-tile-result="overall"><span class="tile-check-result-label">Overall</span><span class="tile-check-result-value">Analyzing…</span><span class="tile-check-result-score"></span></div>
+                        <div class="tile-check-result" data-tile-result="horizontal"><span class="tile-check-result-label">Left ↔ Right</span><span class="tile-check-result-value">—</span><span class="tile-check-result-score"></span></div>
+                        <div class="tile-check-result" data-tile-result="vertical"><span class="tile-check-result-label">Top ↔ Bottom</span><span class="tile-check-result-value">—</span><span class="tile-check-result-score"></span></div>
+                        <div class="tile-check-result" data-tile-result="corner"><span class="tile-check-result-label">Corners</span><span class="tile-check-result-value">—</span><span class="tile-check-result-score"></span></div>
+                    </div>
+                    <div class="tile-check-stage"><canvas id="tileCheckCanvas" role="img" aria-label="Repeated tile preview"></canvas></div>
+                    <div class="tile-check-note">Measures technical edge continuity. Inspect the repeated preview for obvious pattern repetition, lighting changes, or recognizable motifs.</div>
+                </section>
 
             </div>
         </div>
@@ -3312,6 +3492,7 @@
             </div>
             <div class="video-controls-row">
                 <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
+                <button class="mode-sub-btn" id="playbackScopeBtn" onclick="_togglePlaybackScope(); this.blur();" style="display:none;" aria-pressed="false" title="Toggle synchronized or selected-video-only playback (Shift+S)">Playback: Sync</button>
                 <span class="video-time-group">
                     <span class="video-timecode" id="videoTimecode" onclick="_showTcChooser(event)" title="Click to change timecode format">0:00</span>
                     <span class="video-time-sep">/</span>
@@ -3338,6 +3519,10 @@
                         <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editB')"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
                         B
                     </button>
+                    <button onclick="selectAudioSource('editC')" id="audioEditC" title="Click to select audio source">
+                        <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('editC')"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+                        C
+                    </button>
                 </div>
             </div>
         </div>
@@ -3350,11 +3535,12 @@
     <script src="js/scrub-video.js"></script>
     <script src="js/timecode.js"></script>
     <script src="js/wipe.js"></script>
+    <script src="js/tile-check.js"></script>
     <script src="js/opus-sync.js"></script>
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.12.41';
+        const APP_VERSION = '3.14.0';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3429,6 +3615,7 @@
         const _SVG_STACK = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 8L20 8A2 2 0 0 1 22 10L22 20A2 2 0 0 1 20 22L10 22A2 2 0 0 1 8 20L8 17L17 17Z"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>';
         const _SVG_GRID = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>';
         const _SVG_WIPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/><path d="M8.5 9.5L6 12l2.5 2.5M15.5 9.5L18 12l-2.5 2.5"/></svg>';
+        const _SVG_TILE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M12 5v14M5 12h14" stroke-dasharray="1.5 2"/></svg>';
         const _SVG_WAVEFORM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M5 12 l1.5-3 1.5 5 1.5-7 1.5 8 1.5-4 1.5 6 1.5-5 1.5 3 1.5-4 1.5 2"/><path d="M5 12 l1.5 3 1.5-5 1.5 7 1.5-8 1.5 4 1.5-6 1.5 5 1.5-3 1.5 4 1.5-2"/></svg>';
         const _SVG_SCOPES = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 12 l3-5 2 3 -1 4"/></svg>';
         function _icon(svg, size) {
@@ -3443,6 +3630,7 @@
         document.getElementById('stackIconBtn').innerHTML = _SVG_STACK;
         document.getElementById('gridIconBtn').innerHTML = _SVG_GRID;
         document.getElementById('wipeToggleBtn').innerHTML = _SVG_WIPE;
+        document.getElementById('tileCheckToggleBtn').innerHTML = _SVG_TILE_CHECK;
         document.getElementById('waveformToggleBtn').innerHTML = _SVG_WAVEFORM;
         document.getElementById('scopesToggleBtn').innerHTML = _SVG_SCOPES;
 
@@ -3461,6 +3649,7 @@
         // Static Inline/Offset button handlers
         document.getElementById('inlineModeBtn').addEventListener('click', function() {
             if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
+            if (isQuadMode()) return; // four-input Inline is the fixed 2×2 layout
             if (gridInlineMode) return;
             gridInlineMode = true;
             localStorage.setItem('gridInlineMode', gridInlineMode);
@@ -3484,6 +3673,7 @@
                 [_SVG_HELP, 'Help <kbd>?</kbd>'],
                 [_SVG_STACK, 'Stack / Grid toggle <kbd>S</kbd>'],
                 [_SVG_GRID, 'Stack / Grid toggle <kbd>G</kbd>'],
+                [_SVG_TILE_CHECK, 'Seamless tile check <kbd>Y</kbd>'],
                 [_SVG_WAVEFORM, 'Audio waveform + spectrogram <kbd>W</kbd>'],
                 [_SVG_SCOPES, 'Video scopes <kbd>V</kbd>']
             ].map(function(r) {
@@ -3491,18 +3681,32 @@
             }).join('');
         });
 
-        const mediaData = {
-            original: null,
-            editA: null,
-            editB: null
-        };
+        const SLOT_DEFS = Object.freeze([
+            { key: 'original', layerId: 'layerOriginal', shortLabel: 'Ref' },
+            { key: 'editA', layerId: 'layerEditA', shortLabel: 'A' },
+            { key: 'editB', layerId: 'layerEditB', shortLabel: 'B' },
+            { key: 'editC', layerId: 'layerEditC', shortLabel: 'C' },
+        ]);
+        const assetOrder = SLOT_DEFS.map(def => def.key);
+        const mediaData = Object.fromEntries(assetOrder.map(slot => [slot, null]));
 
-        const assetOrder = ['original', 'editA', 'editB'];
-
-        // Returns the asset-layer element for a given slot key ('original', 'editA', 'editB').
-        // Centralises the slot→DOM-id mapping so it doesn't have to be computed ad-hoc everywhere.
-        const SLOT_LAYER_ID = { original: 'layerOriginal', editA: 'layerEditA', editB: 'layerEditB' };
+        // Central slot registry: state, DOM lookup, labels, controls, and layouts all
+        // derive from the same ordered list so adding a slot cannot leave a subsystem behind.
+        const SLOT_LAYER_ID = Object.fromEntries(SLOT_DEFS.map(def => [def.key, def.layerId]));
         function getLayer(slot) { return document.getElementById(SLOT_LAYER_ID[slot]); }
+        function slotShortLabel(slot) {
+            const def = SLOT_DEFS.find(item => item.key === slot);
+            return def ? def.shortLabel : slot;
+        }
+
+        function _numberedMediaLabel(slot, mediaType) {
+            const normalizedType = String(mediaType || '').toLowerCase();
+            const typeName = normalizedType.includes('image') ? 'Image'
+                : normalizedType.includes('video') ? 'Video'
+                : normalizedType.includes('audio') ? 'Audio'
+                : 'Media';
+            return typeName + '-' + (assetOrder.indexOf(slot) + 1);
+        }
 
         // Returns { w, h } for an <img> or <video> element's native dimensions.
         function mediaDims(el) {
@@ -3522,8 +3726,10 @@
         // True for inline-cols and inline-rows (equal-area 3-up), false for offset (L-shaped).
         function isInlineMode() {
             return document.body.classList.contains('inline-cols') ||
-                   document.body.classList.contains('inline-rows');
+                   document.body.classList.contains('inline-rows') ||
+                   document.body.classList.contains('quad-grid');
         }
+        function isQuadMode() { return document.body.classList.contains('quad-grid'); }
 
         // Updates the mute button appearance for a given audio slot.
         function updateAudioButton(slot, isMuted) {
@@ -3532,6 +3738,16 @@
             btn.classList.toggle('muted', isMuted);
             const icon = btn.querySelector('.audio-mute-icon');
             if (icon) icon.innerHTML = isMuted ? _SVG_VOL_MUTED : _SVG_VOL_ON_SM;
+        }
+
+        function _setAudioButtonLabel(slot, label) {
+            const btn = document.getElementById(`audio${capitalize(slot)}`);
+            if (!btn) return;
+            const textNodes = [...btn.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
+            textNodes.forEach(node => { node.textContent = ''; });
+            const target = textNodes[textNodes.length - 1];
+            if (target) target.textContent = ' ' + label + ' ';
+            else btn.appendChild(document.createTextNode(' ' + label + ' '));
         }
 
         function getLoadedSlotCount() {
@@ -3604,11 +3820,20 @@
 
             document.body.classList.remove(...splitModeClasses);
             document.body.classList.add('grid-mode');
-            if (container) container.style.gridTemplateColumns = ''; container.style.gridTemplateRows = '';
+            if (container) {
+                container.style.gridTemplateColumns = '';
+                container.style.gridTemplateRows = '';
+            }
             // Clear stale layer width overrides (set by side-by-side/compare positionLabelsToMedia).
             document.querySelectorAll('.asset-layer').forEach(l => { l.style.width = ''; });
 
-            if (nowVisible.length >= 3) {
+            if (hasAudios) {
+                document.body.classList.add('vertical-stack');
+                layoutMode = 'vertical';
+            } else if (nowVisible.length === 4) {
+                document.body.classList.add('quad-grid');
+                layoutMode = 'quad';
+            } else if (nowVisible.length === 3) {
                 const best = pickBestGridLayout(3);
                 document.body.classList.add(best === 'vertical' ? 'inline-rows' : 'inline-cols');
                 layoutMode = best === 'vertical' ? 'inline-rows' : 'inline-cols';
@@ -3621,6 +3846,9 @@
                 document.body.classList.add('side-by-side', 'single-asset');
                 layoutMode = 'horizontal';
             }
+            document.body.classList.toggle('four-asset', nowVisible.length === 4);
+            document.body.classList.toggle('two-asset', nowVisible.length === 2);
+            document.body.classList.toggle('single-asset', nowVisible.length === 1);
 
             // Re-hide hidden slots (body class changes may have been undone)
             _hiddenSlots.forEach(s => { const l = getLayer(s); if (l) l.style.display = 'none'; });
@@ -3666,6 +3894,7 @@
         // together when the longest ends. Owned by _getLoopBounds (js/transport.js).
         let _durMismatchNotified = false;
         function _toggleLoopRangeMode() {
+            if (_isSoloPlayback()) { showToast('Loop range applies to synchronized playback'); return; }
             if (hasAudios || getAllVideos().length < 2) { showToast('Load 2 or more videos first'); return; }
             _loopRangeMode = _loopRangeMode === 'sync' ? 'full' : 'sync';
             updateLoopMarkerUI();
@@ -3677,10 +3906,24 @@
         function _updateLoopRangeBtn() {
             const btn = document.getElementById('loopRangeBtn');
             if (!btn) return;
-            const show = !hasAudios && getAllVideos().length >= 2;
+            const show = !hasAudios && getAllVideos().length >= 2 && !_isSoloPlayback();
             btn.style.display = show ? '' : 'none';
             btn.textContent = _loopRangeMode === 'full' ? 'Loop: Full' : 'Loop: Sync';
             btn.classList.toggle('active', _loopRangeMode === 'full');
+        }
+        function _updatePlaybackScopeBtn() {
+            const btn = document.getElementById('playbackScopeBtn');
+            if (!btn) return;
+            const show = !hasAudios && getAllVideos().length >= 2;
+            btn.style.display = show ? '' : 'none';
+            const solo = _isSoloPlayback();
+            const slot = _soloPlaybackSlot || _selectedVideoSlot();
+            btn.textContent = solo && slot ? 'Solo: ' + slotLabel(slot) : 'Playback: Sync';
+            btn.classList.toggle('active', solo);
+            btn.setAttribute('aria-pressed', String(solo));
+            btn.title = solo
+                ? 'Only ' + slotLabel(slot) + ' plays — Shift+S returns to synchronized playback'
+                : 'All videos play in sync — Shift+S plays only the selected video';
         }
         // When loaded videos differ in length, DEFAULT to Full range (review each
         // clip in full) rather than silently looping the shortest and hiding the
@@ -3711,7 +3954,7 @@
         }
 
         function setLoopPoint(type) {
-            const media = getAllPlayableMedia()[0];
+            const media = getTransportPlayableMedia()[0];
             if (!media) return;
             // Clamp to the effective duration — raw video.currentTime can sit past
             // _opusSyncDuration[slot] for Opus videos (container duration > decoded
@@ -4021,27 +4264,30 @@
             const activeLayer = getLayer(activeSlot);
             const activeMedia = activeLayer ? (activeLayer.querySelector('video') || activeLayer.querySelector('audio')) : getAllPlayableMedia()[0];
             const duration = activeMedia ? _getEffectiveDuration(activeMedia) : 1;
+            const displayedLoop = _customLoopBoundsForMedia(activeMedia);
+            const displayedIn = displayedLoop ? displayedLoop.inP : _loopInPoint;
+            const displayedOut = displayedLoop ? displayedLoop.outP : _loopOutPoint;
             const inLabel = document.getElementById('loopInLabel');
             const outLabel = document.getElementById('loopOutLabel');
             const markerFps = (activeMedia && videoFrameRates[activeMedia.src]) || 0;
-            if (_loopInPoint !== null) {
+            if (displayedIn !== null) {
                 inMarker.style.display = 'block';
-                inMarker.style.left = (_loopInPoint / duration * 100) + '%';
-                if (inLabel) inLabel.textContent = _formatTcForMarker(_loopInPoint, markerFps);
+                inMarker.style.left = (displayedIn / duration * 100) + '%';
+                if (inLabel) inLabel.textContent = _formatTcForMarker(displayedIn, markerFps);
             } else {
                 inMarker.style.display = 'none';
             }
-            if (_loopOutPoint !== null) {
+            if (displayedOut !== null) {
                 outMarker.style.display = 'block';
-                outMarker.style.left = (_loopOutPoint / duration * 100) + '%';
-                if (outLabel) outLabel.textContent = _formatTcForMarker(_loopOutPoint, markerFps);
+                outMarker.style.left = (displayedOut / duration * 100) + '%';
+                if (outLabel) outLabel.textContent = _formatTcForMarker(displayedOut, markerFps);
             } else {
                 outMarker.style.display = 'none';
             }
-            if (_loopInPoint !== null && _loopOutPoint !== null) {
+            if (displayedIn !== null && displayedOut !== null) {
                 region.style.display = 'block';
-                region.style.left = (_loopInPoint / duration * 100) + '%';
-                region.style.width = ((_loopOutPoint - _loopInPoint) / duration * 100) + '%';
+                region.style.left = (displayedIn / duration * 100) + '%';
+                region.style.width = ((displayedOut - displayedIn) / duration * 100) + '%';
             } else {
                 region.style.display = 'none';
             }
@@ -4071,9 +4317,18 @@
 
         function updateProgressBarForLoop(currentTime, duration) {
             if (_loopInPoint !== null && _loopOutPoint !== null) {
-                const inPct = _loopInPoint / duration * 100;
-                const loopLen = _loopOutPoint - _loopInPoint;
-                const progressPct = loopLen > 0 ? Math.max(0, (currentTime - _loopInPoint) / loopLen) * (loopLen / duration * 100) : 0;
+                const loop = _customLoopBoundsForMedia(getTransportPlayableMedia()[0]);
+                if (loop && loop.invalid) {
+                    _elProgressBar.style.left = '0';
+                    _elProgressBar.style.width = Math.min(currentTime / duration * 100, 100) + '%';
+                    _elProgressBar.classList.remove('loop-active');
+                    return;
+                }
+                const inPoint = loop ? loop.inP : _loopInPoint;
+                const outPoint = loop ? loop.outP : _loopOutPoint;
+                const inPct = inPoint / duration * 100;
+                const loopLen = outPoint - inPoint;
+                const progressPct = loopLen > 0 ? Math.max(0, (currentTime - inPoint) / loopLen) * (loopLen / duration * 100) : 0;
                 _elProgressBar.style.left = inPct + '%';
                 _elProgressBar.style.width = progressPct + '%';
                 _elProgressBar.classList.add('loop-active');
@@ -4608,6 +4863,7 @@
         // The video slots the overlay should engage for this drag: all visible
         // video slots in Grid mode, just the visible asset in Stack mode.
         function _scrubOverlaySlots() {
+            if (_isSoloPlayback()) return _soloPlaybackSlot ? [_soloPlaybackSlot] : [];
             if (isGridMode) {
                 return assetOrder.filter(s =>
                     mediaData[s] && mediaData[s].type === 'video' && !_hiddenSlots.has(s));
@@ -4817,7 +5073,7 @@
         let audioVizVisible = _prefs.load('audioVizVisible', false);   // W key toggle
         let _audioVizHeight = _prefs.load('audioVizHeight', 200);     // combined row px (waveform + spectrogram)
         let _audioVizSplit  = _prefs.load('audioVizSplit',  0.40);    // fraction for waveform row (default 80/200)
-        let _slotRotation = JSON.parse(_prefs.load('slotRotation', '{"original":0,"editA":0,"editB":0}'));
+        let _slotRotation = JSON.parse(_prefs.load('slotRotation', '{"original":0,"editA":0,"editB":0,"editC":0}'));
                                                                        // per-slot rotation in degrees (0/90/180/270)
         const _AUDIO_VIZ_SPLITTER_H    = 5;
         const _AUDIO_VIZ_RESIZE_H      = 6;
@@ -4844,6 +5100,13 @@
         let _diffCanvas = null;         // overlay canvas element
         let _diffCtx = null;            // 2d context
         let _diffOffscreen = null;      // offscreen canvas for compositing
+        let _tileCheckMode = false;
+        let _tileCheckSlot = null;
+        let _tileCheckView = _prefs.load('tileCheckView', 'repeat') === 'offset' ? 'offset' : 'repeat';
+        let _tileCheckHeatmap = _prefs.load('tileCheckHeatmap', false);
+        let _tileCheckCache = new Map(); // slot → { src, result }; no source pixels retained
+        let _tileCheckRenderRaf = null;
+        let _tileCheckResizeObserver = null;
         let _waveformMode = 'luma';     // 'luma' | 'parade' | 'overlay'
         const _waveformModes = ['luma', 'parade', 'overlay'];
         const _waveformModeLabels = { luma: 'Luma', parade: 'RGB Parade', overlay: 'RGB Overlay' };
@@ -5006,8 +5269,9 @@
 
         function _loadingSlotLabel(slot, assetType, total) {
             if (total === 1) return 'FILE';
+            if (total === 4) return _numberedMediaLabel(slot, assetType);
             if (slot === 'original') return assetType === 'audio file' ? 'GT' : 'REF';
-            return slot === 'editA' ? 'A' : 'B';
+            return slotShortLabel(slot);
         }
 
         function _loadingLabelList(items) {
@@ -5372,8 +5636,8 @@
                 f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
             );
 
-            if (mediaFiles.length < 1 || mediaFiles.length > 3) {
-                showLoadToast(`${mediaFiles.length} files received — WarpDiff supports 1–3 (single review, A vs B, or A vs B vs C)`, true, 8000);
+            if (mediaFiles.length < 1 || mediaFiles.length > 4) {
+                showLoadToast(`${mediaFiles.length} files received — WarpDiff supports 1–4`, true, 8000);
                 return false;
             }
 
@@ -5395,16 +5659,19 @@
             const assetType = audioCount > 0 ? 'audio file' : mediaFiles.some(f => f.type.startsWith('video/')) ? 'video' : 'image';
 
             // Tell checkAllLoaded() how many files to wait for before activating the view.
-            // Without this, it fires at loadedCount=2 during a 3-file load and calls
-            // setViewMode('horizontal'), which hides the empty third layer — causing a
-            // black screen when offset mode is set a moment later.
+            // Without this, it can fire before every file in a multi-file batch is ready,
+            // hiding a not-yet-loaded layer and activating the wrong Grid geometry.
             expectedFileCount = mediaFiles.length;
 
             // Sort by lastModified timestamp (oldest to newest)
             const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
-            const assignedSlots = sortedFiles.length === 3
-                ? ['original', 'editA', 'editB']
-                : sortedFiles.length === 2 ? ['editA', 'editB'] : ['editA'];
+            const loadSlots = {
+                1: ['editA'],
+                2: ['editA', 'editB'],
+                3: ['original', 'editA', 'editB'],
+                4: ['original', 'editA', 'editB', 'editC'],
+            };
+            const assignedSlots = loadSlots[sortedFiles.length];
             const assignments = sortedFiles.map((file, i) => ({ slot: assignedSlots[i], file }));
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
 
@@ -5771,9 +6038,10 @@
                     const _al = getLayer(_as);
                     const media = _al ? (_al.querySelector('video') || _al.querySelector('audio')) : getAllPlayableMedia()[0];
                     const dur = media ? _getEffectiveDuration(media) : 1;
+                    const loop = _customLoopBoundsForMedia(media);
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                    const inX = (_loopInPoint / dur) * w;
-                    const outX = (_loopOutPoint / dur) * w;
+                    const inX = ((loop ? loop.inP : _loopInPoint) / dur) * w;
+                    const outX = ((loop ? loop.outP : _loopOutPoint) / dur) * w;
                     if (inX > 0) ctx.fillRect(0, 0, inX, h);
                     if (outX < w) ctx.fillRect(outX, 0, w - outX, h);
                 }
@@ -5886,9 +6154,10 @@
                 const _al = getLayer(_as);
                 const media = _al ? (_al.querySelector('video') || _al.querySelector('audio')) : getAllPlayableMedia()[0];
                 const dur = media ? _getEffectiveDuration(media) : 1;
+                const loop = _customLoopBoundsForMedia(media);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                const inX = (_loopInPoint / dur) * canvas.width;
-                const outX = (_loopOutPoint / dur) * canvas.width;
+                const inX = ((loop ? loop.inP : _loopInPoint) / dur) * canvas.width;
+                const outX = ((loop ? loop.outP : _loopOutPoint) / dur) * canvas.width;
                 if (inX > 0) ctx.fillRect(0, 0, inX, canvas.height);
                 if (outX < canvas.width) ctx.fillRect(outX, 0, canvas.width - outX, canvas.height);
             }
@@ -6392,7 +6661,7 @@
             if (_ffmpegBusy) {
                 if (!_ffmpegQueue.includes(slot)) {
                     _ffmpegQueue.push(slot);
-                    // Keep queue in assetOrder priority (original → editA → editB)
+                    // Keep queue in assetOrder priority (original → editA → editB → editC)
                     _ffmpegQueue.sort((a, b) => assetOrder.indexOf(a) - assetOrder.indexOf(b));
                     _ffmpegTranscoding[slot] = { phase: 'queued' };
                     _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
@@ -6870,6 +7139,7 @@
             original: 'background:#1a8844;color:#d4f5e0',
             editA:    'background:#be7210;color:#fff0d4',
             editB:    'background:#b0308a;color:#ffe0f4',
+            editC:    'background:#28743a;color:#e1ffe7',
         };
 
         function _captureFrame() {
@@ -6935,7 +7205,7 @@
                 _renderFrameGallery();
             }
             if (item.time === null) return;
-            const videos = getAllVideos();
+            const videos = getTransportVideos();
             videos.forEach(v => { if (!v.paused) v.pause(); });
             videos.forEach(v => { v.currentTime = item.time; });
             const primary = videos[0];
@@ -7108,7 +7378,7 @@
                             else _drawDecodingPlaceholder(s);
                         }
                     }
-                    const _nvPrimary = getAllPlayableMedia()[0];
+                    const _nvPrimary = getTransportPlayableMedia()[0];
                     if (_nvPrimary) updateAllAudioSlotCursors(_nvPrimary);
                 }));
             } else {
@@ -7244,6 +7514,206 @@
             } catch (_) {}
         }
 
+        // ── Seamless tile check ──
+
+        function _tileCheckImageSlots() {
+            return assetOrder.filter(slot => mediaData[slot] && mediaData[slot].type === 'image');
+        }
+
+        function _tileCheckSourceLabel(slot) {
+            const slots = _tileCheckImageSlots();
+            return slots.length === 1 ? (mediaData[slot].name || 'Image') : slotLabel(slot);
+        }
+
+        function _tileCheckResultClass(rating) {
+            return rating === 'Seamless' ? 'seamless'
+                : rating === 'Review' ? 'review'
+                : 'visible-seam';
+        }
+
+        function _updateTileCheckResult(name, result) {
+            const el = document.querySelector(`[data-tile-result="${name}"]`);
+            if (!el) return;
+            el.classList.remove('seamless', 'review', 'visible-seam');
+            if (!result) {
+                el.querySelector('.tile-check-result-value').textContent = 'Unavailable';
+                el.querySelector('.tile-check-result-score').textContent = '';
+                return;
+            }
+            el.classList.add(_tileCheckResultClass(result.rating));
+            el.querySelector('.tile-check-result-value').textContent = result.rating;
+            el.querySelector('.tile-check-result-score').textContent = result.score + '/100';
+        }
+
+        function _renderTileCheckSourceButtons() {
+            const host = document.getElementById('tileCheckSource');
+            if (!host) return;
+            host.replaceChildren();
+            _tileCheckImageSlots().forEach(slot => {
+                const btn = document.createElement('button');
+                btn.className = 'tile-check-source-btn' + (slot === _tileCheckSlot ? ' active' : '');
+                btn.textContent = _tileCheckSourceLabel(slot);
+                btn.title = mediaData[slot].name || btn.textContent;
+                btn.dataset.slot = slot;
+                btn.style.setProperty('--tile-slot-color', _slotColors[slot] || _SLOT_COLOR_DEFAULTS[slot] || '#46d7ff');
+                btn.setAttribute('aria-pressed', slot === _tileCheckSlot ? 'true' : 'false');
+                btn.onclick = () => _selectTileCheckSlot(slot);
+                host.appendChild(btn);
+            });
+        }
+
+        function _tileCheckAnalysisForSlot(slot) {
+            const md = mediaData[slot];
+            const layer = getLayer(slot);
+            const image = layer && layer.querySelector('img');
+            if (!md || !image || !image.complete || !image.naturalWidth) return null;
+            const cached = _tileCheckCache.get(slot);
+            if (cached && cached.src === md.src) return cached.result;
+
+            // A bounded analysis copy keeps large texture maps responsive while the
+            // source image remains full-resolution for the visual repeat preview.
+            const maxSide = 512;
+            const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+            const width = Math.max(4, Math.round(image.naturalWidth * scale));
+            const height = Math.max(4, Math.round(image.naturalHeight * scale));
+            const sample = document.createElement('canvas');
+            sample.width = width;
+            sample.height = height;
+            const ctx = sample.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(image, 0, 0, width, height);
+            const result = _analyzeTileability(ctx.getImageData(0, 0, width, height));
+            _tileCheckCache.set(slot, { src: md.src, result });
+            return result;
+        }
+
+        function _renderTileCheck() {
+            _tileCheckRenderRaf = null;
+            if (!_tileCheckMode) return;
+            const layer = getLayer(_tileCheckSlot);
+            const image = layer && layer.querySelector('img');
+            const canvas = document.getElementById('tileCheckCanvas');
+            if (!image || !canvas) return;
+
+            let result = null;
+            try {
+                result = _tileCheckAnalysisForSlot(_tileCheckSlot);
+            } catch (error) {
+                console.warn('Tile check unavailable:', error);
+            }
+            _updateTileCheckResult('overall', result && result.overall);
+            _updateTileCheckResult('horizontal', result && result.horizontal);
+            _updateTileCheckResult('vertical', result && result.vertical);
+            _updateTileCheckResult('corner', result && result.corner);
+            _renderTilePreview(canvas, image, result, {
+                view: _tileCheckView,
+                heatmap: _tileCheckHeatmap
+            });
+            canvas.setAttribute('aria-label', `${_tileCheckSourceLabel(_tileCheckSlot)} ${_tileCheckView === 'offset' ? 'centered seam' : '3 by 3 repeated'} tile preview`);
+        }
+
+        function _scheduleTileCheckRender() {
+            if (!_tileCheckMode || _tileCheckRenderRaf) return;
+            _tileCheckRenderRaf = requestAnimationFrame(_renderTileCheck);
+        }
+
+        function _syncTileCheckControls() {
+            const repeat = document.getElementById('tileRepeatBtn');
+            const offset = document.getElementById('tileOffsetBtn');
+            const heat = document.getElementById('tileHeatmapBtn');
+            if (repeat) {
+                repeat.classList.toggle('active', _tileCheckView === 'repeat');
+                repeat.setAttribute('aria-pressed', _tileCheckView === 'repeat' ? 'true' : 'false');
+            }
+            if (offset) {
+                offset.classList.toggle('active', _tileCheckView === 'offset');
+                offset.setAttribute('aria-pressed', _tileCheckView === 'offset' ? 'true' : 'false');
+            }
+            if (heat) {
+                heat.classList.toggle('active', _tileCheckHeatmap);
+                heat.setAttribute('aria-pressed', _tileCheckHeatmap ? 'true' : 'false');
+            }
+        }
+
+        function _setTileCheckView(view) {
+            _tileCheckView = view === 'offset' ? 'offset' : 'repeat';
+            _prefs.save('tileCheckView', _tileCheckView);
+            _syncTileCheckControls();
+            _scheduleTileCheckRender();
+        }
+
+        function _toggleTileHeatmap() {
+            _tileCheckHeatmap = !_tileCheckHeatmap;
+            _prefs.save('tileCheckHeatmap', _tileCheckHeatmap);
+            _syncTileCheckControls();
+            _scheduleTileCheckRender();
+        }
+
+        function _selectTileCheckSlot(slot, announce = true) {
+            if (!_tileCheckImageSlots().includes(slot)) return;
+            _tileCheckSlot = slot;
+            _renderTileCheckSourceButtons();
+            _scheduleTileCheckRender();
+            if (announce) showToast('Tile Check: ' + _tileCheckSourceLabel(slot));
+        }
+
+        function _stepTileCheckSource(delta) {
+            const slots = _tileCheckImageSlots();
+            if (!_tileCheckMode || slots.length < 2) return;
+            const index = Math.max(0, slots.indexOf(_tileCheckSlot));
+            _selectTileCheckSlot(slots[(index + delta + slots.length) % slots.length]);
+        }
+
+        function _setTileCheckMode(enabled, announce = true) {
+            enabled = !!enabled;
+            if (enabled) {
+                const slots = _tileCheckImageSlots();
+                if (!hasImages || hasVideos || hasAudios || !slots.length) {
+                    if (announce) showToast('Tile Check is available for images');
+                    return false;
+                }
+                if (_diffMode) _setDiffMode(false, false);
+                if (_wipeMode) _setWipeMode(false, false);
+                if (magnifierEnabled) toggleMagnifier();
+                _tileCheckMode = true;
+                const activeSlot = assetOrder[currentAssetIndex];
+                _tileCheckSlot = slots.includes(activeSlot) ? activeSlot : slots[0];
+            } else {
+                _tileCheckMode = false;
+                if (_tileCheckRenderRaf) cancelAnimationFrame(_tileCheckRenderRaf);
+                _tileCheckRenderRaf = null;
+            }
+
+            const panel = document.getElementById('tileCheckPanel');
+            const button = document.getElementById('tileCheckToggleBtn');
+            if (panel) panel.classList.toggle('active', _tileCheckMode);
+            if (button) {
+                button.classList.toggle('active', _tileCheckMode);
+                button.setAttribute('aria-pressed', _tileCheckMode ? 'true' : 'false');
+            }
+            if (_tileCheckMode) {
+                _renderTileCheckSourceButtons();
+                _syncTileCheckControls();
+                _scheduleTileCheckRender();
+                if (announce) showToast('Tile Check: ' + _tileCheckSourceLabel(_tileCheckSlot));
+            } else if (announce) {
+                showToast('Tile Check off');
+            }
+            return true;
+        }
+
+        function toggleTileCheck() {
+            _setTileCheckMode(!_tileCheckMode);
+        }
+
+        window.addEventListener('resize', _scheduleTileCheckRender);
+        document.addEventListener('DOMContentLoaded', () => {
+            const stage = document.querySelector('.tile-check-stage');
+            if (stage && typeof ResizeObserver !== 'undefined') {
+                _tileCheckResizeObserver = new ResizeObserver(_scheduleTileCheckRender);
+                _tileCheckResizeObserver.observe(stage);
+            }
+        });
+
         // ── Difference composite mode ──
 
         function _getDiffPairs() {
@@ -7375,6 +7845,7 @@
 
         function _setDiffMode(enabled, announce = true) {
             if (enabled && _wipeMode) _setWipeMode(false, false);
+            if (enabled && _tileCheckMode) _setTileCheckMode(false, false);
             _diffMode = enabled;
             const pairs = _getDiffPairs();
             if (_diffMode) {
@@ -7478,11 +7949,19 @@
         // Shared media helpers — work for both video and audio modes
         function getAllPlayableMedia() {
             const tag = hasAudios ? 'audio' : 'video';
-            return [
-                document.querySelector('#layerOriginal ' + tag),
-                document.querySelector('#layerEditA ' + tag),
-                document.querySelector('#layerEditB ' + tag)
-            ].filter(Boolean);
+            return assetOrder.map(slot => {
+                const layer = getLayer(slot);
+                return layer ? layer.querySelector(tag) : null;
+            }).filter(Boolean);
+        }
+
+        function getMediaSlot(media) {
+            if (!media) return null;
+            if (media.dataset && media.dataset.slot && mediaData[media.dataset.slot]) return media.dataset.slot;
+            return assetOrder.find(slot => {
+                const layer = getLayer(slot);
+                return !!layer && (layer.querySelector('video') === media || layer.querySelector('audio') === media);
+            }) || null;
         }
 
         let _bulkSyncActive = false;
@@ -7760,8 +8239,11 @@
 
             // ── Dim regions outside loop in/out points ──
             if (_loopInPoint !== null && _loopOutPoint !== null) {
-                const loopInX = labelMargin + Math.round((_loopInPoint / maxDuration) * drawableW);
-                const loopOutX = labelMargin + Math.round((_loopOutPoint / maxDuration) * drawableW);
+                const loopLayer = getLayer(slot);
+                const loopMedia = loopLayer && (loopLayer.querySelector('video') || loopLayer.querySelector('audio'));
+                const loop = _customLoopBoundsForMedia(loopMedia);
+                const loopInX = labelMargin + Math.round(((loop ? loop.inP : _loopInPoint) / maxDuration) * drawableW);
+                const loopOutX = labelMargin + Math.round(((loop ? loop.outP : _loopOutPoint) / maxDuration) * drawableW);
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                 if (loopInX > labelMargin) {
                     ctx.fillRect(labelMargin, 0, loopInX - labelMargin, canvas.height);
@@ -7965,6 +8447,7 @@
 
             // Hidden audio element for playback
             const audio = document.createElement('audio');
+            audio.dataset.slot = slot;
             audio.src = blobUrl;
             audio.controls = false;
             audio.loop = true;
@@ -8058,6 +8541,7 @@
             const { layer, mediaContainer } = prepareLayer(slot);
 
             const video = document.createElement('video');
+            video.dataset.slot = slot;
             video.src = blobUrl;
             video.controls = false;
             video.volume = _prefs.load('volume', 100) / 100;
@@ -8304,7 +8788,10 @@
                     const activeLayer = getLayer(activeSlot);
                     primary = activeLayer ? activeLayer.querySelector('audio') : getAllPlayableMedia()[0];
                 } else {
-                    if (isGridMode) {
+                    if (_isSoloPlayback()) {
+                        primary = getTransportVideos()[0] || null;
+                        primaryVideoRef = primary;
+                    } else if (isGridMode) {
                         // In grid mode, always resolve from active slot (no caching —
                         // currentAudioSource can change without invalidating the ref)
                         const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -8331,7 +8818,7 @@
                 // chain ownership is keyed to the true primaryVideoRef.
                 let _loopTail = false;
                 if ((!primary || primary.paused) && !hasAudios && _getLoopBounds() !== null) {
-                    const _pv = getAllVideos().find(v => !v.paused && !v.ended);
+                    const _pv = getTransportVideos().find(v => !v.paused && !v.ended);
                     if (_pv) { primary = _pv; _loopTail = true; }
                 }
 
@@ -8401,7 +8888,7 @@
                     // duration, which includes Opus-corrected durations); wrapping a
                     // single slot here would desync it from the others.
                     if (_opusSyncActive && _loopInPoint === null && _getLoopBounds() === null) {
-                        for (const s of assetOrder) {
+                        for (const s of getTransportSlots()) {
                             if (!_opusSyncDuration[s]) continue;
                             const layer = getLayer(s);
                             const v = layer && layer.querySelector('video');
@@ -8453,7 +8940,8 @@
         let audioMuteStates = {
             original: false,
             editA: false,
-            editB: false
+            editB: false,
+            editC: false
         };
 
         function toggleAudioMute(source) {
@@ -8468,7 +8956,7 @@
             _updateOpusSyncGains();
 
             // If this was the selected audio source, switch to an unmuted source
-            if (source === currentAudioSource && audioMuteStates[source]) {
+            if (source === currentAudioSource && audioMuteStates[source] && !_isSoloPlayback()) {
                 // Find first unmuted source
                 const unmutedSource = Object.keys(audioMuteStates).find(s => !audioMuteStates[s] && mediaData[s]);
                 if (unmutedSource) {
@@ -8491,6 +8979,10 @@
         }
 
         function selectAudioSource(source) {
+            if (_isSoloPlayback() && source !== _soloPlaybackSlot &&
+                mediaData[source] && mediaData[source].type === 'video') {
+                _setSoloPlaybackSlot(source);
+            }
             currentAudioSource = source;
 
             // Update button states
@@ -8523,6 +9015,7 @@
                 const video = layer && layer.querySelector('video');
                 if (video && !video.paused) _startOpusSyncAudio(source, video.currentTime);
             }
+            _updatePlaybackScopeBtn();
         }
 
         function setVolume(value) {
@@ -8551,10 +9044,8 @@
         function _getEffectiveDuration(video) {
             // For Opus sync slots, use the trimmed audio buffer duration
             // instead of video.duration (which includes trailing audio)
-            if (_opusSyncActive) {
-                const slot = currentAudioSource || assetOrder[currentAssetIndex];
-                if (_opusSyncDuration[slot]) return _opusSyncDuration[slot];
-            }
+            const slot = getMediaSlot(video);
+            if (slot && _opusSyncDuration[slot]) return _opusSyncDuration[slot];
             return video.duration;
         }
 
@@ -8652,7 +9143,8 @@
             const labels = {
                 'original': 'Original',
                 'editA': 'Edit A',
-                'editB': 'Edit B'
+                'editB': 'Edit B',
+                'editC': 'Edit C'
             };
 
             // Compare all pairs for identical content.
@@ -9066,7 +9558,7 @@
                 const drawableW = rect.width - labelMarginCss;
                 const x = e.clientX - rect.left - labelMarginCss;
                 const pct = Math.max(0, Math.min(1, x / drawableW));
-                const media = _scrubVideo || getAllPlayableMedia()[0];
+                const media = _scrubVideo || getTransportPlayableMedia()[0];
                 if (!media || isNaN(media.duration)) return null;
                 const seekDur = hasAudios ? (_audioMaxDuration || media.duration) : _getEffectiveDuration(media);
                 return Math.min(pct * seekDur, seekDur);
@@ -9078,6 +9570,7 @@
                     || (e.target.id === 'spectrogramCanvas' ? e.target : null);
                 if (!canvas) return;
                 _resetFrameStepCursor();
+                if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
                 _cancelPendingPlayIntent();
                 _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
@@ -9118,8 +9611,8 @@
                 const tag = hasAudios ? 'audio' : 'video';
                 const activeSlot = currentAudioSource || assetOrder[currentAssetIndex];
                 const scrubLayer = getLayer(activeSlot);
-                _scrubVideo = scrubLayer ? scrubLayer.querySelector(tag) : (getAllPlayableMedia()[0] || null);
-                _scrubAllVideos = Array.from(document.querySelectorAll('.asset-layer ' + tag));
+                _scrubVideo = scrubLayer ? scrubLayer.querySelector(tag) : (getTransportPlayableMedia()[0] || null);
+                _scrubAllVideos = getTransportPlayableMedia();
 
                 if (_scrubVideo) {
                     wasPlaying = !_scrubVideo.paused;
@@ -9176,6 +9669,7 @@
 
             progressContainer.addEventListener('mousedown', function(e) {
                 _resetFrameStepCursor();
+                if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
                 _cancelPendingPlayIntent();
                 _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
@@ -9224,10 +9718,10 @@
                 const scrubLayer = isGridMode ? getLayer(activeSlot) : document.querySelector('.asset-layer.active');
                 _scrubVideo = scrubLayer ? scrubLayer.querySelector(tag) : null;
                 if (!_scrubVideo) {
-                    const els = getAllPlayableMedia();
+                    const els = getTransportPlayableMedia();
                     if (els.length > 0) _scrubVideo = els[0];
                 }
-                _scrubAllVideos = Array.from(document.querySelectorAll('.asset-layer ' + tag));
+                _scrubAllVideos = getTransportPlayableMedia();
                 _scrubContainerRect = progressContainer.getBoundingClientRect();
 
                 if (_scrubVideo) {
@@ -9470,6 +9964,9 @@
             panOffsetY = 0;
             if (!isGridMode) {
                 applyZoom(); // also calls _updateStackInfoStrip which reads the updated bar
+            } else if (isQuadMode()) {
+                // A 2×2 Inline grid keeps its shape after rotation; only media geometry changes.
+                requestAnimationFrame(() => positionLabelsToMedia(5));
             } else {
                 // Re-pick layout axis based on new effective dims, then relayout.
                 const _n = getLoadedSlotCount();
@@ -9881,9 +10378,7 @@
             // Find the active layer and its slot
             const activeLayer = document.querySelector('.asset-layer.active');
             if (!activeLayer) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
-            const slot = activeLayer.id === 'layerOriginal' ? 'original'
-                       : activeLayer.id === 'layerEditA'    ? 'editA'
-                       : activeLayer.id === 'layerEditB'    ? 'editB' : null;
+            const slot = assetOrder.find(candidate => getLayer(candidate) === activeLayer) || null;
             if (!slot || !mediaData[slot]) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
 
             // Read from the hidden info bar spans — they're kept up to date by applyZoom()
@@ -10046,7 +10541,7 @@
             const vpTop = headerH + 1;
 
             // Collect asset bounding boxes from data stashed by applyZoom()
-            const SLOT_COLORS = { original: '#f0a030', editA: '#4a9eff', editB: '#4dbb5f' };
+            const SLOT_COLORS = { original: '#f0a030', editA: '#4a9eff', editB: '#da3e99', editC: '#63c174' };
             const assets = [];
             assetOrder.forEach(slot => {
                 if (!mediaData[slot]) return;
@@ -10341,11 +10836,13 @@
             // Restore the active label while the loaded-slot context still exists.
             if (_diffMode) _setDiffMode(false, false);
             if (_wipeMode) _setWipeMode(false, false);
+            if (_tileCheckMode) _setTileCheckMode(false, false);
+            _tileCheckCache.clear();
+            _tileCheckSlot = null;
             _blobUrls.forEach(url => URL.revokeObjectURL(url));
             _blobUrls = [];
-            mediaData.original = null;
-            mediaData.editA = null;
-            mediaData.editB = null;
+            assetOrder.forEach(slot => { mediaData[slot] = null; });
+            _resetPlaybackScope();
             _hiddenSlots.clear();
             _noAudioSlots.clear();
             assetOrder.forEach(s => { const l = getLayer(s); if (l) l.style.display = ''; });
@@ -10367,7 +10864,7 @@
             panOffsetY = 0;
             isPanning = false;
             _savedFitZoom = null; _savedFitPanX = 0; _savedFitPanY = 0;
-            _slotRotation = { original: 0, editA: 0, editB: 0 };
+            _slotRotation = Object.fromEntries(assetOrder.map(slot => [slot, 0]));
 
             // Stop video/audio progress loop — will be restarted if new load includes videos/audio
             stopProgressUpdateLoop();
@@ -10510,8 +11007,9 @@
             vcReset.classList.remove('images-only');
 
             // Clear layers
-            ['Original', 'EditA', 'EditB'].forEach(slot => {
-                const layer = document.getElementById(`layer${slot}`);
+            assetOrder.forEach(slot => {
+                const layer = getLayer(slot);
+                if (!layer) return;
                 // Remove media container
                 const mediaContainer = layer.querySelector('.media-container');
                 if (mediaContainer) {
@@ -10540,17 +11038,16 @@
             // Restore default asset labels (may have been changed to IMAGE/VIDEO A/B in 2-asset mode).
             // Use optional chaining: after clearAllMedia removes .media-container, .asset-name
             // may no longer exist in the DOM until the next loadFile() recreates it.
-            const elEditA = document.querySelector('#layerEditA .asset-name');
-            const elEditB = document.querySelector('#layerEditB .asset-name');
-            if (elEditA) elEditA.textContent = slotLabel('editA');
-            if (elEditB) elEditB.textContent = slotLabel('editB');
+            assetOrder.forEach(slot => {
+                const nameEl = getLayer(slot)?.querySelector('.asset-name');
+                if (nameEl) nameEl.textContent = slotShortLabel(slot);
+            });
 
-            // Reset audio source button label (GT → O)
-            const btnO = document.getElementById('audioOriginal');
-            if (btnO) {
-                [...btnO.childNodes].filter(n => n.nodeType === Node.TEXT_NODE)
-                    .forEach(n => { n.textContent = n.textContent.replace('GT', 'O'); });
-            }
+            // Reset audio source button labels (four-item numbered labels / GT / Source → defaults).
+            assetOrder.forEach(slot => {
+                const label = slot === 'original' ? 'O' : slotShortLabel(slot);
+                _setAudioButtonLabel(slot, label);
+            });
             document.body.classList.remove('audio-mode');
             document.body.classList.remove('no-video');
             document.body.classList.remove('bw-mode');
@@ -10587,15 +11084,11 @@
 
         // Video controls
         function getAllVideos() {
-            return [
-                document.querySelector('#layerOriginal video'),
-                document.querySelector('#layerEditA video'),
-                document.querySelector('#layerEditB video')
-            ].filter(v => v);
+            return assetOrder.map(slot => getLayer(slot)?.querySelector('video')).filter(Boolean);
         }
 
         function togglePlayPause() {
-            const els = getAllPlayableMedia();
+            const els = getTransportPlayableMedia();
             if (els.length === 0) return;
             if (_isAnyMediaPlaying()) pauseAllMedia(); else playAllMedia();
         }
@@ -10612,41 +11105,47 @@
         let _ihwaSlotLabels = null; // slot index → label from IHWA page, e.g. { 0: 'Prompt Image', 1: 'Response A', 2: 'Response B' }
 
         function slotLabel(slot) {
+            // Four-item reviews use the loaded media type plus an ordinal, avoiding any
+            // implication that one file is the reference while keeping the type explicit.
+            if (getLoadedSlotCount() === 4) {
+                const loaded = assetOrder.map(key => mediaData[key]).find(Boolean);
+                return _numberedMediaLabel(slot, loaded && loaded.type);
+            }
+
             // Use labels scraped from the IHWA page if available
             if (_ihwaSlotLabels) {
-                const idx = slot === 'original' ? 0 : slot === 'editA' ? 1 : 2;
+                const idx = assetOrder.indexOf(slot);
                 if (_ihwaSlotLabels[idx]) return _ihwaSlotLabels[idx];
             }
 
             const isAudio = document.body.classList.contains('audio-mode');
-            const isVideo = !!(mediaData.editA?.type === 'video' || mediaData.editB?.type === 'video');
             const hasOriginal = !!mediaData.original;
+            const short = slotShortLabel(slot);
 
             // 2-asset: no original slot — A / B labels (symmetric peers)
             if (!hasOriginal) {
-                if (isAudio) return slot === 'editA' ? 'A' : 'B';
-                return slot === 'editA' ? 'A' : 'B';
+                return short;
             }
 
             // 3-asset: use task type if available, otherwise infer from media type
             const tt = _taskType;
             if (tt === 'image-generation') {
-                return slot === 'original' ? 'Reference Image' : slot === 'editA' ? 'Response A' : 'Response B';
+                return slot === 'original' ? 'Reference Image' : 'Response ' + short;
             }
             if (tt === 'image-editing') {
-                return slot === 'original' ? 'Source' : slot === 'editA' ? 'Image Edit A' : 'Image Edit B';
+                return slot === 'original' ? 'Source' : 'Image Edit ' + short;
             }
             if (tt === 'video-generation') {
-                return slot === 'original' ? 'Reference Video' : slot === 'editA' ? 'Video A' : 'Video B';
+                return slot === 'original' ? 'Reference Video' : 'Video ' + short;
             }
             if (tt === 'video-editing') {
-                return slot === 'original' ? 'Source Video' : slot === 'editA' ? 'Video Edit A' : 'Video Edit B';
+                return slot === 'original' ? 'Source Video' : 'Video Edit ' + short;
             }
             if (tt === 'audio' || isAudio) {
-                return slot === 'original' ? 'GT' : slot === 'editA' ? 'A' : 'B';
+                return slot === 'original' ? 'GT' : short;
             }
             // Fallback: infer from loaded media type — Ref/A/B for video and image
-            return slot === 'original' ? 'Ref' : slot === 'editA' ? 'A' : 'B';
+            return slot === 'original' ? 'Ref' : short;
         }
 
         // Pick horizontal vs vertical layout based on which gives larger rendered images
@@ -10784,6 +11283,7 @@
             const slots = getVisibleSlots();
             const isVertical = document.body.classList.contains('vertical-stack');
             const isTripartite = isTripartiteMode();
+            const isQuad = isQuadMode();
             const isEqualLayout = isInlineMode();
             // Reset video controls position when not in vertical-stack (CSS takes over)
             if (!isVertical) {
@@ -11273,6 +11773,122 @@
                         zoom: td.sharedZoom
                     };
                 });
+            } else if (isQuad) {
+                // Four-input Inline: equal-area sizing in a content-sized 2×2 grid.
+                // Keeping four full 1fr cells leaves very large gutters around square or
+                // portrait media. Instead, solve for the largest common rendered area
+                // whose two content columns and rows fit, then center that compact grid.
+                const loadedSlots = slots.filter(s => measured.data[s]);
+                if (loadedSlots.length > 0) {
+                    const ratios = {};
+                    loadedSlots.forEach(s => {
+                        const m = measured.data[s];
+                        ratios[s] = m.nw / m.nh;
+                    });
+
+                    const colGap = 4;
+                    const rowGap = 2;
+                    const availableW = Math.max(1, (ac ? ac.offsetWidth : window.innerWidth) - 16);
+                    const availableH = Math.max(1, (ac ? ac.offsetHeight : window.innerHeight - getHeaderHeight()) - 8);
+                    const cellFor = slot => {
+                        const index = assetOrder.indexOf(slot);
+                        return { col: index % 2, row: Math.floor(index / 2) };
+                    };
+                    const clusterAtArea = area => {
+                        const colWidths = [0, 0];
+                        const rowHeights = [0, 0];
+                        loadedSlots.forEach(s => {
+                            const m = measured.data[s];
+                            const cell = cellFor(s);
+                            const rw = Math.sqrt(area * ratios[s]);
+                            const rh = Math.sqrt(area / ratios[s]);
+                            colWidths[cell.col] = Math.max(colWidths[cell.col], rw);
+                            rowHeights[cell.row] = Math.max(rowHeights[cell.row], m.ibH + rh);
+                        });
+                        return {
+                            colWidths,
+                            rowHeights,
+                            width: colWidths[0] + colWidths[1] + colGap,
+                            height: rowHeights[0] + rowHeights[1] + rowGap
+                        };
+                    };
+                    const fitsCluster = area => {
+                        const cluster = clusterAtArea(area);
+                        return cluster.width <= availableW && cluster.height <= availableH;
+                    };
+
+                    // Find the maximum common area. A short binary search keeps this
+                    // exact for mixed aspect ratios and differently sized info bars.
+                    let lowArea = 0;
+                    let highArea = 1;
+                    while (fitsCluster(highArea) && highArea < 1e12) highArea *= 4;
+                    for (let i = 0; i < 36; i++) {
+                        const mid = (lowArea + highArea) / 2;
+                        if (fitsCluster(mid)) lowArea = mid;
+                        else highArea = mid;
+                    }
+                    const fitArea = Math.max(1, lowArea);
+
+                    let linearZoom = splitStepZoom;
+                    if (splitZoomLevel === 1) {
+                        const minNative = loadedSlots.reduce((mn, s) => {
+                            const m = measured.data[s];
+                            const baseW = Math.sqrt(fitArea * ratios[s]);
+                            return baseW > 0 ? Math.min(mn, m.nw / baseW) : mn;
+                        }, Infinity);
+                        if (isFinite(minNative)) linearZoom = minNative * splitStepZoom;
+                    }
+                    let targetArea = fitArea * linearZoom * linearZoom;
+                    if (targetArea > fitArea) {
+                        targetArea = fitArea;
+                        if (linearZoom > 0) splitStepZoom = Math.min(splitStepZoom, 1 / linearZoom);
+                        _gridZoomWasCapped = true;
+                    } else {
+                        _gridZoomWasCapped = false;
+                    }
+
+                    const rendered = {};
+                    loadedSlots.forEach(slot => {
+                        const m = measured.data[slot];
+                        const r = ratios[slot];
+                        const rw = Math.round(Math.sqrt(targetArea * r));
+                        const rh = Math.round(Math.sqrt(targetArea / r));
+                        rendered[slot] = { rw, rh };
+                    });
+
+                    const colWidths = [0, 0];
+                    const rowHeights = [0, 0];
+                    loadedSlots.forEach(slot => {
+                        const m = measured.data[slot];
+                        const cell = cellFor(slot);
+                        const size = rendered[slot];
+                        colWidths[cell.col] = Math.max(colWidths[cell.col], size.rw);
+                        rowHeights[cell.row] = Math.max(rowHeights[cell.row], m.ibH + size.rh);
+                    });
+
+                    if (ac && loadedSlots.length === 4 && !anySkipped) {
+                        ac.style.gridTemplateColumns = colWidths.map(v => Math.ceil(v) + 'px').join(' ');
+                        ac.style.gridTemplateRows = rowHeights.map(v => Math.ceil(v) + 'px').join(' ');
+                        ac.style.justifyContent = 'center';
+                        ac.style.alignContent = 'center';
+                    }
+
+                    loadedSlots.forEach(slot => {
+                        const m = measured.data[slot];
+                        const cell = cellFor(slot);
+                        const { rw, rh } = rendered[slot];
+                        // Pull every item toward the central cross. This guarantees the
+                        // intended 4px/2px gutters even when neighboring aspect ratios differ.
+                        const tx = cell.col === 0 ? colWidths[0] - rw : 0;
+                        const ty = cell.row === 0 ? rowHeights[0] - rh : m.ibH;
+                        slotGeometry[slot] = {
+                            rw, rh,
+                            tx: Math.round(tx),
+                            ty: Math.round(ty),
+                            zoom: rw / m.nw
+                        };
+                    });
+                }
             } else if (!isVertical) {
                 // Horizontal compare: scale each asset so its longest side matches the
                 // smallest longest-side. Anchoring on the longest side gives the same
@@ -11616,9 +12232,10 @@
             _updateStackInfoStrip();
         });
 
-        const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'grid-mode', 'two-asset', 'zoom-100'];
+        const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'quad-grid', 'grid-mode', 'two-asset', 'four-asset', 'single-asset', 'zoom-100'];
 
         function setViewMode(mode) {
+            if (_tileCheckMode) _setTileCheckMode(false, false);
             // Update view mode
             if (mode === 'overlay') {
                 // Return to overlay mode
@@ -11700,7 +12317,10 @@
 
                     // Clear any inline grid-template-columns override from mixed orientations
                     const container = document.querySelector('.asset-container');
-                    if (container) container.style.gridTemplateColumns = ''; container.style.gridTemplateRows = '';
+                    if (container) {
+                        container.style.gridTemplateColumns = '';
+                        container.style.gridTemplateRows = '';
+                    }
 
                     document.querySelectorAll('.asset-layer').forEach(layer => {
                         const hasMedia = layer.querySelector('img, video, canvas.audio-viz-slot-canvas');
@@ -11714,9 +12334,13 @@
                     // Compute layout direction once per applyLayout call; avoid re-running
                     // the area heuristic separately for each branch.
                     const _best2 = visibleSlotCount <= 2 ? pickBestGridLayout(2) : null;
-                    const _best3 = visibleSlotCount > 2  ? pickBestGridLayout(3) : null;
+                    const _best3 = visibleSlotCount === 3 ? pickBestGridLayout(3) : null;
 
-                    if (targetMode === 'vertical') {
+                    if (hasAudios) {
+                        document.body.classList.add('vertical-stack');
+                    } else if (visibleSlotCount === 4 || targetMode === 'quad') {
+                        document.body.classList.add('quad-grid');
+                    } else if (targetMode === 'vertical') {
                         document.body.classList.add('vertical-stack');
                     } else if (targetMode === 'offset') {
                         if (visibleSlotCount <= 2) {
@@ -11755,6 +12379,7 @@
                     // Re-hide any slots the user has toggled off
                     _hiddenSlots.forEach(s => { const l = getLayer(s); if (l) l.style.display = 'none'; });
                     document.body.classList.toggle('two-asset', visibleSlotCount === 2);
+                    document.body.classList.toggle('four-asset', visibleSlotCount === 4);
                     document.body.classList.toggle('single-asset', visibleSlotCount === 1);
 
 
@@ -11793,7 +12418,10 @@
             // Swap body classes
             document.body.classList.remove('offset', 'inline-cols', 'inline-rows');
             const container = document.querySelector('.asset-container');
-            if (container) container.style.gridTemplateColumns = ''; container.style.gridTemplateRows = '';
+            if (container) {
+                container.style.gridTemplateColumns = '';
+                container.style.gridTemplateRows = '';
+            }
             if (gridInlineMode) {
                 const best = pickBestGridLayout(3);
                 document.body.classList.add(best === 'vertical' ? 'inline-rows' : 'inline-cols');
@@ -11829,12 +12457,16 @@
         function _updateGridSubOptions() {
             const container = document.getElementById('gridSubOptions');
             if (!container) return;
-            const show = isGridMode && getVisibleSlots().length === 3 && !hasAudios;
+            const visibleCount = getVisibleSlots().length;
+            const show = isGridMode && (visibleCount === 3 || visibleCount === 4) && !hasAudios;
             container.style.display = show ? 'flex' : 'none';
             const inlineBtn = document.getElementById('inlineModeBtn');
             const offsetBtn = document.getElementById('offsetModeBtn');
-            if (inlineBtn) inlineBtn.classList.toggle('active', gridInlineMode === true);
-            if (offsetBtn) offsetBtn.classList.toggle('active', gridInlineMode === false);
+            if (inlineBtn) inlineBtn.classList.toggle('active', visibleCount === 4 || gridInlineMode === true);
+            if (offsetBtn) {
+                offsetBtn.style.display = visibleCount === 3 ? '' : 'none';
+                offsetBtn.classList.toggle('active', visibleCount === 3 && gridInlineMode === false);
+            }
         }
 
         // Rebuilds the mode strip in the header. activeMode is 'overlay', 'offset',
@@ -11881,7 +12513,8 @@
             if (gridIconBtn) {
                 gridIconBtn.classList.toggle('active', normalised !== 'overlay');
                 gridIconBtn.onclick = () => {
-                    const gm = getVisibleSlots().length === 3 ? 'offset' : (layoutMode || 'horizontal');
+                    const count = getVisibleSlots().length;
+                    const gm = hasAudios ? 'vertical' : count === 4 ? 'quad' : count === 3 ? 'offset' : (layoutMode || 'horizontal');
                     setViewMode(gm);
                     gridIconBtn.blur();
                 };
@@ -12075,35 +12708,30 @@
                 // Show/hide audio source buttons based on what's loaded
                 // Relabel "O" to match header: "GT" in audio mode, "S" (Source) for video
                 if (mediaData.original) {
-                    const btn = document.getElementById('audioOriginal');
-                    const textNodes = [...btn.childNodes].filter(n => n.nodeType === Node.TEXT_NODE);
                     const label = hasAudios ? 'GT' : 'S';
-                    textNodes.forEach(n => { n.textContent = n.textContent.replace(/\s*[A-Z]+\s*/, ' ' + label + ' '); });
+                    _setAudioButtonLabel('original', label);
                 }
                 document.getElementById('audioOriginal').style.display = mediaData.original ? 'inline-block' : 'none';
                 document.getElementById('audioEditA').style.display = mediaData.editA ? 'inline-block' : 'none';
                 document.getElementById('audioEditB').style.display = mediaData.editB ? 'inline-block' : 'none';
+                document.getElementById('audioEditC').style.display = mediaData.editC ? 'inline-block' : 'none';
 
-                // Set initial audio source to first loaded video
-                if (mediaData.original) {
-                    selectAudioSource('original');
-                } else if (mediaData.editA) {
-                    selectAudioSource('editA');
-                } else {
-                    selectAudioSource('editB');
+                // Four-item reviews use type-aware numbered naming in both media labels
+                // and the source selector (Image-N, Video-N, or Audio-N).
+                if (loadedCount === 4) {
+                    assetOrder.forEach(slot => {
+                        _setAudioButtonLabel(slot, slotLabel(slot));
+                    });
                 }
+
+                const firstLoadedSlot = assetOrder.find(slot => mediaData[slot]);
+                if (firstLoadedSlot) selectAudioSource(firstLoadedSlot);
 
                 // Check for identical assets
                 checkForIdenticalAssets();
                 
-                // Start with first loaded asset
-                if (mediaData.original) {
-                    switchToAsset(0); // Start with original
-                } else if (mediaData.editA) {
-                    switchToAsset(1); // Start with Edit A if no original
-                } else {
-                    switchToAsset(2); // Start with Edit B
-                }
+                // Start with the first loaded asset in canonical slot order.
+                if (firstLoadedSlot) switchToAsset(assetOrder.indexOf(firstLoadedSlot));
 
                 // Prepare layers for staggered fade-in.
                 // Set opacity:0 before setViewMode so layers are invisible from the start.
@@ -12115,7 +12743,7 @@
 
                 if (loadedCount === 1) {
                     // Single asset review — use overlay (Stack) mode
-                    const slot = mediaData.editA ? 'editA' : mediaData.original ? 'original' : 'editB';
+                    const slot = firstLoadedSlot;
                     const md = mediaData[slot];
                     if (hasAudios) {
                         document.body.classList.add('audio-mode');
@@ -12127,22 +12755,11 @@
                     }
                 } else if (hasAudios) {
                     document.body.classList.add('audio-mode');
-                    // Audio mode: force vertical stack, update labels
-                    if (loadedCount === 2 && !mediaData.original) {
-                        document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                        document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-                    } else if (loadedCount === 3) {
-                        document.querySelector('#layerOriginal .asset-name').textContent = slotLabel('original');
-                        document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
-                        document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
-                    }
-                    // Audio always uses vertical stack in grid
-                    if (loadedCount === 3) {
-                        gridInlineMode = true;
-                        setViewMode('offset');
-                    } else {
-                        setViewMode('vertical');
-                    }
+                    assetOrder.filter(slot => mediaData[slot]).forEach(slot => {
+                        getLayer(slot).querySelector('.asset-name').textContent = slotLabel(slot);
+                    });
+                    // Audio always uses a vertical stack so all timelines share an axis.
+                    setViewMode('vertical');
                 } else if (loadedCount === 2 && !mediaData.original) {
                     document.querySelector('#layerEditA .asset-name').textContent = slotLabel('editA');
                     document.querySelector('#layerEditB .asset-name').textContent = slotLabel('editB');
@@ -12170,6 +12787,12 @@
                     }
                     // else: gridInlineMode already holds the restored preference from startup
                     setViewMode('offset');
+                } else if (loadedCount === 4) {
+                    assetOrder.forEach(slot => {
+                        getLayer(slot).querySelector('.asset-name').textContent = slotLabel(slot);
+                    });
+                    gridInlineMode = true;
+                    setViewMode('quad');
                 } else if (loadedCount === 2) {
                     // Ref+A or Ref+B: pick layout by aspect ratio, same as A+B case
                     // Same rAF re-evaluation as the A+B branch above — always apply the
@@ -12203,6 +12826,7 @@
                     // Surface the loop-range control + warn if clips differ in length
                     // (durations are available by now — metadata precedes fade-in).
                     _notifyDurationMismatch();
+                    _updatePlaybackScopeBtn();
                     // Apply saved audio viz row heights before decode starts so that if
                     // decode completes before the setTimeout(100) panel-open path fires,
                     // drawWaveformToCanvas reads the correct container height.
@@ -12393,13 +13017,14 @@
         }
 
         // ── Slot color customisation ──────────────────────────────────────────
-        // Three primary colors (one per slot); derived dark/mid tints computed
+        // One primary color per slot; derived dark/mid tints computed
         // from HSL lightness clamping. Persisted to localStorage.slotColors.
 
         const _SLOT_COLOR_DEFAULTS = {
             original: '#2aa7c0',
             editA:    '#f0bf0f',
             editB:    '#da3e99',
+            editC:    '#63c174',
         };
         let _slotColors = Object.assign({}, _SLOT_COLOR_DEFAULTS);
 
@@ -12464,10 +13089,10 @@
             };
         }
 
-        // Apply a colors object {original, editA, editB} → CSS vars + optional persist
+        // Apply slot colors → CSS vars + optional persist
         function _applySlotColors(colors, save) {
             const root = document.documentElement.style;
-            for (const slot of ['original', 'editA', 'editB']) {
+            for (const slot of assetOrder) {
                 const hex = (colors[slot] || _SLOT_COLOR_DEFAULTS[slot]).toLowerCase();
                 const [r, g, b] = _hexToRgb(hex);
                 const txt = _slotTextColor(r, g, b);
@@ -12504,11 +13129,12 @@
                 setViewMode('overlay');
                 return;
             }
-            const allThreeVisible = getVisibleSlots().length === 3;
+            const visibleCount = getVisibleSlots().length;
             if (hasAudios) {
-                if (allThreeVisible) { gridInlineMode = true; setViewMode('offset'); }
-                else setViewMode('vertical');
-            } else if (allThreeVisible) {
+                setViewMode('vertical');
+            } else if (visibleCount === 4) {
+                setViewMode('quad');
+            } else if (visibleCount === 3) {
                 setViewMode('offset');
             } else {
                 setViewMode(layoutMode);
@@ -12544,6 +13170,8 @@
               fn: () => { if (isGridMode && mediaData.editA)    toggleSlotVisibility('editA');    } },
             { id: 'hideB',    defaultKey: '3', shift: true, label: 'Toggle slot 3 visibility',    section: 'view',
               fn: () => { if (isGridMode && mediaData.editB)    toggleSlotVisibility('editB');    } },
+            { id: 'hideC',    defaultKey: '4', shift: true, label: 'Toggle slot 4 visibility',    section: 'view',
+              fn: () => { if (isGridMode && mediaData.editC)    toggleSlotVisibility('editC');    } },
             { id: 'fullscreen', defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
               fn: () => {
                   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
@@ -12624,6 +13252,7 @@
             // ── Transport ──
             { id: 'prevAsset', defaultKey: 'ArrowLeft', altKey: 'ArrowUp', label: 'Previous asset', section: 'transport',
               fn: e => {
+                  if (_tileCheckMode) { _stepTileCheckSource(-1); return; }
                   if (_wipeMode) { if (e && e.key !== 'ArrowUp') cycleWipePair(-1); return; }
                   if (_diffMode) {
                       const pairs = _getDiffPairs();
@@ -12641,6 +13270,7 @@
               } },
             { id: 'nextAsset', defaultKey: 'ArrowRight', altKey: 'ArrowDown', label: 'Next asset', section: 'transport',
               fn: e => {
+                  if (_tileCheckMode) { _stepTileCheckSource(1); return; }
                   if (_wipeMode) { if (e && e.key !== 'ArrowDown') cycleWipePair(1); return; }
                   if (_diffMode) {
                       const pairs = _getDiffPairs();
@@ -12658,19 +13288,21 @@
               } },
             { id: 'playPause', defaultKey: ' ', label: 'Play / Pause', section: 'transport', global: true,
               fn: () => togglePlayPause() },
+            { id: 'playbackScope', defaultKey: 's', shift: true, label: 'Playback: Sync / Solo', section: 'transport',
+              fn: () => _togglePlaybackScope() },
             { id: 'frameBack', defaultKey: ',', label: 'Frame back', section: 'transport', paired: 'frameStepping',
               fn: () => {
                   if (hasAudios) {
-                      getAllPlayableMedia().forEach(a => { a.currentTime = Math.max(0, a.currentTime - 0.05); });
-                      const primary = getAllPlayableMedia()[0];
+                      getTransportPlayableMedia().forEach(a => { a.currentTime = Math.max(0, a.currentTime - 0.05); });
+                      const primary = getTransportPlayableMedia()[0];
                       if (primary) { updateAudioProgress(primary); updateAllAudioSlotCursors(primary); }
                   } else { stepFrame(-1); }
               } },
             { id: 'frameForward', defaultKey: '.', label: 'Frame forward', section: 'transport', paired: 'frameStepping',
               fn: () => {
                   if (hasAudios) {
-                      getAllPlayableMedia().forEach(a => { a.currentTime = Math.min(a.duration, a.currentTime + 0.05); });
-                      const primary = getAllPlayableMedia()[0];
+                      getTransportPlayableMedia().forEach(a => { a.currentTime = Math.min(a.duration, a.currentTime + 0.05); });
+                      const primary = getTransportPlayableMedia()[0];
                       if (primary) { updateAudioProgress(primary); updateAllAudioSlotCursors(primary); }
                   } else { stepFrame(1); }
               } },
@@ -12681,7 +13313,7 @@
                   if ((hasVideos || hasAudios) && playbackRateIndex > 0) {
                       playbackRateIndex--;
                       const rate = PLAYBACK_RATES[playbackRateIndex];
-                      getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                      getTransportPlayableMedia().forEach(m => { m.playbackRate = rate; });
                       _updateOpusSyncRate(rate);
                       showToast('Speed ' + rate + '×');
                   }
@@ -12691,7 +13323,7 @@
                   if ((hasVideos || hasAudios) && playbackRateIndex < PLAYBACK_RATES.length - 1) {
                       playbackRateIndex++;
                       const rate = PLAYBACK_RATES[playbackRateIndex];
-                      getAllPlayableMedia().forEach(m => { m.playbackRate = rate; });
+                      getTransportPlayableMedia().forEach(m => { m.playbackRate = rate; });
                       _updateOpusSyncRate(rate);
                       showToast('Speed ' + rate + '×');
                   }
@@ -12712,6 +13344,8 @@
               fn: () => toggleMute() },
 
             // ── Analysis ──
+            { id: 'tileCheck', defaultKey: 'y', label: 'Seamless tile check', section: 'analysis',
+              fn: () => toggleTileCheck() },
             { id: 'diffMode', defaultKey: 'd', label: 'Difference mode', section: 'analysis',
               fn: () => {
                   if (!document.getElementById('comparisonView').classList.contains('active')) return;
@@ -12842,6 +13476,8 @@
                 if (now - _lastEscTime < 400 && (_loopInPoint !== null || _loopOutPoint !== null)) {
                     _lastEscTime = 0;
                     clearLoopMarkers();
+                } else if (_tileCheckMode) {
+                    _setTileCheckMode(false);
                 } else if (magnifierEnabled) {
                     toggleMagnifier();
                 } else if (document.getElementById('changelogPopup').classList.contains('show')) {
@@ -13025,6 +13661,14 @@
             get magnifierLinked() { return magnifierLinked; },
             get videoScopesVisible() { return videoScopesVisible; },
             get diffMode() { return _diffMode; },
+            get tileCheckMode() { return _tileCheckMode; },
+            get tileCheckSlot() { return _tileCheckSlot; },
+            get tileCheckView() { return _tileCheckView; },
+            get tileCheckHeatmap() { return _tileCheckHeatmap; },
+            get tileCheckResult() {
+                const cached = _tileCheckCache.get(_tileCheckSlot);
+                return cached ? cached.result : null;
+            },
             get wipeMode() { return _wipeMode; },
             get wipePosition() { return _wipePosition; },
             get wipePair() { return _wipePair(); },
@@ -13090,6 +13734,12 @@
             get timecopyFmt() { return _prefs.load('timecopyFmt', 'hms'); },
             get _loopInPoint() { return _loopInPoint; },
             get _loopOutPoint() { return _loopOutPoint; },
+            setLoopPoints(inPoint, outPoint) {
+                _loopInPoint = inPoint;
+                _loopOutPoint = outPoint;
+                _applyNativeLoopPolicy();
+                updateLoopMarkerUI();
+            },
             get isDragging() { return isDragging; },
             get scrubAudioClockMode() { return _scrubAudioUsesPointerClock() ? 'pointer' : 'presentation'; },
             // Multi-video sync-lock state: effective loop region + per-video
@@ -13097,6 +13747,11 @@
             get _loopBounds() { return _getLoopBounds(); },
             get _loopRangeMode() { return _loopRangeMode; },
             toggleLoopRange() { _toggleLoopRangeMode(); },
+            get _playbackScope() { return _playbackScope; },
+            get _soloPlaybackSlot() { return _soloPlaybackSlot; },
+            get _soloHeldTimelineTime() { return _soloHeldTimelineTime; },
+            get _transportSlots() { return getTransportSlots(); },
+            togglePlaybackScope() { _togglePlaybackScope(); },
             get _driftLock() {
                 return getAllVideos().map(v => ({
                     t: v.currentTime, rate: v.playbackRate,
@@ -13230,7 +13885,7 @@
         </div>
         <div class="manual-content">
             <h2>Loading Files</h2>
-            <p>WarpDiff is a browser-based comparison tool for reviewing 1–3 images, videos, or audio files in Stack or Grid mode.</p>
+            <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>
             <p><strong>Three ways to load files:</strong></p>
             <ul>
                 <li>Press <kbd>L</kbd></li>
@@ -13239,10 +13894,11 @@
             </ul>
             <p><strong>File requirements:</strong></p>
             <ul>
-                <li>1–3 files (images, videos, or audio)</li>
+                <li>1–4 files (images, videos, or audio)</li>
                 <li>Use one media type per comparison; mixed image/video/audio selections are rejected</li>
                 <li>2 files → assigned to <strong>A</strong> and <strong>B</strong></li>
                 <li>3 files → assigned to <strong>Ref</strong>, <strong>A</strong>, and <strong>B</strong> by default; audio labels the reference <strong>GT</strong></li>
+                <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
@@ -13255,9 +13911,10 @@
             <p><strong>Stack</strong> — The default mode. One asset is visible at a time, layered on top of the others. Use arrow keys or the asset buttons in the header to switch between assets. Asset name, zoom, resolution, aspect ratio, and filename are shown in the header. A mini-map thumbnail appears in the lower-right when the asset overflows the viewport — click or drag it to pan. Press <kbd>\</kbd> to toggle between <em>Fit</em> (each asset fills the viewport independently) and <em>Balance</em> (all assets scaled to the same rendered screen area).</p>
             <p><strong>Grid (2 files)</strong> — Both assets displayed side-by-side with a gap between them. The layout auto-picks Horizontal or Vertical on load based on which gives larger images, and re-evaluates on resize.</p>
             <p><strong>Grid (3 files)</strong> — All three assets in a grid. Press <kbd>3</kbd> to toggle between <strong>Inline</strong> (columns or rows, auto-picked by aspect ratio; uses equal-area scaling so mixed-orientation assets share consistent visual weight) and <strong>Offset</strong> (Source alone, A/B paired).</p>
+            <p><strong>Grid (4 files)</strong> — All four assets use <strong>Inline</strong> in a balanced 2×2 grid. Offset is available only when exactly three assets are visible.</p>
 
             <h2>Hiding Slots in Grid</h2>
-            <p>Click a Ref, A, or B label in a Grid info bar to hide that slot and give the remaining assets more room. Click its dimmed header pill to restore it. <kbd>Shift+1</kbd>, <kbd>Shift+2</kbd>, and <kbd>Shift+3</kbd> toggle slots 1–3; the final visible slot cannot be hidden.</p>
+            <p>Click a slot label in a Grid info bar to hide it and give the remaining assets more room. Click its dimmed header pill to restore it. <kbd>Shift+1</kbd> through <kbd>Shift+4</kbd> toggle slots 1–4; the final visible slot cannot be hidden. Hiding one item from a four-item grid switches to three-up, and restoring it returns to 2×2.</p>
 
             <h2>Switching Modes</h2>
             <table>
@@ -13298,11 +13955,15 @@
             <h2>Image Wipe</h2>
             <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
 
+            <h2>Seamless Tile Check</h2>
+            <p>Press <kbd>Y</kbd> with images loaded to analyze any source as a repeating surface. <strong>3×3</strong> repeats the complete image nine times; <strong>Offset</strong> moves its four source edges into a center cross; <strong>Heatmap</strong> marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.</p>
+            <p>WarpDiff rates Left ↔ Right, Top ↔ Bottom, the four-way corner junction, and the weakest overall result as <strong>Seamless</strong>, <strong>Review</strong>, or <strong>Visible seam</strong>. It compares color, transparency, and texture-direction changes at the boundary with ordinary transitions inside the image. This measures technical edge continuity, not whether a recognizable object, shadow, or lighting pattern repeats too obviously, so inspect the repeated preview before accepting a surface. Analysis uses the original local source pixels; Tile Check, Image Wipe, and Difference are mutually exclusive.</p>
+
             <h2>Difference Mode</h2>
             <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
 
             <h2>Video Playback</h2>
-            <p>Video controls appear at the bottom when videos are loaded. All videos play, pause, and seek in sync.</p>
+            <p>Video controls appear at the bottom when videos are loaded. Playback defaults to <strong>Sync</strong>, where all videos play, pause, and seek together. Press <kbd>Shift+S</kbd> or click <strong>Playback: Sync</strong> to enter <strong>Solo</strong>, where the transport controls affect only the selected video.</p>
             <table>
                 <tr><th>Control</th><th>Description</th></tr>
                 <tr><td>Progress bar</td><td>Click to seek; drag to scrub</td></tr>
@@ -13315,6 +13976,7 @@
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+                <tr><td><kbd>Shift+S</kbd></td><td>Toggle Playback: Sync / Solo</td></tr>
                 <tr><td><kbd>R</kbd></td><td>Restart from beginning</td></tr>
                 <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Slower / faster playback (0.25×–2×)</td></tr>
                 <tr><td><kbd>M</kbd></td><td>Mute / Unmute</td></tr>
@@ -13327,6 +13989,7 @@
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
+            <p><strong>Playback scope:</strong> In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip <strong>Loop: Sync / Full</strong> control is hidden while Solo is active.</p>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
@@ -13383,6 +14046,7 @@
                 <tr><td><kbd>E</kbd></td><td>Cycle waveform / LUFS envelope display</td></tr>
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
+                <tr><td><kbd>Y</kbd></td><td>Toggle seamless Tile Check</td></tr>
                 <tr><td><kbd>D</kbd></td><td>Toggle difference mode (Stack)</td></tr>
                 <tr><td><kbd>Shift+D</kbd></td><td>Cycle difference pair</td></tr>
                 <tr><td><kbd>Q</kbd></td><td>Toggle image wipe (Stack)</td></tr>
@@ -13410,6 +14074,7 @@
                 <li>Audio visualization visibility, height, and row split</li>
                 <li>Waveform and spectrogram Fit / Ref level scaling</li>
                 <li>Spectrogram scale (linear/log) and color palette</li>
+                <li>Tile Check preview type and heatmap visibility</li>
                 <li>Timecode display/copy format and custom hotkeys</li>
             </ul>
 
@@ -13421,7 +14086,7 @@
 
             <h2>Limitations</h2>
             <ul>
-                <li><strong>1–3 files</strong> — 1 file for solo review, 2 for A/B, 3 for Ref + A + B</li>
+                <li><strong>1–4 files</strong> — four-item reviews use Image-1…4, Video-1…4, or Audio-1…4 labels; visual media uses a 2×2 Inline grid</li>
                 <li><strong>Images, videos, and audio only</strong> — other file types are ignored</li>
                 <li><strong>One media type per comparison</strong> — mixed image/video/audio loads are not supported</li>
                 <li><strong>Pan available in Stack mode only</strong></li>
@@ -13447,7 +14112,7 @@
             <h3>Getting Started</h3>
             <ul>
                 <li>Save assets from the review tool: right-click ▸ Open in New Tab (auto-saves to Downloads on macOS) or right-click ▸ Save</li>
-                <li>Drop 1–3 image, video, or audio files onto this window, or click the load icon (file+) in the header</li>
+                <li>Drop 1–4 image, video, or audio files onto this window, or click the load icon (file+) in the header</li>
                 <li>Files auto-sort by save time (Ref, A, B; audio uses GT, A, B) — save files one at a time so timestamps reflect the correct order</li>
             </ul>
 
@@ -13464,7 +14129,7 @@
             <h3>Video</h3>
             <ul>
                 <li><kbd>Space</kbd> play/pause, <kbd>,</kbd> <kbd>.</kbd> frame step</li>
-                <li>Synced playback across all assets</li>
+                <li><kbd>⇧S</kbd> toggles synchronized playback or the selected video by itself</li>
                 <li>Per-source audio switching (S or GT / A / B) with individual mute</li>
             </ul>
 
@@ -13477,6 +14142,7 @@
 
             <h3>Analysis</h3>
             <ul>
+                <li><kbd>Y</kbd> seamless Tile Check — 3×3 and centered-seam previews, edge/corner ratings, and optional heatmap</li>
                 <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the centered header control</li>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
@@ -13533,6 +14199,17 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.0</h3>
+            <ul>
+                <li><strong>Tile Check finds image seams before they reach a surface.</strong> Press <kbd>Y</kbd> to inspect any loaded image as a repeated 3×3 tile or move all four edges to the center with Offset. Separate Left↔Right, Top↔Bottom, corner, and overall ratings compare boundary color, alpha, and texture direction with the image's normal detail.</li>
+                <li><strong>Heatmap shows where to look.</strong> Toggle it to mark suspicious seam segments, then switch among as many as four loaded images from the source controls or arrow keys. The visual preview remains available because technical continuity cannot guarantee that a recognizable motif will not repeat.</li>
+            </ul>
+            <h3>v3.13.0</h3>
+            <ul>
+                <li><strong>Four-item comparison is here.</strong> Load four files with type-aware labels: Image-1…Image-4, Video-1…Video-4, or Audio-1…Audio-4. Visual media opens in a balanced 2×2 Inline grid, while audio keeps four vertically aligned timelines.</li>
+                <li><strong>Four-item layouts adapt as you review.</strong> Hide slot 4 with <kbd>Shift+4</kbd> or any label pill to expand the remaining three assets; restoring all four returns to 2×2. Difference and image wipe offer all six pairs.</li>
+                <li><strong>Any video can now run by itself.</strong> Press <kbd>Shift+S</kbd> or use the playback-scope button to switch between Sync and Solo. Selecting another video hands off at the same absolute time; shorter clips hold at their final frame, custom loops clamp safely to the Solo target, and returning to Sync preserves Full-range time or restarts at the shared in-point.</li>
+            </ul>
             <h3>v3.12.41</h3>
             <ul>
                 <li><strong>Slow video preparation now stays visibly active and specific.</strong> The loading screen lists each assigned slot and filename, checks off ready files, identifies which video is still decoding its first frame, explains why WarpDiff waits to reveal the comparison together, and offers Cancel.</li>

@@ -225,6 +225,7 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
         // Refresh the info bar duration — it was rendered with the inflated
         // raw video.duration at load time, before _opusSyncDuration was known.
         updateDurationDisplay(slot, _opusSyncDuration[slot], videoFrameRates[video && video.src] || null);
+        _reconcileSoloEffectiveDuration(slot);
         // If video is already playing, start sync audio immediately
         if (video && !video.paused) _startOpusSyncAudio(slot, video.currentTime);
     }

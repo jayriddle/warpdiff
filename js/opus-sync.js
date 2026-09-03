@@ -29,6 +29,10 @@ let _opusSyncActive = false;
 const _OPUS_FADE = 0.015; // 15ms fade to avoid clicks on start/stop
 
 function _startOpusSyncAudio(slot, fromTime) {
+    if (!getTransportSlots().includes(slot)) {
+        _stopOpusSyncAudio(slot);
+        return;
+    }
     const ctx = getAudioContext();
     _stopOpusSyncAudio(slot);
     const buf = _videoAudioBuffers[slot];
@@ -134,7 +138,7 @@ function _stopAllOpusSyncAudio() {
 
 function _syncOpusAudioToVideo() {
     if (!_opusSyncActive) return;
-    for (const slot of assetOrder) {
+    for (const slot of getTransportSlots()) {
         if (!_opusSyncSlots[slot] || !_opusSyncSources[slot]) continue;
         const layer = getLayer(slot);
         const video = layer && layer.querySelector('video');
@@ -162,7 +166,7 @@ function _syncOpusAudioToVideo() {
 function _updateOpusSyncRate(rate) {
     if (!_opusSyncActive) return;
     const ctx = getAudioContext();
-    for (const slot of assetOrder) {
+    for (const slot of getTransportSlots()) {
         const src = _opusSyncSources[slot];
         if (!src) continue;
         // Re-anchor timeline at the new rate so drift math stays correct.
@@ -196,11 +200,12 @@ function _updateOpusSyncGains() {
     if (!_opusSyncActive) return;
     const vol = _prefs.load('volume', 100) / 100;
     const ctx = getAudioContext();
+    const participants = new Set(getTransportSlots());
     for (const slot of assetOrder) {
         const g = _opusSyncGains[slot];
         if (!g) continue;
         const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
-        const target = (!isMuted && isCurrent && !audioMuteStates[slot]) ? vol : 0;
+        const target = (participants.has(slot) && !isMuted && isCurrent && !audioMuteStates[slot]) ? vol : 0;
         const startTime = _opusSyncStartCtx[slot];
         if (startTime > ctx.currentTime) {
             // The slot's fade-in is still scheduled in the future

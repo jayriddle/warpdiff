@@ -1,10 +1,10 @@
 # *Warp*Diff
 
-A browser-based tool for reviewing and comparing 1–3 images, videos, or audio files. No setup, no install — runs in your browser. Installable as a PWA for offline use.
+A browser-based tool for reviewing and comparing 1–4 images, videos, or audio files. No setup, no install — runs in your browser. Installable as a PWA for offline use.
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.12.41
+**Current version:** 3.14.0
 
 ---
 
@@ -12,7 +12,7 @@ A browser-based tool for reviewing and comparing 1–3 images, videos, or audio 
 
 Comparing two versions of an image, video, or audio file shouldn't require flipping between tabs, exporting screenshots, or piecing together a custom diff in Photoshop. Existing tools either don't handle all three media types, can't align frames precisely, or don't surface the technical signals — color, audio levels, frame timing — that determine whether a change is actually correct.
 
-WarpDiff is an opinionated answer to that problem: load 1–3 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
+WarpDiff is an opinionated answer to that problem: load 1–4 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 
@@ -22,7 +22,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 
 **View modes**
 - **Stack** — flip between assets with arrow keys, same position/zoom
-- **Grid** — side-by-side (2 files) or all three in a row/column (3 files), auto-picks layout; `3` toggles inline / offset
+- **Grid** — two files auto-arrange side-by-side or vertically; three use Inline or Offset; four use a balanced 2×2 Inline grid
 - Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid
 - Mixed orientations use equal-area layout so each asset has the same visual weight
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
@@ -38,15 +38,16 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 
 **Video & audio playback**
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
+- **Solo playback** (`Shift+S`, or the playback-scope button) runs only the selected video; selecting another video hands off at the same absolute time. A shorter target holds paused on its final frame rather than wrapping, while returning to Full Sync preserves the longer timeline and range-limited Sync restarts at its shared in-point
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)
-- Per-source audio switching (S or GT / A / B) with individual mute
+- Per-source audio switching with individual mute
 - Scrub preview follows the displayed frame, preserves stereo placement, and uses the same master volume as normal playback
 - Master mute (`M`) that persists across loads and sessions — reviewing muted stays muted, with an amber **Muted** label and a first-play reminder
 - `I`/`O` loop in/out points, Shift+drag on timeline
 
 **Audio file comparison**
-- Load 1–3 audio files (MP3, WAV, FLAC, etc.) for side-by-side waveform + spectrogram
+- Load 1–4 audio files (MP3, WAV, FLAC, etc.) for aligned waveform + spectrogram comparison
 - Info bars show sample rate, channels, bit depth/codec, file size, and EBU R128 metrics (integrated LUFS, LRA, true peak)
 - `E` cycles waveform / waveform + LUFS envelope / LUFS envelope only
 
@@ -56,8 +57,9 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Gallery clears when new media is loaded
 
 **Analysis**
-- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff, or directly select Ref–A, Ref–B, or A–B in the centered header control. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector
-- `D` difference mode — pixel difference between two assets in Stack mode; arrow keys or `Shift+D` cycle pairs (Ref–A, Ref–B, A–B). During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
+- `Y` seamless Tile Check — inspect any loaded image in a repeated 3×3 or centered-seam Offset preview. Independent Left↔Right, Top↔Bottom, and corner ratings compare boundary color/gradient continuity with the image's normal texture; an optional heatmap pinpoints suspicious seam segments
+- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff or select any loaded pair in the centered header control. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector
+- `D` difference mode — pixel difference between any loaded pair in Stack mode; arrow keys or `Shift+D` cycle pairs. During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes. The scopes panel always identifies its current source
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default); the shared **Fit / Ref** control switches between per-asset detail and a fixed dBFS reference scale, while encoded leading/trailing audio gaps remain aligned to the video timeline
 - Scrub audio preserves intentional soundtrack offsets and leading silence from the video container
@@ -77,11 +79,11 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 ## Usage
 
 1. Open the [live app](https://jayriddle.github.io/warpdiff/) — or install it as a PWA
-2. Press **L** (or click **Load**, or drag and drop) and select 1–3 image, video, or audio files
+2. Press **L** (or click **Load**, or drag and drop) and select 1–4 image, video, or audio files
 3. Use **Stack / Grid** buttons to switch views
 4. Press **H** to see all keyboard shortcuts
 
-Files auto-sort oldest → newest by timestamp. See [MANUAL.md](MANUAL.md) for full documentation.
+Files auto-sort oldest → newest by timestamp. Four-item reviews use media-aware labels—**Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**—and visual media opens in a 2×2 Inline grid. See [MANUAL.md](MANUAL.md) for full documentation.
 
 ---
 

@@ -248,11 +248,7 @@ function _renderShortcutsList() {
     list.appendChild(colsRow);
 
     // ── Appearance section (slot color pickers) ──
-    const SLOTS = [
-        { id: 'original', label: 'Ref' },
-        { id: 'editA',    label: 'A'   },
-        { id: 'editB',    label: 'B'   },
-    ];
+    const SLOTS = SLOT_DEFS.map(slot => ({ id: slot.key, label: slot.shortLabel }));
     const appearSection = document.createElement('div');
     appearSection.className = 'slot-appearance-section';
 

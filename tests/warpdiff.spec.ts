@@ -8,7 +8,7 @@ import fs from 'fs';
 //
 // Goals (aligned with CLAUDE.md, FEATURES.md, MANUAL.md, and memory.md):
 // - Validate keyboard-first workflow (core to the app)
-// - Test Stack vs Grid modes, GT/A/B slot assignment, timestamp sorting
+// - Test Stack vs Grid modes, multi-slot assignment, timestamp sorting
 // - Cover new/updated features: scopes (V), audio viz (W), difference (D), loupe (Z), Fit/Match zoom (\)
 // - Test error cases with toasts (no more native alerts)
 // - Use __testAPI for internal state (zoomLevel, isGridMode, fitZoom, etc.)
@@ -108,6 +108,7 @@ function ensureFixtures() {
     { name: 'green.png', buf: makeSizedPng(200, 150, 2) },
     { name: 'blue.png', buf: makeSizedPng(200, 150, 3) },
     { name: 'fourth.png', buf: makeSizedPng(100, 100, 4) },
+    { name: 'fifth.png', buf: makeSizedPng(120, 90, 8) },
     { name: 'tall.png', buf: makeSizedPng(150, 300, 5) },
     { name: 'wide.png', buf: makeSizedPng(300, 150, 6) },
     { name: 'wider.png', buf: makeSizedPng(400, 150, 7) }, // AR≈2.67, distinct from wide.png (AR 2.0)
@@ -565,7 +566,7 @@ async function getVar(page: Page, name: string): Promise<any> {
   return page.evaluate((n) => (window as any).__testAPI?.[n], name);
 }
 
-/** Load fixture images. Waits for active view and asset info (respects GT/A/B sorting). */
+/** Load fixture images. Waits for active view and asset info. */
 async function loadImages(page: Page, fileNames: string[]) {
   const filePaths = fileNames.map(f => path.join(fixturesDir, f));
   const fileInput = page.locator('#multiFileInput');
@@ -688,7 +689,7 @@ test.describe('File Loading & Slot Assignment', () => {
     await page.goto('/');
     await loadImages(page, ['red.png']);
     await expect(page.locator('#comparisonView')).toBeVisible();
-    await expect(page.locator('.asset-name')).toHaveCount(3); // All layers rendered, 1 active
+    await expect(page.locator('.asset-name')).toHaveCount(4); // All layers rendered, 1 active
   });
 
   test('loads 2 images in Grid mode with A/B slots', async ({ page }) => {
@@ -696,7 +697,7 @@ test.describe('File Loading & Slot Assignment', () => {
     await loadImages(page, ['red.png', 'green.png']);
     await expect(page.locator('#comparisonView')).toBeVisible();
     expect(await isGridMode(page)).toBe(true);
-    await expect(page.locator('.asset-name')).toHaveCount(3); // GT layer present but hidden
+    await expect(page.locator('.asset-name')).toHaveCount(4); // Ref/C layers present but hidden
   });
 
   test('loads 3 images in Grid mode with GT/A/B slots', async ({ page }) => {
@@ -704,7 +705,7 @@ test.describe('File Loading & Slot Assignment', () => {
     await loadImages(page, ['red.png', 'green.png', 'blue.png']);
     await expect(page.locator('#comparisonView')).toBeVisible();
     expect(await isGridMode(page)).toBe(true);
-    await expect(page.locator('.asset-name')).toHaveCount(3);
+    await expect(page.locator('.asset-name')).toHaveCount(4);
     // Label can be "GT", "Ref", or "SOURCE" depending on UI state — flexible match
     await expect(page.locator('#layerOriginal .asset-name')).toContainText(/GT|Ref|SOURCE/i);
   });
@@ -713,18 +714,63 @@ test.describe('File Loading & Slot Assignment', () => {
     test.skip(true, 'Needs fixtures with near-identical lastModified timestamps');
   });
 
-  test('rejects 4+ files with warning toast', async ({ page }) => {
+  test('loads 4 images as Image-1…Image-4 in a 2×2 Inline grid', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png', 'fourth.png']);
+    await expect(page.locator('body')).toHaveClass(/quad-grid/);
+    expect(await page.locator('.asset-layer .asset-name').allTextContents())
+      .toEqual(['Image-1', 'Image-2', 'Image-3', 'Image-4']);
+    await expect(page.locator('#inlineModeBtn')).toHaveClass(/active/);
+    await expect(page.locator('#offsetModeBtn')).not.toBeVisible();
+
+    const cells = await page.locator('.asset-layer').evaluateAll(layers => layers.map(layer => {
+      const r = layer.getBoundingClientRect();
+      return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+    }));
+    expect(new Set(cells.map(cell => cell.x)).size).toBe(2);
+    expect(new Set(cells.map(cell => cell.y)).size).toBe(2);
+    expect(cells.every(cell => cell.w > 0 && cell.h > 0)).toBe(true);
+
+    // The 2×2 tracks should hug the rendered media instead of leaving each item
+    // centered in a full quarter-screen cell (which created huge central gutters).
+    const spacing = await page.locator('.asset-layer').evaluateAll(layers => {
+      const items = layers.map(layer => {
+        const media = layer.querySelector('.video-wrapper')!.getBoundingClientRect();
+        const bar = layer.querySelector('.asset-info-bar')!.getBoundingClientRect();
+        return { left: media.left, right: media.right, top: bar.top, bottom: media.bottom };
+      });
+      return {
+        topGap: items[1].left - items[0].right,
+        bottomGap: items[3].left - items[2].right,
+        leftGap: items[2].top - items[0].bottom,
+        rightGap: items[3].top - items[1].bottom,
+      };
+    });
+    expect(spacing.topGap).toBeGreaterThanOrEqual(3.5);
+    expect(spacing.topGap).toBeLessThanOrEqual(5);
+    expect(spacing.bottomGap).toBeGreaterThanOrEqual(3.5);
+    expect(spacing.bottomGap).toBeLessThanOrEqual(5);
+    expect(spacing.leftGap).toBeGreaterThanOrEqual(1.5);
+    expect(spacing.leftGap).toBeLessThanOrEqual(3);
+    expect(spacing.rightGap).toBeGreaterThanOrEqual(1.5);
+    expect(spacing.rightGap).toBeLessThanOrEqual(3);
+
+    await page.evaluate(() => (window as any).clearAllMedia());
+    await expect(page.locator('#layerEditC img')).toHaveCount(0);
+  });
+
+  test('rejects 5+ files with warning toast', async ({ page }) => {
     await page.goto('/');
     const toast = page.locator('.load-toast');
-    const fileInput = page.locator('#multiFileInput');
-    await fileInput.setInputFiles([
+    await page.locator('#multiFileInput').setInputFiles([
       path.join(fixturesDir, 'red.png'),
       path.join(fixturesDir, 'green.png'),
       path.join(fixturesDir, 'blue.png'),
       path.join(fixturesDir, 'fourth.png'),
+      path.join(fixturesDir, 'fifth.png'),
     ]);
     await toast.waitFor({ timeout: 10000 });
-    await expect(toast).toContainText('1–3');
+    await expect(toast).toContainText('1–4');
     await expect(toast).toHaveClass(/warning/);
   });
 
@@ -816,9 +862,9 @@ test.describe('Audio Visualization', () => {
   test('displays audio info bars (sample rate, channels, bit depth, BPM)', async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']); // Replace with audio files for real test
-    // Info bars should show metadata (app renders 3 bars, some hidden for 2-file case)
+    // Info bars should show metadata (app renders 4 bars, some hidden for 2-file case)
     const infoBars = page.locator('.asset-info-bar');
-    await expect(infoBars).toHaveCount(3);
+    await expect(infoBars).toHaveCount(4);
     await expect(infoBars.first()).toContainText(/Hz|BPM|ch|Ref/i); // Sample rate, BPM, channels or default label
   });
 
@@ -1063,6 +1109,14 @@ test.describe('Grid Layout Direction', () => {
     await loadImages(page, ['tall.png', 'tall.png']);
     await page.waitForFunction(() => (window as any).__testAPI?.layoutMode === 'horizontal',
       {}, { timeout: 5000 });
+    // layoutMode changes before the two queued layout frames have necessarily
+    // positioned both wrappers. Wait for the rendered contract, not only state.
+    await page.waitForFunction(() => {
+      const a = document.querySelector('#layerEditA .video-wrapper');
+      const b = document.querySelector('#layerEditB .video-wrapper');
+      if (!a || !b) return false;
+      return b.getBoundingClientRect().left - a.getBoundingClientRect().right >= 3.5;
+    }, {}, { timeout: 5000 });
     const gap = await page.evaluate(() => {
       const a = document.querySelector('#layerEditA .video-wrapper')!.getBoundingClientRect();
       const b = document.querySelector('#layerEditB .video-wrapper')!.getBoundingClientRect();
@@ -1255,6 +1309,23 @@ test.describe('Grid Inline/Offset Toggle', () => {
     const afterToggle = await getVar(page, 'gridInlineMode');
     expect(afterToggle).toBe(!initialInline);
   });
+
+  test('four-input Inline collapses to three-up when slot 4 is hidden and restores to 2×2', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png', 'fourth.png']);
+    await expect(page.locator('body')).toHaveClass(/quad-grid/);
+
+    await page.keyboard.press('Shift+4');
+    await expect(page.locator('body')).not.toHaveClass(/quad-grid/);
+    await expect(page.locator('body')).toHaveClass(/inline-(cols|rows)/);
+    await expect(page.locator('#layerEditC')).toBeHidden();
+    await expect(page.locator('#offsetModeBtn')).toBeVisible();
+
+    await page.keyboard.press('Shift+4');
+    await expect(page.locator('body')).toHaveClass(/quad-grid/);
+    await expect(page.locator('#layerEditC')).toBeVisible();
+    await expect(page.locator('#offsetModeBtn')).not.toBeVisible();
+  });
 });
 
 test.describe('Timecode Format', () => {
@@ -1422,8 +1493,18 @@ test.describe('Video Loading', () => {
     await page.goto('/');
     // landscape_a.mp4 has oldest mtime (Jan 1) → Ref/GT slot
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4', 'portrait.mp4']);
-    await expect(page.locator('.asset-name')).toHaveCount(3);
+    await expect(page.locator('.asset-name')).toHaveCount(4);
     await expect(page.locator('#layerOriginal .asset-name')).toContainText(/Ref/i);
+  });
+
+  test('4 videos populate every transport slot in the 2×2 Inline grid', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4', 'portrait.mp4', 'side_lr.mp4']);
+    await expect(page.locator('body')).toHaveClass(/quad-grid/);
+    await expect(page.locator('.asset-layer video')).toHaveCount(4);
+    expect((await getVar(page, '_driftLock')).length).toBe(4);
+    expect(await page.locator('.asset-layer .asset-name').allTextContents())
+      .toEqual(['Video-1', 'Video-2', 'Video-3', 'Video-4']);
   });
 
   test('W key opens audio viz panel for video with audio track', async ({ page }) => {
@@ -1479,6 +1560,7 @@ test.describe('Audio Loading', () => {
     // Audio mode uses "GT" (Ground Truth) instead of "Ref" for the original slot
     await loadMedia(page, ['stereo.wav', 'mono.wav', 'track.mp3']);
     await expect(page.locator('#layerOriginal .asset-name')).toContainText(/GT/i);
+    await expect(page.locator('#audioOriginal')).toHaveText('GT');
   });
 
   test('audio viz canvases are shown in main view for audio files', async ({ page }) => {
@@ -1505,8 +1587,22 @@ test.describe('Audio Loading', () => {
     await page.goto('/');
     await loadMedia(page, ['stereo.wav', 'mono.wav', 'track.mp3']);
     expect(await getVar(page, 'hasAudios')).toBe(true);
-    // All 3 slot name labels should be present
-    await expect(page.locator('.asset-name')).toHaveCount(3);
+    // All static slot labels should be present (the unused fourth layer is hidden)
+    await expect(page.locator('.asset-name')).toHaveCount(4);
+  });
+
+  test('4 audio files use four aligned vertical slots and expose every source', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['stereo.wav', 'mono.wav', 'track.mp3', 'stereo.wav']);
+    expect(await getVar(page, 'hasAudios')).toBe(true);
+    await expect(page.locator('body')).toHaveClass(/vertical-stack/);
+    await expect(page.locator('body')).toHaveClass(/four-asset/);
+    await expect(page.locator('.asset-layer audio')).toHaveCount(4);
+    await expect(page.locator('.audio-source-selector button:visible')).toHaveCount(4);
+    expect((await page.locator('.asset-layer .asset-name').allTextContents()).map(text => text.trim()))
+      .toEqual(['Audio-1', 'Audio-2', 'Audio-3', 'Audio-4']);
+    expect((await page.locator('.audio-source-selector button:visible').allTextContents()).map(text => text.trim()))
+      .toEqual(['Audio-1', 'Audio-2', 'Audio-3', 'Audio-4']);
   });
 });
 
@@ -1647,6 +1743,221 @@ test.describe('Loop in/out points', () => {
 // longest) — the sync-bounds tests call useSyncRange() to opt in explicitly
 // rather than racing that default.
 // ===========================================================================
+
+test.describe('Solo video playback', () => {
+  const states = (page: Page) => page.evaluate(() =>
+    Array.from(document.querySelectorAll('.asset-layer video')).map(video => {
+      const v = video as HTMLVideoElement;
+      return { t: v.currentTime, paused: v.paused, rate: v.playbackRate };
+    }));
+
+  test('Shift+S makes Space, frame step, and speed affect only the selected video', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    const scopeBtn = page.locator('#playbackScopeBtn');
+    await expect(scopeBtn).toBeVisible();
+    await expect(scopeBtn).toHaveText('Playback: Sync');
+
+    await page.keyboard.press('Shift+s');
+    expect(await getVar(page, '_playbackScope')).toBe('solo');
+    expect(await getVar(page, '_soloPlaybackSlot')).toBe('editA');
+    expect(await getVar(page, '_transportSlots')).toEqual(['editA']);
+    await expect(scopeBtn).toHaveText('Solo: A');
+    await expect(page.locator('#loopRangeBtn')).toBeHidden();
+
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+    let videoStates = await states(page);
+    expect(videoStates[0].paused).toBe(false);
+    expect(videoStates[0].t).toBeGreaterThan(0.1);
+    expect(videoStates[1].paused).toBe(true);
+    expect(videoStates[1].t).toBeLessThan(0.1);
+
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    videoStates = await states(page);
+    const followerTime = videoStates[1].t;
+    const soloTime = videoStates[0].t;
+    await page.keyboard.press('.');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('k');
+    videoStates = await states(page);
+    expect(videoStates[0].t).toBeGreaterThan(soloTime);
+    expect(videoStates[1].t).toBeCloseTo(followerTime, 3);
+    expect(videoStates[0].rate).toBe(1.25);
+    expect(videoStates[1].rate).toBe(1);
+  });
+
+  test('selecting another slot hands off solo playback, and Sync rejoins at that time', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('Shift+s');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+
+    await page.evaluate(() => (window as any).selectAudioSource('editB'));
+    await page.waitForTimeout(250);
+    expect(await getVar(page, '_soloPlaybackSlot')).toBe('editB');
+    await expect(page.locator('#playbackScopeBtn')).toHaveText('Solo: B');
+    let videoStates = await states(page);
+    expect(videoStates[0].paused).toBe(true);
+    expect(videoStates[1].paused).toBe(false);
+    expect(Math.abs(videoStates[0].t - videoStates[1].t)).toBeLessThan(0.3);
+
+    await page.keyboard.press('Shift+s');
+    await page.waitForTimeout(250);
+    expect(await getVar(page, '_playbackScope')).toBe('sync');
+    expect(await getVar(page, '_soloPlaybackSlot')).toBeNull();
+    expect(await getVar(page, '_transportSlots')).toEqual(['editA', 'editB']);
+    await expect(page.locator('#playbackScopeBtn')).toHaveText('Playback: Sync');
+    videoStates = await states(page);
+    expect(videoStates.every(v => !v.paused)).toBe(true);
+    expect(Math.abs(videoStates[0].t - videoStates[1].t)).toBeLessThan(0.3);
+  });
+
+  test('four-video labels identify the active solo target by media type', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm', 'vorbis_long.webm', 'vorbis_30.webm']);
+    await page.keyboard.press('Shift+s');
+    await page.evaluate(() => (window as any).selectAudioSource('editC'));
+    expect(await getVar(page, '_soloPlaybackSlot')).toBe('editC');
+    await expect(page.locator('#playbackScopeBtn')).toHaveText('Solo: Video-4');
+  });
+
+  test('long-to-short handoff holds the final frame and Full Sync preserves the absolute time', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'full',
+      {}, { timeout: 5000 });
+    await page.keyboard.press('Shift+s');
+    await page.evaluate(() => (window as any).selectAudioSource('editB'));
+    await page.evaluate(async () => {
+      const longVideo = document.querySelector('#layerEditB video') as HTMLVideoElement;
+      longVideo.currentTime = 3.25;
+      await new Promise<void>(resolve => longVideo.addEventListener('seeked', () => resolve(), { once: true }));
+      (window as any).playAllMedia();
+    });
+    await page.waitForTimeout(150);
+    await page.evaluate(() => (window as any).selectAudioSource('editA'));
+    await page.waitForTimeout(150);
+
+    let videoStates = await states(page);
+    const heldTime = await getVar(page, '_soloHeldTimelineTime');
+    expect(await getVar(page, '_soloPlaybackSlot')).toBe('editA');
+    expect(videoStates[0].paused).toBe(true);
+    expect(videoStates[0].t).toBeGreaterThan(2.9);
+    expect(heldTime).toBeGreaterThan(3.2);
+    await expect(page.locator('#toast')).toContainText('held at final frame');
+
+    await page.keyboard.press('Shift+s');
+    await page.waitForTimeout(150);
+    videoStates = await states(page);
+    expect(await getVar(page, '_playbackScope')).toBe('sync');
+    expect(await getVar(page, '_soloHeldTimelineTime')).toBeNull();
+    expect(videoStates[0].paused).toBe(true);
+    expect(videoStates[0].t).toBeGreaterThan(2.9);
+    expect(videoStates[1].t).toBeCloseTo(heldTime, 1);
+  });
+
+  test('returning to range-limited Sync past its end restarts at the shared in-point', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'full',
+      {}, { timeout: 5000 });
+    await page.evaluate(() => (window as any)._toggleLoopRangeMode());
+    await page.keyboard.press('Shift+s');
+    await page.evaluate(() => (window as any).selectAudioSource('editB'));
+    await page.evaluate(async () => {
+      const longVideo = document.querySelector('#layerEditB video') as HTMLVideoElement;
+      longVideo.currentTime = 3.25;
+      await new Promise<void>(resolve => longVideo.addEventListener('seeked', () => resolve(), { once: true }));
+    });
+
+    await page.keyboard.press('Shift+s');
+    await page.waitForTimeout(150);
+    const videoStates = await states(page);
+    expect(await getVar(page, '_playbackScope')).toBe('sync');
+    expect(videoStates.every(v => v.t < 0.1)).toBe(true);
+    await expect(page.locator('#toast')).toContainText('restarted at the shared in-point');
+  });
+
+  test('custom loops clamp to a shorter Solo target without changing the shared markers', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    await page.evaluate(() => {
+      const api = (window as any).__testAPI;
+      const longVideo = document.querySelector('#layerEditB video') as HTMLVideoElement;
+      (window as any).selectAudioSource('editB');
+      api.togglePlaybackScope();
+      longVideo.currentTime = 2.6;
+      api.setLoopPoints(2.5, 3.5);
+      (window as any).selectAudioSource('editA');
+    });
+    await page.waitForTimeout(150);
+    const bounds = await getVar(page, '_loopBounds');
+    expect(await getVar(page, '_loopInPoint')).toBe(2.5);
+    expect(await getVar(page, '_loopOutPoint')).toBe(3.5);
+    expect(bounds.inP).toBe(2.5);
+    expect(bounds.outP).toBeCloseTo(3, 1);
+    const outMarkerLeft = await page.locator('#loopOutMarker').evaluate(el => parseFloat((el as HTMLElement).style.left));
+    expect(outMarkerLeft).toBeLessThanOrEqual(100);
+  });
+
+  test('a custom loop starting after the Solo target ends holds and refuses playback', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    await page.keyboard.press('Shift+s');
+    await page.evaluate(() => {
+      const api = (window as any).__testAPI;
+      (window as any).selectAudioSource('editB');
+      const longVideo = document.querySelector('#layerEditB video') as HTMLVideoElement;
+      longVideo.currentTime = 3.4;
+      api.setLoopPoints(3.2, 3.8);
+      (window as any).selectAudioSource('editA');
+    });
+    await page.waitForTimeout(150);
+    expect(await getVar(page, '_loopBounds')).toBeNull();
+    expect(await getVar(page, '_loopInPoint')).toBe(3.2);
+    expect(await getVar(page, '_loopOutPoint')).toBe(3.8);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    const videoStates = await states(page);
+    expect(videoStates[0].paused).toBe(true);
+    expect(videoStates[0].t).toBeGreaterThan(2.9);
+    await expect(page.locator('#toast')).toContainText('Loop starts after A ends');
+  });
+
+  test('effective duration belongs to the supplied video, including corrected Opus tails', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    const durations = await page.evaluate(() => {
+      (window as any).__testAPI.opus.installTestBuffer('editA', 2);
+      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return videos.map(video => (window as any)._getEffectiveDuration(video));
+    });
+    expect(durations[0]).toBeCloseTo(2, 3);
+    expect(durations[1]).toBeCloseTo(3, 1);
+    expect((await getVar(page, '_loopBounds')).outP).toBeCloseTo(2, 3);
+  });
+
+  test('a late corrected duration reconciles an active Solo target to a paused final frame', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.keyboard.press('Shift+s');
+    await page.evaluate(() => {
+      const video = document.querySelector('#layerEditA video') as HTMLVideoElement;
+      video.currentTime = 2.5;
+      (window as any).__testAPI.opus.installTestBuffer('editA', 2);
+      (window as any)._reconcileSoloEffectiveDuration('editA');
+    });
+    await page.waitForTimeout(150);
+    const videoStates = await states(page);
+    expect(videoStates[0].paused).toBe(true);
+    expect(videoStates[0].t).toBeGreaterThan(1.9);
+    expect(videoStates[0].t).toBeLessThanOrEqual(2);
+    expect(await getVar(page, '_soloHeldTimelineTime')).toBeCloseTo(2.5, 1);
+  });
+});
 
 test.describe('Multi-video sync-lock', () => {
   /** Videos in DOM order [original, editA]; read clocks straight off the elements. */
@@ -1929,6 +2240,27 @@ test.describe('Difference mode (video)', () => {
     expect(await getVar(page, '_diffPair')).toEqual(['original', 'editA']);
   });
 
+  test('four inputs expose all six media-numbered difference pairs', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png', 'fourth.png']);
+    await enterStack(page);
+    await page.keyboard.press('d');
+
+    const expected = [
+      ['original', 'editA'],
+      ['original', 'editB'],
+      ['original', 'editC'],
+      ['editA', 'editB'],
+      ['editA', 'editC'],
+      ['editB', 'editC'],
+    ];
+    for (const pair of expected) {
+      expect(await getVar(page, '_diffPair')).toEqual(pair);
+      await page.keyboard.press('Shift+D');
+    }
+    expect(await getVar(page, '_diffPair')).toEqual(expected[0]);
+  });
+
   test('exiting diff hides #diffOverlay and restores the slot label', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4', 'portrait.mp4']);
@@ -2071,6 +2403,62 @@ test.describe('Hotkey reassignment via localStorage.customHotkeys', () => {
     expect(keymap['y']).not.toBe('mute');
     expect(await getVar(pageClean, '_customKeys')).toEqual({});
     await ctxClean.close();
+  });
+});
+
+test.describe('Seamless Tile Check', () => {
+  test('Y opens a scored 3×3 preview and can inspect all four image sources', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png', 'blue.png', 'fourth.png']);
+    await page.keyboard.press('y');
+
+    await expect(page.locator('#tileCheckPanel')).toBeVisible();
+    await expect(page.locator('#tileCheckToggleBtn')).toHaveClass(/active/);
+    await expect(page.locator('#tileCheckSource .tile-check-source-btn')).toHaveText([
+      'Image-1', 'Image-2', 'Image-3', 'Image-4',
+    ]);
+    await page.waitForFunction(() => !!(window as any).__testAPI?.tileCheckResult);
+    const result = await getVar(page, 'tileCheckResult');
+    expect(result.overall.score).toBeGreaterThanOrEqual(0);
+    expect(result.overall.score).toBeLessThanOrEqual(100);
+    await expect(page.locator('[data-tile-result]')).toHaveCount(4);
+    await expect(page.locator('#tileCheckCanvas')).toHaveAttribute('aria-label', /3 by 3 repeated tile preview/);
+
+    await page.locator('#tileOffsetBtn').click();
+    await expect(page.locator('#tileOffsetBtn')).toHaveClass(/active/);
+    expect(await getVar(page, 'tileCheckView')).toBe('offset');
+    await page.locator('#tileHeatmapBtn').click();
+    await expect(page.locator('#tileHeatmapBtn')).toHaveClass(/active/);
+    expect(await getVar(page, 'tileCheckHeatmap')).toBe(true);
+
+    await page.keyboard.press('ArrowRight');
+    expect(await getVar(page, 'tileCheckSlot')).toBe('editA');
+    await expect(page.locator('#tileCheckSource .tile-check-source-btn.active')).toHaveText('Image-2');
+
+    await page.keyboard.press('y');
+    await expect(page.locator('#tileCheckPanel')).not.toBeVisible();
+    expect(await getVar(page, 'tileCheckMode')).toBe(false);
+  });
+
+  test('Tile Check, wipe, and reset hand off ownership cleanly', async ({ page }) => {
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await page.keyboard.press('s');
+    await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
+    await page.keyboard.press('y');
+    expect(await getVar(page, 'tileCheckMode')).toBe(true);
+
+    await page.keyboard.press('q');
+    expect(await getVar(page, 'tileCheckMode')).toBe(false);
+    expect(await getVar(page, 'wipeMode')).toBe(true);
+    await expect(page.locator('#tileCheckPanel')).not.toBeVisible();
+
+    await page.keyboard.press('q');
+    await page.keyboard.press('y');
+    await page.evaluate(() => (window as any).clearAllMedia());
+    expect(await getVar(page, 'tileCheckMode')).toBe(false);
+    expect(await getVar(page, 'tileCheckResult')).toBeNull();
+    await expect(page.locator('#tileCheckPanel')).not.toBeVisible();
   });
 });
 

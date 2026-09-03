@@ -21,7 +21,9 @@ function _wipePair() {
 }
 
 function _wipeSlotText(slot) {
-    return slot === 'original' ? 'Ref' : slot === 'editA' ? 'A' : 'B';
+    const full = slotLabel(slot);
+    if (slot === 'original' && getLoadedSlotCount() !== 4) return full.startsWith('Reference') ? 'Ref' : full;
+    return full.split(' ').pop();
 }
 
 function _wipePairText(pair) {
@@ -254,6 +256,7 @@ function _setWipeMode(enabled, announce = true) {
             return false;
         }
         if (_diffMode) _setDiffMode(false, false);
+        if (_tileCheckMode) _setTileCheckMode(false, false);
         _wipeMode = true;
         document.body.classList.add('wipe-mode');
         _setWipeScopeSide(0, false);

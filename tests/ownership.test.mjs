@@ -93,8 +93,19 @@ function extractFn(name, src = SRC) {
   check('docs: per-file loading progress and cancellation are documented',
         userDocs.every(doc => /loading/i.test(doc) && /filename/i.test(doc)
           && /read(y|iness)/i.test(doc) && /cancel/i.test(doc)));
+  check('docs: every user guide covers four inputs, type-aware numbered labels, and 2×2 Inline',
+        userDocs.every(doc => /1.{0,2}4/.test(doc)
+          && doc.includes('Image-1') && doc.includes('Image-4')
+          && doc.includes('Video-1') && doc.includes('Video-4')
+          && doc.includes('Audio-1') && doc.includes('Audio-4')
+          && doc.includes('2×2')));
   check('docs: user docs describe current Fit / Balance Stack modes',
         userDocs.every(doc => doc.includes('Fit') && doc.includes('Balance')));
+  check('docs: every user guide covers Shift+S Sync/Solo playback',
+        userDocs.every(doc => doc.includes('Shift+S') && /Solo/.test(doc)));
+  check('docs: every user guide covers Y Tile Check, 3×3/Offset preview, and heatmap',
+        userDocs.every(doc => /Tile Check/i.test(doc) && doc.includes('3×3')
+          && /Offset/.test(doc) && /Heatmap/i.test(doc) && /\bY\b/.test(doc)));
   check('docs: retired Match · GT Stack terminology is absent',
         userDocs.every(doc => !doc.includes('Match · GT') && !doc.includes('Fit vs. Match')));
   check('docs: FEATURES uses P for the spectrogram palette shortcut',
@@ -105,15 +116,44 @@ function extractFn(name, src = SRC) {
         MANUAL.includes('| Press **S** | Toggle between Stack and Grid |') &&
         MANUAL.includes('| Press **G** | Toggle between Stack and Grid |'));
   const embeddedManual = (HTML.match(/<div class="manual-content">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="quick-start-backdrop"/) || [])[1] || '';
-  check('docs: in-app Manual covers wipe, Difference, Balance, and shared loop points',
+  check('docs: in-app Manual covers tile check, wipe, Difference, Balance, and shared loop points',
         embeddedManual.includes('<h2>Image Wipe</h2>')
+        && embeddedManual.includes('<h2>Seamless Tile Check</h2>')
+        && embeddedManual.includes('technical edge continuity')
         && embeddedManual.includes('<h2>Difference Mode</h2>')
         && embeddedManual.includes('Fit vs. Balance')
         && embeddedManual.includes('decodes the first visible frame')
         && embeddedManual.includes('scopes panel provides its own source selector')
+        && embeddedManual.includes('Toggle Playback: Sync / Solo')
         && embeddedManual.includes('Loop points are shared across all clips'));
   check('docs: in-app Manual does not claim loop points are per asset',
         !embeddedManual.includes('Loop points are saved per asset'));
+
+  // Four-input support is one registry-driven feature: the fourth slot must be
+  // accepted, rendered in a 2×2 Inline grid, enumerated by transport, and reset.
+  const getVideos = extractFn('getAllVideos');
+  const getPlayable = extractFn('getAllPlayableMedia');
+  const clearMedia = extractFn('clearAllMedia');
+  check('four-input: canonical registry includes editC and its fourth DOM layer',
+        HTML.includes("{ key: 'editC', layerId: 'layerEditC', shortLabel: 'C' }")
+        && HTML.includes('id="layerEditC"') && HTML.includes('id="audioEditC"'));
+  check('four-input: numbered labels derive from image, video, or audio media type',
+        HTML.includes("normalizedType.includes('image') ? 'Image'")
+        && HTML.includes("normalizedType.includes('video') ? 'Video'")
+        && HTML.includes("normalizedType.includes('audio') ? 'Audio'"));
+  check('four-input: loader accepts four and rejects five or more',
+        HTML.includes('mediaFiles.length > 4')
+        && HTML.includes("4: ['original', 'editA', 'editB', 'editC']"));
+  check('four-input: Inline owns a dedicated 2×2 quad-grid layout',
+        HTML.includes('body.quad-grid .asset-container')
+        && HTML.includes('grid-template-columns: 1fr 1fr;')
+        && HTML.includes('grid-template-rows: 1fr 1fr;')
+        && HTML.includes("document.body.classList.add('quad-grid')"));
+  check('four-input: transport and reset enumerate the canonical slot order',
+        getVideos.includes("assetOrder.map(slot => getLayer(slot)?.querySelector('video'))")
+        && getPlayable.includes('return assetOrder.map(slot =>')
+        && clearMedia.includes('assetOrder.forEach(slot => { mediaData[slot] = null; })')
+        && clearMedia.includes('assetOrder.forEach(slot => {\n                const layer = getLayer(slot);'));
 
   // Every js/*.js the page loads must be in the SW precache, or offline PWA breaks.
   const loaded = [...HTML.matchAll(/<script src="(js\/[^"]+\.js)"/g)].map(m => m[1]);
@@ -421,7 +461,7 @@ function extractFn(name, src = SRC) {
           countOf(SRC, 'function ' + fn + '(') === 1);
   }
   check('one-owner[sync-lock]: _applyNativeLoopPolicy is the sole managed .loop writer',
-        countOf(SRC, '.loop = native') === 1);
+        countOf(SRC, '.loop = participants.has(m) && native') === 1);
   for (const fn of ['playAllMedia', 'setupVideoHandlers']) {
     const b = extractFn(fn);
     check(`one-owner[sync-lock]: ${fn} routes .loop through the policy owner`,
@@ -452,6 +492,52 @@ function extractFn(name, src = SRC) {
         /addEventListener\('ended'[\s\S]*?_bulkSyncActive = true;[\s\S]*?addEventListener\('seeked'/.test(svh));
   check('one-owner[sync-lock]: drift lock waits for in-flight seeks (v.seeking)',
         drift.includes('if (v.seeking) continue;'));
+}
+
+// Solo playback scope: one committed scope owner feeds every transport surface.
+// This prevents a partial Solo mode where Space is scoped but scrubbing, loop
+// wraps, rate changes, or the Opus replacement path still move/play all clips.
+{
+  for (const fn of ['getTransportSlots', 'getTransportPlayableMedia', 'getTransportVideos',
+                    '_commitPlaybackScope', '_setPlaybackScope', '_setSoloPlaybackSlot',
+                    '_setSoloHeldTimelineTime', '_customLoopBoundsForMedia']) {
+    check(`one-owner[playback-scope]: ${fn} defined once (got ${countOf(SRC, 'function ' + fn + '(')})`,
+          countOf(SRC, 'function ' + fn + '(') === 1);
+  }
+  check('one-owner[playback-scope]: scope and solo slot writes live only in the commit owner',
+        countOf(SRC, '_playbackScope = ') === 2 && countOf(SRC, '_soloPlaybackSlot = ') === 2 &&
+        extractFn('_commitPlaybackScope').includes('_playbackScope = scope') &&
+        extractFn('_commitPlaybackScope').includes("_soloPlaybackSlot = scope === 'solo'"));
+  check('one-owner[playback-scope]: held absolute time writes live only in its owner',
+        countOf(SRC, '_soloHeldTimelineTime = ') === 2 &&
+        extractFn('_setSoloHeldTimelineTime').includes('_soloHeldTimelineTime = Number.isFinite(time)'));
+  check('playback-scope: Shift+S is a distinct registered transport shortcut',
+        SRC.includes("id: 'playbackScope', defaultKey: 's', shift: true"));
+  for (const fn of ['playAllMedia', 'pauseAllMedia', 'restartAllVideos']) {
+    check(`playback-scope: ${fn} uses scoped playable participants`,
+          extractFn(fn).includes('getTransportPlayableMedia()'));
+  }
+  for (const fn of ['stepFrame', '_driftLockTick', '_getLoopBounds']) {
+    check(`playback-scope: ${fn} uses scoped video participants`,
+          extractFn(fn).includes('getTransportVideos()'));
+  }
+  check('playback-scope: both scrub entry paths use scoped participants',
+        countOf(HTML, '_scrubAllVideos = getTransportPlayableMedia();') === 2);
+  check('playback-scope: Opus drift, rate, and gain routing use scoped slots',
+        extractFn('_syncOpusAudioToVideo').includes('getTransportSlots()') &&
+        extractFn('_updateOpusSyncRate').includes('getTransportSlots()') &&
+        extractFn('_updateOpusSyncGains').includes('new Set(getTransportSlots())'));
+  check('playback-scope: selecting a different video transfers the solo target',
+        extractFn('selectAudioSource').includes('_setSoloPlaybackSlot(source)'));
+  check('playback-scope: custom loops clamp per Solo target and invalid ranges disable native looping',
+        extractFn('_getLoopBounds').includes('_customLoopBoundsForMedia(media)') &&
+        extractFn('_applyNativeLoopPolicy').includes('custom && custom.invalid'));
+  check('playback-scope: effective duration resolves the supplied media element’s slot',
+        extractFn('_getEffectiveDuration').includes('getMediaSlot(video)'));
+  check('playback-scope: late Opus duration discovery reconciles the active Solo target',
+        extractFn('_finalizeAudioViz').includes('_reconcileSoloEffectiveDuration(slot)'));
+  check('playback-scope: clearing media resets to Sync through the scope owner',
+        extractFn('clearAllMedia').includes('_resetPlaybackScope()'));
 }
 
 // Image wipe ownership: mode transitions route through _setWipeMode, divider
@@ -798,9 +884,10 @@ function extractFn(name, src = SRC) {
 // mode and [0, longest] in Full mode; not-ready metadata (NaN) defers to native.
 {
   const boundsWith = (inP, outP, hasAud, durations, mode = 'sync') => new Function(
-    '_loopInPoint', '_loopOutPoint', 'hasAudios', 'getAllVideos', '_getEffectiveDuration', '_loopRangeMode',
-    extractFn('_getLoopBounds') + '\nreturn _getLoopBounds();'
-  )(inP, outP, hasAud, () => durations.map(d => ({ d })), v => v.d, mode);
+    '_loopInPoint', '_loopOutPoint', 'hasAudios', 'getTransportVideos', 'getTransportPlayableMedia',
+    '_getEffectiveDuration', '_loopRangeMode', '_isSoloPlayback',
+    extractFn('_customLoopBoundsForMedia') + '\n' + extractFn('_getLoopBounds') + '\nreturn _getLoopBounds();'
+  )(inP, outP, hasAud, () => durations.map(d => ({ d })), () => [], v => v.d, mode, () => false);
   check('loop-bounds: custom in/out points win', (() => {
     const b = boundsWith(0.5, 2.0, false, [3, 4]);
     return b && b.inP === 0.5 && b.outP === 2.0;
@@ -842,7 +929,7 @@ function extractFn(name, src = SRC) {
       PLAYBACK_RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2], playbackRateIndex: 3,
       _RATE_TRIM_IS_SMOOTH: rateTrimSmooth,
       performance: { now: () => 1e6 },
-      getAllVideos: () => [primary, ...followers],
+      getTransportVideos: () => [primary, ...followers],
     };
     new Function(...Object.keys(ctx), 'primary',
       driftConsts + '\n' + extractFn('_driftLockTick') + '\n_driftLockTick(primary);'
@@ -1197,6 +1284,58 @@ function extractFn(name, src = SRC) {
   const clearAll = extractFn('clearAllMedia');
   check('sweep[R5]: _diffOffscreen released in clearAllMedia',
         clearAll.includes('_diffOffscreen = null'));
+}
+
+// Seamless-tile analysis — pure synthetic fixtures exercise each wrap axis,
+// texture-normalized scoring, alpha continuity, and worst-axis aggregation.
+{
+  const TILE_JS = readFileSync(new URL('js/tile-check.js', ROOT), 'utf8');
+  const { _analyzeTileability } = new Function(
+    TILE_JS + '\nreturn { _analyzeTileability };'
+  )();
+  const makeImageData = (width, height, pixel) => {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const rgba = pixel(x, y);
+        const i = (y * width + x) * 4;
+        data[i] = rgba[0]; data[i + 1] = rgba[1]; data[i + 2] = rgba[2]; data[i + 3] = rgba[3] ?? 255;
+      }
+    }
+    return { data, width, height };
+  };
+
+  const solid = _analyzeTileability(makeImageData(64, 64, () => [80, 90, 100, 255]));
+  check('tile-check: a constant surface is seamless on both axes and corners',
+        solid.horizontal.score === 100 && solid.vertical.score === 100
+        && solid.corner.score === 100 && solid.overall.rating === 'Seamless');
+
+  const checker = _analyzeTileability(makeImageData(64, 64, (x, y) => {
+    const v = (x + y) % 2 ? 255 : 0;
+    return [v, v, v, 255];
+  }));
+  check('tile-check: ordinary high-frequency texture is normalized, not rejected for contrast',
+        checker.horizontal.score >= 82 && checker.vertical.score >= 82);
+
+  const horizontalRamp = _analyzeTileability(makeImageData(64, 64, x => {
+    const v = x * 4;
+    return [v, v, v, 255];
+  }));
+  check('tile-check: left/right discontinuity fails only its wrap axis',
+        horizontalRamp.horizontal.score < 55 && horizontalRamp.vertical.score >= 82);
+
+  const verticalRamp = _analyzeTileability(makeImageData(64, 64, (_x, y) => {
+    const v = y * 4;
+    return [v, v, v, 255];
+  }));
+  check('tile-check: top/bottom discontinuity fails only its wrap axis',
+        verticalRamp.vertical.score < 55 && verticalRamp.horizontal.score >= 82);
+
+  const alphaEdge = _analyzeTileability(makeImageData(64, 64, x =>
+    [120, 120, 120, x === 0 ? 0 : 255]));
+  check('tile-check: transparent-edge mismatch is detected and controls the overall result',
+        alphaEdge.horizontal.score < 55
+        && alphaEdge.overall.score === Math.min(alphaEdge.horizontal.score, alphaEdge.vertical.score, alphaEdge.corner.score));
 }
 
 // Multi-clip loop overhaul (2026-07): shared in/out points + Full-length mode.

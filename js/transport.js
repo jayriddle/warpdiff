@@ -12,21 +12,287 @@
 // tests/ownership.test.mjs.
 
 function syncVideos(sourceVideo, action) {
-    document.querySelectorAll('video').forEach(v => {
+    getTransportVideos().forEach(v => {
         if (v !== sourceVideo) action(v);
     });
 }
 
 function syncMedia(source, action) {
-    const tag = hasAudios ? '.asset-layer audio' : 'video';
-    document.querySelectorAll(tag).forEach(el => {
+    getTransportPlayableMedia().forEach(el => {
         if (el !== source) action(el);
     });
 }
 
+let _playbackScope = 'sync'; // 'sync' (all loaded media) or 'solo' (one selected video)
+let _soloPlaybackSlot = null;
+let _soloHeldTimelineTime = null; // absolute Sync time retained while a shorter solo target holds at its end
+
+function _setSoloHeldTimelineTime(time) {
+    _soloHeldTimelineTime = Number.isFinite(time) ? Math.max(0, time) : null;
+}
+
+function _lastPlayableTime(media) {
+    const duration = media ? _getEffectiveDuration(media) : NaN;
+    return Number.isFinite(duration) ? Math.max(0, duration - 0.001) : 0;
+}
+
+function _customLoopBoundsForMedia(media) {
+    if (_loopInPoint === null || _loopOutPoint === null) return null;
+    let inP = _loopInPoint;
+    let outP = _loopOutPoint;
+    let invalid = false;
+    if (_isSoloPlayback() && media && media.tagName === 'VIDEO') {
+        const duration = _getEffectiveDuration(media);
+        if (Number.isFinite(duration)) {
+            invalid = inP >= duration - 0.01;
+            if (invalid) {
+                inP = duration;
+                outP = duration;
+            } else {
+                outP = Math.min(outP, duration);
+                invalid = outP - inP < 0.01;
+            }
+        }
+    }
+    return { inP, outP, invalid };
+}
+
+function _soloLoopConstraint(media) {
+    if (!_isSoloPlayback()) return null;
+    return _customLoopBoundsForMedia(media);
+}
+
+function _reconcileSoloEffectiveDuration(slot) {
+    if (!_isSoloPlayback() || slot !== _soloPlaybackSlot) {
+        _applyNativeLoopPolicy();
+        return false;
+    }
+    const layer = getLayer(slot);
+    const video = layer && layer.querySelector('video');
+    if (!video) return false;
+    const duration = _getEffectiveDuration(video);
+    const constraint = _soloLoopConstraint(video);
+    const beyondEnd = Number.isFinite(duration) && video.currentTime >= duration - 0.001;
+    const unavailableLoop = !!(constraint && constraint.invalid);
+    if (!beyondEnd && !unavailableLoop) {
+        _applyNativeLoopPolicy();
+        return false;
+    }
+    const anchorTime = _soloHeldTimelineTime !== null ? _soloHeldTimelineTime : video.currentTime;
+    _cancelPendingPlayIntent();
+    _cancelLoopWrapTimer();
+    _bulkSyncActive = true;
+    video.pause();
+    _stopAllOpusSyncAudio();
+    video.currentTime = _lastPlayableTime(video);
+    _setSoloHeldTimelineTime(anchorTime);
+    _applyNativeLoopPolicy();
+    _updatePlayPauseBtn(false);
+    showToast(unavailableLoop
+        ? 'Solo: ' + slotLabel(slot) + ' — loop starts after this video ends; held at final frame'
+        : 'Solo: ' + slotLabel(slot) + ' — corrected duration ends before this time; held at final frame');
+    setTimeout(() => { _bulkSyncActive = false; }, 50);
+    return true;
+}
+
+function _selectedVideoSlot() {
+    const candidates = [currentAudioSource, assetOrder[currentAssetIndex]];
+    for (const slot of candidates) {
+        if (slot && mediaData[slot] && mediaData[slot].type === 'video') return slot;
+    }
+    return assetOrder.find(slot => mediaData[slot] && mediaData[slot].type === 'video') || null;
+}
+
+function getTransportSlots() {
+    if (_playbackScope === 'solo' && !hasAudios) {
+        const slot = _soloPlaybackSlot || _selectedVideoSlot();
+        return slot && mediaData[slot] && mediaData[slot].type === 'video' ? [slot] : [];
+    }
+    return assetOrder.filter(slot => !!mediaData[slot]);
+}
+
+function getTransportPlayableMedia() {
+    const tag = hasAudios ? 'audio' : 'video';
+    return getTransportSlots().map(slot => {
+        const layer = getLayer(slot);
+        return layer ? layer.querySelector(tag) : null;
+    }).filter(Boolean);
+}
+
+function getTransportVideos() {
+    return getTransportSlots().map(slot => {
+        const layer = getLayer(slot);
+        return layer ? layer.querySelector('video') : null;
+    }).filter(Boolean);
+}
+
+function _isSoloPlayback() {
+    return _playbackScope === 'solo' && !hasAudios;
+}
+
+function _isTransportMedia(media) {
+    return getTransportPlayableMedia().includes(media);
+}
+
+function _commitPlaybackScope(scope, slot) {
+    _playbackScope = scope;
+    _soloPlaybackSlot = scope === 'solo' ? slot : null;
+}
+
+function _resetVideoSyncCorrections() {
+    const base = (typeof PLAYBACK_RATES !== 'undefined' && PLAYBACK_RATES[playbackRateIndex]) || 1;
+    getAllVideos().forEach(video => {
+        video._driftNudge = 0;
+        video._wkOffTicks = 0;
+        if (Math.abs((video.playbackRate || 1) - base) > 1e-6) video.playbackRate = base;
+    });
+}
+
+function _finishPlaybackScopeChange(wasPlaying) {
+    _applyNativeLoopPolicy();
+    if (typeof _updatePlaybackScopeBtn === 'function') _updatePlaybackScopeBtn();
+    if (typeof _updateLoopRangeBtn === 'function') _updateLoopRangeBtn();
+    if (typeof updateLoopMarkerUI === 'function') updateLoopMarkerUI();
+    if (wasPlaying) {
+        playAllMedia();
+    } else {
+        _reconcilePlayPauseButton();
+        setTimeout(() => { _bulkSyncActive = false; }, 50);
+    }
+}
+
+function _setPlaybackScope(scope, announce = true) {
+    if (scope !== 'sync' && scope !== 'solo') return;
+    if (scope === 'solo' && (hasAudios || getAllVideos().length < 2)) {
+        if (announce) showToast('Load 2 or more videos first');
+        return;
+    }
+    if (scope === _playbackScope) return;
+
+    const allVideos = getAllVideos();
+    const nextSoloSlot = scope === 'solo' ? _selectedVideoSlot() : null;
+    const nextSoloLayer = nextSoloSlot && getLayer(nextSoloSlot);
+    const nextSoloVideo = nextSoloLayer && nextSoloLayer.querySelector('video');
+    const currentParticipants = getTransportVideos();
+    const currentPrimary = currentParticipants[0] || _syncReferenceVideo(allVideos);
+    const runningVideo = currentParticipants.find(video => !video.paused && !video.ended);
+    const previousParticipant = scope === 'solo'
+        ? ((nextSoloVideo && !nextSoloVideo.paused && !nextSoloVideo.ended) ? nextSoloVideo : (runningVideo || nextSoloVideo || currentPrimary))
+        : currentPrimary;
+    const wasPlaying = _isAnyMediaPlaying();
+    const anchorTime = _isSoloPlayback() && _soloHeldTimelineTime !== null
+        ? _soloHeldTimelineTime
+        : (previousParticipant && Number.isFinite(previousParticipant.currentTime) ? previousParticipant.currentTime : 0);
+    let shouldResume = wasPlaying;
+    let status = null;
+
+    _cancelPendingPlayIntent();
+    _cancelLoopWrapTimer();
+    _bulkSyncActive = true;
+    getAllPlayableMedia().forEach(media => { if (!media.paused) media.pause(); });
+    _stopAllOpusSyncAudio();
+    _resetVideoSyncCorrections();
+    _commitPlaybackScope(scope, nextSoloSlot);
+
+    if (scope === 'solo') {
+        primaryVideoRef = nextSoloVideo;
+        const duration = nextSoloVideo ? _getEffectiveDuration(nextSoloVideo) : NaN;
+        const constraint = _soloLoopConstraint(nextSoloVideo);
+        const beyondEnd = Number.isFinite(duration) && anchorTime >= duration - 0.001;
+        const unavailableLoop = !!(constraint && constraint.invalid);
+        if (nextSoloVideo && (beyondEnd || unavailableLoop)) {
+            nextSoloVideo.currentTime = _lastPlayableTime(nextSoloVideo);
+            _setSoloHeldTimelineTime(anchorTime);
+            shouldResume = false;
+            status = unavailableLoop
+                ? 'Solo: ' + slotLabel(nextSoloSlot) + ' — loop starts after this video ends; held at final frame'
+                : 'Solo: ' + slotLabel(nextSoloSlot) + ' — no frame at this time; held at final frame';
+        } else {
+            if (nextSoloVideo && !isNaN(nextSoloVideo.duration)) nextSoloVideo.currentTime = Math.max(0, anchorTime);
+            _setSoloHeldTimelineTime(null);
+        }
+        selectAudioSource(nextSoloSlot);
+    } else {
+        const bounds = _getLoopBounds();
+        const outsideRange = bounds && (anchorTime < bounds.inP || anchorTime >= bounds.outP);
+        const syncTime = outsideRange ? bounds.inP : anchorTime;
+        let heldAtEnd = false;
+        for (const video of allVideos) {
+            if (isNaN(video.duration)) continue;
+            const end = _lastPlayableTime(video);
+            if (syncTime > end) heldAtEnd = true;
+            video.currentTime = Math.min(Math.max(syncTime, 0), end);
+        }
+        primaryVideoRef = previousParticipant || allVideos[0] || null;
+        _setSoloHeldTimelineTime(null);
+        if (outsideRange) status = 'Playback: Sync — restarted at the shared in-point';
+        else if (heldAtEnd) status = 'Playback: Sync — shorter videos held at their final frame';
+    }
+
+    _finishPlaybackScopeChange(shouldResume);
+    if (announce) {
+        showToast(status || (scope === 'solo'
+            ? 'Playback: Solo — ' + slotLabel(nextSoloSlot)
+            : 'Playback: Sync — all videos aligned'));
+    }
+}
+
+function _setSoloPlaybackSlot(slot) {
+    if (!_isSoloPlayback() || !slot || slot === _soloPlaybackSlot ||
+        !mediaData[slot] || mediaData[slot].type !== 'video') return;
+
+    const previousLayer = getLayer(_soloPlaybackSlot);
+    const previous = previousLayer && previousLayer.querySelector('video');
+    const nextLayer = getLayer(slot);
+    const next = nextLayer && nextLayer.querySelector('video');
+    if (!next) return;
+    const wasPlaying = !!(previous && !previous.paused && !previous.ended);
+    const anchorTime = _soloHeldTimelineTime !== null
+        ? _soloHeldTimelineTime
+        : (previous && Number.isFinite(previous.currentTime) ? previous.currentTime : next.currentTime);
+
+    _cancelPendingPlayIntent();
+    _cancelLoopWrapTimer();
+    _bulkSyncActive = true;
+    getAllPlayableMedia().forEach(media => { if (!media.paused) media.pause(); });
+    _stopAllOpusSyncAudio();
+    _resetVideoSyncCorrections();
+    _commitPlaybackScope('solo', slot);
+    const duration = _getEffectiveDuration(next);
+    const constraint = _soloLoopConstraint(next);
+    const beyondEnd = Number.isFinite(duration) && anchorTime >= duration - 0.001;
+    const unavailableLoop = !!(constraint && constraint.invalid);
+    let shouldResume = wasPlaying;
+    if (beyondEnd || unavailableLoop) {
+        next.currentTime = _lastPlayableTime(next);
+        _setSoloHeldTimelineTime(anchorTime);
+        shouldResume = false;
+    } else {
+        if (!isNaN(next.duration)) next.currentTime = Math.max(0, anchorTime);
+        _setSoloHeldTimelineTime(null);
+    }
+    primaryVideoRef = next;
+    _finishPlaybackScopeChange(shouldResume);
+    if (unavailableLoop) {
+        showToast('Solo: ' + slotLabel(slot) + ' — loop starts after this video ends; held at final frame');
+    } else if (beyondEnd) {
+        showToast('Solo: ' + slotLabel(slot) + ' — no frame at this time; held at final frame');
+    }
+}
+
+function _togglePlaybackScope() {
+    _setPlaybackScope(_isSoloPlayback() ? 'sync' : 'solo');
+}
+
+function _resetPlaybackScope() {
+    _commitPlaybackScope('sync', null);
+    _setSoloHeldTimelineTime(null);
+    if (typeof _updatePlaybackScopeBtn === 'function') _updatePlaybackScopeBtn();
+}
+
 function _startOpusSyncForPlayingSlots(timeForSlot) {
     if (!_opusSyncActive) return;
-    for (const slot of assetOrder) {
+    for (const slot of getTransportSlots()) {
         if (!_opusSyncSlots[slot]) continue;
         const layer = getLayer(slot);
         const video = layer && layer.querySelector('video');
@@ -50,7 +316,7 @@ function _cancelPendingPlayIntent() {
 // ended/paused while a longer clip is still playing its tail; Space must pause
 // that tail instead of interpreting the first clip's paused state as "Play".
 function _isAnyMediaPlaying() {
-    return getAllPlayableMedia().some(media => !media.paused && !media.ended);
+    return getTransportPlayableMedia().some(media => !media.paused && !media.ended);
 }
 
 function _reconcilePlayPauseButton(generation) {
@@ -99,10 +365,13 @@ function _playMediaWithIntent(media, generation) {
 // own duration, compounding desync every pass). Single video, audio mode, or
 // metadata-not-ready → null (plain native looping).
 function _getLoopBounds() {
-    if (_loopInPoint !== null && _loopOutPoint !== null)
-        return { inP: _loopInPoint, outP: _loopOutPoint };
+    if (_loopInPoint !== null && _loopOutPoint !== null) {
+        const media = getTransportVideos()[0] || getTransportPlayableMedia()[0] || null;
+        const custom = _customLoopBoundsForMedia(media);
+        return custom && !custom.invalid ? { inP: custom.inP, outP: custom.outP } : null;
+    }
     if (hasAudios) return null;
-    const videos = getAllVideos();
+    const videos = getTransportVideos();
     if (videos.length < 2) return null;
     // Default range (no custom points) depends on _loopRangeMode:
     //   'sync' → wrap at the SHORTEST clip, so every frame has a counterpart to
@@ -125,14 +394,35 @@ function _getLoopBounds() {
 // synchronized wrap seek-back. Everyone (marker set/clear, asset switch,
 // metadata load, play) routes through here instead of writing .loop directly.
 function _applyNativeLoopPolicy() {
-    const native = _getLoopBounds() === null;
-    getAllPlayableMedia().forEach(m => { m.loop = native; });
+    const participant = getTransportPlayableMedia()[0] || null;
+    const custom = _customLoopBoundsForMedia(participant);
+    // An unavailable Solo loop is intentionally held at the final frame. Native
+    // looping would turn that hold into an implicit jump to 0 even though the
+    // shared custom markers remain active for longer clips.
+    const native = _getLoopBounds() === null && !(custom && custom.invalid);
+    const participants = new Set(getTransportPlayableMedia());
+    getAllPlayableMedia().forEach(m => { m.loop = participants.has(m) && native; });
 }
 
 function playAllMedia() {
     _resetFrameStepCursor();
     _cancelPendingPlayIntent();
     _scrubAtTimelineEnd = false;
+    const soloVideo = _isSoloPlayback() ? getTransportVideos()[0] : null;
+    const soloConstraint = _soloLoopConstraint(soloVideo);
+    if (soloConstraint && soloConstraint.invalid) {
+        _bulkSyncActive = true;
+        if (soloVideo) {
+            soloVideo.pause();
+            soloVideo.currentTime = _lastPlayableTime(soloVideo);
+        }
+        _stopAllOpusSyncAudio();
+        _updatePlayPauseBtn(false);
+        showToast('Loop starts after ' + slotLabel(_soloPlaybackSlot) + ' ends — held at final frame');
+        setTimeout(() => { _bulkSyncActive = false; }, 50);
+        return;
+    }
+    if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
     const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     // Suspend retained scrub sessions before playback: idle-but-configured
@@ -143,7 +433,10 @@ function playAllMedia() {
     // them). See index.html.
     if (!isDragging) _suspendScrubSessions();
     _applyNativeLoopPolicy();
-    getAllPlayableMedia().forEach(m => _playMediaWithIntent(m, playGeneration));
+    const participants = getTransportPlayableMedia();
+    const participantSet = new Set(participants);
+    getAllPlayableMedia().forEach(m => { if (!participantSet.has(m) && !m.paused) m.pause(); });
+    participants.forEach(m => _playMediaWithIntent(m, playGeneration));
     _startOpusSyncForPlayingSlots(v => v.currentTime);
     startProgressUpdateLoop();
     _updatePlayPauseBtn(true);
@@ -156,7 +449,7 @@ function pauseAllMedia() {
     _resetFrameStepCursor();
     _cancelPendingPlayIntent();
     _bulkSyncActive = true;
-    getAllPlayableMedia().forEach(m => m.pause());
+    getTransportPlayableMedia().forEach(m => m.pause());
     _snapAllVideosToFrame();
     _stopAllOpusSyncAudio();
     _updatePlayPauseBtn(false);
@@ -215,7 +508,7 @@ function _snapAllVideosToFrame() {
     // playing calls pauseAllMedia) must not fire a competing seek per video an
     // instant before the drag's own first seek lands.
     if (isDragging) return;
-    const videos = getAllVideos();
+    const videos = getTransportVideos();
     if (videos.length < 2) return;
     const ref = _syncReferenceVideo(videos);
     if (!ref || isNaN(ref.duration)) return;
@@ -246,7 +539,7 @@ function _snapAllVideosToFrame() {
         // caught up), where a visible correction is expected anyway.
         if (Math.abs(v.currentTime - refTime) <= tolerance) continue;
         const frame = Math.floor(refTime * fps + 0.01);
-        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
+        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), _lastPlayableTime(v));
     }
 }
 
@@ -291,10 +584,17 @@ function _loopWrapToInPoint() {
     // seek AND play: in Full mode the shorter clips are frozen (ended/paused) on
     // their last frame during the tail, so they must be resumed, not just seeked.
     // In Sync mode every clip is already playing, so play() is a harmless no-op.
-    getAllPlayableMedia().forEach(m => { m.currentTime = bounds.inP; m.play().catch(() => {}); });
+    getTransportPlayableMedia().forEach(m => {
+        m.currentTime = Math.min(bounds.inP, _lastPlayableTime(m));
+        m.play().catch(() => {});
+    });
     if (_opusSyncActive) {
-        for (const s of assetOrder) {
-            if (_opusSyncSlots[s]) _startOpusSyncAudio(s, bounds.inP);
+        for (const s of getTransportSlots()) {
+            if (_opusSyncSlots[s]) {
+                const layer = getLayer(s);
+                const video = layer && layer.querySelector('video');
+                _startOpusSyncAudio(s, video ? video.currentTime : bounds.inP);
+            }
         }
     }
     setTimeout(() => { _bulkSyncActive = false; }, 50);
@@ -459,7 +759,7 @@ const _WK_SEEK_COOLDOWN_MS = 800;  // min spacing between re-align seeks
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
     if (isDragging || _bulkSyncActive) return;
-    const videos = getAllVideos();
+    const videos = getTransportVideos();
     if (videos.length < 2) return;
     // The clock master's true base is the USER-selected rate, not
     // primary.playbackRate: if this element was a mid-nudge FOLLOWER a tick ago
@@ -753,6 +1053,10 @@ function setupVideoHandlers(video, slot) {
 
     video.addEventListener('play', function() {
         _resetFrameStepCursor();
+        if (!_isTransportMedia(video)) {
+            video.pause();
+            return;
+        }
         _reconcilePlayPauseButton();
         // Frame-accurate loop enforcement runs even during bulk sync — the 'play'
         // event fires after the transition to playing, so this is the correct
@@ -776,6 +1080,7 @@ function setupVideoHandlers(video, slot) {
 
     video.addEventListener('pause', function() {
         _reconcilePlayPauseButton();
+        if (!_isTransportMedia(video)) return;
         if (_bulkSyncActive) return;
         // Reaching the natural end fires 'pause' then 'ended'. Under a managed
         // loop region the 'ended' handler is about to wrap everyone back to the
@@ -788,6 +1093,7 @@ function setupVideoHandlers(video, slot) {
     });
 
     video.addEventListener('ended', function() {
+        if (!_isTransportMedia(video)) return;
         // Scrub owns transport at the right edge. A paused seek can surface an
         // ended event during or just after mouseup; treating it as natural
         // playback completion would wrap and call play() behind the user's back.
@@ -807,7 +1113,7 @@ function setupVideoHandlers(video, slot) {
         // trigger). Purely event-driven: no per-frame currentTime race. Sync mode
         // is unchanged — the out-point is the shortest clip, so the first 'ended'
         // is the wrap point (the RVFC chain usually beats it; this is the backstop).
-        if (_loopRangeMode === 'full' && !getAllVideos().every(v => v.ended)) return;
+        if (_loopRangeMode === 'full' && !getTransportVideos().every(v => v.ended)) return;
         // Atomic wrap, same shape as playAllMedia/restartAllVideos: suppress
         // the per-video play/pause sync handlers while every element is seeked
         // and (re)started, and drop any pending exact-time wrap — otherwise the
@@ -815,13 +1121,17 @@ function setupVideoHandlers(video, slot) {
         // stale pre-wrap positions.
         _cancelLoopWrapTimer();
         _bulkSyncActive = true;
-        getAllPlayableMedia().forEach(m => {
-            m.currentTime = bounds.inP;
+        getTransportPlayableMedia().forEach(m => {
+            m.currentTime = Math.min(bounds.inP, _lastPlayableTime(m));
             m.play().catch(() => {});
         });
         if (_opusSyncActive) {
-            for (const s of assetOrder) {
-                if (_opusSyncSlots[s]) _startOpusSyncAudio(s, bounds.inP);
+            for (const s of getTransportSlots()) {
+                if (_opusSyncSlots[s]) {
+                    const layer = getLayer(s);
+                    const participantVideo = layer && layer.querySelector('video');
+                    _startOpusSyncAudio(s, participantVideo ? participantVideo.currentTime : bounds.inP);
+                }
             }
         }
         setTimeout(() => { _bulkSyncActive = false; }, 50);
@@ -896,21 +1206,37 @@ function restartAllVideos() {
     _resetFrameStepCursor();
     _cancelPendingPlayIntent();
     _scrubAtTimelineEnd = false;
+    const soloVideo = _isSoloPlayback() ? getTransportVideos()[0] : null;
+    const soloConstraint = _soloLoopConstraint(soloVideo);
+    if (soloConstraint && soloConstraint.invalid) {
+        _bulkSyncActive = true;
+        if (soloVideo) {
+            soloVideo.pause();
+            soloVideo.currentTime = _lastPlayableTime(soloVideo);
+        }
+        _stopAllOpusSyncAudio();
+        _updatePlayPauseBtn(false);
+        showToast('Loop starts after ' + slotLabel(_soloPlaybackSlot) + ' ends — held at final frame');
+        setTimeout(() => { _bulkSyncActive = false; }, 50);
+        return;
+    }
+    if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
     const playGeneration = _playIntentGeneration;
     _bulkSyncActive = true;
     const startTime = (_loopInPoint !== null) ? _loopInPoint : 0;
-    getAllPlayableMedia().forEach(m => {
-        m.currentTime = startTime;
+    getTransportPlayableMedia().forEach(m => {
+        m.currentTime = Math.min(startTime, _lastPlayableTime(m));
         _playMediaWithIntent(m, playGeneration);
     });
-    _startOpusSyncForPlayingSlots(() => startTime);
+    _startOpusSyncForPlayingSlots(video => Math.min(startTime, _lastPlayableTime(video)));
     startProgressUpdateLoop();
     setTimeout(() => { _bulkSyncActive = false; }, 50);
 }
 
 function stepFrame(direction) {
-    const videos = getAllVideos();
+    const videos = getTransportVideos();
     if (videos.length === 0) return;
+    if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
     // Pause all videos first — frame stepping only makes sense when paused
     videos.forEach(v => { if (!v.paused) v.pause(); });
     // Advance the REFERENCE clip by one of ITS frames, then quantize every clip
@@ -958,7 +1284,7 @@ function stepFrame(direction) {
         const frame = Math.floor(refTime * fps + 0.01);
         // A follower shorter than the reference holds on its last frame rather
         // than wrapping to unrelated content (matches the Full-mode tail).
-        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), v.duration - 0.001);
+        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), _lastPlayableTime(v));
     });
     // Update progress display after seek completes (seeked event handles
     // the visual update). Also update optimistically for responsive feel.

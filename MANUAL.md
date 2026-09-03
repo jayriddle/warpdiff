@@ -1,6 +1,6 @@
 # WarpDiff User Manual
 
-WarpDiff is a browser-based comparison tool for reviewing 1–3 images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
+WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
 
 ---
 
@@ -12,10 +12,11 @@ WarpDiff is a browser-based comparison tool for reviewing 1–3 images, videos, 
 - Drag and drop files onto the window (or the landing drop zone)
 
 **File requirements:**
-- 1, 2, or 3 files (images, videos, or audio files)
+- 1, 2, 3, or 4 files (images, videos, or audio files)
 - All files in one comparison must be the same media type; mixed image/video/audio selections are rejected
 - 2 files → assigned to **A** and **B**
 - 3 files → assigned to **Ref**, **A**, and **B** by default; the reference is labeled **GT** for audio, and connected review tasks may supply more specific labels such as Source or Response
+- 4 files → assigned in oldest-to-newest order and labeled by type: **Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**
 - Files are automatically sorted oldest → newest by last-modified timestamp
 
 **Loading progress:** While WarpDiff prepares a comparison, it lists every assigned slot and filename with live states for opening the file, reading metadata, decoding the first visible frame, and readiness. Completed files are checked off while slower files continue to animate. When one video finishes first, the message identifies which file is still being prepared and explains that WarpDiff is waiting to reveal the complete comparison together. A longer wait adds a reminder about large or complex files. Click **Cancel** to stop a manual load and return to the landing screen.
@@ -43,13 +44,16 @@ The layout auto-picks horizontal (left/right) or vertical (top/bottom) based on 
 ### Grid (3 files)
 All three assets are displayed in a grid. Press **3** to toggle between Inline (columns or rows, auto-picked by aspect ratio) and Offset (Ref on the left, A/B paired on the right — often more space-efficient).
 
+### Grid (4 files)
+All four assets use **Inline** in a balanced 2×2 grid. Offset is hidden because it is specific to the three-item Ref/A/B arrangement. Hiding one slot switches to the normal three-item layout; restoring it returns to 2×2.
+
 ---
 
 ## Hiding Slots (Grid Mode)
 
 In Grid mode, you can hide any slot to give more screen space to the remaining assets.
 
-**To hide a slot:** click its colored label pill in the info bar (e.g. "Ref", "A", or "B"). The slot disappears and the remaining assets expand to fill the space.
+**To hide a slot:** click its colored label pill in the info bar. The slot disappears and the remaining assets expand to fill the space.
 
 **To restore a hidden slot:** click its ghost pill in the header. Hidden slots appear as dimmed, colored labels next to the mode icons — click one to bring that slot back.
 
@@ -60,6 +64,7 @@ You can't hide the last visible slot.
 | **Shift+1** | Toggle Ref / slot 1 visibility |
 | **Shift+2** | Toggle A / slot 2 visibility |
 | **Shift+3** | Toggle B / slot 3 visibility |
+| **Shift+4** | Toggle slot 4 visibility |
 
 These shortcuts are no-ops in Stack mode or when a slot isn't loaded.
 
@@ -125,7 +130,7 @@ The loupe hides during panning and updates live during video playback and frame 
 
 ## Video Playback
 
-Video controls appear at the bottom of the screen when videos are loaded. All videos play, pause, and seek in sync.
+Video controls appear at the bottom of the screen when videos are loaded. Playback defaults to **Sync**, where all videos play, pause, and seek together. Press **Shift+S** or click **Playback: Sync** to switch to **Solo**, where the transport controls affect only the selected video.
 
 | Control | Description |
 |---------|-------------|
@@ -141,6 +146,7 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | Shortcut | Action |
 |----------|--------|
 | **Space** | Play / Pause |
+| **Shift+S** | Toggle Playback: Sync / Solo |
 | **,** | Step back one frame |
 | **.** | Step forward one frame |
 | **R** | Restart from beginning |
@@ -151,9 +157,11 @@ Video controls appear at the bottom of the screen when videos are loaded. All vi
 | **Shift+L** | Loop range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute (persists across loads and sessions) |
 
-**Audio source selector:** Only one audio track plays at a time. Click the reference, A, or B button to switch sources. Each button has its own mute icon for independent muting. If the active source is muted, audio automatically switches to the next unmuted source.
+**Playback scope:** In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip **Loop: Sync / Full** control is hidden while Solo is active.
 
-**Persistent mute:** The master mute (the speaker icon / **M**) is sticky — once you mute, WarpDiff stays muted when you load a new comparison and the next time you open it. The muted button shows an amber **Muted** label so the state is always clear, and the first time you press play while muted a brief reminder offers a one-click **Enable**. (The per-source GT/A/B mutes still reset with each new comparison.)
+**Audio source selector:** Only one audio track plays at a time. Click a labeled source button to switch sources. Each button has its own mute icon for independent muting. In Sync, muting the active source automatically selects the next unmuted source. In Solo, the source identifies the solo video and remains selected if muted.
+
+**Persistent mute:** The master mute (the speaker icon / **M**) is sticky — once you mute, WarpDiff stays muted when you load a new comparison and the next time you open it. The muted button shows an amber **Muted** label so the state is always clear, and the first time you press play while muted a brief reminder offers a one-click **Enable**. (Per-source mutes still reset with each new comparison.)
 
 **Loop points:** Press **I** to set a loop in-point and **O** to set a loop out-point. You can also **Shift+drag** on the progress bar to select a loop region. Loop markers appear as orange triangles on the progress bar. Playback loops between these points. Loop points are **shared across all clips** — one region applies to every clip and stays put when you switch the active clip. Double-tap **Esc** to clear both markers.
 
@@ -200,7 +208,7 @@ Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-al
 
 ## Audio File Comparison
 
-Load 1–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as stacked slots in Grid mode. Each audio slot displays a waveform (top 40%) and spectrogram (bottom 60%) with frequency labels.
+Load 1–4 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as stacked slots in Grid mode. Four-input comparisons use Audio-1 through Audio-4 labels. Each audio slot displays a waveform (top 40%) and spectrogram (bottom 60%) with frequency labels.
 
 **Info bar** shows audio metadata: sample rate (e.g. `48 kHz`), channels (`Mono` / `Stereo`), bit depth (e.g. `24-bit` for lossless, or codec name like `MP3` for lossy), file size, and duration.
 
@@ -208,7 +216,7 @@ Load 1–3 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as stack
 - **Shift+W** toggles linear / log frequency scale
 - **P** cycles color palettes
 
-Audio files use the same synced playback controls as video: Space to play/pause, progress bar to seek, GT/A/B buttons to select which track to hear.
+Audio files use the same synced playback controls as video: Space to play/pause, the progress bar to seek, and the labeled source buttons to select which track to hear.
 
 ---
 
@@ -255,6 +263,20 @@ Wipe follows Stack zoom, pan, rotation, and resize. Up/down arrows do not change
 
 ---
 
+## Seamless Tile Check
+
+Press **Y** with one or more images loaded to open Tile Check. Select any loaded image from the source buttons, or use the left/right arrow keys while the mode is open.
+
+- **3×3** repeats the complete image nine times so seams and obvious repetition can be judged in context.
+- **Offset** wraps the image by half its width and height, moving its four original edges to a cross in the center.
+- **Heatmap** overlays green, amber, and red seam segments to identify where continuity is strongest or weakest.
+
+Tile Check scores **Left ↔ Right**, **Top ↔ Bottom**, and the four-way **Corners** separately, then uses the weakest result as the overall rating. It compares color, transparency, and texture-direction changes at each wrap boundary with ordinary transitions inside the same image. Results are labeled **Seamless**, **Review**, or **Visible seam**; the numeric score is supporting information rather than a guarantee.
+
+The detector measures technical edge continuity. An image can pass while still revealing an obvious repeated object, shadow, or lighting pattern, so always inspect the repeated preview. Analysis uses the original source pixels—not black-and-white display filtering, zoom, or rotation—and files remain local. The preview type and Heatmap choice persist across sessions. Tile Check, Image Wipe, and Difference are mutually exclusive.
+
+---
+
 ## Difference Mode
 
 Press **D** in Stack mode to overlay a pixel-difference composite of the current asset and another. Identical pixels appear black; differences glow in proportion to the delta — the brighter the pixel, the larger the difference.
@@ -264,7 +286,7 @@ Press **D** in Stack mode to overlay a pixel-difference composite of the current
 | **D** | Toggle difference mode on/off |
 | **Shift+D** or **← →** | Cycle through diff pairs (Ref–A, Ref–B, A–B) |
 
-With 2 files loaded there is one pair (A–B). With 3 files there are three pairs — use **Shift+D** or the arrow keys to cycle through them. A toast shows the active pair label each time you switch.
+With 2 files loaded there is one pair (A–B). With 3 files there are three pairs. With 4 files there are six media-numbered pairs, such as Image-1–Image-2 or Video-1–Video-2. Use **Shift+D** or the arrow keys to cycle through them; a toast shows the active pair label each time you switch.
 
 Difference mode uses the canvas `difference` composite operation for hardware-accelerated rendering — no manual per-pixel loops. It updates live during video playback and on frame step, and follows zoom and pan. During playback the composite only updates when both videos are on the same frame — a transient one-frame offset briefly holds the last matched diff instead of flashing false motion ghosting. The overlay is automatically removed when you switch to Grid mode or press **D** again.
 
@@ -272,7 +294,7 @@ Difference mode uses the canvas `difference` composite operation for hardware-ac
 
 ## Mixed Orientation Layout
 
-When loading assets with different orientations (e.g. landscape and portrait videos together), Inline Grid uses an **equal-area algorithm** so each asset has roughly the same visual weight regardless of aspect ratio. Offset remains available for three assets; press **3** to switch between the two layouts.
+When loading assets with different orientations (e.g. landscape and portrait videos together), Inline Grid uses an **equal-area algorithm** so each asset has roughly the same visual weight regardless of aspect ratio. Four assets use a 2×2 Inline grid. Offset remains available for exactly three visible assets; press **3** to switch between the two layouts.
 
 ---
 
@@ -311,6 +333,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 |-----|--------|
 | **← → ↑ ↓** | Switch asset (Stack mode) |
 | **Space** | Play / Pause |
+| **Shift+S** | Toggle Playback: Sync / Solo |
 | **,** / **.** | Frame step back / forward (repeated presses advance one frame each) |
 | **R** | Restart |
 | **J** / **K** | Slower / Faster |
@@ -321,6 +344,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 ### Analysis
 | Key | Action |
 |-----|--------|
+| **Y** | Toggle seamless Tile Check |
 | **V** | Toggle video scopes |
 | **W** | Toggle waveform / spectrogram |
 | **E** | Cycle waveform / LUFS envelope display |
@@ -362,6 +386,7 @@ The following settings are saved to your browser and persist across sessions and
 - Stack Fit / Balance mode and per-slot rotation
 - Audio visualization visibility, height, split, and Fit / Ref level scaling
 - Spectrogram scale (linear/log) and color palette
+- Tile Check preview type and heatmap visibility
 - Timecode display and copy format
 - Custom hotkey bindings
 
@@ -400,7 +425,7 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 
 ## Limitations
 
-- **1 to 3 files only** — loading 4+ files is not supported
+- **1 to 4 files only** — loading 5+ files is not supported
 - **Images, videos, and audio only** — other file types are ignored
 - **One media type per comparison** — images, videos, and audio cannot be mixed in the same load
 - **Pan available in Stack mode only**
