@@ -897,7 +897,18 @@ function _projectVisualTime(presentedTime, presentedAt, now, rate, frameDuration
     }
     const speed = Number.isFinite(rate) && rate > 0 ? rate : 1;
     const elapsed = Math.max(0, (now - presentedAt) / 1000) * speed;
-    return Math.max(0, presentedTime + Math.min(elapsed, frameDuration));
+    const projected = presentedTime + Math.min(elapsed, frameDuration);
+    // Chromium's media clock advances continuously while RVFC metadata advances
+    // once per presented frame. Prefer the leading clock while they agree within
+    // one source frame: that keeps the chrome moving every display refresh and
+    // prevents a slightly late RVFC anchor from pulling it backward. A media clock
+    // farther away than that may be stale or ahead of the displayed picture, so
+    // retain the presentation-bounded value in that case. Playback stalls remain
+    // capped to one frame because a stopped media clock soon leaves this window.
+    if (Number.isFinite(mediaTime) && Math.abs(mediaTime - projected) <= frameDuration) {
+        return Math.max(0, Math.max(projected, mediaTime));
+    }
+    return Math.max(0, projected);
 }
 
 function _setupFpsDetection(video, slot) {

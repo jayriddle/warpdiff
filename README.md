@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.14.0
+**Current version:** 3.14.1
 
 ---
 
@@ -13,6 +13,8 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 Comparing two versions of an image, video, or audio file shouldn't require flipping between tabs, exporting screenshots, or piecing together a custom diff in Photoshop. Existing tools either don't handle all three media types, can't align frames precisely, or don't surface the technical signals — color, audio levels, frame timing — that determine whether a change is actually correct.
 
 WarpDiff is an opinionated answer to that problem: load 1–4 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
+
+Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate.
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 
@@ -38,6 +40,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 
 **Video & audio playback**
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
+- Adjacent **Playback: Sync/Solo** and **Range: Sync/Full** selectors keep the two playback policies together before the timecode
 - **Solo playback** (`Shift+S`, or the playback-scope button) runs only the selected video; selecting another video hands off at the same absolute time. A shorter target holds paused on its final frame rather than wrapping, while returning to Full Sync preserves the longer timeline and range-limited Sync restarts at its shared in-point
 - Frame-step with `,` and `.`
 - `J`/`K` slower/faster (0.25×–2×)

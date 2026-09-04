@@ -708,6 +708,8 @@ test.describe('File Loading & Slot Assignment', () => {
     await expect(page.locator('.asset-name')).toHaveCount(4);
     // Label can be "GT", "Ref", or "SOURCE" depending on UI state — flexible match
     await expect(page.locator('#layerOriginal .asset-name')).toContainText(/GT|Ref|SOURCE/i);
+    await expect(page.locator('#layerEditC')).toBeHidden();
+    await expect(page.locator('#layerEditC .asset-info-bar')).toBeHidden();
   });
 
   test('shows warning toast for timestamp collision', async () => {
@@ -1272,16 +1274,16 @@ test.describe('Reset', () => {
     // Simulate some progress bar advance by setting style directly
     await page.evaluate(() => {
       const bar = document.getElementById('videoProgressBar');
-      if (bar) bar.style.width = '50%';
+      if (bar) (bar as HTMLElement).style.transform = 'scaleX(0.5)';
     });
     // Load new files — clearAllMedia() should reset the bar
     await loadImages(page, ['blue.png', 'tall.png']);
-    const width = await page.evaluate(() => {
+    const transform = await page.evaluate(() => {
       const bar = document.getElementById('videoProgressBar');
-      return bar ? bar.style.width : 'unknown';
+      return bar ? (bar as HTMLElement).style.transform : 'unknown';
     });
-    // Bar should be 0% (cleared by clearAllMedia) not the stale 50%
-    expect(width).toBe('0%');
+    // Bar should be at zero (cleared by clearAllMedia), not the stale halfway point.
+    expect(transform).toBe('scaleX(0)');
   });
 
   test('loading new files clears previous slot labels', async ({ page }) => {
@@ -1305,9 +1307,12 @@ test.describe('Grid Inline/Offset Toggle', () => {
     await page.waitForFunction(() => (window as any).__testAPI?.isGridMode === true, {}, { timeout: 5000 });
 
     const initialInline = await getVar(page, 'gridInlineMode');
+    await expect(page.locator('#layerEditC')).toBeHidden();
     await page.keyboard.press('3');
     const afterToggle = await getVar(page, 'gridInlineMode');
     expect(afterToggle).toBe(!initialInline);
+    await expect(page.locator('#layerEditC')).toBeHidden();
+    await expect(page.locator('#layerEditC .asset-info-bar')).toBeHidden();
   });
 
   test('four-input Inline collapses to three-up when slot 4 is hidden and restores to 2×2', async ({ page }) => {
@@ -1755,14 +1760,30 @@ test.describe('Solo video playback', () => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     const scopeBtn = page.locator('#playbackScopeBtn');
+    const policyGroup = page.locator('.playback-policy-group');
     await expect(scopeBtn).toBeVisible();
     await expect(scopeBtn).toHaveText('Playback: Sync');
+    await expect(policyGroup.locator('button')).toHaveCount(2);
+    expect(await policyGroup.locator('button').evaluateAll(buttons => buttons.map(button => button.id)))
+      .toEqual(['playbackScopeBtn', 'loopRangeBtn']);
+    await expect(page.locator('#loopRangeBtn')).toHaveText('Range: Sync');
+    expect(await policyGroup.evaluate(group => group.nextElementSibling?.classList.contains('video-time-group')))
+      .toBe(true);
+    const syncStyle = await scopeBtn.evaluate(el => {
+      const css = getComputedStyle(el);
+      return { color: css.color, border: css.borderColor };
+    });
+    expect(syncStyle.color).not.toBe('rgb(0, 0, 0)');
+    expect(syncStyle.border).not.toBe('rgba(0, 0, 0, 0)');
 
     await page.keyboard.press('Shift+s');
     expect(await getVar(page, '_playbackScope')).toBe('solo');
     expect(await getVar(page, '_soloPlaybackSlot')).toBe('editA');
     expect(await getVar(page, '_transportSlots')).toEqual(['editA']);
     await expect(scopeBtn).toHaveText('Solo: A');
+    await expect(scopeBtn).toHaveClass(/active/);
+    await expect.poll(() => scopeBtn.evaluate(el => getComputedStyle(el).color))
+      .not.toBe(syncStyle.color);
     await expect(page.locator('#loopRangeBtn')).toBeHidden();
 
     await page.keyboard.press('Space');
@@ -1829,6 +1850,7 @@ test.describe('Solo video playback', () => {
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
     await page.waitForFunction(() => (window as any).__testAPI?._loopRangeMode === 'full',
       {}, { timeout: 5000 });
+    await expect(page.locator('#loopRangeBtn')).toHaveText('Range: Full');
     await page.keyboard.press('Shift+s');
     await page.evaluate(() => (window as any).selectAudioSource('editB'));
     await page.evaluate(async () => {
@@ -2871,6 +2893,23 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
     expect(positions.atHalf - positions.atZero).toBeGreaterThan(positions.width * 0.35);
   });
 
+  test('video waveform playheads use layout-free percentage positioning', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.evaluate(() => (window as any).toggleAudioViz());
+    await expect(page.locator('#spectrogramPanel')).toHaveClass(/\bactive\b/);
+
+    const cursorPositions = await page.evaluate(() => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      (window as any).updateSpectrogramCursor(video, video.duration / 2);
+      return ['waveformCursor', 'spectrogramCursor'].map(id =>
+        (document.getElementById(id) as HTMLElement).style.getPropertyValue('--cursor-pct')
+      );
+    });
+
+    expect(cursorPositions.map(Number)).toEqual([50, 50]);
+  });
+
   test('loading a new set clears stale loop points and resets the spectrogram cursor', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
@@ -2882,9 +2921,10 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
     await loadMedia(page, ['red.png', 'green.png']);
     expect(await getVar(page, '_loopInPoint')).toBeNull();
     expect(await getVar(page, '_loopOutPoint')).toBeNull();
-    const cursorLeft = await page.evaluate(() =>
-      (document.getElementById('spectrogramCursor') as HTMLElement | null)?.style.left ?? '');
-    expect(['', '0', '0px']).toContain(cursorLeft);
+    const cursorPct = await page.evaluate(() =>
+      (document.getElementById('spectrogramCursor') as HTMLElement | null)
+        ?.style.getPropertyValue('--cursor-pct') ?? '');
+    expect(['', '0']).toContain(cursorPct);
   });
 });
 
@@ -3213,12 +3253,13 @@ test.describe('WebCodecs scrub decoder', () => {
     // Mid-drag (cursor at ~80% of the bar): progress fill and spectrogram time
     // cursor must both track the drag position, not the un-seeked video's time
     const midDrag = await page.evaluate(() => ({
-      barPct: parseFloat((document.getElementById('videoProgressBar') as HTMLElement).style.width),
-      cursorLeft: parseFloat((document.getElementById('spectrogramCursor') as HTMLElement).style.left),
-      wrapW: (document.getElementById('spectrogramCursor') as HTMLElement).parentElement!.offsetWidth,
+      barScale: Number((document.getElementById('videoProgressBar') as HTMLElement)
+        .style.transform.match(/scaleX\(([^)]+)\)/)?.[1] || 0),
+      cursorPct: Number((document.getElementById('spectrogramCursor') as HTMLElement)
+        .style.getPropertyValue('--cursor-pct')),
     }));
-    expect(midDrag.barPct).toBeGreaterThan(60);
-    expect(midDrag.cursorLeft / midDrag.wrapW).toBeGreaterThan(0.6);
+    expect(midDrag.barScale).toBeGreaterThan(0.6);
+    expect(midDrag.cursorPct).toBeGreaterThan(60);
 
     await page.mouse.up();
     await page.waitForFunction(

@@ -158,8 +158,18 @@
             left: 0;
             height: 100%;
             background: rgb(160, 160, 160);
-            width: 0%;
+            width: 100%;
             border-radius: 4px;
+            transform: scaleX(0);
+            transform-origin: left center;
+            will-change: transform;
+        }
+
+        /* Bridge occasional busy main-thread frames without changing the media
+           clock. Transform animation stays on the compositor; scrubbing is
+           immediate because transport-running is removed as playback pauses. */
+        body.transport-running .video-progress-bar {
+            transition: transform 50ms linear;
         }
 
         .video-progress-bar.loop-active {
@@ -1029,7 +1039,9 @@
             position: relative !important;
             width: 100% !important;
             height: 100% !important;
-            display: block !important;
+            /* Keep this non-important so per-layer display:none can suppress an
+               unloaded or user-hidden slot without the grid rule reviving it. */
+            display: block;
             align-items: unset !important;
             justify-content: unset !important;
             overflow: visible;
@@ -1345,13 +1357,37 @@
         }
         body.grid-mode #stackSubOptions { display: none !important; }
 
+        /* Playback scope sits directly in the transport bar rather than inside a
+           colored mode group, so give it explicit contrast instead of inheriting
+           the body's black text. Solo uses blue to read as the active override. */
+        .playback-policy-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        #playbackScopeBtn {
+            color: rgba(205, 214, 226, 0.9);
+            border-color: rgba(205, 214, 226, 0.42);
+            background: rgba(205, 214, 226, 0.08);
+        }
+        #playbackScopeBtn:hover {
+            color: #ffffff;
+            border-color: rgba(205, 214, 226, 0.7);
+            background: rgba(205, 214, 226, 0.16);
+        }
+        #playbackScopeBtn.active {
+            color: #67cfff;
+            border-color: rgba(103, 207, 255, 0.78);
+            background: rgba(49, 153, 215, 0.18);
+        }
+
         /* Loop-range toggle on the transport bar — legible always (it's in neither
            mode group, so it needs its own colors) and pulses when clips differ. */
         #loopRangeBtn {
             color: rgba(240, 160, 48, 0.85);
             border-color: rgba(240, 160, 48, 0.5);
             background: rgba(240, 160, 48, 0.08);
-            margin: 0 4px;
         }
         #loopRangeBtn:hover {
             background: rgba(240, 160, 48, 0.22);
@@ -2090,6 +2126,7 @@
             flex: 1;
             position: relative;
             overflow: hidden;
+            container-type: inline-size;
         }
 
         .audio-viz-canvas-wrap canvas {
@@ -2119,11 +2156,18 @@
         .spectrogram-cursor {
             position: absolute;
             top: 0;
+            left: 0;
             width: 1px;
             height: 100%;
             background: rgba(255, 255, 255, 0.7);
             pointer-events: none;
             z-index: 2;
+            transform: translate3d(calc(var(--cursor-pct, 0) * 1cqw), 0, 0);
+            will-change: transform;
+        }
+
+        body.transport-running .spectrogram-cursor {
+            transition: transform 50ms linear;
         }
 
         .audio-viz-right {
@@ -3492,13 +3536,15 @@
             </div>
             <div class="video-controls-row">
                 <button class="play-pause-btn" id="playPauseBtn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
-                <button class="mode-sub-btn" id="playbackScopeBtn" onclick="_togglePlaybackScope(); this.blur();" style="display:none;" aria-pressed="false" title="Toggle synchronized or selected-video-only playback (Shift+S)">Playback: Sync</button>
+                <div class="playback-policy-group" role="group" aria-label="Playback behavior">
+                    <button class="mode-sub-btn" id="playbackScopeBtn" onclick="_togglePlaybackScope(); this.blur();" style="display:none;" aria-pressed="false" title="Toggle synchronized or selected-video-only playback (Shift+S)">Playback: Sync</button>
+                    <button class="mode-sub-btn" id="loopRangeBtn" onclick="_toggleLoopRangeMode(); this.blur();" style="display:none;" title="Playback range for clips of different lengths — Sync (wrap at shortest, frame-locked) / Full (wrap at longest, review each in full)">Range: Sync</button>
+                </div>
                 <span class="video-time-group">
                     <span class="video-timecode" id="videoTimecode" onclick="_showTcChooser(event)" title="Click to change timecode format">0:00</span>
                     <span class="video-time-sep">/</span>
                     <span class="video-duration" id="videoDuration">0:00</span>
                 </span>
-                <button class="mode-sub-btn" id="loopRangeBtn" onclick="_toggleLoopRangeMode(); this.blur();" style="display:none;" title="Loop range for clips of different lengths — Sync (wrap at shortest, frame-locked) / Full (wrap at longest, review each in full)">Loop: Sync</button>
                 <div class="video-progress-container" id="videoProgressContainer" role="slider" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="video-progress-bar" id="videoProgressBar"></div>
                 </div>
@@ -3540,7 +3586,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.0';
+        const APP_VERSION = '3.14.1';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3894,21 +3940,21 @@
         // together when the longest ends. Owned by _getLoopBounds (js/transport.js).
         let _durMismatchNotified = false;
         function _toggleLoopRangeMode() {
-            if (_isSoloPlayback()) { showToast('Loop range applies to synchronized playback'); return; }
+            if (_isSoloPlayback()) { showToast('Playback range applies to synchronized playback'); return; }
             if (hasAudios || getAllVideos().length < 2) { showToast('Load 2 or more videos first'); return; }
             _loopRangeMode = _loopRangeMode === 'sync' ? 'full' : 'sync';
             updateLoopMarkerUI();
             _updateLoopRangeBtn();
             showToast(_loopRangeMode === 'full'
-                ? 'Loop: Full — each clip plays its full length (shorter clips hold at their end)'
-                : 'Loop: Sync — frame-locked to the shortest clip');
+                ? 'Range: Full — each clip plays its full length (shorter clips hold at their end)'
+                : 'Range: Sync — frame-locked to the shortest clip');
         }
         function _updateLoopRangeBtn() {
             const btn = document.getElementById('loopRangeBtn');
             if (!btn) return;
             const show = !hasAudios && getAllVideos().length >= 2 && !_isSoloPlayback();
             btn.style.display = show ? '' : 'none';
-            btn.textContent = _loopRangeMode === 'full' ? 'Loop: Full' : 'Loop: Sync';
+            btn.textContent = _loopRangeMode === 'full' ? 'Range: Full' : 'Range: Sync';
             btn.classList.toggle('active', _loopRangeMode === 'full');
         }
         function _updatePlaybackScopeBtn() {
@@ -3947,7 +3993,7 @@
                     return v ? slotLabel(s) + ' ' + _getEffectiveDuration(v).toFixed(1) + 's' : null;
                 }).filter(Boolean);
             showToast('Clips differ in length (' + parts.join(' · ') +
-                ') — playing each in full. Press Shift+L (or the Loop button) for frame-locked comparison.', 6000);
+                ') — playing each in full. Press Shift+L (or the Range button) for frame-locked comparison.', 6000);
             // Briefly draw the eye to the control the toast refers to.
             const btn = document.getElementById('loopRangeBtn');
             if (btn) { btn.classList.add('attention'); setTimeout(() => btn.classList.remove('attention'), 6000); }
@@ -4005,14 +4051,13 @@
             getProgressEls();
             if (_elProgressBar) {
                 _elProgressBar.classList.remove('loop-active');
-                _elProgressBar.style.left = '0';
                 const _cls = currentAudioSource || assetOrder[currentAssetIndex];
                 const _cll = getLayer(_cls);
                 const _clm = _cll ? (_cll.querySelector('video') || _cll.querySelector('audio')) : getAllPlayableMedia()[0];
                 if (_clm && _clm.duration) {
                     const _cld = _getEffectiveDuration(_clm);
-                    _elProgressBar.style.width = (_clm.currentTime / _cld * 100) + '%';
-                }
+                    _setProgressBarVisual(0, 100, _clm.currentTime / _cld);
+                } else _setProgressBarVisual(0, 100, 0);
             }
             redrawAudioSlotCanvases();
             if (!silent) showToast('Loop markers cleared');
@@ -4315,12 +4360,21 @@
             }
         }
 
+        function _setProgressBarVisual(leftPct, spanPct, fraction) {
+            if (!_elProgressBar) return;
+            const left = Math.max(0, Math.min(100, leftPct)) + '%';
+            const span = Math.max(0, Math.min(100, spanPct)) + '%';
+            const scale = Math.max(0, Math.min(1, fraction));
+            if (_elProgressBar.style.left !== left) _elProgressBar.style.left = left;
+            if (_elProgressBar.style.width !== span) _elProgressBar.style.width = span;
+            _elProgressBar.style.transform = 'scaleX(' + scale + ')';
+        }
+
         function updateProgressBarForLoop(currentTime, duration) {
             if (_loopInPoint !== null && _loopOutPoint !== null) {
                 const loop = _customLoopBoundsForMedia(getTransportPlayableMedia()[0]);
                 if (loop && loop.invalid) {
-                    _elProgressBar.style.left = '0';
-                    _elProgressBar.style.width = Math.min(currentTime / duration * 100, 100) + '%';
+                    _setProgressBarVisual(0, 100, currentTime / duration);
                     _elProgressBar.classList.remove('loop-active');
                     return;
                 }
@@ -4328,13 +4382,12 @@
                 const outPoint = loop ? loop.outP : _loopOutPoint;
                 const inPct = inPoint / duration * 100;
                 const loopLen = outPoint - inPoint;
-                const progressPct = loopLen > 0 ? Math.max(0, (currentTime - inPoint) / loopLen) * (loopLen / duration * 100) : 0;
-                _elProgressBar.style.left = inPct + '%';
-                _elProgressBar.style.width = progressPct + '%';
+                const spanPct = loopLen > 0 ? loopLen / duration * 100 : 0;
+                const fraction = loopLen > 0 ? (currentTime - inPoint) / loopLen : 0;
+                _setProgressBarVisual(inPct, spanPct, fraction);
                 _elProgressBar.classList.add('loop-active');
             } else {
-                _elProgressBar.style.left = '0';
-                _elProgressBar.style.width = Math.min(currentTime / duration * 100, 100) + '%';
+                _setProgressBarVisual(0, 100, currentTime / duration);
                 _elProgressBar.classList.remove('loop-active');
             }
         }
@@ -6171,13 +6224,15 @@
             // being seeked, so video.currentTime is stale — callers pass the
             // drag time instead.
             const t = timeOverride !== undefined ? timeOverride : video.currentTime;
-            const pct = t / _getEffectiveDuration(video);
+            const pct = Math.max(0, Math.min(1, t / _getEffectiveDuration(video)));
             // Move both cursors (waveform + spectrogram)
             ['spectrogramCursor', 'waveformCursor'].forEach(id => {
                 const cursor = document.getElementById(id);
                 if (cursor) {
-                    const wrap = cursor.parentElement;
-                    cursor.style.left = (pct * wrap.offsetWidth) + 'px';
+                    // Percentage positioning lets the compositor resolve the
+                    // wrapper width. Reading offsetWidth after the progress-bar
+                    // write forced a synchronous layout on every playback frame.
+                    cursor.style.setProperty('--cursor-pct', String(pct * 100));
                 }
             });
         }
@@ -8778,6 +8833,7 @@
         function startProgressUpdateLoop() {
             // Only start if not already running
             if (globalAnimationId !== null) return;
+            document.body.classList.add('transport-running');
 
             function updateLoop() {
                 let primary;
@@ -8907,6 +8963,7 @@
                     // Final update so progress bar reaches 100% when video ends
                     if (primary) updateMediaProgress(primary);
                     if (primary && _noVideoMode) updateAllAudioSlotCursors(primary);
+                    document.body.classList.remove('transport-running');
                     globalAnimationId = null;
                 }
             }
@@ -8919,6 +8976,7 @@
                 cancelAnimationFrame(globalAnimationId);
                 globalAnimationId = null;
             }
+            document.body.classList.remove('transport-running');
         }
 
         // Frame-accurate loop-point enforcement via requestVideoFrameCallback (both
@@ -9056,7 +9114,7 @@
 
             // Guard against NaN when video metadata isn't ready yet
             if (isNaN(duration) || duration === 0) {
-                _elProgressBar.style.width = '0%';
+                _setProgressBarVisual(0, 100, 0);
                 _elTimecode.textContent = '0:00';
                 _elDuration.textContent = '0:00';
                 return;
@@ -10891,7 +10949,7 @@
 
             // Reset progress bar and timecode display
             getProgressEls();
-            if (_elProgressBar) { _elProgressBar.style.width = '0%'; _elProgressBar.style.left = '0'; _elProgressBar.classList.remove('loop-active'); }
+            if (_elProgressBar) { _setProgressBarVisual(0, 100, 0); _elProgressBar.classList.remove('loop-active'); }
             if (_elTimecode) _elTimecode.textContent = '0:00';
             if (_elDuration) _elDuration.textContent = '0:00';
 
@@ -10974,7 +11032,7 @@
             // position from the previous task when the panel auto-reopens on the next load.
             ['spectrogramCursor', 'waveformCursor'].forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.style.left = '0';
+                if (el) el.style.setProperty('--cursor-pct', '0');
             });
             // videoScopesVisible persists across loads (saved in localStorage)
             const scaleBtn = document.getElementById('spectrogramScaleToggle');
@@ -12365,17 +12423,12 @@
                         document.body.classList.add('side-by-side');
                     }
 
-                    // Tripartite keeps all 3 cells visible so the CSS grid doesn't collapse.
-                    const isAnyTripartite = isTripartiteMode();
-                    if (!isAnyTripartite) {
-                        document.querySelectorAll('.asset-layer').forEach(layer => {
-                            layer.style.display = layer.querySelector('img, video, canvas.audio-viz-slot-canvas') ? '' : 'none';
-                        });
-                    } else {
-                        document.querySelectorAll('.asset-layer').forEach(layer => {
-                            layer.style.display = '';
-                        });
-                    }
+                    // Keep only loaded cells in the grid. Before the fourth slot existed,
+                    // showing every layer in tripartite mode happened to mean exactly the
+                    // three loaded cells; it now exposes the unused C placeholder bar.
+                    document.querySelectorAll('.asset-layer').forEach(layer => {
+                        layer.style.display = layer.querySelector('img, video, canvas.audio-viz-slot-canvas') ? '' : 'none';
+                    });
                     // Re-hide any slots the user has toggled off
                     _hiddenSlots.forEach(s => { const l = getLayer(s); if (l) l.style.display = 'none'; });
                     document.body.classList.toggle('two-asset', visibleSlotCount === 2);
@@ -13332,7 +13385,7 @@
               fn: () => { if (hasVideos || hasAudios) setLoopPoint('in'); } },
             { id: 'loopOut', defaultKey: 'o', label: 'Loop out point', section: 'transport', paired: 'loopPoints',
               fn: () => { if (hasVideos || hasAudios) setLoopPoint('out'); } },
-            { id: 'loopRange', defaultKey: 'l', shift: true, label: 'Loop range: Sync / Full', section: 'transport',
+            { id: 'loopRange', defaultKey: 'l', shift: true, label: 'Playback range: Sync / Full', section: 'transport',
               fn: () => _toggleLoopRangeMode() },
             { id: 'copyTimecode', defaultKey: 'c', label: 'Copy timecode range', section: 'transport', paired: 'copyTc',
               fn: () => { if (hasVideos || hasAudios) _copyTimecodeRange(); } },
@@ -13981,7 +14034,7 @@
                 <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Slower / faster playback (0.25×–2×)</td></tr>
                 <tr><td><kbd>M</kbd></td><td>Mute / Unmute</td></tr>
                 <tr><td><kbd>I</kbd> <kbd>O</kbd></td><td>Set shared loop in / out points</td></tr>
-                <tr><td><kbd>Shift+L</kbd></td><td>Loop range: Sync (shortest) / Full (longest)</td></tr>
+                <tr><td><kbd>Shift+L</kbd></td><td>Playback range: Sync (shortest) / Full (longest)</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
                 <tr><td><kbd>W</kbd></td><td>Toggle waveform / spectrogram</td></tr>
@@ -13989,7 +14042,7 @@
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
-            <p><strong>Playback scope:</strong> In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip <strong>Loop: Sync / Full</strong> control is hidden while Solo is active.</p>
+            <p><strong>Playback scope:</strong> The adjacent <strong>Playback: Sync / Solo</strong> and <strong>Range: Sync / Full</strong> controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip <strong>Range: Sync / Full</strong> control is hidden while Solo is active.</p>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
@@ -14037,7 +14090,7 @@
                 <tr><td><kbd>M</kbd></td><td>Mute</td></tr>
                 <tr><td><kbd>I</kbd></td><td>Set loop in-point</td></tr>
                 <tr><td><kbd>O</kbd></td><td>Set loop out-point</td></tr>
-                <tr><td><kbd>Shift+L</kbd></td><td>Toggle loop range: Sync / Full</td></tr>
+                <tr><td><kbd>Shift+L</kbd></td><td>Toggle playback range: Sync / Full</td></tr>
                 <tr><td><kbd>Esc</kbd> <small>2×</small></td><td>Clear loop markers</td></tr>
                 <tr><td><kbd>,</kbd></td><td>Step back one frame</td></tr>
                 <tr><td><kbd>.</kbd></td><td>Step forward one frame</td></tr>
@@ -14199,6 +14252,13 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.1</h3>
+            <ul>
+                <li><strong>Timeline and waveform playheads now move smoothly during synced video playback.</strong> The visual clock no longer pauses or nudges backward between presented frames; the progress fill uses a compositor transform, and a short linear bridge hides occasional busy main-thread frames without changing loop or sync timing.</li>
+                <li><strong>Three-image Grid views no longer show an empty C info bar.</strong> Both Inline and Offset layouts now keep the unused fourth slot hidden.</li>
+                <li><strong>The Playback: Sync / Solo control is visible again.</strong> Sync has a clear neutral treatment in the transport bar, while Solo uses a blue active state.</li>
+                <li><strong>Playback behavior is grouped.</strong> Playback: Sync/Solo now sits directly beside Range: Sync/Full, before the timecode, so the two related selectors read as one control group.</li>
+            </ul>
             <h3>v3.14.0</h3>
             <ul>
                 <li><strong>Tile Check finds image seams before they reach a surface.</strong> Press <kbd>Y</kbd> to inspect any loaded image as a repeated 3×3 tile or move all four edges to the center with Offset. Separate Left↔Right, Top↔Bottom, corner, and overall ratings compare boundary color, alpha, and texture direction with the image's normal detail.</li>

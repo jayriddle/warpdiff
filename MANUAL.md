@@ -154,10 +154,10 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 | **K** | Faster (cycle in reverse) |
 | **I** | Set loop in-point at current time (shared across all clips) |
 | **O** | Set loop out-point at current time (shared across all clips) |
-| **Shift+L** | Loop range: Sync (shortest) ↔ Full (longest) |
+| **Shift+L** | Playback range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute (persists across loads and sessions) |
 
-**Playback scope:** In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip **Loop: Sync / Full** control is hidden while Solo is active.
+**Playback scope:** The adjacent **Playback: Sync / Solo** and **Range: Sync / Full** controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip **Range: Sync / Full** control is hidden while Solo is active.
 
 **Audio source selector:** Only one audio track plays at a time. Click a labeled source button to switch sources. Each button has its own mute icon for independent muting. In Sync, muting the active source automatically selects the next unmuted source. In Solo, the source identifies the solo video and remains selected if muted.
 
@@ -167,7 +167,7 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 
 **Sync-locked looping:** With two or more videos loaded, playback loops all of them together, and a continuous drift lock keeps every video on the active one's clock (within half a frame) in both Stack and Grid mode — so A/B comparison stays frame-aligned across loop passes. Clips start a frame or two apart (a decoder start race); on Chrome the lock closes that within about a third of a second of pressing play. On Safari the clips are instead left to run free during playback (rate corrections make WebKit present video unevenly) and are aligned exactly when you pause, which is when frame accuracy matters. Custom loop points take precedence when set.
 
-**Loop range for clips of different lengths** (**Shift+L**, or the **Loop:** button on the transport bar): **Full** wraps at the longest clip so you can review each in full — a shorter clip holds on its last frame while the longest plays out its tail, then all restart together. **Sync** wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. When you load clips of **different lengths they default to Full** (so nothing is hidden) and the Loop button is highlighted; press **Shift+L** to switch to Sync for tight frame comparison. Equal-length clips use Sync. In Sync mode, any part of a clip that runs past the loop is shown hatched on the progress bar.
+**Playback range for clips of different lengths** (**Shift+L**, or the **Range:** button on the transport bar): **Full** wraps at the longest clip so you can review each in full — a shorter clip holds on its last frame while the longest plays out its tail, then all restart together. **Sync** wraps at the shortest clip so every frame has a counterpart to compare frame-for-frame. When you load clips of **different lengths they default to Full** (so nothing is hidden) and the Range button is highlighted; press **Shift+L** to switch to Sync for tight frame comparison. Equal-length clips use Sync. In Sync mode, any part of a clip that runs past the loop is shown hatched on the progress bar.
 
 ---
 
@@ -196,7 +196,7 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
-During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During normal playback, the progress bar, timecode, and waveform/spectrogram cursor glide between presented frames for smoother visual motion; loop and synchronization decisions still use the video's unmodified media clock.
+During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During normal playback, the progress bar and waveform/spectrogram cursor use compositor-smoothed motion between presented frames; loop and synchronization decisions still use the video's unmodified media clock.
 
 If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
 
@@ -338,7 +338,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 | **R** | Restart |
 | **J** / **K** | Slower / Faster |
 | **I** / **O** | Loop in / out |
-| **Shift+L** | Toggle loop range: Sync / Full |
+| **Shift+L** | Toggle playback range: Sync / Full |
 | **M** | Mute |
 
 ### Analysis

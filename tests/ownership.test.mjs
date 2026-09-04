@@ -1494,9 +1494,10 @@ function extractFn(name, src = SRC) {
   }
 }
 
-// Playback chrome follows the last PRESENTED frame and glides no farther than
-// one source-frame interval. Transport/loop decisions deliberately continue to
-// use raw media.currentTime; this helper owns visuals only.
+// Playback chrome follows the last PRESENTED frame, borrowing the continuous
+// media clock only while the clocks agree within one source frame. Transport/
+// loop decisions deliberately continue to use raw media.currentTime; this helper
+// owns visuals only.
 {
   check('one-owner[visual-clock]: _projectVisualTime is defined exactly once',
         countOf(SRC, 'function _projectVisualTime(') === 1);
@@ -1510,6 +1511,10 @@ function extractFn(name, src = SRC) {
           Math.abs(_projectVisualTime(2, 1000, 1020, 1, 1 / 24, 2.2) - 2.02) < 1e-9);
     check('visual-clock: never runs more than one frame ahead of the picture',
           Math.abs(_projectVisualTime(2, 1000, 1100, 1, 1 / 24, 2.2) - (2 + 1 / 24)) < 1e-9);
+    check('visual-clock: uses a nearby continuous media clock instead of freezing',
+          Math.abs(_projectVisualTime(2, 1000, 1100, 1, 1 / 24, 2.07) - 2.07) < 1e-9);
+    check('visual-clock: a new frame anchor cannot nudge a nearby media clock backward',
+          Math.abs(_projectVisualTime(2.04, 1042, 1042, 1, 1 / 24, 2.06) - 2.06) < 1e-9);
     check('visual-clock: missing presentation metadata falls back to media time',
           _projectVisualTime(NaN, NaN, 1100, 1, 1 / 24, 2.2) === 2.2);
     const loop = extractFn('startProgressUpdateLoop');
@@ -1520,6 +1525,14 @@ function extractFn(name, src = SRC) {
           cursors.includes('timeOverride') &&
           cursors.includes('timeOverride !== undefined ? timeOverride : primaryAudio.currentTime') &&
           loop.includes('updateAllAudioSlotCursors(primary, visualTime)'));
+    const videoCursor = extractFn('updateSpectrogramCursor');
+    check('visual-clock: video waveform cursors avoid per-frame layout reads',
+          videoCursor.includes("style.setProperty('--cursor-pct'") &&
+          !videoCursor.includes('.offsetWidth'));
+    const progressVisual = extractFn('_setProgressBarVisual');
+    check('visual-clock: progress fill advances with a compositor transform',
+          progressVisual.includes("style.transform = 'scaleX('") &&
+          extractFn('updateProgressBarForLoop').includes('_setProgressBarVisual('));
   }
 }
 
