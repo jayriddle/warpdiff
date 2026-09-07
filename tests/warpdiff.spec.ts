@@ -2372,6 +2372,28 @@ test.describe('Pan bounds', () => {
 });
 
 test.describe('Hotkey reassignment via localStorage.customHotkeys', () => {
+  test('host command catalog is metadata-only and follows resolved custom assignments', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('customHotkeys', JSON.stringify({ mute: 'y', shortcuts: 'u' }));
+    });
+    await page.goto('/');
+    const catalog = await page.evaluate(() => {
+      const api = (window as any).WarpDiffHostAPI;
+      return { capabilities:api.capabilities, catalog:api.readCommandCatalog() };
+    });
+    expect(catalog.capabilities).toEqual({ commandCatalogVersion:1 });
+    expect(catalog.catalog.kind).toBe('warpdiff.host-command-catalog');
+    expect(catalog.catalog.catalogVersion).toBe(1);
+    const mute = catalog.catalog.commands.find((command:any) => command.id === 'mute');
+    expect(mute).toMatchObject({ category:'Transport', customized:true, managedAllowed:true });
+    expect(mute.bindings).toEqual([{ key:'y', modifiers:[] }]);
+    const shortcuts = catalog.catalog.commands.find((command:any) => command.id === 'shortcuts');
+    expect(shortcuts.bindings).toEqual([{ key:'u', modifiers:[] }]);
+    const load = catalog.catalog.commands.find((command:any) => command.id === 'loadFiles');
+    expect(load.managedAllowed).toBe(false);
+    expect(catalog.catalog.commands.some((command:any) => 'fn' in command)).toBe(false);
+  });
+
   test('custom mapping in localStorage is applied at init: _customKeys + _keymap reflect it', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('customHotkeys', JSON.stringify({ mute: 'y' }));

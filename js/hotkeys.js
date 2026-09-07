@@ -61,6 +61,45 @@ function _actionKey(actionId) {
     return _customKeys[actionId] !== undefined ? _customKeys[actionId] : (action.defaultKey || '');
 }
 
+// Read-only host integration seam. The native registry and resolved keymap remain the owners of
+// command identity and assignment; an embedding host may present this metadata but cannot invoke
+// actions through this API. Reading the resolved map preserves custom assignments, aliases, and
+// commands displaced by a conflict without reproducing keymap rules in the host.
+function _readHostCommandCatalog() {
+    const categoryLabels = {
+        files: 'Files', view: 'View', zoom: 'Zoom', transport: 'Transport',
+        analysis: 'Analysis', panels: 'Help',
+    };
+    const bindingsByAction = new Map();
+    Object.entries(_keymap).forEach(([mapKey, actionId]) => {
+        let key = mapKey;
+        const modifiers = [];
+        if (key.startsWith('S+')) { modifiers.push('Shift'); key = key.slice(2); }
+        else if (key.startsWith('A+')) { modifiers.push('Alt'); key = key.slice(2); }
+        const bindings = bindingsByAction.get(actionId) || [];
+        bindings.push({ key, modifiers });
+        bindingsByAction.set(actionId, bindings);
+    });
+    return {
+        kind: 'warpdiff.host-command-catalog',
+        catalogVersion: 1,
+        productVersion: APP_VERSION,
+        title: 'WarpDiff editor',
+        commands: _hotkeyActions.filter(action => !action.hidden).map(action => ({
+            id: action.id,
+            label: action.label,
+            category: categoryLabels[action.section] || action.section,
+            customizable: true,
+            customized: _isCustomised(action.id),
+            managedAllowed: action.id !== 'loadFiles',
+            bindings: (bindingsByAction.get(action.id) || []).map(binding => ({
+                key: binding.key,
+                modifiers: binding.modifiers.slice(),
+            })),
+        })),
+    };
+}
+
 // Check if an action has been customised
 function _isCustomised(actionId) {
     return _customKeys[actionId] !== undefined;

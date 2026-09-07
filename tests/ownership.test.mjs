@@ -47,6 +47,17 @@ function extractFn(name, src = SRC) {
   throw new Error('unbalanced braces in: ' + name);
 }
 
+{
+  const readCatalog = extractFn('_readHostCommandCatalog');
+  check('one-owner[host-command-catalog]: one metadata-only host seam derives from the native registry and resolved keymap',
+        countOf(SRC, 'function _readHostCommandCatalog(') === 1 &&
+        countOf(SRC, 'window.WarpDiffHostAPI = Object.freeze({') === 1 &&
+        readCatalog.includes('_hotkeyActions.filter(action => !action.hidden)') &&
+        readCatalog.includes('Object.entries(_keymap)') &&
+        readCatalog.includes("managedAllowed: action.id !== 'loadFiles'") &&
+        !readCatalog.includes('action.fn'));
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 0. Inline <script> syntax parse (ci-check style) — a syntax error here would
 //    silently break the whole app at runtime; fail fast instead.

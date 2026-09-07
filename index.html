@@ -13469,6 +13469,13 @@
         let _reassigningActionId = null;
         _buildKeymap();
 
+        // Explicit metadata-only capability for same-origin hosts. The child keeps keyboard
+        // dispatch and remapping authority; hosts receive no callback or command-execution port.
+        window.WarpDiffHostAPI = Object.freeze({
+            capabilities: Object.freeze({ commandCatalogVersion: 1 }),
+            readCommandCatalog: _readHostCommandCatalog,
+        });
+
         // Alert user if any new action's default key conflicts with their custom mappings
         if (_keymapConflicts.length > 0) {
             const n = _keymapConflicts.length;
