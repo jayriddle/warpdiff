@@ -185,6 +185,49 @@ test.describe('host-load protocol and embedded lifecycle', () => {
     expect(await page.evaluate(() => (window as any).replies)).toEqual([]);
   });
 
+  test('a real shortcut remap notifies only the correlated loaded host', async ({ page }) => {
+    const image = path.join(fixturesDir, 'green.png');
+    await page.route('**/catalog-a.png', route => route.fulfill({ path:image, contentType:'image/png' }));
+    await page.route('**/catalog-b.png', route => route.fulfill({ path:image, contentType:'image/png' }));
+    await page.route('**/catalog-host.html', route => route.fulfill({
+      contentType:'text/html',
+      body:`<!doctype html><iframe src="/"></iframe><script>
+        window.events=[];
+        addEventListener('message',event=>{
+          if(event.data && /^WARPDIFF_(LOAD_READY|COMMAND_CATALOG_CHANGED)$/.test(event.data.type)) window.events.push(event.data);
+        });
+        document.querySelector('iframe').addEventListener('load',event=>event.target.contentWindow.postMessage({
+          type:'WARPDIFF_LOAD', requestId:'catalog-request', taskId:'catalog-task',
+          signedItems:[
+            {signedUrl:'/catalog-a.png',name:'a.png',contentType:'image/png',lastModified:1},
+            {signedUrl:'/catalog-b.png',name:'b.png',contentType:'image/png',lastModified:2}
+          ]
+        },location.origin));
+      <\/script>`,
+    }));
+    await page.goto('/catalog-host.html');
+    await expect.poll(() => page.evaluate(() => (window as any).events)).toContainEqual(
+      expect.objectContaining({ type:'WARPDIFF_LOAD_READY', requestId:'catalog-request', taskId:'catalog-task' })
+    );
+
+    const frame = page.locator('iframe').contentFrame();
+    await frame.locator('body').evaluate(() => (window as any).toggleShortcutsPanel());
+    await expect(frame.locator('#shortcutsPanel')).toBeVisible();
+    await frame.locator('[data-action-id="mute"]').click();
+    await page.keyboard.press('u');
+
+    await expect.poll(() => page.evaluate(() => (window as any).events)).toContainEqual(
+      expect.objectContaining({
+        type:'WARPDIFF_COMMAND_CATALOG_CHANGED', requestId:'catalog-request', taskId:'catalog-task',
+      })
+    );
+    const muteBinding = await frame.locator('body').evaluate(() => {
+      const catalog = (window as any).WarpDiffHostAPI.readCommandCatalog();
+      return catalog.commands.find((command:any) => command.id === 'mute').bindings;
+    });
+    expect(muteBinding).toEqual([{ key:'u', modifiers:[] }]);
+  });
+
   test('embedded WarpDiff does not register a service worker', async ({ page }) => {
     await page.route('**/embedded-host.html', route => route.fulfill({
       contentType:'text/html', body:'<!doctype html><iframe src="/"></iframe>',
@@ -2379,9 +2422,24 @@ test.describe('Hotkey reassignment via localStorage.customHotkeys', () => {
     await page.goto('/');
     const catalog = await page.evaluate(() => {
       const api = (window as any).WarpDiffHostAPI;
-      return { capabilities:api.capabilities, catalog:api.readCommandCatalog() };
+      const first = api.readCommandCatalog();
+      const firstCommand = first.commands[0];
+      const firstBinding = firstCommand.bindings[0];
+      return {
+        capabilities:api.capabilities,
+        catalog:first,
+        frozen:{
+          catalog:Object.isFrozen(first), commands:Object.isFrozen(first.commands),
+          command:Object.isFrozen(firstCommand), bindings:Object.isFrozen(firstCommand.bindings),
+          binding:firstBinding ? Object.isFrozen(firstBinding) : true,
+          modifiers:firstBinding ? Object.isFrozen(firstBinding.modifiers) : true,
+        },
+      };
     });
     expect(catalog.capabilities).toEqual({ commandCatalogVersion:1 });
+    expect(catalog.frozen).toEqual({
+      catalog:true, commands:true, command:true, bindings:true, binding:true, modifiers:true,
+    });
     expect(catalog.catalog.kind).toBe('warpdiff.host-command-catalog');
     expect(catalog.catalog.catalogVersion).toBe(1);
     const mute = catalog.catalog.commands.find((command:any) => command.id === 'mute');
@@ -2391,6 +2449,12 @@ test.describe('Hotkey reassignment via localStorage.customHotkeys', () => {
     expect(shortcuts.bindings).toEqual([{ key:'u', modifiers:[] }]);
     const load = catalog.catalog.commands.find((command:any) => command.id === 'loadFiles');
     expect(load.managedAllowed).toBe(false);
+    for (const id of ['toggleOffset', 'hideRef', 'hideC']) {
+      expect(catalog.catalog.commands.find((command:any) => command.id === id).available).toBe(false);
+    }
+    for (const id of ['captureFrame', 'galleryPrev', 'galleryNext', 'help', 'shortcuts']) {
+      expect(catalog.catalog.commands.find((command:any) => command.id === id).managedAllowed).toBe(false);
+    }
     expect(catalog.catalog.commands.some((command:any) => 'fn' in command)).toBe(false);
   });
 

@@ -49,13 +49,26 @@ function extractFn(name, src = SRC) {
 
 {
   const readCatalog = extractFn('_readHostCommandCatalog');
+  const buildKeymap = extractFn('_buildKeymap');
+  const announceCatalog = extractFn('_hostCommandCatalogChanged');
   check('one-owner[host-command-catalog]: one metadata-only host seam derives from the native registry and resolved keymap',
         countOf(SRC, 'function _readHostCommandCatalog(') === 1 &&
         countOf(SRC, 'window.WarpDiffHostAPI = Object.freeze({') === 1 &&
-        readCatalog.includes('_hotkeyActions.filter(action => !action.hidden)') &&
+        readCatalog.includes('Object.freeze(_hotkeyActions.filter(action => !action.hidden)') &&
         readCatalog.includes('Object.entries(_keymap)') &&
-        readCatalog.includes("managedAllowed: action.id !== 'loadFiles'") &&
+        readCatalog.includes('managedAllowed: action.managed !== false') &&
+        readCatalog.includes("available: typeof action.hostAvailable !== 'function' || action.hostAvailable()") &&
+        readCatalog.includes('modifiers: Object.freeze(binding.modifiers.slice())') &&
+        readCatalog.includes('return Object.freeze({') &&
         !readCatalog.includes('action.fn'));
+  check('one-owner[host-command-catalog-change]: resolved remaps notify only the correlated ready host request',
+        countOf(SRC, 'function _hostCommandCatalogChanged(') === 1 &&
+        buildKeymap.includes("typeof _hostCommandCatalogChanged === 'function'") &&
+        announceCatalog.includes("request.status !== 'ready'") &&
+        announceCatalog.includes('_hostLoadIsCurrent(request.generation)') &&
+        announceCatalog.includes("type: 'WARPDIFF_COMMAND_CATALOG_CHANGED'") &&
+        announceCatalog.includes('requestId: request.requestId') &&
+        announceCatalog.includes('taskId: request.taskId'));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

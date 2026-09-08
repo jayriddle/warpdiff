@@ -52,6 +52,7 @@ function _buildKeymap() {
     // Hidden aliases: unshifted = and _ map to +/- zoom (same physical keys)
     if (!_keymap['=']) _keymap['='] = 'zoomIn';
     if (!_keymap['_']) _keymap['_'] = 'zoomOut';
+    if (typeof _hostCommandCatalogChanged === 'function') _hostCommandCatalogChanged();
 }
 
 // Get current key for an action (custom or default)
@@ -80,24 +81,29 @@ function _readHostCommandCatalog() {
         bindings.push({ key, modifiers });
         bindingsByAction.set(actionId, bindings);
     });
-    return {
-        kind: 'warpdiff.host-command-catalog',
-        catalogVersion: 1,
-        productVersion: APP_VERSION,
-        title: 'WarpDiff editor',
-        commands: _hotkeyActions.filter(action => !action.hidden).map(action => ({
+    const commands = Object.freeze(_hotkeyActions.filter(action => !action.hidden).map(action => {
+        const bindings = Object.freeze((bindingsByAction.get(action.id) || []).map(binding => Object.freeze({
+            key: binding.key,
+            modifiers: Object.freeze(binding.modifiers.slice()),
+        })));
+        return Object.freeze({
             id: action.id,
             label: action.label,
             category: categoryLabels[action.section] || action.section,
             customizable: true,
             customized: _isCustomised(action.id),
-            managedAllowed: action.id !== 'loadFiles',
-            bindings: (bindingsByAction.get(action.id) || []).map(binding => ({
-                key: binding.key,
-                modifiers: binding.modifiers.slice(),
-            })),
-        })),
-    };
+            managedAllowed: action.managed !== false,
+            available: typeof action.hostAvailable !== 'function' || action.hostAvailable(),
+            bindings,
+        });
+    }));
+    return Object.freeze({
+        kind: 'warpdiff.host-command-catalog',
+        catalogVersion: 1,
+        productVersion: APP_VERSION,
+        title: 'WarpDiff editor',
+        commands,
+    });
 }
 
 // Check if an action has been customised

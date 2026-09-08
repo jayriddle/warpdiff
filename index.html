@@ -5530,13 +5530,28 @@
         function _hostLoadReady(generation) {
             if (!_hostLoadIsCurrent(generation) || _hostLoadRequest.terminal) return;
             _hostLoadRequest.terminal = true;
+            _hostLoadRequest.status = 'ready';
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
         }
 
         function _hostLoadFailed(request, error) {
             if (!request || !_hostLoadIsCurrent(request.generation) || request.terminal) return;
             request.terminal = true;
+            request.status = 'failed';
             _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
+        }
+
+        // Metadata-only invalidation. A host may re-read the native catalog, but receives no
+        // dispatcher or callback. Correlation binds the notice to the one successfully loaded
+        // request; remaps during loading/failure or from a superseded request stay private.
+        function _hostCommandCatalogChanged() {
+            const request = _hostLoadRequest;
+            if (!request || request.status !== 'ready' || !_hostLoadIsCurrent(request.generation) || !request.replyWindow) return;
+            request.replyWindow.postMessage({
+                type: 'WARPDIFF_COMMAND_CATALOG_CHANGED',
+                requestId: request.requestId,
+                taskId: request.taskId,
+            }, request.replyOrigin);
         }
 
         function _hostLoadBegin(event) {
@@ -5550,6 +5565,7 @@
                 replyOrigin: event.origin,
                 signal: _hostLoadAbortController.signal,
                 terminal: false,
+                status: 'loading',
             };
             _hostLoadRequest = request;
             // Clear the preceding task as soon as the new request is accepted,
@@ -13175,7 +13191,8 @@
 
         // Action registry — each entry defines an assignable hotkey action.
         // Fields: id, defaultKey, shift (optional), label, section (for grouping),
-        //         global (works outside comparison view), fn (callback).
+        //         global (works outside comparison view), managed/hostAvailable (host metadata),
+        //         fn (callback). Metadata functions stay native and are never returned to a host.
         // Actions with `paired` share a row in the panel (e.g. frame back/forward).
         function _toggleStackGridMode() {
             if (isGridMode) {
@@ -13196,7 +13213,7 @@
 
         const _hotkeyActions = [
             // ── Files ──
-            { id: 'loadFiles', defaultKey: 'l', label: 'Load files', section: 'files', global: true,
+            { id: 'loadFiles', defaultKey: 'l', label: 'Load files', section: 'files', global: true, managed: false,
               fn: () => { document.getElementById('multiFileInput').click(); } },
 
             // ── View ──
@@ -13207,6 +13224,7 @@
             { id: 'gridMode', defaultKey: 'g', label: 'Toggle Stack / Grid', section: 'view',
               fn: _toggleStackGridMode },
             { id: 'toggleOffset', defaultKey: '3', label: 'Grid: Inline / Offset', section: 'view',
+              hostAvailable: () => assetOrder.filter(slot => !!mediaData[slot]).length === 3,
               fn: () => {
                   if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
                   const isAnyTripartiteNow = isTripartiteMode();
@@ -13217,13 +13235,13 @@
                       _swapGridSubLayout();
                   }
               } },
-            { id: 'hideRef',  defaultKey: '1', shift: true, label: 'Toggle slot 1 visibility',  section: 'view',
+            { id: 'hideRef',  defaultKey: '1', shift: true, label: 'Toggle slot 1 visibility',  section: 'view', hostAvailable: () => !!mediaData.original,
               fn: () => { if (isGridMode && mediaData.original) toggleSlotVisibility('original'); } },
-            { id: 'hideA',    defaultKey: '2', shift: true, label: 'Toggle slot 2 visibility',    section: 'view',
+            { id: 'hideA',    defaultKey: '2', shift: true, label: 'Toggle slot 2 visibility',    section: 'view', hostAvailable: () => !!mediaData.editA,
               fn: () => { if (isGridMode && mediaData.editA)    toggleSlotVisibility('editA');    } },
-            { id: 'hideB',    defaultKey: '3', shift: true, label: 'Toggle slot 3 visibility',    section: 'view',
+            { id: 'hideB',    defaultKey: '3', shift: true, label: 'Toggle slot 3 visibility',    section: 'view', hostAvailable: () => !!mediaData.editB,
               fn: () => { if (isGridMode && mediaData.editB)    toggleSlotVisibility('editB');    } },
-            { id: 'hideC',    defaultKey: '4', shift: true, label: 'Toggle slot 4 visibility',    section: 'view',
+            { id: 'hideC',    defaultKey: '4', shift: true, label: 'Toggle slot 4 visibility',    section: 'view', hostAvailable: () => !!mediaData.editC,
               fn: () => { if (isGridMode && mediaData.editC)    toggleSlotVisibility('editC');    } },
             { id: 'fullscreen', defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
               fn: () => {
@@ -13342,6 +13360,7 @@
             { id: 'playPause', defaultKey: ' ', label: 'Play / Pause', section: 'transport', global: true,
               fn: () => togglePlayPause() },
             { id: 'playbackScope', defaultKey: 's', shift: true, label: 'Playback: Sync / Solo', section: 'transport',
+              hostAvailable: () => hasVideos && assetOrder.filter(slot => !!mediaData[slot]).length > 1,
               fn: () => _togglePlaybackScope() },
             { id: 'frameBack', defaultKey: ',', label: 'Frame back', section: 'transport', paired: 'frameStepping',
               fn: () => {
@@ -13386,6 +13405,7 @@
             { id: 'loopOut', defaultKey: 'o', label: 'Loop out point', section: 'transport', paired: 'loopPoints',
               fn: () => { if (hasVideos || hasAudios) setLoopPoint('out'); } },
             { id: 'loopRange', defaultKey: 'l', shift: true, label: 'Playback range: Sync / Full', section: 'transport',
+              hostAvailable: () => hasVideos && assetOrder.filter(slot => !!mediaData[slot]).length > 1,
               fn: () => _toggleLoopRangeMode() },
             { id: 'copyTimecode', defaultKey: 'c', label: 'Copy timecode range', section: 'transport', paired: 'copyTc',
               fn: () => { if (hasVideos || hasAudios) _copyTimecodeRange(); } },
@@ -13397,7 +13417,7 @@
               fn: () => toggleMute() },
 
             // ── Analysis ──
-            { id: 'tileCheck', defaultKey: 'y', label: 'Seamless tile check', section: 'analysis',
+            { id: 'tileCheck', defaultKey: 'y', label: 'Seamless tile check', section: 'analysis', hostAvailable: () => hasImages,
               fn: () => toggleTileCheck() },
             { id: 'diffMode', defaultKey: 'd', label: 'Difference mode', section: 'analysis',
               fn: () => {
@@ -13409,7 +13429,7 @@
               fn: () => {
                   if (_diffMode) cycleDiffPair();
               } },
-            { id: 'wipeMode', defaultKey: 'q', label: 'Image wipe', section: 'analysis',
+            { id: 'wipeMode', defaultKey: 'q', label: 'Image wipe', section: 'analysis', hostAvailable: () => hasImages,
               fn: () => toggleWipeMode() },
             { id: 'wipeCycle', defaultKey: 'q', shift: true, label: 'Cycle wipe pair', section: 'analysis',
               fn: () => { if (_wipeMode) cycleWipePair(1); } },
@@ -13442,7 +13462,7 @@
                       if (slot) drawWaveform(slot);
                   }
               } },
-            { id: 'noVideo', defaultKey: 'n', label: 'No video (audio focus)', section: 'analysis',
+            { id: 'noVideo', defaultKey: 'n', label: 'No video (audio focus)', section: 'analysis', hostAvailable: () => hasVideos,
               fn: () => { if (hasVideos) toggleNoVideoMode(); else showToast('Load videos to use this mode'); } },
             { id: 'bwMode', defaultKey: 'b', label: 'Black & white', section: 'analysis',
               fn: () => { if (hasVideos || hasImages) toggleBwMode(); } },
@@ -13450,17 +13470,17 @@
               fn: () => { if ((hasVideos && audioVizVisible) || hasAudios) toggleSpectrogramScale(); } },
             { id: 'spectroPalette', defaultKey: 'p', label: 'Cycle color palette', section: 'analysis',
               fn: () => { if ((hasVideos && audioVizVisible) || hasAudios) cycleSpectrogramPalette(); } },
-            { id: 'captureFrame', defaultKey: 'g', shift: true, label: 'Grab frame to gallery', section: 'analysis',
+            { id: 'captureFrame', defaultKey: 'g', shift: true, label: 'Grab frame to gallery', section: 'analysis', managed: false,
               fn: () => { if (hasVideos || hasImages) _captureFrame(); else showToast('No video or images loaded'); } },
-            { id: 'galleryPrev', defaultKey: '{', label: 'Gallery: previous frame', section: 'analysis', paired: 'galleryStep',
+            { id: 'galleryPrev', defaultKey: '{', label: 'Gallery: previous frame', section: 'analysis', paired: 'galleryStep', managed: false,
               fn: () => { if (_frameGallery.length) _galleryStep(-1); } },
-            { id: 'galleryNext', defaultKey: '}', label: 'Gallery: next frame', section: 'analysis', paired: 'galleryStep',
+            { id: 'galleryNext', defaultKey: '}', label: 'Gallery: next frame', section: 'analysis', paired: 'galleryStep', managed: false,
               fn: () => { if (_frameGallery.length) _galleryStep(1); } },
 
             // ── Panels ──
-            { id: 'help', defaultKey: '?', label: 'Help', section: 'panels', global: true, altKey: '/',
+            { id: 'help', defaultKey: '?', label: 'Help', section: 'panels', global: true, altKey: '/', managed: false,
               fn: () => toggleQuickStart() },
-            { id: 'shortcuts', defaultKey: 'h', label: 'This panel', section: 'panels', global: true,
+            { id: 'shortcuts', defaultKey: 'h', label: 'This panel', section: 'panels', global: true, managed: false,
               fn: () => toggleShortcutsPanel() },
         ];
 
