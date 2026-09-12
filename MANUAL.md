@@ -436,4 +436,4 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 
 ### Managed review hosts
 
-Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
+Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.

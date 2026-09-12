@@ -4000,11 +4000,13 @@ test('managed review host labels own media, audio and Solo across loads while st
   await send(['North','South','East','West']);
   await expect(page.locator('#layerOriginal .asset-name')).toHaveText('North');
   await expect(page.locator('#audioEditC')).toHaveText('West');
-  await expect(page.locator('#managedInspectionTools')).toHaveCount(1);
+  await expect(page.locator('#analysisStrip #scopesToggleBtn')).toHaveCount(1);
+  await expect(page.locator('#scopesToggleBtn svg')).toBeVisible();
   // Benign inverse uses the same load boundary, removing the capability.
   await send(['Left','Right'],false);
   await expect(page.locator('#loadBtn')).toBeVisible();
-  await expect(page.locator('#managedInspectionTools')).toHaveCount(0);
+  await expect(page.locator('#analysisStrip #scopesToggleBtn')).toHaveCount(1);
+  await expect(page.locator('#scopesToggleBtn svg')).toBeVisible();
   await page.keyboard.press('Shift+g');await expect(page.locator('#frameGalleryPanel')).toBeVisible();
 });
 

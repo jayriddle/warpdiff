@@ -3299,7 +3299,6 @@
 
 
         /* Managed review chrome: native controls retain their single behavior owners. */
-        body:not(.managed-review) .managed-tool-label { display:none; }
         body.managed-review #headerLeft, body.managed-review #sihAccentBar,
         body.managed-review .landing-dropzone, body.managed-review .landing-title,
         body.managed-review .landing-hints, body.managed-review #quickStartPopup,
@@ -3309,15 +3308,6 @@
         body.managed-review #headerRight, body.managed-review #analysisStrip { flex-wrap:wrap; min-width:0; }
         body.managed-review #headerRight { margin-left:0 !important; flex:1 1 auto; gap:8px !important; }
         body.managed-review #modeStrip { flex-wrap:wrap; }
-        body.managed-review .managed-options { font:12px system-ui; color:#ddd; }
-        body.managed-review .managed-options summary { padding:6px 8px; cursor:pointer; border:1px solid #666; border-radius:4px; }
-        body.managed-review .managed-options-content { display:flex; gap:6px; flex-wrap:wrap; padding:8px 0; }
-        body.managed-review .managed-options button { width:auto; min-height:30px; padding:5px 8px; color:#eee; background:#333; border:1px solid #666; }
-        body.managed-review .managed-options button.active, body.managed-review .managed-options button[aria-pressed="true"], body.managed-review #gridIconBtn.active, body.managed-review #stackIconBtn.active { background:#27476a; color:#fff; outline:1px solid #83b8f0; }
-        body.managed-review .managed-options button svg { width:18px; height:18px; }
-        body.managed-review .managed-options button .managed-tool-label { margin-left:5px; }
-        body.managed-review:not(.managed-media-details) #stackInfoStrip,
-        body.managed-review:not(.managed-media-details) .asset-info-bar > :not(.asset-name):not(.asset-zoom) { display:none !important; }
         body.managed-review .asset-name, body.managed-review .asset-btn { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         body.managed-review .audio-source-selector { flex-wrap:wrap; }
         body.managed-review .audio-source-selector button { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -3613,7 +3603,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.4';
+        const APP_VERSION = '3.14.5';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -7520,7 +7510,6 @@
         function toggleBwMode() {
             _bwMode = !_bwMode;
             document.body.classList.toggle('bw-mode', _bwMode);
-            document.getElementById('managed-bwMode')?.setAttribute('aria-pressed', String(_bwMode));
             showToast(_bwMode ? 'Black & white' : 'Color restored');
         }
 
@@ -7966,7 +7955,6 @@
             if (enabled && _wipeMode) _setWipeMode(false, false);
             if (enabled && _tileCheckMode) _setTileCheckMode(false, false);
             _diffMode = enabled;
-            document.getElementById('managed-diffMode')?.setAttribute('aria-pressed', String(_diffMode));
             const pairs = _getDiffPairs();
             if (_diffMode) {
                 _ensureDiffCanvas();
@@ -14024,7 +14012,7 @@
             <button onclick="toggleManualPanel()">✕</button>
         </div>
         <div class="manual-content">
-            <p>Managed review hosts supply the media and its labels. Their focused viewer uses the original Grid / Stack icons (Compare together / Single candidate in tooltips), View options, Inspection tools and Media details; task actions and Help belong to the host.</p>
+            <p>Managed review hosts supply the media and its labels. Their viewer keeps the original Grid / Stack icons (Compare together / Single candidate in tooltips), view controls, inspection icons and media details in their native positions; task actions and Help belong to the host.</p>
             <h2>Loading Files</h2>
             <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>
             <p><strong>Three ways to load files:</strong></p>
@@ -14340,6 +14328,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.5</h3>
+            <ul><li>Managed reviews use the original view controls and inspection icons directly in the toolbar.</li></ul>
             <h3>v3.14.4</h3>
             <ul><li>Managed comparisons retain the original Grid and Stack icons, with explanations in tooltips and accessible labels.</li></ul>
             <h3>v3.14.3</h3>
