@@ -432,3 +432,8 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 - **One media type per comparison** — images, videos, and audio cannot be mixed in the same load
 - **Pan available in Stack mode only**
 - **Audio:** one track at a time; others are automatically muted
+
+
+### Managed review hosts
+
+Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, simplifies layout controls, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.

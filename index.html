@@ -3297,6 +3297,34 @@
             width: 100% !important; height: 100% !important;
         }
 
+
+        /* Managed review chrome: native controls retain their single behavior owners. */
+        body:not(.managed-review) .managed-tool-label { display:none; }
+        body.managed-review #headerLeft, body.managed-review #sihAccentBar,
+        body.managed-review .landing-dropzone, body.managed-review .landing-title,
+        body.managed-review .landing-hints, body.managed-review #quickStartPopup,
+        body.managed-review #quickStartBackdrop, body.managed-review #changelogPopup,
+        body.managed-review #changelogBackdrop, body.managed-review #frameGalleryPanel { display:none !important; }
+        body.managed-review .header { flex-wrap:wrap; gap:8px; height:auto; min-height:40px; }
+        body.managed-review #headerRight, body.managed-review #analysisStrip { flex-wrap:wrap; min-width:0; }
+        body.managed-review #headerRight { margin-left:0 !important; flex:1 1 auto; gap:8px !important; }
+        body.managed-review #modeStrip { flex-wrap:wrap; }
+        body.managed-review #gridIconBtn, body.managed-review #stackIconBtn { width:auto; padding:6px 9px; color:#ddd; }
+        body.managed-review #gridIconBtn svg, body.managed-review #stackIconBtn svg { display:none; }
+        body.managed-review #gridIconBtn::after { content:'Side by side'; }
+        body.managed-review #stackIconBtn::after { content:'Single candidate'; }
+        body.managed-review .managed-options { font:12px system-ui; color:#ddd; }
+        body.managed-review .managed-options summary { padding:6px 8px; cursor:pointer; border:1px solid #666; border-radius:4px; }
+        body.managed-review .managed-options-content { display:flex; gap:6px; flex-wrap:wrap; padding:8px 0; }
+        body.managed-review .managed-options button { width:auto; min-height:30px; padding:5px 8px; color:#eee; background:#333; border:1px solid #666; }
+        body.managed-review .managed-options button.active, body.managed-review .managed-options button[aria-pressed="true"], body.managed-review #gridIconBtn.active, body.managed-review #stackIconBtn.active { background:#27476a; color:#fff; outline:1px solid #83b8f0; }
+        body.managed-review .managed-options button svg { width:18px; height:18px; }
+        body.managed-review .managed-options button .managed-tool-label { margin-left:5px; }
+        body.managed-review:not(.managed-media-details) #stackInfoStrip,
+        body.managed-review:not(.managed-media-details) .asset-info-bar > :not(.asset-name):not(.asset-zoom) { display:none !important; }
+        body.managed-review .asset-name, body.managed-review .asset-btn { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        body.managed-review .audio-source-selector { flex-wrap:wrap; }
+        body.managed-review .audio-source-selector button { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     </style>
 </head>
 <body>
@@ -3579,6 +3607,7 @@
     <script src="js/audio-viz.js"></script>
     <script src="js/scopes.js"></script>
     <script src="js/hotkeys.js"></script>
+    <script src="js/managed-review.js"></script>
     <script src="js/mp4-demux.js"></script>
     <script src="js/scrub-video.js"></script>
     <script src="js/timecode.js"></script>
@@ -3588,7 +3617,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.2';
+        const APP_VERSION = '3.14.3';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3791,6 +3820,7 @@
         function _setAudioButtonLabel(slot, label) {
             const btn = document.getElementById(`audio${capitalize(slot)}`);
             if (!btn) return;
+            btn.title = 'Audio source: ' + label;
             const textNodes = [...btn.childNodes].filter(node => node.nodeType === Node.TEXT_NODE);
             textNodes.forEach(node => { node.textContent = ''; });
             const target = textNodes[textNodes.length - 1];
@@ -5323,6 +5353,7 @@
         let _loadingProgressToken = null;
 
         function _loadingSlotLabel(slot, assetType, total) {
+            if (_managedReviewActive()) return slotLabel(slot);
             if (total === 1) return 'FILE';
             if (total === 4) return _numberedMediaLabel(slot, assetType);
             if (slot === 'original') return assetType === 'audio file' ? 'GT' : 'REF';
@@ -5577,7 +5608,9 @@
             const capabilities = event.data && event.data.capabilities;
             _hostCapabilities = Object.freeze({
                 ffmpegTranscode: !(capabilities && capabilities.ffmpegTranscode === false),
+                managedReview: !!(capabilities && capabilities.managedReview === true),
             });
+            _applyManagedReviewChrome();
             _viewLoadGeneration = request.generation;
             return request;
         }
@@ -5593,6 +5626,7 @@
         }
 
         function pullFromIHWA() {
+            if (_managedReviewActive()) return;
             const btn = document.getElementById('ihwaPullBtn');
             btn.disabled = true;
             btn.style.opacity = '0.4';
@@ -5625,6 +5659,17 @@
             if ((event.source !== window && event.source !== window.parent) || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
 
             const request = _hostLoadBegin(event);
+            if (_managedReviewActive()) {
+                const count = (event.data.signedItems || event.data.files || []).length;
+                const labels = event.data.slotLabels;
+                const offset = count <= 2 ? 1 : 0;
+                if (count < 1 || count > 4 || !Array.isArray(labels)
+                    || Array.from({length:count}, (_, index) => labels[index + offset])
+                        .some(label => typeof label !== 'string' || !label.trim() || label.length > 200)) {
+                    _hostLoadFailed(request, 'Managed review requires a display label for each media item');
+                    return;
+                }
+            }
 
             if (event.data.error) {
                 _ihwaPullReset(event.data.error + ' — try refreshing the IHWA page', true);
@@ -5702,6 +5747,7 @@
 
 
         function handleMultipleFiles(files, opts) {
+            if (_managedReviewActive() && !(opts && _hostLoadIsCurrent(opts.loadGeneration))) return false;
             // Filter for images, videos, and audio
             const mediaFiles = files.filter(f =>
                 f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
@@ -7048,6 +7094,8 @@
                 });
             });
             obs.observe(ctrlEl);
+            const header = document.querySelector('.header');
+            if (header) obs.observe(header);
         }
 
         // Lazy audio viz decode — only triggered when user opens waveform panel
@@ -7476,6 +7524,7 @@
         function toggleBwMode() {
             _bwMode = !_bwMode;
             document.body.classList.toggle('bw-mode', _bwMode);
+            document.getElementById('managed-bwMode')?.setAttribute('aria-pressed', String(_bwMode));
             showToast(_bwMode ? 'Black & white' : 'Color restored');
         }
 
@@ -7595,7 +7644,7 @@
 
         function _tileCheckSourceLabel(slot) {
             const slots = _tileCheckImageSlots();
-            return slots.length === 1 ? (mediaData[slot].name || 'Image') : slotLabel(slot);
+            return slots.length === 1 && !_ihwaSlotLabels ? (mediaData[slot].name || 'Image') : slotLabel(slot);
         }
 
         function _tileCheckResultClass(rating) {
@@ -7805,6 +7854,7 @@
         function _diffPairLabel(pair) {
             function shortLabel(slot) {
                 const full = slotLabel(slot);
+                if (_managedReviewActive()) return full;
                 if (slot === 'original') {
                     // "Source" / "Source Video" → "Source", "Reference Image/Video" → "Ref", "Ground-Truth Audio" → "GT"
                     const lower = full.toLowerCase();
@@ -7920,6 +7970,7 @@
             if (enabled && _wipeMode) _setWipeMode(false, false);
             if (enabled && _tileCheckMode) _setTileCheckMode(false, false);
             _diffMode = enabled;
+            document.getElementById('managed-diffMode')?.setAttribute('aria-pressed', String(_diffMode));
             const pairs = _getDiffPairs();
             if (_diffMode) {
                 _ensureDiffCanvas();
@@ -9179,6 +9230,7 @@
         }
 
         function toggleQuickStart() {
+            if (_managedReviewActive()) return;
             const popup = document.getElementById('quickStartPopup');
             const backdrop = document.getElementById('quickStartBackdrop');
             if (popup.classList.contains('show')) {
@@ -11150,6 +11202,7 @@
         }
 
         function resetAll() {
+            if (_managedReviewActive()) return;
             if (confirm('Reset all assets and start over?')) {
                 clearAllMedia();
                 _ihwaMode = false;
@@ -11181,6 +11234,11 @@
         let _ihwaSlotLabels = null; // slot index → label from IHWA page, e.g. { 0: 'Prompt Image', 1: 'Response A', 2: 'Response B' }
 
         function slotLabel(slot) {
+            // Host labels are authoritative, including single and four-slot reviews.
+            const supplied = _ihwaSlotLabels && _ihwaSlotLabels[assetOrder.indexOf(slot)];
+            if (typeof supplied === 'string' && supplied.trim()) return supplied.trim();
+            if (_managedReviewActive()) return ''; // the host owns missing-label fallback
+
             // Four-item reviews use the loaded media type plus an ordinal, avoiding any
             // implication that one file is the reference while keeping the type explicit.
             if (getLoadedSlotCount() === 4) {
@@ -12789,7 +12847,7 @@
 
                 // Four-item reviews use type-aware numbered naming in both media labels
                 // and the source selector (Image-N, Video-N, or Audio-N).
-                if (loadedCount === 4) {
+                if (loadedCount === 4 || _ihwaSlotLabels) {
                     assetOrder.forEach(slot => {
                         _setAudioButtonLabel(slot, slotLabel(slot));
                     });
@@ -12818,10 +12876,10 @@
                     const md = mediaData[slot];
                     if (hasAudios) {
                         document.body.classList.add('audio-mode');
-                        document.querySelector('#layerEditA .asset-name').textContent = md.name || 'Audio';
+                        document.querySelector('#layerEditA .asset-name').textContent = _ihwaSlotLabels ? slotLabel(slot) : md.name || 'Audio';
                         setViewMode('vertical');
                     } else {
-                        document.querySelector('#layerEditA .asset-name').textContent = md.name || (md.type === 'video' ? 'Video' : 'Image');
+                        document.querySelector('#layerEditA .asset-name').textContent = _ihwaSlotLabels ? slotLabel(slot) : md.name || (md.type === 'video' ? 'Video' : 'Image');
                         setViewMode('overlay');
                     }
                 } else if (hasAudios) {
@@ -13245,12 +13303,12 @@
               fn: () => { if (isGridMode && mediaData.editB)    toggleSlotVisibility('editB');    } },
             { id: 'hideC',    defaultKey: '4', shift: true, label: 'Toggle slot 4 visibility',    section: 'view', hostAvailable: () => !!mediaData.editC,
               fn: () => { if (isGridMode && mediaData.editC)    toggleSlotVisibility('editC');    } },
-            { id: 'fullscreen', defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
+            { id: 'fullscreen', managed: false, defaultKey: 'f', label: 'Browser fullscreen', section: 'view', global: true,
               fn: () => {
                   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
                   else document.exitFullscreen();
               } },
-            { id: 'toggleStarfield', defaultKey: 'x', label: 'Ad Astra', section: 'view', global: true, hidden: true,
+            { id: 'toggleStarfield', managed: false, defaultKey: 'x', label: 'Ad Astra', section: 'view', global: true, hidden: true,
               fn: () => {
                   const dz = document.querySelector('.landing-dropzone');
                   if (!dz) return;
@@ -13546,6 +13604,7 @@
         document.addEventListener('keydown', (e) => {
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
+            if (_managedReviewActive() && e.key !== 'Escape' && e.target.closest?.('input,textarea,select,button,summary,a[href],[contenteditable]')) return;
 
             // Skip when reassigning a key
             if (_reassigningActionId) return;
@@ -13589,6 +13648,7 @@
 
             const action = _hotkeyActions.find(a => a.id === actionId);
             if (!action) return;
+            if (_managedReviewActive() && action.managed === false) { e.preventDefault(); return; }
 
             // Non-global actions require comparison view to be active
             if (!action.global && !document.getElementById('comparisonView').classList.contains('active')) return;
@@ -13625,10 +13685,10 @@
 
             // Show welcome popup on first visit, or changelog on version update
             const lastSeen = localStorage.getItem('lastSeenVersion');
-            if (!lastSeen) {
+            if (!_managedReviewActive() && !lastSeen) {
                 document.getElementById('quickStartPopup').classList.add('show');
                 document.getElementById('quickStartBackdrop').classList.add('show');
-            } else if (lastSeen !== APP_VERSION) {
+            } else if (!_managedReviewActive() && lastSeen !== APP_VERSION) {
                 document.getElementById('changelogPopup').classList.add('show');
                 document.getElementById('changelogBackdrop').classList.add('show');
             }
@@ -13698,6 +13758,7 @@
         let _lastFocusBeforePanel = null;
 
         function toggleShortcutsPanel() {
+            if (_managedReviewActive()) return;
             const panel = document.getElementById('shortcutsPanel');
             const opening = !panel.classList.contains('open');
             panel.classList.toggle('open');
@@ -13715,6 +13776,7 @@
         }
 
         function toggleManualPanel() {
+            if (_managedReviewActive()) return;
             const panel = document.getElementById('manualPanel');
             const opening = !panel.classList.contains('open');
             panel.classList.toggle('open');
@@ -13966,6 +14028,7 @@
             <button onclick="toggleManualPanel()">✕</button>
         </div>
         <div class="manual-content">
+            <p>Managed review hosts supply the media and its labels. Their focused viewer uses Side by side / Single candidate, View options, Inspection tools and Media details; task actions and Help belong to the host.</p>
             <h2>Loading Files</h2>
             <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>
             <p><strong>Three ways to load files:</strong></p>
@@ -14281,6 +14344,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.3</h3>
+            <ul><li>Managed review hosts can request focused inspection controls and supply authoritative media labels.</li></ul>
             <h3>v3.14.2</h3>
             <ul><li><strong>Playback controls stay reachable in smaller desktop panes.</strong> The transport wraps when space is limited, keeping seeking, volume and audio-source controls visible.</li></ul>
             <h3>v3.14.1</h3>

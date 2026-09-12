@@ -22,6 +22,7 @@ function _wipePair() {
 
 function _wipeSlotText(slot) {
     const full = slotLabel(slot);
+    if (_managedReviewActive()) return full;
     if (slot === 'original' && getLoadedSlotCount() !== 4) return full.startsWith('Reference') ? 'Ref' : full;
     return full.split(' ').pop();
 }

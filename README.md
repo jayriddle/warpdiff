@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.14.2
+**Current version:** 3.14.3
 
 ---
 
@@ -138,3 +138,8 @@ Not currently licensed for redistribution or derivative use. Reach out if you're
 ## Contact
 
 Jay Riddle — [GitHub](https://github.com/jayriddle)
+
+
+### Managed review hosts
+
+Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, simplifies layout controls, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.

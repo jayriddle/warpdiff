@@ -115,3 +115,8 @@ WarpDiff is a Progressive Web App. Install it from Chrome, Edge, or Safari for a
 ## Works instantly
 
 No install required, no account, no upload. Open in any browser, load your files. Everything stays local on your machine.
+
+
+### Managed review hosts
+
+Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, simplifies layout controls, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.

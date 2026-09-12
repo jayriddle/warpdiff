@@ -3973,3 +3973,45 @@ test('desktop embedded transport keeps playback, seeking, volume and source cont
     await expect.poll(()=>page.locator('.asset-layer video').evaluateAll((vs:HTMLVideoElement[])=>vs.every(v=>v.paused))).toBe(true);
   }
 });
+
+test('managed review host labels own media, audio and Solo across loads while standalone remains available', async ({page}) => {
+  await page.goto('/');
+  const send=async(labels:string[],managed=true)=>{
+    await page.evaluate(({labels,managed})=>window.postMessage({type:'WARPDIFF_LOAD',requestId:String(Date.now()),taskId:'label-test',capabilities:{managedReview:managed},
+      slotLabels:labels.length===4?labels:['',...labels],
+      signedItems:labels.map((label,index)=>({signedUrl:'/tests/fixtures/'+(index%2?'vorbis_b.webm':'vorbis_a.webm'),name:'private-file-'+index,contentType:'video/webm',lastModified:index}))},location.origin),{labels,managed});
+    await expect(page.locator('.asset-layer video')).toHaveCount(labels.length);
+    await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  };
+  const label='Candidate <b>North</b>';
+  await send([label,'Candidate South']);
+  await expect(page.locator('#layerEditA .asset-name')).toHaveText(label);
+  await expect(page.locator('#audioEditA')).toHaveText(label);
+  await expect(page.locator('#loadBtn')).toBeHidden();
+  expect(await page.locator('#layerEditA .asset-name b').count()).toBe(0);
+  const scope=await page.locator('#playbackScopeBtn').boundingBox();expect(scope!.width).toBeGreaterThan(0);
+  await page.mouse.click(scope!.x+scope!.width/2,scope!.y+scope!.height/2);
+  await expect(page.locator('#playbackScopeBtn')).toHaveText('Solo: '+label);
+  await page.keyboard.press('Shift+g');await expect(page.locator('#frameGalleryPanel')).toBeHidden();
+  await send(['Only assigned label']);
+  await expect(page.locator('#layerEditA .asset-name')).toHaveText('Only assigned label');
+  await expect(page.locator('#audioEditA')).toHaveText('Only assigned label');
+  await send(['North','South','East','West']);
+  await expect(page.locator('#layerOriginal .asset-name')).toHaveText('North');
+  await expect(page.locator('#audioEditC')).toHaveText('West');
+  await expect(page.locator('#managedInspectionTools')).toHaveCount(1);
+  // Benign inverse uses the same load boundary, removing the capability.
+  await send(['Left','Right'],false);
+  await expect(page.locator('#loadBtn')).toBeVisible();
+  await expect(page.locator('#managedInspectionTools')).toHaveCount(0);
+  await page.keyboard.press('Shift+g');await expect(page.locator('#frameGalleryPanel')).toBeVisible();
+});
+
+
+test('managed image inspection retains its task label in Tile Check', async ({page}) => {
+  await page.goto('/');
+  await page.evaluate(()=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'image-label',taskId:'image-label',capabilities:{managedReview:true},slotLabels:['','Task texture'],signedItems:[{signedUrl:'/tests/fixtures/green.png',name:'private-file.png',contentType:'image/png',lastModified:0}]},location.origin));
+  await expect(page.locator('#layerEditA .asset-name')).toHaveText('Task texture');
+  await page.keyboard.press('y');
+  await expect(page.locator('#tileCheckSource')).toHaveText('Task texture');
+});

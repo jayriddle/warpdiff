@@ -28,6 +28,12 @@ const SRC = [HTML, ...JS_FILES.map(f => readFileSync(new URL('js/' + f, ROOT), '
 let pass = 0, fail = 0;
 function check(name, cond) { if (cond) { pass++; } else { fail++; console.error('  ✗ ' + name); } }
 
+check('managed review: native profile is explicit and shares the action policy',
+  HTML.includes('capabilities.managedReview === true')
+  && HTML.includes('_managedReviewActive() && action.managed === false')
+  && SRC.split('function _applyManagedReviewChrome(').length === 2
+  && HTML.includes('_applyManagedReviewChrome();'));
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 const countOf = (s, sub) => s.split(sub).length - 1;
 
