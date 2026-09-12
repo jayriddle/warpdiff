@@ -11,7 +11,7 @@ function _applyManagedReviewChrome() {
     _managedReviewChrome.placements = [];
     for (const el of _managedReviewChrome.disclosures) el.remove();
     _managedReviewChrome.disclosures = [];
-    for (const [id, label] of [['gridIconBtn', active ? 'Side by side' : 'Grid'], ['stackIconBtn', active ? 'Single candidate' : 'Stack']]) {
+    for (const [id, label] of [['gridIconBtn', active ? 'Compare together' : 'Grid'], ['stackIconBtn', active ? 'Single candidate' : 'Stack']]) {
         const button = document.getElementById(id);
         button.title = label;
         button.setAttribute('aria-label', label);

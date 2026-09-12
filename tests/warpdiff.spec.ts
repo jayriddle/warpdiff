@@ -3988,6 +3988,7 @@ test('managed review host labels own media, audio and Solo across loads while st
   await expect(page.locator('#layerEditA .asset-name')).toHaveText(label);
   await expect(page.locator('#audioEditA')).toHaveText(label);
   await expect(page.locator('#loadBtn')).toBeHidden();
+  await expect(page.locator('#gridIconBtn')).toHaveAccessibleName('Compare together');
   expect(await page.locator('#layerEditA .asset-name b').count()).toBe(0);
   const scope=await page.locator('#playbackScopeBtn').boundingBox();expect(scope!.width).toBeGreaterThan(0);
   await page.mouse.click(scope!.x+scope!.width/2,scope!.y+scope!.height/2);
@@ -4010,7 +4011,11 @@ test('managed review host labels own media, audio and Solo across loads while st
 
 test('managed image inspection retains its task label in Tile Check', async ({page}) => {
   await page.goto('/');
-  await page.evaluate(()=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'image-label',taskId:'image-label',capabilities:{managedReview:true},slotLabels:['','Task texture'],signedItems:[{signedUrl:'/tests/fixtures/green.png',name:'private-file.png',contentType:'image/png',lastModified:0}]},location.origin));
+  await page.evaluate(()=>new Promise<void>(resolve=>{
+    const ready=(event:MessageEvent)=>{if(event.data?.type==='WARPDIFF_LOAD_READY' && event.data.requestId==='image-label'){window.removeEventListener('message',ready);resolve();}};
+    window.addEventListener('message',ready);
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'image-label',taskId:'image-label',capabilities:{managedReview:true},slotLabels:['','Task texture'],signedItems:[{signedUrl:'/tests/fixtures/green.png',name:'private-file.png',contentType:'image/png',lastModified:0}]},location.origin);
+  }));
   await expect(page.locator('#layerEditA .asset-name')).toHaveText('Task texture');
   await page.keyboard.press('y');
   await expect(page.locator('#tileCheckSource')).toHaveText('Task texture');
