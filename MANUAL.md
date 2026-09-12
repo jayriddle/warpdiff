@@ -130,6 +130,8 @@ The loupe hides during panning and updates live during video playback and frame 
 
 ## Video Playback
 
+Playback controls wrap when a desktop window or embedded pane has limited width, keeping seeking, volume and audio-source selection reachable.
+
 Video controls appear at the bottom of the screen when videos are loaded. Playback defaults to **Sync**, where all videos play, pause, and seek together. Press **Shift+S** or click **Playback: Sync** to switch to **Solo**, where the transport controls affect only the selected video.
 
 | Control | Description |

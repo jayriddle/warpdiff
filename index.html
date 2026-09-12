@@ -138,6 +138,7 @@
         }
 
         .video-progress-container {
+            min-width: 120px;
             flex: 1;
             height: 8px;
             background: rgba(160, 160, 160, 0.4);
@@ -2458,6 +2459,7 @@
 
         .video-controls-row {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 12px;
         }
@@ -3586,7 +3588,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.1';
+        const APP_VERSION = '3.14.2';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -14043,7 +14045,7 @@
             <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
 
             <h2>Video Playback</h2>
-            <p>Video controls appear at the bottom when videos are loaded. Playback defaults to <strong>Sync</strong>, where all videos play, pause, and seek together. Press <kbd>Shift+S</kbd> or click <strong>Playback: Sync</strong> to enter <strong>Solo</strong>, where the transport controls affect only the selected video.</p>
+            <p>Video controls appear at the bottom when videos are loaded. Controls wrap as needed in smaller desktop panes so seeking, volume and source selection stay reachable. Playback defaults to <strong>Sync</strong>, where all videos play, pause, and seek together. Press <kbd>Shift+S</kbd> or click <strong>Playback: Sync</strong> to enter <strong>Solo</strong>, where the transport controls affect only the selected video.</p>
             <table>
                 <tr><th>Control</th><th>Description</th></tr>
                 <tr><td>Progress bar</td><td>Click to seek; drag to scrub</td></tr>
@@ -14279,6 +14281,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.2</h3>
+            <ul><li><strong>Playback controls stay reachable in smaller desktop panes.</strong> The transport wraps when space is limited, keeping seeking, volume and audio-source controls visible.</li></ul>
             <h3>v3.14.1</h3>
             <ul>
                 <li><strong>Timeline and waveform playheads now move smoothly during synced video playback.</strong> The visual clock no longer pauses or nudges backward between presented frames; the progress fill uses a compositor transform, and a short linear bridge hides occasional busy main-thread frames without changing loop or sync timing.</li>

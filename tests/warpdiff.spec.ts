@@ -3949,3 +3949,27 @@ test.afterEach(async ({ page }) => {
     popups.forEach(p => p.classList.remove('show'));
   });
 });
+
+test('desktop embedded transport keeps playback, seeking, volume and source controls reachable', async ({page})=>{
+  await page.goto('/');
+  await loadMedia(page,['vorbis_a.webm','vorbis_b.webm']);
+  // These widths model a center pane inside a desktop task shell, not a phone layout.
+  for(const width of [540,680,1000]){
+    await page.setViewportSize({width,height:800});
+    for(const id of ['playPauseBtn','playbackScopeBtn','loopRangeBtn','videoProgressContainer','volumeSlider','audioEditA','audioEditB']){
+      const control=page.locator('#'+id);await expect(control).toBeVisible();
+      const box=await control.boundingBox();expect(box!.width).toBeGreaterThan(0);
+      expect(box!.x,`${id} left at ${width}`).toBeGreaterThanOrEqual(0);
+      expect(box!.x+box!.width,`${id} right at ${width}`).toBeLessThanOrEqual(width);
+      expect(box!.y+box!.height,`${id} bottom at ${width}`).toBeLessThanOrEqual(800);
+    }
+    const source=await page.locator('#audioEditB').boundingBox();
+    await page.mouse.click(source!.x+source!.width*0.8,source!.y+source!.height/2);
+    await expect(page.locator('#audioEditB')).toHaveClass(/active/);
+    const play=await page.locator('#playPauseBtn').boundingBox();
+    await page.mouse.click(play!.x+play!.width/2,play!.y+play!.height/2);
+    await expect.poll(()=>page.locator('.asset-layer video').evaluateAll((vs:HTMLVideoElement[])=>vs.every(v=>!v.paused))).toBe(true);
+    await page.mouse.click(play!.x+play!.width/2,play!.y+play!.height/2);
+    await expect.poll(()=>page.locator('.asset-layer video').evaluateAll((vs:HTMLVideoElement[])=>vs.every(v=>v.paused))).toBe(true);
+  }
+});
