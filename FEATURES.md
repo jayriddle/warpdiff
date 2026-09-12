@@ -119,4 +119,4 @@ No install required, no account, no upload. Open in any browser, load your files
 
 ### Managed review hosts
 
-Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, simplifies layout controls, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
+Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and places specialist tools under Inspection tools. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.

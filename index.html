@@ -3309,10 +3309,6 @@
         body.managed-review #headerRight, body.managed-review #analysisStrip { flex-wrap:wrap; min-width:0; }
         body.managed-review #headerRight { margin-left:0 !important; flex:1 1 auto; gap:8px !important; }
         body.managed-review #modeStrip { flex-wrap:wrap; }
-        body.managed-review #gridIconBtn, body.managed-review #stackIconBtn { width:auto; padding:6px 9px; color:#ddd; }
-        body.managed-review #gridIconBtn svg, body.managed-review #stackIconBtn svg { display:none; }
-        body.managed-review #gridIconBtn::after { content:'Compare together'; }
-        body.managed-review #stackIconBtn::after { content:'Single candidate'; }
         body.managed-review .managed-options { font:12px system-ui; color:#ddd; }
         body.managed-review .managed-options summary { padding:6px 8px; cursor:pointer; border:1px solid #666; border-radius:4px; }
         body.managed-review .managed-options-content { display:flex; gap:6px; flex-wrap:wrap; padding:8px 0; }
@@ -3617,7 +3613,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.3';
+        const APP_VERSION = '3.14.4';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -14028,7 +14024,7 @@
             <button onclick="toggleManualPanel()">✕</button>
         </div>
         <div class="manual-content">
-            <p>Managed review hosts supply the media and its labels. Their focused viewer uses Compare together / Single candidate, View options, Inspection tools and Media details; task actions and Help belong to the host.</p>
+            <p>Managed review hosts supply the media and its labels. Their focused viewer uses the original Grid / Stack icons (Compare together / Single candidate in tooltips), View options, Inspection tools and Media details; task actions and Help belong to the host.</p>
             <h2>Loading Files</h2>
             <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>
             <p><strong>Three ways to load files:</strong></p>
@@ -14344,6 +14340,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.4</h3>
+            <ul><li>Managed comparisons retain the original Grid and Stack icons, with explanations in tooltips and accessible labels.</li></ul>
             <h3>v3.14.3</h3>
             <ul><li>Managed review hosts can request focused inspection controls and supply authoritative media labels.</li></ul>
             <h3>v3.14.2</h3>
