@@ -1,4 +1,4 @@
-/* WarpScrubAudio 1.0.0 — classic script, no app globals or build step.
+/* WarpScrubAudio 1.1.0 — classic script, no app globals or build step.
  * Canonical source: WarpCap/shared/media/scrub-audio.js. Standalone consumers
  * pin this file and audio/wsola-worklet.js with scripts/vendor-scrub-audio.mjs.
  * Each create() owns one selected listening stream. Source PCM is never changed.
@@ -49,10 +49,66 @@
   // Browser 7.1 channel order: FL FR FC LFE BL BR SL SR. Fold before spectral
   // processing so correlated center content shares one phase history. 1/2/4/6
   // channels use the browser's speaker equations. Unknown layouts fail closed.
-  async function listeningBuffer(buffer, ctx) {
+  function listeningBytes(buffer, sampleRate) {
+    if (!buffer || !(buffer.length > 0) || !(buffer.sampleRate > 0) || !(sampleRate > 0)
+      || ![1,2,4,6,8].includes(buffer.numberOfChannels)) return Infinity;
+    return Math.ceil(buffer.length * sampleRate / buffer.sampleRate) * Math.min(2, buffer.numberOfChannels) * 4;
+  }
+  // AudioBufferSource rate conversion can interpolate without an anti-alias
+  // filter. Use a centered windowed-sinc filter when reducing the sample rate.
+  // Prepare in bounded slices, yielding between slices so long previews do not
+  // monopolize the UI. No full-rate intermediate listening copy is allocated.
+  async function filteredListeningBuffer(buffer, sampleRate, isCurrent) {
+    const channels = Math.min(2, buffer.numberOfChannels);
+    const length = listeningBytes(buffer, sampleRate) / (channels * 4);
+    const out = new AudioBuffer({numberOfChannels:channels, length, sampleRate});
+    const ratio = sampleRate / buffer.sampleRate, radius = Math.ceil(16 / ratio);
+    const cutoff = 0.47 * ratio, kernels = new Map();
+    // Web Audio speaker equations for quad/5.1; the shared explicit matrix for
+    // 7.1. Fold after each channel's identical filter to retain stereo phase.
+    const rows = buffer.numberOfChannels === 8 ? surroundMatrix(8)
+      : buffer.numberOfChannels === 6 ? [[0,1,0],[1,0,1],[2,c,c],[4,c,0],[5,0,c]]
+      : buffer.numberOfChannels === 4 ? [[0,0.5,0],[1,0,0.5],[2,0.5,0],[3,0,0.5]]
+      : buffer.numberOfChannels === 2 ? [[0,1,0],[1,0,1]] : [[0,1,0]];
+    const inputs = rows.map(([channel,left,right]) => ({data:buffer.getChannelData(channel), left, right}));
+    const left = out.getChannelData(0), right = channels === 2 ? out.getChannelData(1) : null;
+    for (let start = 0; start < length; start += 2048) {
+      if (!isCurrent()) return null;
+      for (let i = start; i < Math.min(length, start + 2048); i++) {
+        const position = i / ratio, base = Math.floor(position);
+        const phase = Math.round((position - base) * 1024);
+        let kernel = kernels.get(phase);
+        if (!kernel) {
+          kernel = new Float32Array(radius * 2 + 1);
+          let sum = 0;
+          for (let k = -radius; k <= radius; k++) {
+            const x = k - phase / 1024, distance = x / radius;
+            const window = Math.abs(distance) <= 1 ? 0.42 + 0.5 * Math.cos(Math.PI * distance) + 0.08 * Math.cos(2 * Math.PI * distance) : 0;
+            const sinc = Math.abs(x) < 1e-10 ? 2 * cutoff : Math.sin(2 * Math.PI * cutoff * x) / (Math.PI * x);
+            kernel[k + radius] = sinc * window; sum += kernel[k + radius];
+          }
+          for (let k = 0; k < kernel.length; k++) kernel[k] /= sum;
+          kernels.set(phase, kernel);
+        }
+        const lo = Math.max(-radius, -base), hi = Math.min(radius, buffer.length - 1 - base);
+        for (const input of inputs) {
+          let value = 0;
+          for (let k = lo; k <= hi; k++) value += input.data[base + k] * kernel[k + radius];
+          left[i] += value * input.left;
+          if (right) right[i] += value * input.right;
+        }
+      }
+      if (start + 2048 < length) await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    return out;
+  }
+  async function listeningBuffer(buffer, ctx, isCurrent = () => true) {
+    if (!isCurrent()) return null;
     if (![1, 2, 4, 6, 8].includes(buffer.numberOfChannels)) throw new Error('Unsupported listening channel layout');
     if (buffer.numberOfChannels <= 2 && buffer.sampleRate === ctx.sampleRate) return buffer;
-    const off = new OfflineAudioContext(Math.min(2, buffer.numberOfChannels), Math.ceil(buffer.duration * ctx.sampleRate), ctx.sampleRate);
+    if (ctx.sampleRate < buffer.sampleRate) return filteredListeningBuffer(buffer, ctx.sampleRate, isCurrent);
+    const channels = Math.min(2, buffer.numberOfChannels);
+    const off = new OfflineAudioContext(channels, listeningBytes(buffer, ctx.sampleRate) / (channels * 4), ctx.sampleRate);
     const source = off.createBufferSource(); source.buffer = buffer;
     if (buffer.numberOfChannels === 8) {
       const split = off.createChannelSplitter(8), merge = off.createChannelMerger(2);
@@ -87,6 +143,11 @@
 
   function create(options = {}) {
     if (!options.workletUrl) throw new Error('A scrub worklet URL is required');
+    const maxBufferBytes = options.maxBufferBytes === undefined ? Infinity : options.maxBufferBytes;
+    if (!(maxBufferBytes > 0)) throw new Error('Scrub memory budget must be positive');
+    function checkBudget(bytes) {
+      if (!Number.isFinite(bytes) || bytes > maxBufferBytes) throw new Error('Continuous scrub exceeds its memory budget');
+    }
     const state = {ctx:null, buffer:null, requestedBuffer:null, node:null, promise:null,
       active:false, generation:0, gain:null, bytes:0, retiringBytes:0, error:null};
     let stoppedTimer = null, disposed = false, destination = null, envelope = null, centerFocus = false;
@@ -147,16 +208,24 @@
       reset(); state.ctx = ctx; state.requestedBuffer = buffer;
       const generation = state.generation;
       const current = () => !disposed && state.generation === generation && state.requestedBuffer === buffer;
-      const pending = loadModule(ctx, options.workletUrl).then(() => {
+      const pending = Promise.resolve().then(() => {
+        if (!current()) return null;
+        // Check context-rate output before loading, folding or transferring PCM.
+        checkBudget(listeningBytes(buffer, ctx.sampleRate));
+        return loadModule(ctx, options.workletUrl);
+      }).then(() => {
         if (!current()) return null;
         // Offline rendering cannot be cancelled. Serialize preparation and
         // skip superseded requests before allocating their listening copies.
-        const queued = preparation.then(() => current() ? (options.prepareBuffer || listeningBuffer)(buffer, ctx) : null);
+        const queued = preparation.then(() => current() ? (options.prepareBuffer || listeningBuffer)(buffer, ctx, current) : null);
         preparation = queued.then(() => null, () => null);
         return queued;
       }).then(ready => {
         if (!ready || !current()) return false;
         if (ready.numberOfChannels > 2) throw new Error('Scrub processing requires a mono or stereo listening buffer');
+        if (ready.sampleRate !== ctx.sampleRate) throw new Error('Scrub listening sample rate must match its audio context');
+        // A custom preparation hook must honor the same allocation limit.
+        checkBudget(ready.length * ready.numberOfChannels * 4);
         let node;
         try {
           node = new AudioWorkletNode(ctx, 'phase-vocoder-processor', {numberOfInputs:0, outputChannelCount:[ready.numberOfChannels]});
@@ -232,6 +301,6 @@
     return Object.freeze({state:view, load, update, stop, reset, setCenterFocus,
       dispose() { reset(); disposed = true; }});
   }
-  root.WarpScrubAudio = Object.freeze({version:'1.0.0', tuning, create, motionVelocity,
-    grainTempo, continuous, streamTempo, listeningBuffer, surroundMatrix, disposeNode});
+  root.WarpScrubAudio = Object.freeze({version:'1.1.0', tuning, create, motionVelocity,
+    grainTempo, continuous, streamTempo, listeningBuffer, listeningBytes, surroundMatrix, disposeNode});
 })(globalThis);

@@ -129,7 +129,7 @@ async function decodeAndComputeAudioViz(slot, source) {
             new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
         ]);
-        _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
+        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
     } catch (e) {
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         if (typeof AudioDecoder !== 'undefined') {
@@ -162,16 +162,52 @@ function _onAllDecodeFailed(slot, audioConfirmed, gen) {
     _registerFfmpegCommand(slot, filename, codec);
 }
 
-function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
+// Serialize listening renders across comparison slots. A stale queued decode is
+// skipped before allocation; a running offline render can finish but cannot publish.
+let _videoScrubPreparation = Promise.resolve();
+
+function _scrubPreviewPlan(buffer, sampleRate, maxBytes = _SCRUB_PREVIEW_MAX_BYTES) {
+    const bytes = WarpScrubAudio.listeningBytes(buffer, sampleRate);
+    if (bytes <= maxBytes) return {sampleRate, bytes, limited:false};
+    // Long clips retain a filtered short-preview copy. Keep a useful speech band;
+    // if even 8 kHz cannot fit, omit preview PCM and retain original analysis.
+    for (const rate of [22050, 16000, 11025, 8000]) {
+        const reducedBytes = WarpScrubAudio.listeningBytes(buffer, rate);
+        if (rate < sampleRate && reducedBytes <= maxBytes) return {sampleRate:rate, bytes:reducedBytes, limited:true};
+    }
+    return null;
+}
+
+function _prepareVideoScrubBuffer(slot, buffer, gen) {
+    const current = () => _videoAudioDecodeIsCurrent(slot, gen);
+    const queued = _videoScrubPreparation.then(async () => {
+        if (!current()) return null;
+        if (![1,2,4,6,8].includes(buffer.numberOfChannels)) throw new Error('Audio preview unavailable: unsupported channel layout.');
+        const plan = _scrubPreviewPlan(buffer, getAudioContext().sampleRate);
+        if (!plan) throw new Error('This clip exceeds the audio preview memory limit. Normal playback and analysis are available.');
+        const ready = await WarpScrubAudio.listeningBuffer(buffer, {sampleRate:plan.sampleRate}, current);
+        if (!current()) return null;
+        _videoScrubStatus[slot] = plan;
+        return ready;
+    });
+    _videoScrubPreparation = queued.then(() => null, () => null);
+    return queued;
+}
+
+async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     // Drop stale completions — a reload/clear during the async decode chain
     // bumps _videoAudioDecodeGen, so this slot no longer belongs to this decode.
     // Without this, a previous file's decode could overwrite the new slot's
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
+    if (gen === undefined) gen = _videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration();
     const layerForOutput = getLayer(slot);
     _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('video, audio'), audioBuffer.numberOfChannels);
     _setAudioTimelineMetadata(slot, timelineStart);
-    waveformData[slot] = computeWaveformData(audioBuffer, 600);
+    // Keep the original-analysis aggregates for both the small panel and N view.
+    // The latter must never recompute its graphs from the stereo listening copy.
+    const buckets = Math.max(600, Math.min(Math.ceil(audioBuffer.duration * 1000), Math.round(window.innerWidth * (window.devicePixelRatio || 1))));
+    waveformData[slot] = computeWaveformData(audioBuffer, buckets);
     spectrogramData[slot] = computeSpectrogramData(audioBuffer);
     const _mf = computeAudioMetrics(audioBuffer);
     audioMetrics[slot] = _mf;
@@ -192,10 +228,9 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     }
     delete audioFileBuffers[slot];
 
-    // Store AudioBuffer for scrub audio.
-    // Opus sync slots (Chrome) need full quality for correct A/V playback.
-    // All other slots get a channel-preserving 22050 Hz copy. Keeping channels
-    // separate prevents anti-phase stereo (L = -R) cancelling to silence.
+    // Original multichannel analysis is complete. Store a separate full-rate
+    // mono/stereo listening copy, or filtered short previews within the budget.
+    // Opus sync still retains its original full-quality playback buffer.
     // decodeAudioData returns a real AudioBuffer; the WebCodecs path
     // returns a fake object — normalize it first via createBuffer + copyToChannel.
     try {
@@ -208,10 +243,16 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
             buf = ctx.createBuffer(nCh, audioBuffer.length, audioBuffer.sampleRate);
             for (let c = 0; c < nCh; c++) buf.copyToChannel(audioBuffer.getChannelData(c), c);
         }
-        _videoAudioBuffers[slot] = (_isChrome && _opusSyncPending[slot])
-            ? buf                        // full quality — needed for Opus A/V sync
-            : _downsampleForScrub(buf);  // channel-preserving 22050 Hz scrub copy
-    } catch (_) {} // non-critical — scrub audio just won't work
+        const ready = (_isChrome && _opusSyncPending[slot])
+            ? buf
+            : await _prepareVideoScrubBuffer(slot, buf, gen);
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        _videoAudioBuffers[slot] = ready;
+    } catch (error) {
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        delete _videoAudioBuffers[slot];
+        _videoScrubStatus[slot] = {unavailable:true, message:String(error && error.message || 'Audio preview unavailable for this clip.')};
+    }
 
     // Activate Chrome Opus sync only for slots that used WebCodecs
     // (meaning decodeAudioData failed/timed out — i.e. Opus in Safari,
@@ -236,6 +277,7 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     const activeSlot = assetOrder[currentAssetIndex];
     if (slot === activeSlot || slot === currentAudioSource) {
         updateAudioVisForSlot(slot);
+        _prepareContinuousScrub();
     }
 
     // If no-video mode is active, populate viz data and draw canvas now
@@ -360,7 +402,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         }));
     }
 
-    decoder.flush().then(() => {
+    decoder.flush().then(async () => {
         try { decoder.close(); } catch (_) {}
         if (!_videoAudioDecodeIsCurrent(slot, gen)) {
             _webcodecsFinished(slot, gen);
@@ -411,9 +453,9 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         };
         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
-        _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart);
+        await _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart);
         _webcodecsFinished(slot, gen);
-    }).catch(err => {
+    }).catch(async err => {
         console.warn('AudioDecoder flush failed for', slot, err);
         try { decoder.close(); } catch (_) {}
         if (!_videoAudioDecodeIsCurrent(slot, gen)) {
@@ -442,7 +484,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
             const totalFrames = channelBuffers[0].length;
             const duration = totalFrames / extracted.sampleRate;
             console.log('[webcodecs] ' + slot + ': partial decode ' + duration.toFixed(1) + 's (' + decodedChunks.length + '/' + extracted.chunks.length + ' chunks)');
-            _finalizeAudioViz(slot, {
+            await _finalizeAudioViz(slot, {
                 numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
                 duration: duration, length: totalFrames,
                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }

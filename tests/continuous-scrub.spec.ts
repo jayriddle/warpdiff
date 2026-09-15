@@ -1,30 +1,12 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
-async function expectLegibleScrubControl(page: import('@playwright/test').Page) {
-  const contrast = await page.locator('#scrubModeBtn').evaluate(el => {
-    const rgba = (value: string) => value.match(/[\d.]+/g)!.map(Number);
-    const over = (fg: number[], bg: number[]) => fg.slice(0,3).map((v,i) => v * (fg[3] ?? 1) + bg[i] * (1 - (fg[3] ?? 1)));
-    const backgrounds = [];
-    for (let node: Element | null = el; node; node = node.parentElement) backgrounds.push(rgba(getComputedStyle(node).backgroundColor));
-    const bg = backgrounds.reverse().reduce((color, layer) => over(layer, color), [255,255,255]);
-    const fg = over(rgba(getComputedStyle(el).color), bg);
-    const luminance = (rgb: number[]) => rgb.map(v => v / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2).reduce((sum,v,i) => sum + v * [0.2126,0.7152,0.0722][i], 0);
-    const a = luminance(fg), b = luminance(bg);
-    return (Math.max(a,b) + 0.05) / (Math.min(a,b) + 0.05);
-  });
-  expect(contrast).toBeGreaterThanOrEqual(4.5);
-}
-
-test('continuous scrub is optional, retains center dialogue, and releases its stream', async ({ page }) => {
+test('continuous scrub is standard, retains center dialogue, and releases its stream', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('pref_scrubAudioMode', JSON.stringify('snippets')));
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/surround_71.mp4'));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
-  await expect(page.locator('#scrubModeBtn')).toHaveText('Scrub: Snippets');
-  await expectLegibleScrubControl(page);
-  await page.locator('#scrubModeBtn').click();
-  await expect(page.locator('#scrubModeBtn')).toHaveText('Scrub: Continuous');
-  await expectLegibleScrubControl(page);
+  await expect(page.locator('#scrubModeBtn')).toHaveCount(0);
   await page.waitForFunction(() => (window as any).eval('!!_continuousScrubEngine.state.node'));
   const warm = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2));
   expect(warm.framesPainted).toBeGreaterThan(0);
@@ -32,7 +14,8 @@ test('continuous scrub is optional, retains center dialogue, and releases its st
     channels:_videoAudioBuffers.editA.numberOfChannels, metrics:JSON.stringify(audioMetrics.editA),
     start:_audioTimelineStarts.editA, bytes:_continuousScrubEngine.state.bytes
   })`));
-  expect(before.channels).toBe(8);
+  expect(before.channels).toBe(2);
+  expect(JSON.parse(before.metrics).channels).toBe(8);
   expect(before.start).toBeCloseTo(0.166, 3);
   expect(before.bytes).toBeGreaterThan(0);
   const box = (await page.locator('#videoProgressContainer').boundingBox())!;
@@ -88,11 +71,11 @@ test('continuous scrub is optional, retains center dialogue, and releases its st
   expect(await page.evaluate(() => (window as any).eval('({bytes:_continuousScrubEngine.state.bytes, node:!!_continuousScrubEngine.state.node})'))).toEqual({bytes:0,node:false});
 });
 
-test('continuous choice survives reload and failed loading retains click and drag snippets', async ({ page }) => {
+test('old snippet preferences are ignored and failed loading retains click and drag previews', async ({ page }) => {
   await page.goto('/');
-  await page.evaluate(() => (window as any).eval(`_setScrubAudioMode('continuous')`));
+  await page.evaluate(() => localStorage.setItem('pref_scrubAudioMode', JSON.stringify('snippets')));
   await page.reload();
-  expect(await page.evaluate(() => (window as any).eval('_scrubAudioMode'))).toBe('continuous');
+  await expect(page.locator('#scrubModeBtn')).toHaveCount(0);
   // A real failed module URL exercises the fallback; page routing does not
   // intercept AudioWorklet fetches consistently across Chromium versions.
   await page.evaluate(() => (window as any).eval(`(() => {
@@ -120,8 +103,6 @@ test('continuous choice survives reload and failed loading retains click and dra
   expect(fallback.error).toBeTruthy(); expect(fallback.node).toBe(false);
   expect(fallback.bytes).toBe(0); expect(fallback.grains).toBeGreaterThan(5);
   await page.mouse.up();
-  await page.locator('#scrubModeBtn').click();
-  await expect(page.locator('#scrubModeBtn')).toHaveText('Scrub: Snippets');
   await page.evaluate(() => (window as any).eval('playScrubSnippet(2)'));
   expect(await page.evaluate(() => (window as any).eval('!!_scrubSource'))).toBe(true);
 });
@@ -134,7 +115,7 @@ test('Grid source changes retain only the selected continuous buffer and clear p
     path.join(__dirname, 'fixtures/landscape_b.mp4'),
   ]);
   await page.waitForFunction(() => (window as any).eval('Object.keys(_videoAudioBuffers).length >= 3'));
-  await page.evaluate(() => (window as any).eval(`_setScrubAudioMode('continuous'); if (!isGridMode) _toggleStackGridMode();`));
+  await page.evaluate(() => (window as any).eval(`if (!isGridMode) _toggleStackGridMode();`));
   const result = await page.evaluate(() => (window as any).eval(`(async () => {
     const slots = assetOrder.filter(slot => _videoAudioBuffers[slot]);
     const counts = [];

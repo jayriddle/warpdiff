@@ -62,18 +62,18 @@ function extractFn(name, src = SRC) {
     lock.schemaVersion === 1 && /^[a-f0-9]{40}$/.test(lock.commit) && entries.length === 2 &&
     entries.every(file => hash(readFileSync(new URL(file.target, ROOT))) === file.sha256));
   const core = readFileSync(new URL('js/scrub-audio-core.js', ROOT), 'utf8');
-  check('shared-scrub: one selected stream uses the canonical factory and mode owner',
+  check('shared-scrub: one selected stream uses the canonical factory and source owner',
     countOf(SRC, 'const _continuousScrubEngine = WarpScrubAudio.create(') === 1 &&
-    countOf(SRC, 'function _setScrubAudioMode(') === 1 &&
+    countOf(SRC, 'function _prepareContinuousScrub(') === 1 &&
     extractFn('_playContinuousScrub').includes('WarpScrubAudio.motionVelocity(') &&
     extractFn('_playContinuousScrub').includes('engine.update(') &&
     extractFn('clearAllMedia').includes('_resetContinuousScrub()') &&
     extractFn('selectAudioSource').includes('if (switching) _resetContinuousScrub()') &&
     core.includes('state.generation === generation') &&
     core.includes('disposeNode(node)'));
-  check('shared-scrub: the unchanged snippet preview remains the default and click fallback',
-    SRC.includes("let _scrubAudioMode = 'snippets'") &&
-    extractFn('_scrubAudioTick').includes("_scrubAudioMode !== 'continuous'") &&
+  check('shared-scrub: Continuous is standard and clicks retain the snippet fallback',
+    !SRC.includes("_scrubAudioMode") && !HTML.includes("scrubModeBtn") &&
+    extractFn('_scrubAudioTick').includes("if (!_playContinuousScrub(") &&
     extractFn('_playContinuousScrub').includes('playScrubSnippet(time)'));
   const canonical = new URL('../WarpCap/shared/media/scrub-audio.js', ROOT);
   if (existsSync(canonical)) {
@@ -1665,37 +1665,24 @@ function extractFn(name, src = SRC) {
         !toggle.includes('els[0].paused'));
 }
 
-// Scrub storage may lower sample rate, but it must never collapse channels:
-// averaging anti-phase stereo (L = -R) produces digital silence.
+// Preview graphs must remain original analysis even when listening PCM is folded.
 {
-  const getAudioContext = () => ({
-    createBuffer(channels, length, sampleRate) {
-      const data = Array.from({ length: channels }, () => new Float32Array(length));
-      return {
-        numberOfChannels: channels, length, sampleRate,
-        getChannelData(channel) { return data[channel]; },
-      };
-    },
-  });
-  const { _downsampleForScrub } = new Function(
-    'getAudioContext',
-    extractFn('_downsampleForScrub') + '\nreturn { _downsampleForScrub };'
-  )(getAudioContext);
-  const left = new Float32Array([0.25, 0.5, -0.25, -0.5]);
-  const right = Float32Array.from(left, sample => -sample);
-  const src = {
-    sampleRate: 22050, length: left.length, numberOfChannels: 2,
-    getChannelData(channel) { return channel === 0 ? left : right; },
-  };
-  const out = _downsampleForScrub(src);
-  check('scrub-audio-channels: stereo remains stereo after downsampling',
-        out.numberOfChannels === 2);
-  check('scrub-audio-channels: L = -R remains audible side information',
-        out.getChannelData(0)[1] === 0.5 && out.getChannelData(1)[1] === -0.5);
-  const downsample = extractFn('_downsampleForScrub');
-  check('scrub-audio-channels: downsampler never owns a mono fold-down',
-        downsample.includes('createBuffer(nCh, dstLen, dstSR)') &&
-        !downsample.includes('s / nCh'));
+  const finalize = extractFn('_finalizeAudioViz');
+  const populate = extractFn('_populateNoVideoSlotData');
+  check('scrub-input: original analysis precedes separate listening preparation',
+    finalize.indexOf('computeAudioMetrics(audioBuffer)') < finalize.indexOf('_prepareVideoScrubBuffer(slot, buf, gen)') &&
+    !SRC.includes('function _downsampleForScrub('));
+  check('scrub-input: both displays share original aggregates instead of listening PCM',
+    populate.includes('waveformData[slot]') && populate.includes('spectrogramData[slot]') &&
+    !populate.includes('computeWaveformData(') && !populate.includes('computeSpectrogramData('));
+  check('scrub-input: preview preparation is serialized and publication is generation fenced',
+    extractFn('_prepareVideoScrubBuffer').includes('_videoScrubPreparation.then(async () =>') &&
+    countOf(extractFn('_prepareVideoScrubBuffer'), 'if (!current()) return null;') === 2 &&
+    finalize.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return;'));
+  check('scrub-input: per-video and selected-stream budgets share one limit',
+    SRC.includes('maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES') &&
+    extractFn('_scrubPreviewPlan').includes('maxBytes = _SCRUB_PREVIEW_MAX_BYTES') &&
+    extractFn('clearAllMedia').includes('_videoScrubStatus = {}'));
 }
 
 // Overlapping scrub grains must not meet at opposite waveform phases: that

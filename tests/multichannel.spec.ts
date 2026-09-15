@@ -106,11 +106,12 @@ test.describe('multichannel listening output', () => {
       route.gain.connect(analyser);
       window.__channelAnalyser = analyser;
       const buffer = _videoAudioBuffers.editA;
-      const center = buffer.getChannelData(2);
-      return { channels:buffer.numberOfChannels, centerPeak:Math.max(...center.subarray(4800,9600)),
+      const center = buffer.getChannelData(0);
+      return { channels:audioMetrics.editA.channels, listeningChannels:buffer.numberOfChannels, centerPeak:Math.max(...center.subarray(4800,9600)),
         start:_audioTimelineStarts.editA, metrics:JSON.stringify(audioMetrics.editA) };
     })()`));
     expect(source.channels).toBe(8);
+    expect(source.listeningChannels).toBe(2);
     expect(source.centerPeak).toBeGreaterThan(0.1);
     expect(source.start).toBeCloseTo(0.166, 3);
     const outputRms = () => page.evaluate(() => {
@@ -144,12 +145,13 @@ test.describe('multichannel listening output', () => {
         _startOpusSyncAudio('editA', 0.216);
         const out = await context.startRendering();
         return { peak:Math.max(...out.getChannelData(0)), rightPeak:Math.max(...out.getChannelData(1)),
-          originalChannels:originalBuffer.numberOfChannels, metrics:JSON.stringify(audioMetrics.editA) };
+          originalChannels:audioMetrics.editA.channels, listeningChannels:originalBuffer.numberOfChannels, metrics:JSON.stringify(audioMetrics.editA) };
       } finally { getAudioContext = savedContext; _videoAudioBuffers.editA = originalBuffer; }
     })()`));
     expect(replacement.peak).toBeCloseTo(0.1 * Math.SQRT1_2, 5);
     expect(replacement.rightPeak).toBeCloseTo(replacement.peak, 6);
     expect(replacement.originalChannels).toBe(8);
+    expect(replacement.listeningChannels).toBe(2);
     expect(replacement.metrics).toBe(source.metrics);
     await page.evaluate(() => (window as any).clearAllMedia());
     expect(await page.evaluate(() => (window as any).eval('_nativeAudioRoutes.size'))).toBe(0);

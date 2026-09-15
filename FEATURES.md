@@ -90,9 +90,13 @@ Press `V` to toggle the video scopes panel. Its source is always identified abov
 
 Scopes update in real time during playback and on frame step. Works on both video frames and still images.
 
-## Scrub audio modes
+## Scrub audio
 
-The **Scrub: Snippets / Continuous** button beside volume applies to video and audio-only timelines and persists on this browser. Snippets is the default: short forward previews at the selected playback rate. Continuous preserves pitch while following drag speed and direction, including backward audio on backward drags. Click audition remains a snippet. Both modes fade out at rest and preserve volume, mute, stereo placement, multichannel dialogue, timeline offsets, and original analysis inputs. A single video follows the displayed picture; multi-video Grid retains its shared pointer clock. Continuous can soften sharp sounds; compare with snippets and normal playback for defect inspection. Unavailable continuous processing falls back to snippets with a notice.
+Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
+
+Video listening copies use the audio device’s sample rate directly from the original decode. Mono/stereo placement and phase are preserved; surround dialogue is folded into a separate stereo listening mix. Original waveform, spectrogram, and loudness inputs remain intact in both visualization views. A single video follows its displayed picture; multi-video Grid retains the shared pointer clock. Volume, mute, and actual audio-start offsets still apply.
+
+Each video preview and the selected Continuous stream have a 64 MiB PCM limit. Oversized video previews use a filtered lower-rate copy for short audition, with a notice; if no useful preview fits, playback and analysis remain available with an explanation. Unavailable worklets also fall back to short previews. Continuous can soften sharp sounds; use normal playback for final defect inspection.
 
 ## Audio visualization
 

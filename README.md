@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.15.0
+**Current version:** 3.16.0
 
 ---
 
@@ -16,7 +16,7 @@ WarpDiff is an opinionated answer to that problem: load 1–4 assets of one medi
 
 Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
 
-Slow scrubbing keeps audio preview active while the pointer moves within the same video frame, and fades out when you stop. The **Scrub: Snippets / Continuous** button beside volume adds an optional pitch-preserving mode that follows drag speed and direction. Snippets remains the default and fallback; normal playback and original analysis inputs are preserved.
+**Continuous scrubbing** preserves pitch while following drag speed and direction. Video previews now use full-rate mono/stereo listening audio, prepared directly from the original decode. Original waveform, spectrogram, and loudness analysis stay intact. Clicks give short previews; unavailable or oversized Continuous streams fall back automatically with an explanation. Holding still fades the audio out. See the [implementation and verification record](docs/full-rate-scrub-2026-09-15.md).
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 

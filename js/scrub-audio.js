@@ -13,24 +13,26 @@ let _scrubAudioClockId = 0;
 let _scrubAudioTargetT = null;
 let _scrubAudioPointerT = null;
 let _scrubAudioMotionAt = -Infinity;
-// One selected stream, not one full-clip worklet per loaded comparison asset.
-let _scrubAudioMode = 'snippets'; // preference is read after the inline app initializes
+// One selected stream. Each video listening copy and the selected processor PCM
+// have separate 64 MiB limits; original analysis/Opus playback are separate owners.
+const _SCRUB_PREVIEW_MAX_BYTES = 64 * 1024 * 1024;
 let _continuousScrubCursor = null;
 let _continuousScrubClick = false;
 const _scrubMotionSamples = [];
 let _scrubContinuousNotice = false;
 const _continuousScrubEngine = WarpScrubAudio.create({
     workletUrl:'js/scrub-worklet.js',
-    onError:() => {
-        if (!_scrubContinuousNotice && _scrubAudioMode === 'continuous') {
-            _scrubContinuousNotice = true;
-            showLoadToast('Continuous scrub unavailable for this file — using snippets', true, 5000);
-        }
-    }
+    maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES,
+    onError:error => _noticeScrubFallback(error.includes('memory budget')
+        ? 'This clip exceeds the Continuous preview memory limit — using short previews.'
+        : 'Continuous scrub unavailable for this file — using short previews.')
 });
-document.addEventListener('DOMContentLoaded', () => {
-    _setScrubAudioMode(_prefs.load('scrubAudioMode', 'snippets'), false);
-});
+
+function _noticeScrubFallback(message) {
+    if (_scrubContinuousNotice) return;
+    _scrubContinuousNotice = true;
+    showLoadToast(message, true, 5000);
+}
 
 function _resetContinuousScrub() {
     _continuousScrubEngine.reset();
@@ -39,23 +41,12 @@ function _resetContinuousScrub() {
     _scrubContinuousNotice = false;
 }
 function _prepareContinuousScrub() {
-    if (_scrubAudioMode !== 'continuous') return Promise.resolve(false);
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
     const buf = (_audioSlotVizData[slot] && _audioSlotVizData[slot].audioBuffer) || _videoAudioBuffers[slot];
-    return buf ? _continuousScrubEngine.load(getAudioContext(), buf) : Promise.resolve(false);
-}
-function _setScrubAudioMode(mode, persist = true) {
-    stopScrubSnippet();
-    _resetContinuousScrub();
-    _scrubAudioMode = mode === 'continuous' ? 'continuous' : 'snippets';
-    if (persist) _prefs.save('scrubAudioMode', _scrubAudioMode);
-    const button = document.getElementById('scrubModeBtn');
-    if (button) {
-        button.textContent = 'Scrub: ' + (_scrubAudioMode === 'continuous' ? 'Continuous' : 'Snippets');
-        button.setAttribute('aria-pressed', String(_scrubAudioMode === 'continuous'));
-        button.classList.toggle('active', _scrubAudioMode === 'continuous');
+    if (!buf && _videoScrubStatus[slot]?.unavailable) {
+        _noticeScrubFallback(_videoScrubStatus[slot].message);
     }
-    _prepareContinuousScrub();
+    return buf ? _continuousScrubEngine.load(getAudioContext(), buf) : Promise.resolve(false);
 }
 function _playContinuousScrub(time) {
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -268,7 +259,7 @@ function _scrubAudioTick() {
         _continuousScrubCursor = null;
         return;
     }
-    if (_scrubAudioMode !== 'continuous' || !_playContinuousScrub(_scrubAudioTargetT)) playScrubSnippet(_scrubAudioTargetT);
+    if (!_playContinuousScrub(_scrubAudioTargetT)) playScrubSnippet(_scrubAudioTargetT);
     _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
 }
 

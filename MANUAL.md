@@ -440,11 +440,10 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 
 Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
 
-## Choosing scrub audio
+## Scrub audio
 
-Use **Scrub: Snippets / Continuous**, beside the volume control, for video or audio-only scrubbing. Your choice is saved in this browser.
+Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
 
-- **Snippets** (default): short forward previews at the selected playback speed.
-- **Continuous**: pitch-preserving preview follows your drag speed and direction. Reverse drags play backward. A click still auditions a short snippet, and holding still fades the stream out.
+Video preview audio is prepared at the audio device’s rate directly from the decoded source. Surround channels are combined into a separate stereo listening mix, retaining center dialogue and left/right placement. Original waveform, spectrogram, and loudness inputs remain intact. Master volume, mute, and intentional leading silence still apply. A single video follows its displayed frame; multi-video Grid follows the shared pointer timeline.
 
-Continuous processing may soften sharp sounds, so compare with Snippets and normal playback for defect inspection. Master volume, mute, center dialogue, surround placement, and intentional leading silence remain in effect. A single video follows its displayed frame; multi-video Grid follows the shared pointer timeline. Original analysis inputs remain unchanged. If the continuous stream cannot load, a notice explains that snippets are being used. Return to Snippets at any time with the same button.
+If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic switch to short previews. Long video clips may use a filtered, lower-rate listening copy; exceptionally long clips that cannot fit a useful preview retain normal playback and analysis. The limits are 64 MiB per video listening copy and 64 MiB for the selected Continuous stream; decoding, analysis, and Opus replacement playback have separate storage. Continuous processing may soften sharp sounds, so use normal playback when judging fine audio defects.

@@ -3182,7 +3182,7 @@ test.describe('Decoded audio timeline placement', () => {
     }, {}, { timeout: 10000 });
     const info = await page.evaluate(() => (window as any).__testAPI.scrubAudioInfo('editA'));
     expect(info.channels).toBe(2);
-    expect(info.sampleRate).toBe(22050);
+    expect(info.sampleRate).toBe(await page.evaluate(() => (window as any).getAudioContext().sampleRate));
     expect(info.channelRms[0]).toBeGreaterThan(0.05);
     expect(info.channelRms[1]).toBeGreaterThan(0.05);
     expect(info.cross).toBeLessThan(-0.002);
@@ -4188,6 +4188,9 @@ test.describe('Audio source handoffs and restart jumps', () => {
 test('arrow-key video switches keep native renderers running and output continuous', async ({ page }) => {
   await page.goto('/');
   await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  // Visible video is ready before asynchronous audio decode establishes routing.
+  // Wait for the actual probe inputs, not the unrelated layout milestone.
+  await page.waitForFunction(() => ['editA', 'editB'].every(slot => (window as any).__testAPI.nativeAudio.gain(slot)));
   const result = await page.evaluate(async () => {
     const app = window as any;
     const gains = ['editA', 'editB'].map(slot => app.__testAPI.nativeAudio.gain(slot));
@@ -4234,6 +4237,7 @@ test('arrow-key video switches keep native renderers running and output continuo
   // The fixture is a low-amplitude sine, so large single-sample steps expose
   // a renderer reset rather than ordinary content or a short linear fade.
   expect(result.largest).toBeLessThan(0.02);
+  expect(result.largest).toBeGreaterThan(0.00001); // The probe actually received audio.
 });
 
 for (const mode of ['native', 'sync', 'full']) {

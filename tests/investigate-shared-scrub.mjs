@@ -1,4 +1,4 @@
-// Local comparison probe. Does not retain media bytes, frames, or audio samples.
+// Local continuous-preview probe. Does not retain media bytes, frames, or audio samples.
 // node tests/investigate-shared-scrub.mjs --clip /path/to/movie.mp4 --out /tmp/scrub.json
 import { chromium } from '@playwright/test';
 import { writeFileSync, readFileSync, statSync } from 'node:fs';
@@ -39,8 +39,8 @@ try {
     };
     window.__scrubProbe = [];
   })()`));
-  for (const mode of ['snippets','continuous','continuous','snippets']) {
-    await page.evaluate(mode => window.eval(`_setScrubAudioMode('${mode}'); _prepareContinuousScrub()`),mode);
+  for (const mode of ['continuous-cold','continuous-warm']) {
+    await page.evaluate(() => window.eval('_prepareContinuousScrub()'));
     await page.waitForTimeout(250);
     const box = await page.locator('#videoProgressContainer').boundingBox();
     if (!box || box.width < 400) throw new Error('Timeline is not ready');
@@ -61,7 +61,7 @@ try {
     const costs = live.trace.map(t=>t.cost).sort((a,b)=>a-b);
     const gaps = live.trace.slice(1).map((t,i)=>t.at-live.trace[i].at);
     report.arms.push({mode,wallSeconds,cpuSeconds,browserCpuPercent:100*cpuSeconds/wallSeconds,
-      streamPcmBytes:live.bytes, sourceChannels:live.sourceChannels, metricsUnchanged:JSON.stringify(live.metrics)===JSON.stringify(report.source.metrics),
+      streamPcmBytes:live.bytes, listeningChannels:live.sourceChannels, originalChannels:live.metrics.channels, metricsUnchanged:JSON.stringify(live.metrics)===JSON.stringify(report.source.metrics),
       displayedTimes:new Set(live.trace.map(t=>t.target)).size, overlay:live.overlay,
       activeTicks:live.trace.filter(t=>t.active||t.grain).length,
       reverseTicks:live.trace.filter(t=>t.direction<0).length,
