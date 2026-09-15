@@ -68,10 +68,14 @@ async function decodeAndComputeAudioViz(slot, source) {
     const isMP4 = bytes.length > 7 &&
         bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
     let timelineStart = null;
+    // Audio-only files also enter this lazy W-panel path. Both decode owners
+    // must read the same layout so a later panel decode cannot disable center.
+    let channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
     if (isMP4) {
         try {
             const timing = _demuxMP4Audio(bytes, true);
             if (timing && Number.isFinite(timing.timelineStart)) timelineStart = timing.timelineStart;
+            channelLayout = timing && timing.channelLayout;
         } catch (e) {
             console.warn('[audio-timeline] MP4 timing parse failed for', slot, e);
         }
@@ -129,7 +133,7 @@ async function decodeAndComputeAudioViz(slot, source) {
             new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
         ]);
-        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
+        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart, channelLayout);
     } catch (e) {
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         if (typeof AudioDecoder !== 'undefined') {
@@ -166,13 +170,13 @@ function _onAllDecodeFailed(slot, audioConfirmed, gen) {
 // skipped before allocation; a running offline render can finish but cannot publish.
 let _videoScrubPreparation = Promise.resolve();
 
-function _scrubPreviewPlan(buffer, sampleRate, maxBytes = _SCRUB_PREVIEW_MAX_BYTES) {
-    const bytes = WarpScrubAudio.listeningBytes(buffer, sampleRate);
+function _scrubPreviewPlan(buffer, sampleRate, maxBytes = _SCRUB_PREVIEW_MAX_BYTES, layout = null) {
+    const bytes = WarpScrubAudio.listeningBytes(buffer, sampleRate, layout);
     if (bytes <= maxBytes) return {sampleRate, bytes, limited:false};
     // Long clips retain a filtered short-preview copy. Keep a useful speech band;
     // if even 8 kHz cannot fit, omit preview PCM and retain original analysis.
     for (const rate of [22050, 16000, 11025, 8000]) {
-        const reducedBytes = WarpScrubAudio.listeningBytes(buffer, rate);
+        const reducedBytes = WarpScrubAudio.listeningBytes(buffer, rate, layout);
         if (rate < sampleRate && reducedBytes <= maxBytes) return {sampleRate:rate, bytes:reducedBytes, limited:true};
     }
     return null;
@@ -183,9 +187,10 @@ function _prepareVideoScrubBuffer(slot, buffer, gen) {
     const queued = _videoScrubPreparation.then(async () => {
         if (!current()) return null;
         if (![1,2,4,6,8].includes(buffer.numberOfChannels)) throw new Error('Audio preview unavailable: unsupported channel layout.');
-        const plan = _scrubPreviewPlan(buffer, getAudioContext().sampleRate);
+        const layout = _audioMonitorLayoutForBuffer(slot, buffer);
+        const plan = _scrubPreviewPlan(buffer, getAudioContext().sampleRate, _SCRUB_PREVIEW_MAX_BYTES, layout);
         if (!plan) throw new Error('This clip exceeds the audio preview memory limit. Normal playback and analysis are available.');
-        const ready = await WarpScrubAudio.listeningBuffer(buffer, {sampleRate:plan.sampleRate}, current);
+        const ready = await WarpScrubAudio.listeningBuffer(buffer, {sampleRate:plan.sampleRate}, current, layout);
         if (!current()) return null;
         _videoScrubStatus[slot] = plan;
         return ready;
@@ -194,7 +199,7 @@ function _prepareVideoScrubBuffer(slot, buffer, gen) {
     return queued;
 }
 
-async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
+async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, channelLayout = null) {
     // Drop stale completions — a reload/clear during the async decode chain
     // bumps _videoAudioDecodeGen, so this slot no longer belongs to this decode.
     // Without this, a previous file's decode could overwrite the new slot's
@@ -214,6 +219,8 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     // Propagate envelope data to the slot viz data if it already exists (no-video mode)
     if (_audioSlotVizData[slot]) _audioSlotVizData[slot].lufsEnvelope = _mf ? _mf.stBlks : null;
     _updateMetricSpans(slot);
+    await _prepareAudioMonitorSlot(slot, audioBuffer, channelLayout, () => _videoAudioDecodeIsCurrent(slot, gen));
+    if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
 
     // If this slot just finished a transcode, advance toast to 'done' now
     if (_ffmpegTranscoding[slot] && _ffmpegTranscoding[slot].phase === 'computing') {
@@ -381,6 +388,16 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
                 ? extracted.description.buffer.slice(extracted.description.byteOffset, extracted.description.byteOffset + extracted.description.byteLength)
                 : extracted.description;
     }
+    if (extracted.codec === 'opus' && config.description) {
+        const header = new Uint8Array(config.description);
+        if (header.length >= 19 && String.fromCharCode(...header.subarray(0,8)) === 'OpusHead') {
+            // This pipeline trims extracted.preSkip/edit-list media time after
+            // decode. WebCodecs also honors OpusHead pre-skip; zero it in the
+            // decoder-only copy so MP4 and WebM priming are applied exactly once.
+            const untrimmed = header.slice(); untrimmed[10] = 0; untrimmed[11] = 0;
+            config.description = untrimmed.buffer;
+        }
+    }
 
     try {
         decoder.configure(config);
@@ -453,7 +470,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
         };
         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
-        await _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart);
+        await _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart, extracted.channelLayout);
         _webcodecsFinished(slot, gen);
     }).catch(async err => {
         console.warn('AudioDecoder flush failed for', slot, err);
@@ -488,7 +505,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
                 numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
                 duration: duration, length: totalFrames,
                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
-            }, gen, extracted.timelineStart);
+            }, gen, extracted.timelineStart, extracted.channelLayout);
         }
         _webcodecsFinished(slot, gen);
     });
@@ -498,7 +515,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
     _audioDecodeGen[slot] = _nextAudioDecodeGeneration();
     const gen = _audioDecodeGen[slot];
     const ctx = getAudioContext();
-    ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
+    ctx.decodeAudioData(arrayBuffer.slice(0)).then(async audioBuffer => {
         if (_audioDecodeGen[slot] !== gen) return;
         const layerForOutput = getLayer(slot);
         _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('audio'), audioBuffer.numberOfChannels);
@@ -510,6 +527,8 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         const spectrogram = computeSpectrogramData(audioBuffer);
         const _m = computeAudioMetrics(audioBuffer);
         audioMetrics[slot] = _m;
+        await _prepareAudioMonitorSlot(slot, audioBuffer, WarpScrubAudio.monitor.waveLayout(new Uint8Array(arrayBuffer)), () => _audioDecodeGen[slot] === gen);
+        if (_audioDecodeGen[slot] !== gen) return;
         _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer, lufsEnvelope: _m ? _m.stBlks : null };
         _updateMetricSpans(slot);
         delete audioFileBuffers[slot];

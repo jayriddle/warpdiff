@@ -201,6 +201,10 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.ch = []; this.len = 0; this.nCh = 0; this.midSide = false; this.centerFocus = false;
+    this.monitorCenter = null;
+    this.monitorMix = {otherGain:1,centerDelta:0};
+    this.monitorCurrent = {otherGain:1,centerDelta:0};
+    this.monitorRephase = false;
     this.inPos = 0; this.tempo = 1; this.direction = 1; this.limitPos = null;
     this.playing = false; this.ready = false;
     this.disposed = false;
@@ -246,12 +250,13 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
   _msg(d) {
     if (d.type === 'dispose') {
       this.playing = false; this.ready = false; this.disposed = true;
-      this.ch = []; this.len = 0; this.midSide = false; this.pendingAnchor = null;
+      this.ch = []; this.len = 0; this.midSide = false; this.monitorCenter = null; this.pendingAnchor = null;
       this._allocChannels(0);
       this.port.postMessage({ type:'disposed' });
       this.port.close();
     } else if (d.type === 'load') {
       const channels = d.channels.map((b) => new Float32Array(b));
+      this.monitorCenter = d.monitorCenter && channels.length===3 ? channels.pop() : null;
       this.midSide = channels.length === 2;
       if(this.midSide){
         // A center signal is L===R. Processing L/R with independent spectral phase histories makes
@@ -270,6 +275,11 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     else if (d.type === 'anchor') this._queueAnchor(d.pos, d.direction);
     else if (d.type === 'tempo') this.tempo = d.value > 0 ? d.value : 1;
     else if (d.type === 'centerFocus') this.centerFocus = !!d.value;
+    else if (d.type === 'monitorMix' && Number.isFinite(d.otherGain) && Number.isFinite(d.centerDelta)) {
+      if (d.otherGain!==this.monitorMix.otherGain || d.centerDelta!==this.monitorMix.centerDelta) this.monitorRephase=true;
+      this.monitorMix = {otherGain:Math.max(0,Math.min(1,d.otherGain)),centerDelta:Math.max(-4,Math.min(4,d.centerDelta))};
+      if (!this.playing) this.monitorCurrent = {...this.monitorMix};
+    }
     else if (d.type === 'limit') this.limitPos = Number.isFinite(d.pos)
       ? Math.max(0, Math.min(this.len - 1, d.pos)) : null;
     else if (d.type === 'play') this.playing = !!d.value;
@@ -306,6 +316,14 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
   }
   _frame() {
     const { N, Hs, bins, len, direction, win } = this;
+    // A previously silent band has no useful phase history. Align Mid and Side
+    // when the mix changes so restoring a panned voice cannot cancel it. Existing
+    // Hann overlap smooths the phase change; position and the stream stay intact.
+    const rephase=this.firstFrame || this.monitorRephase;
+    for (const key of ['otherGain','centerDelta']) {
+      const target=this.monitorMix[key], current=this.monitorCurrent[key];
+      this.monitorCurrent[key] = Math.abs(target-current)<1e-7 ? target : current+(target-current)*.5;
+    }
     const requestedHa = Hs * this.tempo;
     const remaining = Number.isFinite(this.limitPos)
       ? direction * (this.limitPos - this.inPos) : Infinity;
@@ -321,14 +339,23 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
         const lo = Math.floor(at), frac = at - lo;
         const a = lo >= 0 && lo < len ? src[lo] : 0;
         const b = lo + 1 >= 0 && lo + 1 < len ? src[lo + 1] : 0;
-        re[i] = (a + (b - a) * frac) * win[i]; im[i] = 0;
+        let sample = a + (b - a) * frac;
+        if (this.monitorCenter) {
+          sample *= this.monitorCurrent.otherGain;
+          if(c===0) {
+            const ca=lo>=0&&lo<len?this.monitorCenter[lo]:0;
+            const cb=lo+1>=0&&lo+1<len?this.monitorCenter[lo+1]:0;
+            sample += (ca+(cb-ca)*frac)*this.monitorCurrent.centerDelta;
+          }
+        }
+        re[i] = sample * win[i]; im[i] = 0;
       }
       this._fft(re, im, false);
       const prev = this.prevPhase[c], sum = this.sumPhase[c];
       for (let k = 0; k < bins; k++) {
         const real = re[k], imag = im[k];
         const magnitude = Math.hypot(real, imag), phase = Math.atan2(imag, real);
-        if (this.firstFrame) sum[k] = phase;
+        if (rephase) sum[k] = phase;
         else {
           const omega = 2 * Math.PI * k / N;
           let delta = phase - prev[k] - omega * expectedHa;
@@ -352,7 +379,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     }
     this.wIdx = (this.wIdx + Hs) % this.cap;
     this.count = Math.min(this.cap, this.count + Hs);
-    this.firstFrame = false; this.lastHa = ha;
+    this.firstFrame = false; this.monitorRephase = false; this.lastHa = ha;
     this.inPos += direction * ha;
   }
   _positionInRange() {

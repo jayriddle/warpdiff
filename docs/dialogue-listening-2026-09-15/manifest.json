@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scope": "WarpDiff 3.17.0 dialogue listening and multichannel decode corrections",
+  "base": "5151423",
+  "canonicalCommit": "cbfb6945e2c7c26958ecb94662a32a69038e4688",
+  "record": "README.md",
+  "privacy": "No user media frames, PCM or transcripts retained. Real inputs identified only by SHA-256 in numeric reports. Logs and reviewed patches preserve historical terminal formatting and may contain local paths.",
+  "checks": {
+    "browserPassed": 229,
+    "browserOptionalSkipped": 1,
+    "ownershipPassed": 404,
+    "ownershipFailed": 0,
+    "realAndCodecFilesPassed": 5,
+    "desktopSizesPassed": 3
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "9f319826b73526977ebb7907b3eb3c4557e46a922ae3a8d07b9e8b79fd14c03e"
+    },
+    {
+      "path": "after-51.json",
+      "sha256": "fcf78039863006a8f7ca1be3b389a0d149d2b975a5bc1e7367fd7dc9ffea0386"
+    },
+    {
+      "path": "after-probe.txt",
+      "sha256": "b658bda84b333df15effd60bcf5f423fe67466530725260d1585ad0f5e254999"
+    },
+    {
+      "path": "audio-only-order-before.txt",
+      "sha256": "079f0dad9f12cec4913902d49f552f5aa71be38c3c1aa2c949223ac1b669c7df"
+    },
+    {
+      "path": "audio-only-order-final.txt",
+      "sha256": "38621d939f68cf06f345f8da6521fd1603357db46a557058ced48234febbfad3"
+    },
+    {
+      "path": "before-51.json",
+      "sha256": "6b906fb2484c5da4eecfd5058d5c6efbb8d613a3a83a2829f2e13eecbade4c7b"
+    },
+    {
+      "path": "browser-initial.txt",
+      "sha256": "6815976833597a346d6481d8d30c3cd81728e551e0c16387cb3af97189a382e5"
+    },
+    {
+      "path": "codec-samples-final.txt",
+      "sha256": "712c12f1f7cb23ecfdadd09ca6d29acba0c5fa2382314dbf9bacf3c27fa82ed2"
+    },
+    {
+      "path": "codec-samples.txt",
+      "sha256": "1708c1972aa1618f520cff51c30a6f7c24674e746950943ac60ee7eca237c965"
+    },
+    {
+      "path": "controls.png",
+      "sha256": "44452ec62da3fa03a56c772b384d4afb3b7d03ad38f55fd48032ae8aaed20cf9"
+    },
+    {
+      "path": "fixtures.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "focused.txt",
+      "sha256": "d6787652047007ce46ca84dbd66de24b92d88f98c8b4e8e7d84fc678b379113c"
+    },
+    {
+      "path": "full-browser-audio-only-order.txt",
+      "sha256": "aa242763661ca4d924ceae8feb2292c9078904ebc7cb0740c3c7896d757123cd"
+    },
+    {
+      "path": "full-browser-handoff-fixture.txt",
+      "sha256": "67b9b32b33b245f5d8df010c9a4b17190be6fb370f3c0c785560c66b2087088b"
+    },
+    {
+      "path": "full-browser-initial.txt",
+      "sha256": "821e6cf8f34b63ccbcbc1ba9c7cea3f6819b371487d44731743f7e4618e76dda"
+    },
+    {
+      "path": "full-browser.txt",
+      "sha256": "e2bc94171350e2d661409971b06b05106277fa3eca53f2e3cf8a4992e0fa3c3c"
+    },
+    {
+      "path": "historical-demux.txt",
+      "sha256": "29bbff2c0aa9e3fc95cedb55a148082eea56be096557d9a2c4a493e7d69907cc"
+    },
+    {
+      "path": "listening-codec-final.txt",
+      "sha256": "ce322800f8d6ccdfe5f827e141d1efe632675c9babcb9a5af7075e1e4fc0912d"
+    },
+    {
+      "path": "listening-final.txt",
+      "sha256": "4260c79ecaa9a0ef6ba6a28a16da9b4284ccfb8088dfea89d5e22453573d115f"
+    },
+    {
+      "path": "ownership-initial.txt",
+      "sha256": "18a948afc7823291f835636a511aab4931cd125b390ecaae7c51e9dd27e527b6"
+    },
+    {
+      "path": "ownership.txt",
+      "sha256": "65f46664935aa0ded9ca9e6c31d8f815708446b0bd224e2ae5d9bc21270f0e14"
+    },
+    {
+      "path": "real-and-codec-smoke-diagnostic.txt",
+      "sha256": "8c8371fed9ec2d8518cbe84e735cf1ef4459aa785703d143b9fefb92b343ea0f"
+    },
+    {
+      "path": "real-and-codec-smoke-final.txt",
+      "sha256": "08684db61c15356e69b591602a5e7b858eb84eabca97a6f68bc8cf9de6f6b4e0"
+    },
+    {
+      "path": "real-and-codec-smoke.json",
+      "sha256": "bcec400d1fb3119be7b7c9026e526a7ce1f59d4d930084b7df0831bad659d16b"
+    },
+    {
+      "path": "real-and-codec-smoke.txt",
+      "sha256": "d53e4b3104ee8a2faf8b9a72e305b692705b2b85c469406e696d49aed0fff1ee"
+    },
+    {
+      "path": "reviewed.patch",
+      "sha256": "6d232bad9e0069880ce8bcb0b803c4ae03a3bafa52dd6a7093b4ef67966dce34"
+    },
+    {
+      "path": "source-sha256.json",
+      "sha256": "88e509063de9208a68b7e24d5eac34bb59c774c97ca7b69925e0710cb9f54704"
+    },
+    {
+      "path": "vendor-check.txt",
+      "sha256": "6dd2c6cb540cea2ebdb68a0b6c6c8a9fa1c44692b9bd126fedaa62cac998da9c"
+    }
+  ]
+}

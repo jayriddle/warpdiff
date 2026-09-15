@@ -1,0 +1,352 @@
+{
+  "method": "Muted headless Chromium. Actual local files, decoded center identity, listening controls, source metrics/timing and desktop geometry. No intelligibility claim.",
+  "files": [
+    {
+      "layout": "5.1",
+      "ready": true,
+      "originalChannels": 6,
+      "storedChannels": 6,
+      "selectedBytes": 4608000,
+      "start": 0,
+      "bands": [
+        {
+          "hz": 375,
+          "amplitude": 3.8132672521976785e-7
+        },
+        {
+          "hz": 750,
+          "amplitude": 0.000001482921133033081
+        },
+        {
+          "hz": 1500,
+          "amplitude": 0.10008434287532651
+        },
+        {
+          "hz": 3000,
+          "amplitude": 8.677651772790062e-7
+        },
+        {
+          "hz": 4500,
+          "amplitude": 4.1961734514896334e-7
+        },
+        {
+          "hz": 6000,
+          "amplitude": 4.0257530769285857e-7
+        },
+        {
+          "hz": 7500,
+          "amplitude": 3.0012164783192385e-7
+        }
+      ],
+      "otherMuted": true,
+      "metricsUnchanged": true,
+      "timeUnchanged": true,
+      "sourceSha256": "f50d8251a0913487ee0a20f4e3fb47d0c0e74554deb6249ff7be36e599ac856d",
+      "synthetic": true,
+      "pageErrors": [],
+      "passed": true
+    },
+    {
+      "layout": "7.1",
+      "ready": true,
+      "originalChannels": 8,
+      "storedChannels": 8,
+      "selectedBytes": 4608000,
+      "start": 0,
+      "bands": [
+        {
+          "hz": 375,
+          "amplitude": 8.222335111570069e-7
+        },
+        {
+          "hz": 750,
+          "amplitude": 0.0000010378592469806916
+        },
+        {
+          "hz": 1500,
+          "amplitude": 0.10063539392962982
+        },
+        {
+          "hz": 3000,
+          "amplitude": 3.996134689238586e-8
+        },
+        {
+          "hz": 4500,
+          "amplitude": 3.116573654253212e-7
+        },
+        {
+          "hz": 6000,
+          "amplitude": 2.043026121278147e-7
+        },
+        {
+          "hz": 7500,
+          "amplitude": 1.6327367354765631e-7
+        }
+      ],
+      "otherMuted": true,
+      "metricsUnchanged": true,
+      "timeUnchanged": true,
+      "sourceSha256": "54d480657f5361e7b9797aa3fca0460be2df44264f84f25d23f95991ba097da2",
+      "synthetic": true,
+      "pageErrors": [],
+      "passed": true
+    },
+    {
+      "layout": "5.1",
+      "ready": true,
+      "originalChannels": 6,
+      "storedChannels": 3,
+      "selectedBytes": 4608000,
+      "start": 0,
+      "bands": [
+        {
+          "hz": 375,
+          "amplitude": 2.9127089360312644e-8
+        },
+        {
+          "hz": 750,
+          "amplitude": 6.074487184247194e-9
+        },
+        {
+          "hz": 1500,
+          "amplitude": 0.09995778236796853
+        },
+        {
+          "hz": 3000,
+          "amplitude": 5.990875606931979e-10
+        },
+        {
+          "hz": 4500,
+          "amplitude": 4.858264186084901e-9
+        },
+        {
+          "hz": 6000,
+          "amplitude": 1.9471238182679506e-8
+        },
+        {
+          "hz": 7500,
+          "amplitude": 2.7127477934457853e-8
+        }
+      ],
+      "otherMuted": true,
+      "metricsUnchanged": true,
+      "timeUnchanged": true,
+      "sourceSha256": "64046fdd1683b44615b6eb7c32166fb09a426475f5a2b9bd99b7cabcc34ee493",
+      "synthetic": true,
+      "pageErrors": [],
+      "passed": true
+    },
+    {
+      "layout": "5.1",
+      "ready": true,
+      "originalChannels": 6,
+      "storedChannels": 3,
+      "selectedBytes": 8482752,
+      "start": 0.166,
+      "bands": [
+        {
+          "hz": 375,
+          "amplitude": 0.0021976177725213527
+        },
+        {
+          "hz": 750,
+          "amplitude": 0.006425663636735454
+        },
+        {
+          "hz": 1500,
+          "amplitude": 0.003234329846602085
+        },
+        {
+          "hz": 3000,
+          "amplitude": 0.001413508949821542
+        },
+        {
+          "hz": 4500,
+          "amplitude": 0.0005247081235842181
+        },
+        {
+          "hz": 6000,
+          "amplitude": 0.0001489019943529765
+        },
+        {
+          "hz": 7500,
+          "amplitude": 0.00006734902567746499
+        }
+      ],
+      "otherMuted": true,
+      "metricsUnchanged": true,
+      "timeUnchanged": true,
+      "sourceSha256": "ccb6763f19b7a4912b916392db92e8400903e6920fe4a394409135de7292046c",
+      "synthetic": false,
+      "pageErrors": [],
+      "passed": true
+    },
+    {
+      "layout": "7.1",
+      "ready": true,
+      "originalChannels": 8,
+      "storedChannels": 3,
+      "selectedBytes": 7686144,
+      "start": 0.166,
+      "bands": [
+        {
+          "hz": 375,
+          "amplitude": 0.001511180655173177
+        },
+        {
+          "hz": 750,
+          "amplitude": 0.0003594392606233639
+        },
+        {
+          "hz": 1500,
+          "amplitude": 0.00015271104153982899
+        },
+        {
+          "hz": 3000,
+          "amplitude": 0.0002699149624478448
+        },
+        {
+          "hz": 4500,
+          "amplitude": 0.00035803665186014653
+        },
+        {
+          "hz": 6000,
+          "amplitude": 0.0007070616514824837
+        },
+        {
+          "hz": 7500,
+          "amplitude": 0.0008769884782550882
+        }
+      ],
+      "otherMuted": true,
+      "metricsUnchanged": true,
+      "timeUnchanged": true,
+      "sourceSha256": "e35a5b9e1a8bb87a65fc64fe4c19313275cbd452bf801fabab4ca23c69576c64",
+      "synthetic": false,
+      "pageErrors": [],
+      "passed": true
+    }
+  ],
+  "geometry": [
+    {
+      "width": 1024,
+      "height": 768,
+      "left": 635.40625,
+      "right": 945.40625,
+      "top": 426.859375,
+      "bottom": 719.5,
+      "controls": [
+        {
+          "left": 652.40625,
+          "right": 713.75,
+          "top": 474.15625,
+          "bottom": 502.15625
+        },
+        {
+          "left": 719.75,
+          "right": 823.140625,
+          "top": 474.15625,
+          "bottom": 502.15625
+        },
+        {
+          "left": 829.140625,
+          "right": 913.171875,
+          "top": 474.15625,
+          "bottom": 502.15625
+        },
+        {
+          "left": 652.40625,
+          "right": 928.40625,
+          "top": 541.546875,
+          "bottom": 557.546875
+        },
+        {
+          "left": 652.40625,
+          "right": 928.40625,
+          "top": 594.9375,
+          "bottom": 610.9375
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "left": 891.40625,
+      "right": 1201.40625,
+      "top": 378.859375,
+      "bottom": 671.5,
+      "controls": [
+        {
+          "left": 908.40625,
+          "right": 969.75,
+          "top": 426.15625,
+          "bottom": 454.15625
+        },
+        {
+          "left": 975.75,
+          "right": 1079.140625,
+          "top": 426.15625,
+          "bottom": 454.15625
+        },
+        {
+          "left": 1085.140625,
+          "right": 1169.171875,
+          "top": 426.15625,
+          "bottom": 454.15625
+        },
+        {
+          "left": 908.40625,
+          "right": 1184.40625,
+          "top": 493.546875,
+          "bottom": 509.546875
+        },
+        {
+          "left": 908.40625,
+          "right": 1184.40625,
+          "top": 546.9375,
+          "bottom": 562.9375
+        }
+      ]
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "left": 1531.40625,
+      "right": 1841.40625,
+      "top": 738.859375,
+      "bottom": 1031.5,
+      "controls": [
+        {
+          "left": 1548.40625,
+          "right": 1609.75,
+          "top": 786.15625,
+          "bottom": 814.15625
+        },
+        {
+          "left": 1615.75,
+          "right": 1719.140625,
+          "top": 786.15625,
+          "bottom": 814.15625
+        },
+        {
+          "left": 1725.140625,
+          "right": 1809.171875,
+          "top": 786.15625,
+          "bottom": 814.15625
+        },
+        {
+          "left": 1548.40625,
+          "right": 1824.40625,
+          "top": 853.546875,
+          "bottom": 869.546875
+        },
+        {
+          "left": 1548.40625,
+          "right": 1824.40625,
+          "top": 906.9375,
+          "bottom": 922.9375
+        }
+      ]
+    }
+  ]
+}

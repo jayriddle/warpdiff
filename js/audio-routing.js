@@ -11,38 +11,8 @@ const _nativeAudioRoutes = new Map(); // media element → connected nodes
 // FL FR FC LFE BL BR SL SR. Match WarpSonic's monitoring policy: center at
 // -3 dB into both ears, each side/back pair shares the surround contribution,
 // and LFE stays out of the stereo mix. Source PCM and analysis are untouched.
-function _connectAudioOutput(source, destination, channels) {
-    const nodes = [];
-    let input = destination;
-    if (channels === 8) {
-        const ctx = source.context;
-        const split = ctx.createChannelSplitter(8);
-        const merge = ctx.createChannelMerger(2);
-        nodes.push(split, merge);
-        const matrix = WarpScrubAudio.surroundMatrix(channels);
-        for (const [channel, left, right] of matrix) {
-            for (const [ear, level] of [[0, left], [1, right]]) {
-                if (!level) continue;
-                const gain = ctx.createGain();
-                gain.gain.value = level;
-                split.connect(gain, channel);
-                gain.connect(merge, 0, ear);
-                nodes.push(gain);
-            }
-        }
-        merge.connect(destination);
-        input = split;
-    }
-    source.connect(input);
-    let connected = true;
-    return {
-        disconnect() {
-            if (!connected) return;
-            connected = false;
-            source.disconnect(input);
-            nodes.forEach(node => node.disconnect());
-        }
-    };
+function _connectAudioOutput(source, destination, channels, slot) {
+    return _connectMonitoredAudio(source, destination, channels, slot);
 }
 
 // Evaluate our envelope before canceling automation, including rapid reversals.
@@ -71,7 +41,7 @@ function _prepareNativeAudio(media, channels) {
         const route = _nativeAudioRoutes.get(media);
         if (supported && route.channels !== channels) {
             route.output.disconnect();
-            route.output = _connectAudioOutput(route.source, route.gain, channels);
+            route.output = _connectAudioOutput(route.source, route.gain, channels, media.dataset.slot);
             route.channels = channels;
         }
         return route;
@@ -84,7 +54,7 @@ function _prepareNativeAudio(media, channels) {
     catch (_) { return null; } // Keep direct browser playback if routing is unavailable.
     const level = media.muted ? 0 : 1;
     _scheduleAudioGain(gain, level, level, ctx.currentTime);
-    const output = _connectAudioOutput(source, gain, channels);
+    const output = _connectAudioOutput(source, gain, channels, media.dataset.slot);
     gain.connect(ctx.destination);
     media.muted = !!_opusSyncSlots[media.dataset.slot];
     const resume = () => {

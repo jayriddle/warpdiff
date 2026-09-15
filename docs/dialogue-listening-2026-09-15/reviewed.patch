@@ -1,0 +1,1758 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index cfc6171..ef53790 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -18,7 +18,8 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
+ - `js/timecode.js` — pure timecode formatters (`_formatTcForCopy`, `_formatTcForMarker`); only app dep is the `_prefs.load` default-format lookup. State-coupled builders stay inline.
+ - `js/wipe.js` — Stack-mode real-layer wipe controller (`_wipe*` state, pair cycling, scopes-source state, side-aware loupe/rotation hit geometry, divider pointer/keyboard handling, shared reveal geometry). Scopes use their panel-local source selector; loupe and rotation follow the visible side under the cursor. **Stateful** (shares globals). Currently gated to images; the DOM/clip-path architecture is intended for later video compositor validation.
+ - `js/tile-check.js` — pure seamless-tile analysis and canvas preview rendering. Compares wrap-boundary color/alpha and signed gradients against interior texture variation, returns Left↔Right / Top↔Bottom / corner scores plus heat arrays, and renders 3×3 or half-offset previews. App mode state and controls stay inline.
+-- `js/audio-routing.js` — native media output gain routing and shared linear gain envelopes. Owns per-element source nodes, short source-switch fades, and cleanup. `_connectAudioOutput` owns 7.1-to-stereo monitoring for native, scrub, and Opus replacement sources (FL FR FC LFE BL BR SL SR; center −3 dB to both ears, side/back pairs share surround contribution, LFE omitted). Analysis buffers stay channel-preserving. Native routing begins after a current decode supplies a supported channel count, leaving browser-native mixing active while unknown. All matrix nodes are disconnected on source end/clear. Native elements remain unmuted with zero output gain when inactive to avoid decoder/clock resets; Opus replacement slots keep native mute. Native decoding and the media timeline stay browser-managed.
++- `js/audio-monitor.js` — comparison-scoped Full Mix / Dialogue Focus / Center Only controls, verified center-layout readiness, shared gain-plan application, and live route cleanup. Pure policy and graph helpers live in `WarpScrubAudio.monitor` in the canonical shared component. Presets affect playback and scrub listening, never original analysis or transport clocks.
++- `js/audio-routing.js` — native media output gain routing and shared linear gain envelopes. Owns per-element source nodes, short source-switch fades, and cleanup. `_connectAudioOutput` routes native, scrub, and Opus replacement sources through `js/audio-monitor.js`; the shared component owns the listening matrices, including 7.1 (FL FR FC LFE BL BR SL SR; center −3 dB to both ears, side/back pairs share surround contribution, LFE omitted). Analysis buffers stay channel-preserving. Native routing begins after a current decode supplies a supported channel count, leaving browser-native mixing active while unknown. All matrix nodes are disconnected on source end/clear. Native elements remain unmuted with zero output gain when inactive to avoid decoder/clock resets; Opus replacement slots keep native mute. Native decoding and the media timeline stay browser-managed.
+ - `js/opus-sync.js` — the Chrome Opus A/V sync engine (`_opusSync*` state, `_startOpusSyncAudio`/`_stopOpusSyncAudio`/`_syncOpusAudioToVideo`/`_updateOpusSyncRate`/`_updateOpusSyncGains`, `_OPUS_FADE`). **Stateful** (shares globals). Owns the deferred-start-window invariant (see below).
+ - `js/audio-decode.js` — the three-tier audio decode pipeline: `decodeAndComputeAudioViz`, `decodeAndComputeAudioSlotViz`, `_decodeAudioWebCodecs`, `_decodeWithAudioDecoder`, `_finalizeAudioViz`, `_onAllDecodeFailed`. **Stateful** — reads/writes inline globals (`mediaData`, `_opusSync*`, `waveformData`, the two decode-generation counters) via shared global scope.
+ - `js/transport.js` — playback/transport: Sync/Solo scope ownership (`_playbackScope`, `getTransportSlots`), `playAllMedia`/`pauseAllMedia`/`restartAllVideos`, `stepFrame`, `syncVideos`/`syncMedia`, frame-accurate loop enforcement (`_startLoopRvfc` + `_loopWrapTimer`), and video/audio handler binding (`setupVideoHandlers`/`setupAudioHandlers`/`_setupFpsDetection`). **Stateful** (shares globals). Holds the single-owner targets for the ownership guards. `_resolveVideoProgressTime` owns the shared display clock across source handoffs. It advances from rAF timestamps with bounded native-clock corrections; frame PTS never re-anchors normal progress. `_projectVisualTime` caps extrapolation when media stops to 25 ms of wall time or one source frame. Seeks are generation-fenced; pauses, restarts, wraps and clear release continuity. This clock never writes media time or playback rate. The FPS detector stops requesting callbacks once detection completes.
+@@ -76,7 +77,7 @@ The fallback routing is **`_onAllDecodeFailed(slot, audioConfirmed)`**:
+ ### MP4 audio demuxer (`_demuxMP4Audio`)
+ - Walks `moov → trak → mdia → mdhd / hdlr / minf / stbl → stsd / stsz / stco / co64 / stsc / stts` and `trak → edts → elst`.
+ - **Per-track scoping is mandatory** for `mdhd.timescale`. Store in `_lastMdhdTimescale` during `parseMdhd` and only promote to the demuxer-wide `timescale` inside `parseHdlr` when `handler_type === 'soun'`. A previous version used a single global `timescale` that got overwritten by every track visited — so a data/subtitle track at timescale=1000 silently clobbered the audio track's 48000, making elst priming offsets (16512 / 48000 = 344 ms) look like 16.5-second skips. Same scoping for `_lastElstMediaTime` and `_lastElstSegDuration` (these reset at each `parseTkhd`).
+-- Returned `extracted` shape: `{ chunks: [{timestamp, data}], sampleRate, channels, codec, description, preSkip, maxSamples }`. `preSkip` and `maxSamples` are applied post-decode to trim encoder priming and edit-list-truncated tails.
++- Returned `extracted` shape: `{ chunks: [{timestamp, data}], sampleRate, channels, codec, description, preSkip, maxSamples }`. `preSkip` and `maxSamples` are applied post-decode to trim encoder priming and edit-list-truncated tails. MP4 `dOps` is converted to a version-1 `OpusHead` description (little-endian numeric fields, mapping table intact) before WebCodecs; raw dOps can silently decode multistream surround as stereo. The decoder-only OpusHead copy clears pre-skip because the post-decode owner applies priming/edit-list trimming once (also for WebM). Tests compare decoded center samples against FFmpeg to catch channel reorder and double priming trim. Both audio-only and lazy W-panel decode paths must read the same WAVE/FLAC layout metadata; independent completion order must not disable center controls.
+ 
+ ### ffmpeg.wasm transcode
+ - Loaded once (~24 MB), single-threaded (the bundled build is built with `--disable-pthreads`). Each `ff.run()` invocation exits the wasm instance, so `_ffmpegLoaded` and `_ffmpegInstance` are reset after every run and the next slot in `_ffmpegQueue` triggers a fresh load.
+@@ -112,7 +113,7 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks.
+ - `_feedScrubAudioMotion` owns gesture activity; `_feedScrubAudio` owns the audible target. The steady 50 ms clock renews grains even at an unchanged frame PTS while the pointer is active, and stops after 130 ms idle. Late presentation callbacks cannot extend activity; repeated clamped edge targets are idle. Multi-video Grid uses the shared pointer timeline; single-video scrubbing retains the displayed-frame anchor.
+ - Grains have a constant 90 ms **output** duration at every playback rate: the source span scales by `PLAYBACK_RATES[playbackRateIndex]`. Adjacent grains overlap and use the existing 10 ms held-gain ramps plus bounded ±8 ms phase alignment.
+ - WebCodecs scrub targets are also globally rAF-coalesced: raw pointer events record the newest time, then one display-frame owner fans that target to all visible sessions. The first direct/click target remains immediate.
+-- Storage: full-quality original `AudioBuffer` for Chrome Opus sync replacement. Other videos keep a separate mono/stereo listening copy at the AudioContext rate, capped at 64 MiB per slot. Oversized copies use filtered 22050/16000/11025/8000 Hz short-preview fallback; if none fits, preview is unavailable with a notice. `_scrubPreviewPlan` and serialized `_prepareVideoScrubBuffer` in `js/audio-decode.js` own preparation; generation checks fence clear/reload. `_populateNoVideoSlotData` reuses original `waveformData` / `spectrogramData`, never recomputes from listening PCM. Audio-only source buffers stay intact for analysis. The selected Continuous processor has its own 64 MiB cap and automatically falls back to snippets; no mode preference or selector.
++- Storage: full-quality original `AudioBuffer` for Chrome Opus sync replacement. Other videos keep a separate listening copy at the AudioContext rate, capped at 64 MiB per slot: mono/stereo normally, or Full Mix L/R plus raw center for verified surround. All three planes count toward both preview and selected-stream budgets. Oversized copies use filtered 22050/16000/11025/8000 Hz short-preview fallback; if none fits, preview is unavailable with a notice. `_scrubPreviewPlan` and serialized `_prepareVideoScrubBuffer` in `js/audio-decode.js` own preparation; generation checks fence clear/reload. `_populateNoVideoSlotData` reuses original `waveformData` / `spectrogramData`, never recomputes from listening PCM. Audio-only source buffers stay intact for analysis. The selected Continuous processor has its own 64 MiB cap and automatically falls back to snippets; no mode preference or selector.
+ 
+ ### Audio & video metrics
+ - EBU R128 / BS.1770-4 in `computeAudioMetrics(audioBuffer)` (`js/audio-viz.js`). K-weighting via two cascaded biquad IIR stages (high-shelf + RLB, coefficients computed analytically per fs via Audio EQ Cookbook). 400 ms gated blocks → integrated LUFS; 3 s short-term blocks → LRA; 4× Catmull-Rom cubic interpolation for true peak per channel.
+diff --git a/FEATURES.md b/FEATURES.md
+index 86cc559..4560c01 100644
+--- a/FEATURES.md
++++ b/FEATURES.md
+@@ -108,6 +108,10 @@ If a video container does not expose an audio start timestamp, WarpDiff shows a
+ 
+ 5.1 and 7.1 playback and scrub preview use a stereo listening mix. Center dialogue reaches both ears, surrounds retain left/right placement, and LFE is omitted from the mix. This includes eight-channel FLAC video; analysis keeps the original decoded channels and audio start timing.
+ 
++**Dialogue listening:** the **Listen: Full Mix** control beside volume offers **Full Mix**, **Dialogue Focus** and **Center Only** when a discrete center is verified from codec/container metadata. Dialogue Focus starts with center unchanged and other channels reduced by 9 dB. Center level is adjustable from 0 to +12 dB; other channels range from unchanged to muted. Changes apply to native playback, replacement audio, Continuous, and short previews. Original analysis and source timing remain unchanged. Source peak bounds reserve headroom for boosted mixes; this is not automatic loudness normalization. Full Mix restores the standard mix and new comparisons reset to it. Stereo/custom or unknown layouts keep Full Mix available with an explanation. MP4 Opus decoder headers are converted to OpusHead so multistream 5.1/7.1 retains every decoded channel. Center Only can omit voices placed elsewhere.
++
++Verified surround video previews retain full stereo plus a separate mono center within the existing 64 MiB preview budget; the selected Continuous stream accounts for all three PCM channels within its own 64 MiB budget. This costs 50% more preview PCM than stereo and can trigger the filtered short-preview fallback sooner on long surround clips. It does not reduce original analysis quality.
++
+ ## Audio file comparison
+ 
+ Load 1–4 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as aligned vertical slots in Grid mode. Four-input labels are Audio-1 through Audio-4. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), file size, and EBU R128 metrics (integrated LUFS, LRA, true peak). Press `E` to cycle between waveform, waveform + LUFS envelope, and LUFS envelope only.
+diff --git a/MANUAL.md b/MANUAL.md
+index 853cb6c..948c538 100644
+--- a/MANUAL.md
++++ b/MANUAL.md
+@@ -204,6 +204,12 @@ If a video's soundtrack intentionally begins after the first frame, scrub previe
+ 
+ 5.1 and 7.1 soundtracks use a stereo listening mix during normal playback and scrubbing: center dialogue reaches both ears, surrounds keep their left/right placement, and LFE is omitted from this mix. Analysis uses the original decoded channels.
+ 
++**Listening for dialogue:** open **Listen: Full Mix** beside the volume slider. Choose **Dialogue Focus** to keep the center at its current level and initially reduce other channels by 9 dB, or **Center Only** to hear only the discrete center in both ears. Adjust **Center level** (0 to +12 dB) and **Other channels** (0 dB down to muted). The same settings apply during playback and scrubbing. The active preset remains visible; **Full Mix** restores the standard mix. Escape closes the panel and returns focus to its control; arrow keys adjust a focused slider without seeking or changing videos.
++
++These controls require a center layout verified from codec/container metadata. Stereo files and unrecognized/custom layouts retain Full Mix and explain why center controls are unavailable. Standard FLAC 5.1/7.1, supported MP4 Opus surround declarations, AAC's declared 5.1 configuration, and standard multichannel WAVE masks are recognized; ambiguous multiple-audio-track MP4s are not enabled automatically. The setting follows the selected source within a comparison; unsupported sources use Full Mix. Clearing/loading a new comparison resets to Full Mix. Center Only can hide voices in other channels, so check Full Mix before finalizing speaker coverage.
++
++Boosted mixes reserve headroom using peaks measured from the original source, and the panel reports any reduction applied. This adjusts listening only: original waveforms, spectrograms, loudness measurements and annotation timing remain unchanged. Continuous time stretching can still soften articulation; the dialogue controls improve channel balance without removing that limitation.
++
+ Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
+ 
+ Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
+@@ -444,6 +450,6 @@ Hosts may request `capabilities.managedReview` for assigned comparisons. This hi
+ 
+ Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
+ 
+-Video preview audio is prepared at the audio device’s rate directly from the decoded source. Surround channels are combined into a separate stereo listening mix, retaining center dialogue and left/right placement. Original waveform, spectrogram, and loudness inputs remain intact. Master volume, mute, and intentional leading silence still apply. A single video follows its displayed frame; multi-video Grid follows the shared pointer timeline.
++Video preview audio is prepared at the audio device’s rate directly from the decoded source. Surround channels are combined into a separate stereo listening mix, retaining center dialogue and left/right placement. Verified surround layouts also retain a separate mono center for the listening controls. This uses 50% more preview PCM than stereo within the same memory limits and can trigger the filtered short-preview fallback sooner. Original waveform, spectrogram, and loudness inputs remain intact. Master volume, mute, and intentional leading silence still apply. A single video follows its displayed frame; multi-video Grid follows the shared pointer timeline.
+ 
+ If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic switch to short previews. Long video clips may use a filtered, lower-rate listening copy; exceptionally long clips that cannot fit a useful preview retain normal playback and analysis. The limits are 64 MiB per video listening copy and 64 MiB for the selected Continuous stream; decoding, analysis, and Opus replacement playback have separate storage. Continuous processing may soften sharp sounds, so use normal playback when judging fine audio defects.
+diff --git a/README.md b/README.md
+index 9597b38..ace20bd 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio
+ 
+ **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
+ 
+-**Current version:** 3.16.1
++**Current version:** 3.17.0
+ 
+ ---
+ 
+@@ -18,6 +18,8 @@ Single-video and synced playback keep the timeline and waveform playheads moving
+ 
+ See the [playhead implementation and before/after measurements](docs/playhead-motion-2026-09-15/README.md).
+ 
++**Dialogue listening:** open **Listen: Full Mix** beside volume to choose **Dialogue Focus** or **Center Only** for verified surround layouts. Center level and other-channel reduction apply to playback and scrubbing, while original analysis stays intact. Return to Full Mix to check voices outside the center. Each new comparison starts in Full Mix. Multichannel Opus decoding also preserves all source channels. See the [investigation and verification record](docs/dialogue-listening-2026-09-15/README.md).
++
+ **Continuous scrubbing** preserves pitch while following drag speed and direction. Video previews now use full-rate mono/stereo listening audio, prepared directly from the original decode. Original waveform, spectrogram, and loudness analysis stay intact. Clicks give short previews; unavailable or oversized Continuous streams fall back automatically with an explanation. Holding still fades the audio out. See the [implementation and verification record](docs/full-rate-scrub-2026-09-15.md).
+ 
+ It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
+diff --git a/docs/shared-scrub-audio.md b/docs/shared-scrub-audio.md
+index 81ad2d7..b0b85ac 100644
+--- a/docs/shared-scrub-audio.md
++++ b/docs/shared-scrub-audio.md
+@@ -1,6 +1,6 @@
+ # Shared scrub audio
+ 
+-WarpDiff 3.16.0 uses **Continuous** as its standard drag preview. Pitch stays steady as drag speed and direction change. Clicks still audition short previews, and holding still fades audio out. The old mode selector and preference have been retired. Original analysis and normal playback remain independent of preview processing.
++WarpDiff 3.17.0 uses **Continuous** as its standard drag preview. Pitch stays steady as drag speed and direction change. Clicks still audition short previews, and holding still fades audio out. The old mode selector and preference have been retired. Original analysis and normal playback remain independent of preview processing.
+ 
+ ## Components
+ 
+@@ -22,15 +22,15 @@ During development, explicitly use `--worktree` instead of `--ref`; it records t
+ 
+ ## Adapter contract
+ 
+-Create one instance with `{workletUrl, maxBufferBytes, onError}`. `load(context, listeningBuffer)` prepares without starting sound. Video decode analysis completes before `_prepareVideoScrubBuffer` prepares its separate mono/stereo listening copy at the audio device rate. Same-rate mono/stereo is reused; surround is folded directly from the original decode. No 22.05 kHz intermediate remains in the normal path. The adapter passes current source-relative `offset`, positive `tempo`, signed `direction`, `continuous`, optional presented-frame `limitOffset`, and listening `level` to `update`. `stop` fades and retains the selected buffer; `reset` cancels stale publication and releases it; `dispose` permanently closes the instance. Never resume a gesture from an asynchronous load callback.
++Create one instance with `{workletUrl, maxBufferBytes, onError}`. `load(context, listeningBuffer)` prepares without starting sound. Video decode analysis completes before `_prepareVideoScrubBuffer` prepares its separate listening copy at the audio device rate: mono/stereo, or Full Mix L/R plus raw center for verified surround. Same-rate mono/stereo is reused; surround is folded directly from the original decode. No 22.05 kHz intermediate remains in the normal path. The adapter passes current source-relative `offset`, positive `tempo`, signed `direction`, `continuous`, optional presented-frame `limitOffset`, and listening `level` to `update`. `stop` fades and retains the selected buffer; `reset` cancels stale publication and releases it; `dispose` permanently closes the instance. Never resume a gesture from an asynchronous load callback.
+ 
+-WarpDiff keeps one continuous stream for the selected audio source. A single video follows confirmed picture time; multi-video Grid/audio-only retain the shared pointer clock. Real audio-start silence is preserved. Clicks audition a snippet. A failed continuous load reports the fallback and keeps snippet audition available. 7.1 dialogue is folded to stereo before spectral processing, using the same policy as native/scrub listening; original PCM remains intact.
++WarpDiff keeps one continuous stream for the selected audio source. A single video follows confirmed picture time; multi-video Grid/audio-only retain the shared pointer clock. Real audio-start silence is preserved. Clicks audition a snippet. A failed continuous load reports the fallback and keeps snippet audition available. Surround is folded to stereo before spectral processing with an optional retained center, using the same policy as native/scrub listening; original PCM remains intact.
+ 
+ `state.bytes` reports retained listening PCM and `state.retiringBytes` the short outgoing fade. These are not total memory: source analysis, transient rendering, processor scratch, and video caches have separate owners. Continuous preview may soften transients; normal playback remains the reference for defect inspection.
+ 
+ ## Preview memory policy
+ 
+-- `_SCRUB_PREVIEW_MAX_BYTES` is 64 MiB. `_scrubPreviewPlan` applies it to each of up to four video listening copies; the selected shared engine applies a separate limit of the same size before preparing or transferring its context-rate PCM. At 48 kHz this accommodates about 175 seconds of stereo per copy, twice that for mono.
++- `_SCRUB_PREVIEW_MAX_BYTES` is 64 MiB. `_scrubPreviewPlan` applies it to each of up to four video listening copies; the selected shared engine applies a separate limit of the same size before preparing or transferring its context-rate PCM. At 48 kHz this accommodates about 175 seconds of stereo per copy, twice that for mono, or 116 seconds with the retained center.
+ - If full-rate video PCM exceeds the limit, preparation selects the highest fitting rate among 22,050, 16,000, 11,025 and 8,000 Hz. Continuous still checks its required device-rate size and falls back to short previews with a notice. If none fits, preview is unavailable with a notice while original graphs, metrics and normal playback remain available.
+ - Rate reduction uses a centered Blackman-windowed sinc filter, 16 source-scaled lobes per side and 1,024 fractional phases. It removes out-of-band frequencies before reducing the sample rate, preserves channel phase, and keeps sample-zero timing. It processes bounded slices with cancellation checks and yields between them. No full-rate intermediate listening copy is allocated for this fallback.
+ - `_prepareVideoScrubBuffer` serializes preparation across slots, skipping obsolete requests before allocation and fencing publication after preparation. `_finalizeAudioViz` awaits preparation; clear/replacement generations prevent stale buffers returning. Both visualization views reuse original analysis aggregates.
+@@ -44,4 +44,21 @@ Run both existing suites, including `tests/continuous-scrub.spec.ts` and `tests/
+ node tests/investigate-shared-scrub.mjs --clip /path/to/movie.mp4 --out /tmp/scrub.json
+ ```
+ 
+-The probe compares pointer gestures, clock cadence, selected-stream PCM, and isolated Chrome process CPU. It does not save movie frames or audio, and cannot establish listening preference. WarpCap’s bundled WarpDiff update and deployment remain held. The user preferred the prior Continuous preview; full-rate listening acceptance is the next manual check.
++The probe compares pointer gestures, clock cadence, selected-stream PCM, and isolated Chrome process CPU. It does not save movie frames or audio, and cannot establish listening preference. WarpCap’s bundled WarpDiff update and deployment remain held. The user preferred Continuous. Dialogue controls still require listening acceptance on real voices at changing drag speeds.
++
++
++## Dialogue listening (component 1.2.0)
++
++`js/audio-monitor.js` owns comparison-scoped settings and the Listen popover. `WarpScrubAudio.monitor` owns normalization of settings, channel coefficients, source peak bounds, native graph ramps, and codec-layout helpers. Every native, replacement and short-preview output resolves the same per-slot plan. The selected continuous instance receives that plan through `setMonitorMix(plan)`.
++
++A verified surround `load(ctx, buffer, layout)` uses `layout` equal to `5.1`, `7.1`, or `stereo-center`. The last value is an internal three-channel representation: Full Mix left, Full Mix right, and raw center. These are listening components, not three speaker channels. `listeningBuffer(buffer, ctx, current, layout)` produces this representation and `listeningBytes(buffer, rate, layout)` accounts for all three. Ordinary mono/stereo callers omit layout and retain their existing behavior.
++
++The processor mixes the retained center into Mid before spectral processing; other-channel gain also controls Side. New settings neither reload PCM nor seek. Restoring previously silent bands re-aligns their phase within the existing Hann overlap, avoiding panned-channel cancellation after Center Only. Normal WarpSonic callers retain their existing full-stereo preparation and optional stereo Center Focus; its UI is unchanged in this checkpoint. The new API is available to that surface without a host dependency.
++
++Center controls require codec/container evidence agreeing with the decoded channel count. The MP4 metadata path recognizes FLAC STREAMINFO and optional standard masks, AAC's declared 5.1 configuration, and valid Opus family-1 surround declarations. Custom `chan` descriptions, ambiguous multiple audio tracks and unrecognized layouts remain Full Mix. Audio-only FLAC and WAVE extensible masks use the same verification policy. This is a limited allowlist, not a general channel-layout parser.
++
++`monitor.peaks` measures the center and the remaining stereo contribution without changing samples. Focused mixes use a conservative sum of those peaks to reserve headroom; Full Mix preserves existing gain. This protects the input mix, not every possible peak after time stretching. It is neither loudness normalization nor a brick-wall output limiter.
++
++Three-component Float32 PCM costs 576,000 bytes/second at 48 kHz: approximately 116 seconds within 64 MiB, versus 175 seconds for stereo. Video and selected-stream limits remain independent. Long surround files may fall back sooner. Original analysis aggregates, audio-only original buffers and replacement-playback originals retain their previous owners. No task answers or annotation payloads acquire listening preferences. Clearing resets the comparison to Full Mix.
++
++MP4 Opus dOps is converted to the identification header WebCodecs requires, including the multistream mapping. The decoder-only copy clears pre-skip because the existing post-decode owner applies priming and edit-list trimming once. Audio-only display and lazy W-panel decode both read the same verified WAVE/FLAC layout so completion order cannot disable the listening controls.
+diff --git a/index.html b/index.html
+index a456941..4d464e1 100644
+--- a/index.html
++++ b/index.html
+@@ -286,6 +286,20 @@
+             stroke-linejoin: round;
+         }
+ 
++        .audio-listening-control { position:relative; flex-shrink:0; color:#ddd; font-size:12px; }
++        .audio-listening-control[hidden] { display:none; }
++        .audio-listening-control summary { cursor:pointer; padding:7px 9px; border:1px solid #555; border-radius:5px; background:#252525; white-space:nowrap; }
++        .audio-listening-control.focused summary { color:#ffda91; border-color:#aa803c; }
++        .audio-listening-panel { position:absolute; bottom:calc(100% + 9px); right:0; width:310px; max-width:calc(100vw - 28px); padding:16px; background:#222; border:1px solid #666; border-radius:8px; box-shadow:0 6px 24px #0009; z-index:500; line-height:1.45; }
++        .audio-listening-panel h3 { font-size:14px; margin:0 0 10px; color:#eee; }
++        .audio-listening-presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
++        .audio-listening-presets button { border:1px solid #666; background:#333; color:#ddd; padding:6px 9px; border-radius:4px; cursor:pointer; font-size:12px; }
++        .audio-listening-presets button[aria-pressed="true"] { background:#34536b; border-color:#76b6e6; color:#fff; }
++        .audio-listening-panel button:disabled, .audio-listening-panel input:disabled { opacity:.45; cursor:default; }
++        .audio-listening-panel label { display:flex; justify-content:space-between; gap:10px; margin-top:10px; }
++        .audio-listening-panel input { display:block; width:100%; margin:8px 0 12px; accent-color:#88bfee; }
++        .audio-listening-panel p { margin:10px 0 0; color:#bbb; font-size:12px; }
++        .audio-listening-panel :focus-visible, .audio-listening-control summary:focus-visible { outline:2px solid #88bfee; outline-offset:3px; }
+         .volume-control {
+             display: flex;
+             align-items: center;
+@@ -3556,6 +3570,23 @@
+                     <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><span class="vi-icon" id="muteBtnIcon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span class="vi-label">Muted</span></span>
+                     <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                 </div>
++                <details class="audio-listening-control" id="audioListeningControl" hidden>
++                    <summary id="audioListeningLabel">Listen: Full Mix</summary>
++                    <div class="audio-listening-panel">
++                        <h3>Listening mix</h3>
++                        <div class="audio-listening-presets" role="group" aria-label="Listening preset">
++                            <button type="button" data-listening-mode="full" aria-pressed="true" onclick="setAudioListening({mode:'full'})">Full Mix</button>
++                            <button type="button" data-listening-mode="dialogue" aria-pressed="false" onclick="setAudioListening({mode:'dialogue'})">Dialogue Focus</button>
++                            <button type="button" data-listening-mode="center" aria-pressed="false" onclick="setAudioListening({mode:'center'})">Center Only</button>
++                        </div>
++                        <label for="dialogueCenterLevel">Center level <output id="dialogueCenterValue" for="dialogueCenterLevel">+0 dB</output></label>
++                        <input id="dialogueCenterLevel" type="range" min="0" max="12" step="1" value="0" oninput="setAudioListening({centerDb:Number(this.value)})">
++                        <label for="dialogueOtherLevel">Other channels <output id="dialogueOtherValue" for="dialogueOtherLevel">−9 dB</output></label>
++                        <input id="dialogueOtherLevel" type="range" min="-60" max="0" step="1" value="-9" oninput="setAudioListening({otherDb:Number(this.value)})">
++                        <p id="audioListeningStatus" role="status"></p>
++                        <p>Applies to playback and scrubbing. Analysis uses the original audio. Use Full Mix to check voices outside the center.</p>
++                    </div>
++                </details>
+                 <div class="audio-source-selector" id="audioSourceSelector">
+                     <button onclick="selectAudioSource('original')" id="audioOriginal" class="active" title="Click to select audio source">
+                         <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('original')"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
+@@ -3589,12 +3620,13 @@
+     <script src="js/tile-check.js"></script>
+     <script src="js/scrub-audio-core.js"></script>
+     <script src="js/scrub-audio.js"></script>
++    <script src="js/audio-monitor.js"></script>
+     <script src="js/audio-routing.js"></script>
+     <script src="js/opus-sync.js"></script>
+     <script src="js/audio-decode.js"></script>
+     <script src="js/transport.js"></script>
+     <script>
+-        const APP_VERSION = '3.16.1';
++        const APP_VERSION = '3.17.0';
+         // WebKit media-engine marker (fastSeek is WebKit-only — the same
+         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
+         // Gates the Stack-mode CSS that keeps inactive video wrappers
+@@ -6509,6 +6541,7 @@
+             delete spectrogramData[slot];
+             delete _videoAudioBuffers[slot];
+             delete _videoScrubStatus[slot];
++            _setAudioMonitorSlot(slot, null);
+             delete _audioSlotVizData[slot];
+             delete _byteScannedCodec[slot];
+             _invalidateScrubSession(slot); // scrub session holds the OLD file's bytes
+@@ -8869,6 +8902,7 @@
+                 if (video && !video.paused) _startOpusSyncAudio(source, video.currentTime);
+             }
+             _updatePlaybackScopeBtn();
++            _applyAudioListening();
+         }
+ 
+         function setVolume(value) {
+@@ -10778,6 +10812,7 @@
+             audioFileBuffers = {};
+             audioMetrics = {};
+             _audioSlotVizData = {};
++            _clearAudioListening();
+             // Clearing the current-token maps invalidates every pending completion.
+             // _audioDecodeEpoch intentionally does not reset: the next load must never
+             // reuse a token that an older async decode may still hold.
+@@ -13385,6 +13420,7 @@
+             _setupWipeController();
+             _setupMiniMapInteraction();
+             _setupControlsResizeRelayout(); // keep video off the audio-viz panel
++            _setupAudioListeningControl();
+ 
+             // Restore persisted preferences to UI
+             const savedVol = _prefs.load('volume', 100);
+@@ -13880,6 +13916,7 @@
+                 <tr><td>Click on a different slot's canvas</td><td>Switch active audio to that slot</td></tr>
+             </table>
+             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
++            <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Escape closes the panel; slider arrows adjust levels.</p>
+             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
+             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
+             <table>
+@@ -13944,6 +13981,7 @@
+             <h2>Scrub Audio</h2>
+             <p><strong>Continuous</strong> is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Click for a short preview, and hold still to fade out. There is no mode selector.</p>
+             <p>Video listening copies use full-rate decoded audio, with surround dialogue folded into a separate stereo mix. Original waveform, spectrogram, and loudness inputs remain intact in both views. A single video follows its displayed frame; multi-video Grid uses the shared pointer timeline. Volume, mute, and intentional audio-start silence still apply.</p>
++            <p>Verified surround previews also retain a separate mono center for listening adjustments. This uses 50% more preview PCM within the same memory budgets, so long surround clips can reach the filtered short-preview fallback sooner. Dialogue Focus changes channel balance; Continuous can still soften articulation.</p>
+             <p>If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic short-preview fallback. Long clips may use filtered, lower-rate preview audio. If no useful preview fits, normal playback and analysis remain available. Each video listening copy and the selected Continuous stream have separate 64 MiB limits; decoding and analysis use additional memory. Continuous can soften sharp sounds; use normal playback for final defect inspection.</p>
+ 
+             <h2>Preferences</h2>
+@@ -13951,7 +13989,7 @@
+             <ul>
+                 <li>Zoom loupe size and magnification level</li>
+                 <li>Linked zoom on/off</li>
+-                <li>Volume level and scrub audio mode</li>
++                <li>Volume level</li>
+                 <li>Master mute</li>
+                 <li>Stack Fit / Balance mode and per-slot rotation</li>
+                 <li>Audio visualization visibility, height, and row split</li>
+@@ -14083,6 +14121,11 @@
+             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
+         </div>
+         <div class="quick-start-body">
++            <h3>v3.17.0</h3>
++            <ul>
++                <li><strong>Focus on dialogue.</strong> The Listen control offers Dialogue Focus and Center Only for verified surround soundtracks, with center boost and background reduction during playback and scrubbing. Original audio analysis stays intact; Full Mix is always available.</li>
++                <li><strong>Multichannel Opus.</strong> Surround Opus files now retain all decoded channels, including the center.</li>
++            </ul>
+             <h3>v3.16.1</h3>
+             <ul>
+                 <li><strong>Smoother scrubbing.</strong> Drag forward or backward with continuous, pitch-preserving audio. Click for a short preview; holding still fades the sound out. Short previews are used automatically when Continuous is unavailable.</li>
+diff --git a/js/SCRUB_AUDIO_LOCK.json b/js/SCRUB_AUDIO_LOCK.json
+index 80c8973..ff8bac5 100644
+--- a/js/SCRUB_AUDIO_LOCK.json
++++ b/js/SCRUB_AUDIO_LOCK.json
+@@ -1,19 +1,19 @@
+ {
+   "schemaVersion": 1,
+   "source": "https://github.com/jayriddle/warpcap",
+-  "commit": "930c6b29d13e0ee94ae6f149617c6825d8194165",
+-  "version": "1.1.0",
++  "commit": "cbfb6945e2c7c26958ecb94662a32a69038e4688",
++  "version": "1.2.0",
+   "workingTree": false,
+   "files": [
+     {
+       "source": "shared/media/scrub-audio.js",
+       "target": "js/scrub-audio-core.js",
+-      "sha256": "ade006e499e6553a1dff78800fe865c827e3af741d383b66f4ea327bec1cdfe3"
++      "sha256": "f0bdb60c6d38822cafd1619e7dc57b2b1c88a8dba3d1dab5a0ed93c6dd9bf094"
+     },
+     {
+       "source": "audio/wsola-worklet.js",
+       "target": "js/scrub-worklet.js",
+-      "sha256": "b1626dbf075acd1bff8d849a2ed6c246a9b662971f6f58639eef2c3aca10fcac"
++      "sha256": "c2c423d68fa386ed2a3bac56e627e24c76bb4775c9bc6c447a3d3fa01ff601ae"
+     }
+   ]
+ }
+diff --git a/js/audio-decode.js b/js/audio-decode.js
+index 8f5bd6e..4bd7466 100644
+--- a/js/audio-decode.js
++++ b/js/audio-decode.js
+@@ -68,10 +68,14 @@ async function decodeAndComputeAudioViz(slot, source) {
+     const isMP4 = bytes.length > 7 &&
+         bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+     let timelineStart = null;
++    // Audio-only files also enter this lazy W-panel path. Both decode owners
++    // must read the same layout so a later panel decode cannot disable center.
++    let channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
+     if (isMP4) {
+         try {
+             const timing = _demuxMP4Audio(bytes, true);
+             if (timing && Number.isFinite(timing.timelineStart)) timelineStart = timing.timelineStart;
++            channelLayout = timing && timing.channelLayout;
+         } catch (e) {
+             console.warn('[audio-timeline] MP4 timing parse failed for', slot, e);
+         }
+@@ -129,7 +133,7 @@ async function decodeAndComputeAudioViz(slot, source) {
+             new Promise((_, reject) =>
+                 setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
+         ]);
+-        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart);
++        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart, channelLayout);
+     } catch (e) {
+         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+         if (typeof AudioDecoder !== 'undefined') {
+@@ -166,13 +170,13 @@ function _onAllDecodeFailed(slot, audioConfirmed, gen) {
+ // skipped before allocation; a running offline render can finish but cannot publish.
+ let _videoScrubPreparation = Promise.resolve();
+ 
+-function _scrubPreviewPlan(buffer, sampleRate, maxBytes = _SCRUB_PREVIEW_MAX_BYTES) {
+-    const bytes = WarpScrubAudio.listeningBytes(buffer, sampleRate);
++function _scrubPreviewPlan(buffer, sampleRate, maxBytes = _SCRUB_PREVIEW_MAX_BYTES, layout = null) {
++    const bytes = WarpScrubAudio.listeningBytes(buffer, sampleRate, layout);
+     if (bytes <= maxBytes) return {sampleRate, bytes, limited:false};
+     // Long clips retain a filtered short-preview copy. Keep a useful speech band;
+     // if even 8 kHz cannot fit, omit preview PCM and retain original analysis.
+     for (const rate of [22050, 16000, 11025, 8000]) {
+-        const reducedBytes = WarpScrubAudio.listeningBytes(buffer, rate);
++        const reducedBytes = WarpScrubAudio.listeningBytes(buffer, rate, layout);
+         if (rate < sampleRate && reducedBytes <= maxBytes) return {sampleRate:rate, bytes:reducedBytes, limited:true};
+     }
+     return null;
+@@ -183,9 +187,10 @@ function _prepareVideoScrubBuffer(slot, buffer, gen) {
+     const queued = _videoScrubPreparation.then(async () => {
+         if (!current()) return null;
+         if (![1,2,4,6,8].includes(buffer.numberOfChannels)) throw new Error('Audio preview unavailable: unsupported channel layout.');
+-        const plan = _scrubPreviewPlan(buffer, getAudioContext().sampleRate);
++        const layout = _audioMonitorLayoutForBuffer(slot, buffer);
++        const plan = _scrubPreviewPlan(buffer, getAudioContext().sampleRate, _SCRUB_PREVIEW_MAX_BYTES, layout);
+         if (!plan) throw new Error('This clip exceeds the audio preview memory limit. Normal playback and analysis are available.');
+-        const ready = await WarpScrubAudio.listeningBuffer(buffer, {sampleRate:plan.sampleRate}, current);
++        const ready = await WarpScrubAudio.listeningBuffer(buffer, {sampleRate:plan.sampleRate}, current, layout);
+         if (!current()) return null;
+         _videoScrubStatus[slot] = plan;
+         return ready;
+@@ -194,7 +199,7 @@ function _prepareVideoScrubBuffer(slot, buffer, gen) {
+     return queued;
+ }
+ 
+-async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
++async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, channelLayout = null) {
+     // Drop stale completions — a reload/clear during the async decode chain
+     // bumps _videoAudioDecodeGen, so this slot no longer belongs to this decode.
+     // Without this, a previous file's decode could overwrite the new slot's
+@@ -214,6 +219,8 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
+     // Propagate envelope data to the slot viz data if it already exists (no-video mode)
+     if (_audioSlotVizData[slot]) _audioSlotVizData[slot].lufsEnvelope = _mf ? _mf.stBlks : null;
+     _updateMetricSpans(slot);
++    await _prepareAudioMonitorSlot(slot, audioBuffer, channelLayout, () => _videoAudioDecodeIsCurrent(slot, gen));
++    if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+ 
+     // If this slot just finished a transcode, advance toast to 'done' now
+     if (_ffmpegTranscoding[slot] && _ffmpegTranscoding[slot].phase === 'computing') {
+@@ -381,6 +388,16 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
+                 ? extracted.description.buffer.slice(extracted.description.byteOffset, extracted.description.byteOffset + extracted.description.byteLength)
+                 : extracted.description;
+     }
++    if (extracted.codec === 'opus' && config.description) {
++        const header = new Uint8Array(config.description);
++        if (header.length >= 19 && String.fromCharCode(...header.subarray(0,8)) === 'OpusHead') {
++            // This pipeline trims extracted.preSkip/edit-list media time after
++            // decode. WebCodecs also honors OpusHead pre-skip; zero it in the
++            // decoder-only copy so MP4 and WebM priming are applied exactly once.
++            const untrimmed = header.slice(); untrimmed[10] = 0; untrimmed[11] = 0;
++            config.description = untrimmed.buffer;
++        }
++    }
+ 
+     try {
+         decoder.configure(config);
+@@ -453,7 +470,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
+         };
+         console.log('[webcodecs] ' + slot + ': decoded ' + duration.toFixed(1) + 's, ' +
+             totalFrames + ' frames, ' + numChannels + 'ch at ' + extracted.sampleRate + 'Hz');
+-        await _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart);
++        await _finalizeAudioViz(slot, fakeBuffer, gen, extracted.timelineStart, extracted.channelLayout);
+         _webcodecsFinished(slot, gen);
+     }).catch(async err => {
+         console.warn('AudioDecoder flush failed for', slot, err);
+@@ -488,7 +505,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
+                 numberOfChannels: numChannels, sampleRate: extracted.sampleRate,
+                 duration: duration, length: totalFrames,
+                 getChannelData: function(ch) { return channelBuffers[Math.min(ch, numChannels - 1)]; }
+-            }, gen, extracted.timelineStart);
++            }, gen, extracted.timelineStart, extracted.channelLayout);
+         }
+         _webcodecsFinished(slot, gen);
+     });
+@@ -498,7 +515,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
+     _audioDecodeGen[slot] = _nextAudioDecodeGeneration();
+     const gen = _audioDecodeGen[slot];
+     const ctx = getAudioContext();
+-    ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
++    ctx.decodeAudioData(arrayBuffer.slice(0)).then(async audioBuffer => {
+         if (_audioDecodeGen[slot] !== gen) return;
+         const layerForOutput = getLayer(slot);
+         _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('audio'), audioBuffer.numberOfChannels);
+@@ -510,6 +527,8 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
+         const spectrogram = computeSpectrogramData(audioBuffer);
+         const _m = computeAudioMetrics(audioBuffer);
+         audioMetrics[slot] = _m;
++        await _prepareAudioMonitorSlot(slot, audioBuffer, WarpScrubAudio.monitor.waveLayout(new Uint8Array(arrayBuffer)), () => _audioDecodeGen[slot] === gen);
++        if (_audioDecodeGen[slot] !== gen) return;
+         _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer, lufsEnvelope: _m ? _m.stBlks : null };
+         _updateMetricSpans(slot);
+         delete audioFileBuffers[slot];
+diff --git a/js/audio-monitor.js b/js/audio-monitor.js
+new file mode 100644
+index 0000000..55cdbf1
+--- /dev/null
++++ b/js/audio-monitor.js
+@@ -0,0 +1,109 @@
++// Listening settings belong to this comparison, independently of source analysis.
++// Channel matrices, headroom and PCM preparation belong to WarpScrubAudio.monitor.
++let _audioListening = WarpScrubAudio.monitor.settings();
++const _audioMonitorSlots = new Map();
++const _audioMonitorRoutes = new Set();
++
++function _setAudioMonitorSlot(slot, value) {
++    if (value) _audioMonitorSlots.set(slot, Object.freeze(value));
++    else _audioMonitorSlots.delete(slot);
++    _applyAudioListening();
++}
++
++async function _prepareAudioMonitorSlot(slot, buffer, layout, current) {
++    const valid = layout === '5.1' && buffer.numberOfChannels === 6 || layout === '7.1' && buffer.numberOfChannels === 8;
++    const info = {layout:valid ? layout : null, channels:buffer.numberOfChannels, ready:false, peaks:null};
++    _setAudioMonitorSlot(slot, info);
++    if (!valid) return;
++    const peaks = await WarpScrubAudio.monitor.peaks(buffer, layout, current);
++    if (peaks && current() && _audioMonitorSlots.get(slot) === info) _setAudioMonitorSlot(slot, {...info, peaks, ready:true});
++    else if (current() && _audioMonitorSlots.get(slot) === info) _setAudioMonitorSlot(slot, {...info, error:true});
++}
++
++function _audioMonitorLayoutForBuffer(slot, buffer) {
++    const info = _audioMonitorSlots.get(slot);
++    if (!info?.ready || !buffer) return null;
++    if (buffer.numberOfChannels === 3 && buffer === _videoAudioBuffers[slot]) return 'stereo-center';
++    return buffer.numberOfChannels === info.channels ? info.layout : null;
++}
++
++function _audioMonitorPlanForSlot(slot) {
++    const info = _audioMonitorSlots.get(slot);
++    return WarpScrubAudio.monitor.plan(info?.ready ? _audioListening : {mode:'full'}, info?.peaks);
++}
++
++function _connectMonitoredAudio(source, destination, channels, slot) {
++    const layout = channels === 3 && _audioMonitorSlots.get(slot)?.ready ? 'stereo-center' : null;
++    const route = WarpScrubAudio.monitor.connect(source, destination, channels, layout, _audioMonitorPlanForSlot(slot));
++    const entry = {slot, route};
++    _audioMonitorRoutes.add(entry);
++    let connected = true;
++    return {disconnect() {
++        if (!connected) return;
++        connected = false;
++        _audioMonitorRoutes.delete(entry);
++        route.disconnect();
++    }};
++}
++
++function setAudioListening(change) {
++    _audioListening = WarpScrubAudio.monitor.settings({..._audioListening, ...change});
++    _applyAudioListening();
++}
++
++function _applyAudioListening() {
++    for (const {slot, route} of _audioMonitorRoutes) route.setMix(_audioMonitorPlanForSlot(slot));
++    const slot = currentAudioSource || assetOrder[currentAssetIndex];
++    _continuousScrubEngine.setMonitorMix(_audioMonitorPlanForSlot(slot));
++    _renderAudioListening();
++}
++
++function _renderAudioListening() {
++    const control = document.getElementById('audioListeningControl');
++    if (!control) return;
++    const slot = currentAudioSource || assetOrder[currentAssetIndex], info = _audioMonitorSlots.get(slot);
++    control.hidden = !info;
++    const ready = !!info?.ready, mode = ready ? _audioListening.mode : 'full';
++    const names = {full:'Full Mix', dialogue:'Dialogue Focus', center:'Center Only'};
++    document.getElementById('audioListeningLabel').textContent = 'Listen: ' + names[mode];
++    control.classList.toggle('focused', mode !== 'full');
++    control.querySelectorAll('[data-listening-mode]').forEach(button => {
++        button.disabled = button.dataset.listeningMode !== 'full' && !ready;
++        button.setAttribute('aria-pressed', String(button.dataset.listeningMode === mode));
++    });
++    const center = document.getElementById('dialogueCenterLevel'), other = document.getElementById('dialogueOtherLevel');
++    center.value = _audioListening.centerDb; other.value = _audioListening.otherDb;
++    center.disabled = !ready || mode === 'full'; other.disabled = !ready || mode !== 'dialogue';
++    document.getElementById('dialogueCenterValue').textContent = '+' + _audioListening.centerDb + ' dB';
++    document.getElementById('dialogueOtherValue').textContent = mode === 'center' || _audioListening.otherDb === -60 ? 'Muted' : _audioListening.otherDb + ' dB';
++    const plan = _audioMonitorPlanForSlot(slot);
++    document.getElementById('audioListeningStatus').textContent = ready
++        ? `${slotLabel(slot)} · ${info.layout} center channel` + (plan.headroomDb < -.05 ? ` · ${(-plan.headroomDb).toFixed(1)} dB headroom applied` : '')
++        : info?.error ? 'Center-channel listening could not be prepared. Full Mix is available.'
++        : info?.layout ? 'Preparing center-channel listening…'
++        : info?.channels <= 2 ? 'This file has no separate center channel.' : 'Center-channel layout could not be verified. Full Mix is available.';
++}
++
++function _clearAudioListening() {
++    _audioMonitorSlots.clear();
++    for (const {route} of _audioMonitorRoutes) route.disconnect();
++    _audioMonitorRoutes.clear();
++    setAudioListening({mode:'full', centerDb:0, otherDb:-9});
++    const control = document.getElementById('audioListeningControl');
++    if (control) control.open = false;
++}
++
++function _setupAudioListeningControl() {
++    const control = document.getElementById('audioListeningControl');
++    control.addEventListener('keydown', event => {
++        if(event.key === 'Escape' && control.open) {
++            control.open = false;
++            control.querySelector('summary').focus();
++            event.preventDefault();
++        }
++        event.stopPropagation();
++    });
++    document.addEventListener('pointerdown', event => {
++        if(control.open && !control.contains(event.target)) control.open = false;
++    });
++}
+diff --git a/js/audio-routing.js b/js/audio-routing.js
+index 47ba07b..363232c 100644
+--- a/js/audio-routing.js
++++ b/js/audio-routing.js
+@@ -11,38 +11,8 @@ const _nativeAudioRoutes = new Map(); // media element → connected nodes
+ // FL FR FC LFE BL BR SL SR. Match WarpSonic's monitoring policy: center at
+ // -3 dB into both ears, each side/back pair shares the surround contribution,
+ // and LFE stays out of the stereo mix. Source PCM and analysis are untouched.
+-function _connectAudioOutput(source, destination, channels) {
+-    const nodes = [];
+-    let input = destination;
+-    if (channels === 8) {
+-        const ctx = source.context;
+-        const split = ctx.createChannelSplitter(8);
+-        const merge = ctx.createChannelMerger(2);
+-        nodes.push(split, merge);
+-        const matrix = WarpScrubAudio.surroundMatrix(channels);
+-        for (const [channel, left, right] of matrix) {
+-            for (const [ear, level] of [[0, left], [1, right]]) {
+-                if (!level) continue;
+-                const gain = ctx.createGain();
+-                gain.gain.value = level;
+-                split.connect(gain, channel);
+-                gain.connect(merge, 0, ear);
+-                nodes.push(gain);
+-            }
+-        }
+-        merge.connect(destination);
+-        input = split;
+-    }
+-    source.connect(input);
+-    let connected = true;
+-    return {
+-        disconnect() {
+-            if (!connected) return;
+-            connected = false;
+-            source.disconnect(input);
+-            nodes.forEach(node => node.disconnect());
+-        }
+-    };
++function _connectAudioOutput(source, destination, channels, slot) {
++    return _connectMonitoredAudio(source, destination, channels, slot);
+ }
+ 
+ // Evaluate our envelope before canceling automation, including rapid reversals.
+@@ -71,7 +41,7 @@ function _prepareNativeAudio(media, channels) {
+         const route = _nativeAudioRoutes.get(media);
+         if (supported && route.channels !== channels) {
+             route.output.disconnect();
+-            route.output = _connectAudioOutput(route.source, route.gain, channels);
++            route.output = _connectAudioOutput(route.source, route.gain, channels, media.dataset.slot);
+             route.channels = channels;
+         }
+         return route;
+@@ -84,7 +54,7 @@ function _prepareNativeAudio(media, channels) {
+     catch (_) { return null; } // Keep direct browser playback if routing is unavailable.
+     const level = media.muted ? 0 : 1;
+     _scheduleAudioGain(gain, level, level, ctx.currentTime);
+-    const output = _connectAudioOutput(source, gain, channels);
++    const output = _connectAudioOutput(source, gain, channels, media.dataset.slot);
+     gain.connect(ctx.destination);
+     media.muted = !!_opusSyncSlots[media.dataset.slot];
+     const resume = () => {
+diff --git a/js/mp4-demux.js b/js/mp4-demux.js
+index 0250a37..1ae18d5 100644
+--- a/js/mp4-demux.js
++++ b/js/mp4-demux.js
+@@ -19,6 +19,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+     let timelineStartDuration = 0; // leading empty edits, in movie timescale units
+     let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
+     let foundAudioTrack = false;
++    let audioTrackCount = 0, channelLayout = null;
+     const sampleTable = { sizes: [], offsets: [], durations: [] };
+     const chunks = [];
+ 
+@@ -59,7 +60,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+                 parseMdhd(boxStart, boxEnd);
+             } else if (type === 'hdlr') {
+                 parseHdlr(boxStart, boxEnd);
+-            } else if (type === 'stsd' && !metadataOnly) {
++            } else if (type === 'stsd') {
+                 parseStsd(boxStart, boxEnd);
+             } else if (type === 'stsz' && !metadataOnly) {
+                 parseStsz(boxStart, boxEnd);
+@@ -163,6 +164,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+         _currentTrackIsAudio = (handlerType === 'soun');
+         if (_currentTrackIsAudio) {
+             foundAudioTrack = true;
++            audioTrackCount++;
++            channelLayout = null;
+             // Promote this trak's mdhd timescale to the demuxer-wide variable.
+             // Previously the global `timescale` was overwritten by every track,
+             // so a data/subtitle track parsed after the audio track (with
+@@ -184,6 +187,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+         const entryStart = start + 8;
+         if (entryStart + 8 > end) return;
+         let entrySize = view.getUint32(entryStart);
++        if (entrySize < 36 || entryStart + entrySize > end) return;
+         const entryType = readStr(entryStart + 4, 4);
+ 
+         // AudioSampleEntry layout after 8-byte box header:
+@@ -223,9 +227,28 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+                     if (codecPrivate.length >= 4) {
+                         preSkip = (codecPrivate[2] << 8) | codecPrivate[3]; // big-endian in dOps
+                     }
++                    if (codecPrivate.length >= 13 + channels && codecPrivate[10] === 1 &&
++                        codecPrivate[11] > 0 && codecPrivate[12] <= codecPrivate[11] &&
++                        codecPrivate[11] + codecPrivate[12] <= channels &&
++                        codecPrivate.subarray(13,13+channels).every(value => value === 255 || value < codecPrivate[11]+codecPrivate[12])) {
++                        channelLayout = channels === 6 ? '5.1' : channels === 8 ? '7.1' : null;
++                    }
++                }
++                if (typeof WarpScrubAudio !== 'undefined') {
++                    if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 12)
++                        channelLayout = WarpScrubAudio.monitor.flacLayout(data.subarray(bOff+12,bOff+bSize));
++                    if (bType === 'esds' && entryType === 'mp4a')
++                        channelLayout = WarpScrubAudio.monitor.aacLayout(data.subarray(bOff+8,bOff+bSize));
+                 }
+                 bOff += bSize;
+             }
++            // An explicit custom channel-description box needs its own mapping;
++            // never override it with an inferred codec default.
++            for (let at=audioStart; at+8<=bEnd;) {
++                const size=view.getUint32(at);if(size<8||at+size>bEnd)break;
++                if(readStr(at+4,4)==='chan')channelLayout=null;
++                at+=size;
++            }
+         }
+     }
+ 
+@@ -294,7 +317,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+     // decodeAudioData handles the compressed samples itself; callers use this
+     // lightweight mode only to retain the MP4 edit-list placement on the video
+     // timeline. Do not build or copy the packet table in that path.
+-    if (metadataOnly) return foundAudioTrack ? { timelineStart: timelineStart } : null;
++    if (audioTrackCount !== 1) channelLayout = null;
++    if (metadataOnly) return foundAudioTrack ? { timelineStart, channelLayout } : null;
+ 
+     if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
+         console.warn('[mp4-parse] no audio samples found');
+@@ -364,6 +388,20 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+         ', segDur=' + segmentDuration + ', movieTs=' + movieTimescale +
+         ', maxSamples=' + maxSamples);
+ 
++    // WebCodecs expects an OpusHead identification header, not the MP4 dOps
++    // payload. dOps uses big-endian numbers and omits the eight-byte signature.
++    // Passing it through can silently configure a stereo decoder for surround.
++    if (audioCodec === 'opus' && codecPrivate && codecPrivate.length >= 11) {
++        const dops = codecPrivate;
++        const head = new Uint8Array(dops.length + 8);
++        head.set([79,112,117,115,72,101,97,100,1,dops[1]]);
++        head[10]=dops[3]; head[11]=dops[2];
++        head[12]=dops[7]; head[13]=dops[6]; head[14]=dops[5]; head[15]=dops[4];
++        head[16]=dops[9]; head[17]=dops[8];
++        head.set(dops.subarray(10),18);
++        codecPrivate = head;
++    }
++
+     return {
+         chunks: chunks,
+         sampleRate: sampleRate,
+@@ -372,7 +410,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
+         description: codecPrivate,
+         preSkip: skipSamples,
+         maxSamples: maxSamples,
+-        timelineStart: timelineStart
++        timelineStart: timelineStart,
++        channelLayout: channelLayout
+     };
+ }
+ 
+diff --git a/js/opus-sync.js b/js/opus-sync.js
+index 60f23f1..182e1b4 100644
+--- a/js/opus-sync.js
++++ b/js/opus-sync.js
+@@ -74,7 +74,7 @@ function _startOpusSyncAudio(slot, fromTime) {
+     source.buffer = buf;
+     // Match the video element's playback rate so audio runs in sync at non-1× speeds
+     source.playbackRate.value = rate;
+-    const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
++    const output = _connectAudioOutput(source, gain, buf.numberOfChannels, slot);
+     gain.connect(ctx.destination);
+     // The source begins at startTime, not now — the video keeps advancing
+     // through the gap, so start the buffer at the sample that will be
+diff --git a/js/scrub-audio-core.js b/js/scrub-audio-core.js
+index ac69e3e..8acbcea 100644
+--- a/js/scrub-audio-core.js
++++ b/js/scrub-audio-core.js
+@@ -1,4 +1,4 @@
+-/* WarpScrubAudio 1.1.0 — classic script, no app globals or build step.
++/* WarpScrubAudio 1.2.0 — classic script, no app globals or build step.
+  * Canonical source: WarpCap/shared/media/scrub-audio.js. Standalone consumers
+  * pin this file and audio/wsola-worklet.js with scripts/vendor-scrub-audio.mjs.
+  * Each create() owns one selected listening stream. Source PCM is never changed.
+@@ -13,6 +13,159 @@
+   const surroundRows = Object.freeze([[0,1,0],[1,0,1],[2,c,c],[4,c/2,0],[5,0,c/2],[6,c/2,0],[7,0,c/2]].map(Object.freeze));
+   function surroundMatrix(channels = 8) { return surroundRows.filter(row => row[0] < channels); }
+ 
++  // Listening policy is shared by live media, short previews and the continuous
++  // processor. A verified center is retained beside the full stereo mix, so
++  // controls can change before time stretching without another decode or seek.
++  function monitorSettings(value = {}) {
++    if (!value || typeof value !== 'object') value = {};
++    const number = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
++    return Object.freeze({mode:['full','dialogue','center'].includes(value.mode) ? value.mode : 'full',
++      centerDb:number(value.centerDb, 0, 0, 12), otherDb:number(value.otherDb, -9, -60, 0)});
++  }
++  function monitorRows(channels) {
++    return channels === 8 ? surroundMatrix(8)
++      : channels === 6 ? [[0,1,0],[1,0,1],[2,c,c],[4,c,0],[5,0,c]]
++      : channels === 4 ? [[0,.5,0],[1,0,.5],[2,.5,0],[3,0,.5]]
++      : channels === 2 ? [[0,1,0],[1,0,1]] : [[0,1,0]];
++  }
++  function monitorPlan(value, peaks = null) {
++    const settings = monitorSettings(value);
++    if (settings.mode === 'full') return Object.freeze({otherGain:1, centerGain:1, centerDelta:0, headroomDb:0});
++    const center = 10 ** (settings.centerDb / 20);
++    const other = settings.mode === 'center' || settings.otherDb <= -60 ? 0 : 10 ** (settings.otherDb / 20);
++    // Bounds from original PCM, independent of master volume. Unknown peaks
++    // use a conservative bound; adapters normally publish only after measuring.
++    const known = peaks && Number.isFinite(peaks.other) && peaks.other>=0 && Number.isFinite(peaks.center) && peaks.center>=0;
++    const bound = known ? other * peaks.other + c * center * peaks.center : other * (1+c) + c*center;
++    const headroom = Math.min(1, .98 / Math.max(.98, bound));
++    return Object.freeze({otherGain:other*headroom, centerGain:center*headroom,
++      centerDelta:c*(center-other)*headroom, headroomDb:20*Math.log10(headroom)});
++  }
++  async function monitorPeaks(buffer, layout, isCurrent = () => true) {
++    if (!['5.1','7.1','stereo-center'].includes(layout)) return null;
++    if (!buffer || buffer.numberOfChannels !== ({'5.1':6,'7.1':8,'stereo-center':3})[layout]) return null;
++    const data = Array.from({length:buffer.numberOfChannels}, (_, i) => buffer.getChannelData(i));
++    const rows = monitorRows(buffer.numberOfChannels).filter(row => row[0] !== 2);
++    let center = 0, other = 0;
++    for (let start=0; start<buffer.length; start+=65536) {
++      if (!isCurrent()) return null;
++      for (let i=start; i<Math.min(buffer.length,start+65536); i++) {
++        center = Math.max(center, Math.abs(data[2][i]));
++        let left=0, right=0;
++        if (layout === 'stereo-center') { left=data[0][i]-c*data[2][i]; right=data[1][i]-c*data[2][i]; }
++        else for (const [ch,l,r] of rows) { left+=data[ch][i]*l; right+=data[ch][i]*r; }
++        other = Math.max(other, Math.abs(left), Math.abs(right));
++      }
++      if (start+65536<buffer.length) await new Promise(resolve => setTimeout(resolve,0));
++    }
++    return Number.isFinite(center) && Number.isFinite(other) ? Object.freeze({center,other}) : null;
++  }
++  function monitorConnect(source, destination, channels, layout, initial = monitorPlan()) {
++    const ctx=source.context, nodes=[], entries=[];
++    if (![6,8].includes(channels) && !(channels===3 && layout==='stereo-center')) {
++      source.connect(destination); let connected=true;
++      return {setMix(){}, disconnect(){if(connected){connected=false;source.disconnect(destination);}}};
++    }
++    const split=ctx.createChannelSplitter(channels), merge=ctx.createChannelMerger(2);
++    nodes.push(split,merge); source.connect(split); merge.connect(destination);
++    const rows=layout==='stereo-center' ? [[0,1,0],[1,0,1],[2,1,1]] : monitorRows(channels);
++    const level=(row,weight,mix)=>weight*(row===2 ? layout==='stereo-center'?mix.centerDelta:mix.centerGain : mix.otherGain);
++    for (const [channel,left,right] of rows) for (const [ear,weight] of [[0,left],[1,right]]) {
++      if (!weight) continue;
++      const gain=ctx.createGain(), value=level(channel,weight,initial);
++      gain.gain.value=value; split.connect(gain,channel); gain.connect(merge,0,ear); nodes.push(gain);
++      entries.push({gain,channel,weight,from:value,to:value,start:ctx.currentTime});
++    }
++    let connected=true;
++    return {
++      setMix(mix) {
++        const now=ctx.currentTime;
++        for(const e of entries) {
++          const target=level(e.channel,e.weight,mix); if(target===e.to) continue;
++          const held=e.from+(e.to-e.from)*Math.max(0,Math.min(1,(now-e.start)/.03));
++          e.gain.gain.cancelScheduledValues(now); e.gain.gain.setValueAtTime(held,now);
++          e.gain.gain.linearRampToValueAtTime(target,now+.03);
++          e.from=held;e.to=target;e.start=now;
++        }
++      },
++      disconnect(){if(!connected)return;connected=false;source.disconnect(split);nodes.forEach(node=>node.disconnect());}
++    };
++  }
++  // A codec's declared layout, never channel count alone, enables Center Only.
++  // FLAC metadata starts with a STREAMINFO block. Nonstandard masks fail closed.
++  function flacMonitorLayout(bytes) {
++    let offset=0, channels=0, mask=null, last=false;
++    try {
++      while(offset+4<=bytes.length && !last) {
++        last=!!(bytes[offset]&128); const type=bytes[offset]&127;
++        const length=bytes[offset+1]*65536+bytes[offset+2]*256+bytes[offset+3]; offset+=4;
++        if(offset+length>bytes.length) return null;
++        if(type===0 && length===34) channels=((bytes[offset+12]>>1)&7)+1;
++        if(type===4) {
++          const v=new DataView(bytes.buffer,bytes.byteOffset+offset,length); let at=4+v.getUint32(0,true);
++          const count=v.getUint32(at,true); at+=4;
++          for(let i=0;i<count;i++) {
++            const size=v.getUint32(at,true);at+=4;if(at+size>length)return null;
++            const text=new TextDecoder().decode(bytes.subarray(offset+at,offset+at+size));at+=size;
++            if(/^WAVEFORMATEXTENSIBLE_CHANNEL_MASK=/i.test(text)) {
++              const value=text.split('=')[1]; if(!/^(0x[\da-f]+|\d+)$/i.test(value))return null;
++              const next=Number(value);if(mask!==null&&mask!==next)return null;mask=next;
++            }
++          }
++        }
++        offset+=length;
++      }
++    } catch (_) { return null; }
++    if(!last) return null;
++    return channels===6 && (mask===null||mask===0x3f||mask===0x60f) ? '5.1'
++      : channels===8 && (mask===null||mask===0x63f) ? '7.1' : null;
++  }
++  function waveMonitorLayout(bytes) {
++    try {
++      const text=(at,n)=>String.fromCharCode(...bytes.subarray(at,at+n));
++      if(text(0,4)==='fLaC') return flacMonitorLayout(bytes.subarray(4));
++      if(text(0,4)!=='RIFF'||text(8,4)!=='WAVE') return null;
++      const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
++      for(let at=12;at+8<=bytes.length;) {
++        const size=v.getUint32(at+4,true), start=at+8;if(start+size>bytes.length)return null;
++        if(text(at,4)==='fmt ' && size>=40 && v.getUint16(start,true)===0xfffe) {
++          const channels=v.getUint16(start+2,true), mask=v.getUint32(start+20,true);
++          return channels===6 && [0x3f,0x60f].includes(mask) ? '5.1' : channels===8 && mask===0x63f ? '7.1' : null;
++        }
++        at=start+size+(size%2);
++      }
++    } catch (_) {}
++    return null;
++  }
++  function aacMonitorLayout(bytes) {
++    // MPEG-4 ES descriptors: accept the declared standard 5.1 configuration.
++    // PCE/custom and other eight-channel arrangements need an explicit mapping.
++    function walk(start,end) {
++      for(let at=start;at<end;) {
++        const tag=bytes[at++];let length=0,terminated=false;
++        for(let i=0;i<4&&at<end;i++){const value=bytes[at++];length=length*128+(value&127);if(!(value&128)){terminated=true;break;}}
++        if(!terminated||at+length>end)return null;
++        const limit=at+length;
++        if(tag===5 && length>=2) {
++          let bit=0; const read=n=>{let value=0;for(let i=0;i<n;i++){if(bit>=length*8)throw Error();value=value*2+((bytes[at+(bit>>3)]>>(7-(bit&7)))&1);bit++;}return value;};
++          let object=read(5);if(object===31)object=32+read(6);
++          const frequency=read(4);if(frequency===15)read(24);
++          const configuration=read(4);
++          return [1,2,3,4,5,29].includes(object)&&configuration===6?'5.1':null;
++        }
++        if(tag===3 && length>=3) {
++          let child=at+3;const flags=bytes[at+2];if(flags&128)child+=2;if(flags&64)child+=1+bytes[child];if(flags&32)child+=2;
++          const result=walk(child,limit);if(result)return result;
++        } else if(tag===4 && length>=13) {const result=walk(at+13,limit);if(result)return result;}
++        at=limit;
++      }
++      return null;
++    }
++    try{return walk(4,bytes.length);}catch(_){return null;}
++  }
++  const monitor=Object.freeze({settings:monitorSettings,plan:monitorPlan,rows:monitorRows,
++    peaks:monitorPeaks,connect:monitorConnect,flacLayout:flacMonitorLayout,waveLayout:waveMonitorLayout,aacLayout:aacMonitorLayout});
++
+   function motionVelocity(samples) {
+     if (!Array.isArray(samples) || samples.length < 2) return 0;
+     const latest = samples[samples.length - 1];
+@@ -49,29 +202,38 @@
+   // Browser 7.1 channel order: FL FR FC LFE BL BR SL SR. Fold before spectral
+   // processing so correlated center content shares one phase history. 1/2/4/6
+   // channels use the browser's speaker equations. Unknown layouts fail closed.
+-  function listeningBytes(buffer, sampleRate) {
++  function listeningChannels(buffer, layout) {
++    if (!layout) return Math.min(2, buffer.numberOfChannels);
++    if ((layout==='stereo-center' && buffer.numberOfChannels===3)
++      || (layout==='5.1' && buffer.numberOfChannels===6) || (layout==='7.1' && buffer.numberOfChannels===8)) return 3;
++    return Infinity;
++  }
++  function listeningRows(buffer, layout) {
++    if(layout==='stereo-center') return [[0,1,0,0],[1,0,1,0],[2,0,0,1]];
++    return monitorRows(buffer.numberOfChannels).map(row=>[...row,layout&&row[0]===2?1:0]);
++  }
++  function listeningBytes(buffer, sampleRate, layout = null) {
+     if (!buffer || !(buffer.length > 0) || !(buffer.sampleRate > 0) || !(sampleRate > 0)
+-      || ![1,2,4,6,8].includes(buffer.numberOfChannels)) return Infinity;
+-    return Math.ceil(buffer.length * sampleRate / buffer.sampleRate) * Math.min(2, buffer.numberOfChannels) * 4;
++      || ![1,2,4,6,8].includes(buffer.numberOfChannels) && !(buffer.numberOfChannels===3 && layout==='stereo-center')) return Infinity;
++    return Math.ceil(buffer.length * sampleRate / buffer.sampleRate) * listeningChannels(buffer,layout) * 4;
+   }
+   // AudioBufferSource rate conversion can interpolate without an anti-alias
+   // filter. Use a centered windowed-sinc filter when reducing the sample rate.
+   // Prepare in bounded slices, yielding between slices so long previews do not
+   // monopolize the UI. No full-rate intermediate listening copy is allocated.
+-  async function filteredListeningBuffer(buffer, sampleRate, isCurrent) {
+-    const channels = Math.min(2, buffer.numberOfChannels);
+-    const length = listeningBytes(buffer, sampleRate) / (channels * 4);
++  async function filteredListeningBuffer(buffer, sampleRate, isCurrent, layout) {
++    const channels = listeningChannels(buffer,layout);
++    const length = listeningBytes(buffer, sampleRate,layout) / (channels * 4);
+     const out = new AudioBuffer({numberOfChannels:channels, length, sampleRate});
+     const ratio = sampleRate / buffer.sampleRate, radius = Math.ceil(16 / ratio);
+     const cutoff = 0.47 * ratio, kernels = new Map();
+     // Web Audio speaker equations for quad/5.1; the shared explicit matrix for
+     // 7.1. Fold after each channel's identical filter to retain stereo phase.
+-    const rows = buffer.numberOfChannels === 8 ? surroundMatrix(8)
+-      : buffer.numberOfChannels === 6 ? [[0,1,0],[1,0,1],[2,c,c],[4,c,0],[5,0,c]]
+-      : buffer.numberOfChannels === 4 ? [[0,0.5,0],[1,0,0.5],[2,0.5,0],[3,0,0.5]]
+-      : buffer.numberOfChannels === 2 ? [[0,1,0],[1,0,1]] : [[0,1,0]];
+-    const inputs = rows.map(([channel,left,right]) => ({data:buffer.getChannelData(channel), left, right}));
++    const rows = listeningRows(buffer,layout);
++    const inputs = rows.map(([channel,left,right,center]) => ({data:buffer.getChannelData(channel), left, right, center}));
+     const left = out.getChannelData(0), right = channels === 2 ? out.getChannelData(1) : null;
++    const monitorRight = channels === 3 ? out.getChannelData(1) : right;
++    const center = channels === 3 ? out.getChannelData(2) : null;
+     for (let start = 0; start < length; start += 2048) {
+       if (!isCurrent()) return null;
+       for (let i = start; i < Math.min(length, start + 2048); i++) {
+@@ -95,26 +257,27 @@
+           let value = 0;
+           for (let k = lo; k <= hi; k++) value += input.data[base + k] * kernel[k + radius];
+           left[i] += value * input.left;
+-          if (right) right[i] += value * input.right;
++          if (monitorRight) monitorRight[i] += value * input.right;
++          if (center) center[i] += value * input.center;
+         }
+       }
+       if (start + 2048 < length) await new Promise(resolve => setTimeout(resolve, 0));
+     }
+     return out;
+   }
+-  async function listeningBuffer(buffer, ctx, isCurrent = () => true) {
++  async function listeningBuffer(buffer, ctx, isCurrent = () => true, layout = null) {
+     if (!isCurrent()) return null;
+-    if (![1, 2, 4, 6, 8].includes(buffer.numberOfChannels)) throw new Error('Unsupported listening channel layout');
+-    if (buffer.numberOfChannels <= 2 && buffer.sampleRate === ctx.sampleRate) return buffer;
+-    if (ctx.sampleRate < buffer.sampleRate) return filteredListeningBuffer(buffer, ctx.sampleRate, isCurrent);
+-    const channels = Math.min(2, buffer.numberOfChannels);
+-    const off = new OfflineAudioContext(channels, listeningBytes(buffer, ctx.sampleRate) / (channels * 4), ctx.sampleRate);
++    if (!Number.isFinite(listeningBytes(buffer,ctx.sampleRate,layout))) throw new Error('Unsupported listening channel layout');
++    if ((buffer.numberOfChannels <= 2 || layout==='stereo-center') && buffer.sampleRate === ctx.sampleRate) return buffer;
++    if (ctx.sampleRate < buffer.sampleRate) return filteredListeningBuffer(buffer, ctx.sampleRate, isCurrent,layout);
++    const channels = listeningChannels(buffer,layout);
++    const off = new OfflineAudioContext(channels, listeningBytes(buffer, ctx.sampleRate,layout) / (channels * 4), ctx.sampleRate);
+     const source = off.createBufferSource(); source.buffer = buffer;
+-    if (buffer.numberOfChannels === 8) {
+-      const split = off.createChannelSplitter(8), merge = off.createChannelMerger(2);
++    if (buffer.numberOfChannels === 8 || layout) {
++      const split = off.createChannelSplitter(buffer.numberOfChannels), merge = off.createChannelMerger(channels);
+       source.connect(split);
+-      for (const [channel, left, right] of surroundMatrix(8)) {
+-        for (const [ear, level] of [[0,left],[1,right]]) if (level) {
++      for (const [channel, left, right, center] of listeningRows(buffer,layout)) {
++        for (const [ear, level] of [[0,left],[1,right],[2,center]]) if (level) {
+           const gain = off.createGain(); gain.gain.value = level;
+           split.connect(gain, channel); gain.connect(merge, 0, ear);
+         }
+@@ -148,9 +311,10 @@
+     function checkBudget(bytes) {
+       if (!Number.isFinite(bytes) || bytes > maxBufferBytes) throw new Error('Continuous scrub exceeds its memory budget');
+     }
+-    const state = {ctx:null, buffer:null, requestedBuffer:null, node:null, promise:null,
++    const state = {ctx:null, buffer:null, requestedBuffer:null, layout:null, node:null, promise:null,
+       active:false, generation:0, gain:null, bytes:0, retiringBytes:0, error:null};
+     let stoppedTimer = null, disposed = false, destination = null, envelope = null, centerFocus = false;
++    let monitorMix = monitorPlan();
+     let fadeUntil = 0, fadeContext = null;
+     let preparation = Promise.resolve();
+     function cancelStop() { if (stoppedTimer !== null) clearTimeout(stoppedTimer); stoppedTimer = null; }
+@@ -193,47 +357,49 @@
+         if (gain) { try { gain.disconnect(); } catch (_) {} }
+       }
+       state.ctx = null; state.buffer = null; state.requestedBuffer = null;
++      state.layout = null;
+       state.node = null; state.promise = null; state.gain = null;
+       state.active = false; state.bytes = 0; state.error = null;
+       destination = null; envelope = null;
+     }
+-    function load(ctx, buffer) {
++    function load(ctx, buffer, layout = null) {
+       if (disposed) return Promise.resolve(false);
+       if (!ctx || !buffer || !buffer.length || ctx.state === 'closed') { reset(); return Promise.resolve(false); }
+-      if (state.ctx === ctx && state.buffer === buffer && state.node) return Promise.resolve(true);
+-      if (state.ctx === ctx && state.requestedBuffer === buffer && state.promise) return state.promise;
++      if (state.ctx === ctx && state.buffer === buffer && state.layout===layout && state.node) return Promise.resolve(true);
++      if (state.ctx === ctx && state.requestedBuffer === buffer && state.layout===layout && state.promise) return state.promise;
+       // A failed buffer stays on the adapter's fallback until an explicit reset
+       // or a new buffer. A 50 ms audition clock must not retry a failed load forever.
+-      if (state.ctx === ctx && state.requestedBuffer === buffer && state.error) return Promise.resolve(false);
+-      reset(); state.ctx = ctx; state.requestedBuffer = buffer;
++      if (state.ctx === ctx && state.requestedBuffer === buffer && state.layout===layout && state.error) return Promise.resolve(false);
++      reset(); state.ctx = ctx; state.requestedBuffer = buffer; state.layout=layout;
+       const generation = state.generation;
+       const current = () => !disposed && state.generation === generation && state.requestedBuffer === buffer;
+       const pending = Promise.resolve().then(() => {
+         if (!current()) return null;
+         // Check context-rate output before loading, folding or transferring PCM.
+-        checkBudget(listeningBytes(buffer, ctx.sampleRate));
++        checkBudget(listeningBytes(buffer, ctx.sampleRate,layout));
+         return loadModule(ctx, options.workletUrl);
+       }).then(() => {
+         if (!current()) return null;
+         // Offline rendering cannot be cancelled. Serialize preparation and
+         // skip superseded requests before allocating their listening copies.
+-        const queued = preparation.then(() => current() ? (options.prepareBuffer || listeningBuffer)(buffer, ctx, current) : null);
++        const queued = preparation.then(() => current() ? (options.prepareBuffer || listeningBuffer)(buffer, ctx, current,layout) : null);
+         preparation = queued.then(() => null, () => null);
+         return queued;
+       }).then(ready => {
+         if (!ready || !current()) return false;
+-        if (ready.numberOfChannels > 2) throw new Error('Scrub processing requires a mono or stereo listening buffer');
++        if (ready.numberOfChannels > 2 && !(layout && ready.numberOfChannels===3)) throw new Error('Scrub processing requires a mono/stereo mix or verified center preview');
+         if (ready.sampleRate !== ctx.sampleRate) throw new Error('Scrub listening sample rate must match its audio context');
+         // A custom preparation hook must honor the same allocation limit.
+         checkBudget(ready.length * ready.numberOfChannels * 4);
+         let node;
+         try {
+-          node = new AudioWorkletNode(ctx, 'phase-vocoder-processor', {numberOfInputs:0, outputChannelCount:[ready.numberOfChannels]});
++          node = new AudioWorkletNode(ctx, 'phase-vocoder-processor', {numberOfInputs:0, outputChannelCount:[Math.min(2,ready.numberOfChannels)]});
+           const channels = [], transfers = [];
+           for (let c = 0; c < ready.numberOfChannels; c++) {
+             const copy = ready.getChannelData(c).slice(); channels.push(copy.buffer); transfers.push(copy.buffer);
+           }
+-          node.port.postMessage({type:'load', channels}, transfers);
++          node.port.postMessage({type:'load', channels, monitorCenter:!!layout}, transfers);
++          node.port.postMessage({type:'monitorMix', otherGain:monitorMix.otherGain, centerDelta:monitorMix.centerDelta});
+           node.port.postMessage({type:'centerFocus', value:centerFocus});
+           // Publish only after every fallible allocation has succeeded. A
+           // failed output setup must leave the adapter on its snippet fallback.
+@@ -242,7 +408,7 @@
+           state.gain = gain; state.promise = null;
+           node.onprocessorerror = () => {
+             if (state.node !== node) return;
+-            reset(); state.ctx = ctx; state.requestedBuffer = buffer;
++            reset(); state.ctx = ctx; state.requestedBuffer = buffer; state.layout = layout;
+             state.error = 'Scrub processor failed';
+             if (options.onError) options.onError(state.error);
+           };
+@@ -296,11 +462,16 @@
+       centerFocus = !!value;
+       if (state.node) state.node.port.postMessage({type:'centerFocus', value:centerFocus});
+     }
++    function setMonitorMix(value) {
++      if (!value || !Number.isFinite(value.otherGain) || !Number.isFinite(value.centerDelta)) return;
++      monitorMix = {otherGain:Math.max(0,Math.min(1,value.otherGain)),centerDelta:Math.max(-4,Math.min(4,value.centerDelta))};
++      if (state.node) state.node.port.postMessage({type:'monitorMix', ...monitorMix});
++    }
+     const view = Object.freeze(Object.defineProperties({}, Object.fromEntries(
+       Object.keys(state).map(key => [key, {enumerable:true, get:() => state[key]}]))));
+-    return Object.freeze({state:view, load, update, stop, reset, setCenterFocus,
++    return Object.freeze({state:view, load, update, stop, reset, setCenterFocus, setMonitorMix,
+       dispose() { reset(); disposed = true; }});
+   }
+-  root.WarpScrubAudio = Object.freeze({version:'1.1.0', tuning, create, motionVelocity,
++  root.WarpScrubAudio = Object.freeze({version:'1.2.0', tuning, create, motionVelocity, monitor,
+     grainTempo, continuous, streamTempo, listeningBuffer, listeningBytes, surroundMatrix, disposeNode});
+ })(globalThis);
+diff --git a/js/scrub-audio.js b/js/scrub-audio.js
+index 0b23cc0..b1d428e 100644
+--- a/js/scrub-audio.js
++++ b/js/scrub-audio.js
+@@ -46,7 +46,8 @@ function _prepareContinuousScrub() {
+     if (!buf && _videoScrubStatus[slot]?.unavailable) {
+         _noticeScrubFallback(_videoScrubStatus[slot].message);
+     }
+-    return buf ? _continuousScrubEngine.load(getAudioContext(), buf) : Promise.resolve(false);
++    _continuousScrubEngine.setMonitorMix(_audioMonitorPlanForSlot(slot));
++    return buf ? _continuousScrubEngine.load(getAudioContext(), buf, _audioMonitorLayoutForBuffer(slot, buf)) : Promise.resolve(false);
+ }
+ function _playContinuousScrub(time) {
+     const slot = currentAudioSource || assetOrder[currentAssetIndex];
+@@ -218,7 +219,7 @@ function playScrubSnippet(time) {
+     // Match the current playback rate so the scrub preview sounds like the
+     // user's selected speed rather than always playing at 1×.
+     source.playbackRate.value = rate;
+-    const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
++    const output = _connectAudioOutput(source, gain, buf.numberOfChannels, slot);
+     source.start(0, offset, snippetLen);
+     _scrubSource = source;
+     _scrubGain = gain;
+diff --git a/js/scrub-worklet.js b/js/scrub-worklet.js
+index 6f93de5..21e22ed 100644
+--- a/js/scrub-worklet.js
++++ b/js/scrub-worklet.js
+@@ -201,6 +201,10 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+   constructor() {
+     super();
+     this.ch = []; this.len = 0; this.nCh = 0; this.midSide = false; this.centerFocus = false;
++    this.monitorCenter = null;
++    this.monitorMix = {otherGain:1,centerDelta:0};
++    this.monitorCurrent = {otherGain:1,centerDelta:0};
++    this.monitorRephase = false;
+     this.inPos = 0; this.tempo = 1; this.direction = 1; this.limitPos = null;
+     this.playing = false; this.ready = false;
+     this.disposed = false;
+@@ -246,12 +250,13 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+   _msg(d) {
+     if (d.type === 'dispose') {
+       this.playing = false; this.ready = false; this.disposed = true;
+-      this.ch = []; this.len = 0; this.midSide = false; this.pendingAnchor = null;
++      this.ch = []; this.len = 0; this.midSide = false; this.monitorCenter = null; this.pendingAnchor = null;
+       this._allocChannels(0);
+       this.port.postMessage({ type:'disposed' });
+       this.port.close();
+     } else if (d.type === 'load') {
+       const channels = d.channels.map((b) => new Float32Array(b));
++      this.monitorCenter = d.monitorCenter && channels.length===3 ? channels.pop() : null;
+       this.midSide = channels.length === 2;
+       if(this.midSide){
+         // A center signal is L===R. Processing L/R with independent spectral phase histories makes
+@@ -270,6 +275,11 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+     else if (d.type === 'anchor') this._queueAnchor(d.pos, d.direction);
+     else if (d.type === 'tempo') this.tempo = d.value > 0 ? d.value : 1;
+     else if (d.type === 'centerFocus') this.centerFocus = !!d.value;
++    else if (d.type === 'monitorMix' && Number.isFinite(d.otherGain) && Number.isFinite(d.centerDelta)) {
++      if (d.otherGain!==this.monitorMix.otherGain || d.centerDelta!==this.monitorMix.centerDelta) this.monitorRephase=true;
++      this.monitorMix = {otherGain:Math.max(0,Math.min(1,d.otherGain)),centerDelta:Math.max(-4,Math.min(4,d.centerDelta))};
++      if (!this.playing) this.monitorCurrent = {...this.monitorMix};
++    }
+     else if (d.type === 'limit') this.limitPos = Number.isFinite(d.pos)
+       ? Math.max(0, Math.min(this.len - 1, d.pos)) : null;
+     else if (d.type === 'play') this.playing = !!d.value;
+@@ -306,6 +316,14 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+   }
+   _frame() {
+     const { N, Hs, bins, len, direction, win } = this;
++    // A previously silent band has no useful phase history. Align Mid and Side
++    // when the mix changes so restoring a panned voice cannot cancel it. Existing
++    // Hann overlap smooths the phase change; position and the stream stay intact.
++    const rephase=this.firstFrame || this.monitorRephase;
++    for (const key of ['otherGain','centerDelta']) {
++      const target=this.monitorMix[key], current=this.monitorCurrent[key];
++      this.monitorCurrent[key] = Math.abs(target-current)<1e-7 ? target : current+(target-current)*.5;
++    }
+     const requestedHa = Hs * this.tempo;
+     const remaining = Number.isFinite(this.limitPos)
+       ? direction * (this.limitPos - this.inPos) : Infinity;
+@@ -321,14 +339,23 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+         const lo = Math.floor(at), frac = at - lo;
+         const a = lo >= 0 && lo < len ? src[lo] : 0;
+         const b = lo + 1 >= 0 && lo + 1 < len ? src[lo + 1] : 0;
+-        re[i] = (a + (b - a) * frac) * win[i]; im[i] = 0;
++        let sample = a + (b - a) * frac;
++        if (this.monitorCenter) {
++          sample *= this.monitorCurrent.otherGain;
++          if(c===0) {
++            const ca=lo>=0&&lo<len?this.monitorCenter[lo]:0;
++            const cb=lo+1>=0&&lo+1<len?this.monitorCenter[lo+1]:0;
++            sample += (ca+(cb-ca)*frac)*this.monitorCurrent.centerDelta;
++          }
++        }
++        re[i] = sample * win[i]; im[i] = 0;
+       }
+       this._fft(re, im, false);
+       const prev = this.prevPhase[c], sum = this.sumPhase[c];
+       for (let k = 0; k < bins; k++) {
+         const real = re[k], imag = im[k];
+         const magnitude = Math.hypot(real, imag), phase = Math.atan2(imag, real);
+-        if (this.firstFrame) sum[k] = phase;
++        if (rephase) sum[k] = phase;
+         else {
+           const omega = 2 * Math.PI * k / N;
+           let delta = phase - prev[k] - omega * expectedHa;
+@@ -352,7 +379,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
+     }
+     this.wIdx = (this.wIdx + Hs) % this.cap;
+     this.count = Math.min(this.cap, this.count + Hs);
+-    this.firstFrame = false; this.lastHa = ha;
++    this.firstFrame = false; this.monitorRephase = false; this.lastHa = ha;
+     this.inPos += direction * ha;
+   }
+   _positionInRange() {
+diff --git a/memory.md b/memory.md
+index 9a3d3cd..1f428dd 100644
+--- a/memory.md
++++ b/memory.md
+@@ -7,8 +7,8 @@
+ 
+ ## Audio Memory Optimizations
+ 
+-- **Native audio routing**: `js/audio-routing.js` keeps one `MediaElementAudioSourceNode` and `GainNode` per media element for short source-switch fades. Inactive native media keeps its decoder running with zero output gain so source switches do not reset its playback clock. Routing begins only after decode identifies a supported channel count; browser-native mixing stays active beforehand. The shared `_connectAudioOutput()` supplies a 7.1 stereo matrix without additional PCM copies. Scrub/replacement sources disconnect their matrix nodes when they end; native matrices are released on clear or format change. No additional decoded buffers are retained. `_clearNativeAudioRoutes()` removes resume listeners, disconnects nodes, and clears the map before the shared context closes.
+-- **Scrub audio**: Original analysis runs before preparing mono/stereo listening PCM at the AudioContext rate. `_scrubPreviewPlan` limits each video copy to 64 MiB; large clips get a filtered lower-rate short-preview copy, or an explained unavailable state if no 8 kHz-or-better copy fits. Chrome Opus retains its existing original buffer for replacement playback. The no-video view shares original analysis aggregates, not graphs recomputed from the listening copy.
++- **Native audio routing**: `js/audio-routing.js` keeps one `MediaElementAudioSourceNode` and `GainNode` per media element for short source-switch fades. Inactive native media keeps its decoder running with zero output gain so source switches do not reset its playback clock. Routing begins only after decode identifies a supported channel count; browser-native mixing stays active beforehand. `_connectAudioOutput()` delegates to the shared listening matrix without additional PCM copies. Scrub/replacement sources disconnect their matrix nodes when they end; native matrices are released on clear or format change. No additional decoded buffers are retained. `_clearNativeAudioRoutes()` removes resume listeners, disconnects nodes, and clears the map before the shared context closes.
++- **Scrub audio**: Original analysis runs before preparing mono/stereo listening PCM, plus raw center for verified surround, at the AudioContext rate. `_scrubPreviewPlan` limits each video copy to 64 MiB; large clips get a filtered lower-rate short-preview copy, or an explained unavailable state if no 8 kHz-or-better copy fits. Chrome Opus retains its existing original buffer for replacement playback. The no-video view shares original analysis aggregates, not graphs recomputed from the listening copy.
+ - **Scrub cadence**: Pointer activity and displayed-frame position have separate owners. The 50 ms clock renews 90 ms grains during slow motion even at one held frame, using the existing buffer and output matrix; no extra PCM is stored. `stopScrubSnippet()` clears gesture/target state, and each ended source disconnects its output nodes.
+ - **AudioBuffer management**: `audioFileBuffers[slot]` deleted after decode. Decoded `AudioBuffer` lives in `_audioSlotVizData[slot].audioBuffer`; freed when `_audioSlotVizData = {}` in `clearAllMedia()`.
+ - **AudioContext lifecycle**: Lazy-created via `getAudioContext()`. Closed and nulled in `clearAllMedia()` — `audioContext.close().catch(() => {}); audioContext = null` — so browser fully reclaims audio resources between loads. Fresh context created on next `getAudioContext()` call.
+@@ -56,8 +56,15 @@ This file serves as living memory for memory-sensitive implementations. Update w
+ 
+ ## Continuous scrub listening copy
+ 
+-The shared engine retains one selected mono/stereo processor copy at the AudioContext rate, limited to 64 MiB in WarpDiff. A second 64 MiB limit applies to each of up to four video listening buffers. Source decoding/analysis, audio-only original PCM, Opus replacement PCM, temporary rendering, processor scratch, video caches, and the brief outgoing fade are outside these retained-preview limits; do not describe them as a cap on total browser memory.
++The shared engine retains one selected listening copy (mono/stereo or Full Mix L/R plus raw center) at the AudioContext rate, limited to 64 MiB in WarpDiff. A second 64 MiB limit applies to each of up to four video listening buffers. Source decoding/analysis, audio-only original PCM, Opus replacement PCM, temporary rendering, processor scratch, video caches, and the brief outgoing fade are outside these retained-preview limits; do not describe them as a cap on total browser memory.
+ 
+ Module loading is cached per context/URL. Preparation is serialized with generation checks before allocation and publication. Source changes and clear route through `_resetContinuousScrub`; audible outgoing PCM is released after its short fade. `state.bytes` plus `state.retiringBytes` must reach zero after clear. The video preparation queue drops stale requests. Full-rate mono/stereo already at the device rate are reused; surround is folded separately. Downsampling uses a centered windowed-sinc filter with bounded output slices and cancellation checks, avoiding a full-rate intermediate copy and aliasing. Waveform/spectrogram aggregates always come from the original decode and are shared by both views.
+ 
+ At 48 kHz, stereo Float32 PCM uses 384,000 bytes per second; the 64 MiB limit accommodates about 175 seconds. Mono accommodates twice as long. Longer videos choose the highest fitting fallback rate among 22.05, 16, 11.025 and 8 kHz. If none fits, preview is unavailable but inspection and normal playback remain available. See `docs/shared-scrub-audio.md` for the component boundary and fallback contract.
++
++
++## Discrete-center listening (3.17.0)
++
++Verified surround video previews store three Float32 planes: Full Mix L/R plus raw center. Both `_scrubPreviewPlan` and the selected shared stream count all three within their separate 64 MiB budgets. At 48 kHz this is 576,000 bytes/second (about 116 seconds), 50% more than stereo. Filtered rate conversion writes all three directly, with no retained full-rate intermediate. Unknown layouts keep the existing mono/stereo preview. Original analysis aggregates and Opus/audio-only originals stay independent.
++
++`_audioMonitorSlots` holds only layout, readiness and peak summaries; it retains no original PCM. The shared worklet retains its center plane and combines it with Mid before stretching. Mode/slider changes post coefficients instead of allocating buffers or restarting streams. `_audioMonitorRoutes` contains live output graph handles; source completion/clear disconnect them. `_clearAudioListening` clears slot/route state and resets settings through their sole writer. Metadata/peak preparation checks the decode generation before publication.
+diff --git a/sw.js b/sw.js
+index d1cde2f..cad90e5 100644
+--- a/sw.js
++++ b/sw.js
+@@ -1,7 +1,7 @@
+ // Keep in sync with APP_VERSION in index.html
+-const CACHE_NAME = 'warpdiff-v3.16.1';
++const CACHE_NAME = 'warpdiff-v3.17.0';
+ const ASSETS = ['./', 'index.html', 'js/audio-viz.js', 'js/scopes.js', 'js/hotkeys.js',
+-  'js/managed-review.js', 'js/mp4-demux.js', 'js/scrub-video.js', 'js/timecode.js', 'js/wipe.js', 'js/tile-check.js', 'js/audio-routing.js', 'js/scrub-audio.js', 'js/scrub-audio-core.js', 'js/scrub-worklet.js', 'js/opus-sync.js', 'js/audio-decode.js', 'js/transport.js', 'js/starfield.js', 'version.json', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'manifest.json'];
++  'js/managed-review.js', 'js/mp4-demux.js', 'js/scrub-video.js', 'js/timecode.js', 'js/wipe.js', 'js/tile-check.js', 'js/audio-routing.js', 'js/audio-monitor.js', 'js/scrub-audio.js', 'js/scrub-audio-core.js', 'js/scrub-worklet.js', 'js/opus-sync.js', 'js/audio-decode.js', 'js/transport.js', 'js/starfield.js', 'version.json', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'manifest.json'];
+ const RUNTIME_URLS = new Set(ASSETS.map(asset => new URL(asset, self.registration.scope).href));
+ 
+ self.addEventListener('install', e => {
+diff --git a/tests/continuous-scrub.spec.ts b/tests/continuous-scrub.spec.ts
+index cfe619e..6b668a0 100644
+--- a/tests/continuous-scrub.spec.ts
++++ b/tests/continuous-scrub.spec.ts
+@@ -14,7 +14,7 @@ test('continuous scrub is standard, retains center dialogue, and releases its st
+     channels:_videoAudioBuffers.editA.numberOfChannels, metrics:JSON.stringify(audioMetrics.editA),
+     start:_audioTimelineStarts.editA, bytes:_continuousScrubEngine.state.bytes
+   })`));
+-  expect(before.channels).toBe(2);
++  expect(before.channels).toBe(3); // Full stereo plus an independently retained center.
+   expect(JSON.parse(before.metrics).channels).toBe(8);
+   expect(before.start).toBeCloseTo(0.166, 3);
+   expect(before.bytes).toBeGreaterThan(0);
+@@ -123,7 +123,7 @@ test('Grid source changes retain only the selected continuous buffer and clear p
+       selectAudioSource(slot); await _prepareContinuousScrub();
+       const state = _continuousScrubEngine.state;
+       counts.push({selected:state.buffer === _videoAudioBuffers[slot], channels:state.node.numberOfOutputs,
+-        bytes:state.bytes, expected:Math.ceil(_videoAudioBuffers[slot].duration * state.ctx.sampleRate) * Math.min(2, _videoAudioBuffers[slot].numberOfChannels) * 4});
++        bytes:state.bytes, expected:Math.ceil(_videoAudioBuffers[slot].duration * state.ctx.sampleRate) * _videoAudioBuffers[slot].numberOfChannels * 4});
+     }
+     // Start another request and clear immediately. Its completion cannot republish.
+     const wasGrid = isGridMode; selectAudioSource(slots[0]); const pending = _prepareContinuousScrub(); clearAllMedia(); await pending;
+diff --git a/tests/dialogue-listening.spec.ts b/tests/dialogue-listening.spec.ts
+new file mode 100644
+index 0000000..2db56e4
+--- /dev/null
++++ b/tests/dialogue-listening.spec.ts
+@@ -0,0 +1,209 @@
++import {test, expect, Page} from '@playwright/test';
++import path from 'node:path';
++import {execFileSync} from 'node:child_process';
++
++async function load(page:Page, filename='dialogue_51.mp4') {
++  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.0'));
++  await page.goto('/');
++  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures',filename));
++  await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
++  await page.waitForFunction(() => (window as any).eval('!!_continuousScrubEngine.state.node'));
++}
++async function audioWait(page:Page, seconds=.25) {
++  await page.evaluate(async seconds => {
++    const ctx=(window as any).eval('getAudioContext()'); await ctx.resume();
++    const end=ctx.currentTime+seconds, deadline=performance.now()+5000;
++    while(ctx.currentTime<end && performance.now()<deadline) await new Promise(resolve=>setTimeout(resolve,10));
++    if(ctx.currentTime<end) throw Error('Audio clock did not advance');
++  },seconds);
++}
++async function bands(page:Page) {
++  return page.evaluate(() => {
++    const a=(window as any).__dialogueAnalyser, data=new Float32Array(a.fftSize); a.getFloatTimeDomainData(data);
++    const amplitude=(hz:number) => {
++      let real=0,imag=0;
++      for(let i=0;i<data.length;i++){const angle=2*Math.PI*hz*i/a.context.sampleRate;real+=data[i]*Math.cos(angle);imag+=data[i]*Math.sin(angle);}
++      return 2*Math.hypot(real,imag)/data.length;
++    };
++    return {center:amplitude(1500),front:amplitude(375),surround:amplitude(3000)};
++  });
++}
++
++for(const channels of [6,8]) for(const output of ['native','continuous','replacement']) {
++  test(`dialogue ${channels}ch ${output}: center and background controls preserve source and clocks`,async({page})=>{
++    await load(page,`dialogue_${channels===6?'51':'71'}.mp4`);
++    const before=await page.evaluate(()=> (window as any).eval(`({metrics:JSON.stringify(audioMetrics.editA),start:_audioTimelineStarts.editA,
++      channels:_videoAudioBuffers.editA.numberOfChannels,bytes:_continuousScrubEngine.state.bytes,
++      length:_videoAudioBuffers.editA.length,originalChannels:_audioMonitorSlots.get('editA').channels})`));
++    expect(before.channels).toBe(3);expect(before.originalChannels).toBe(channels);
++    expect(before.bytes).toBe(before.length*3*4);
++    await page.locator('#audioListeningLabel').click();
++    await expect(page.getByRole('button',{name:'Dialogue Focus',exact:true})).toBeEnabled();
++    await page.evaluate(async ({output,channels})=>{
++      const evaluate=(code:string)=>(window as any).eval(code);
++      if(output==='replacement') {
++        const video=document.querySelector('#layerEditA video') as HTMLVideoElement;
++        const raw=await evaluate('getAudioContext()').decodeAudioData(await (await fetch(video.src)).arrayBuffer());
++        (window as any).__rawDialogue=raw;
++        await evaluate(`(async()=>{_opusSyncPending.editA=true;await _finalizeAudioViz('editA',window.__rawDialogue,undefined,0,'${channels===6?'5.1':'7.1'}');})()`);
++      }
++      const ctx=evaluate('getAudioContext()'); await ctx.resume();
++      const a=ctx.createAnalyser();a.fftSize=8192;(window as any).__dialogueAnalyser=a;
++      if(output==='continuous') {
++        await evaluate('_prepareContinuousScrub()');
++        evaluate(`_continuousScrubEngine.update({offset:1,tempo:1,level:1,continuous:false})`);
++        evaluate('_continuousScrubEngine.state.gain').connect(a);
++        (window as any).__dialogueNode=evaluate('_continuousScrubEngine.state.node');
++      } else {
++        evaluate('playAllMedia()');
++        await new Promise(resolve=>setTimeout(resolve,80));
++        evaluate(output==='replacement'?"_opusSyncGains.editA":"_nativeAudioRoutes.get(document.querySelector('#layerEditA video')).gain").connect(a);
++      }
++      (window as any).__dialogueSeeks=0;
++      document.querySelector('#layerEditA video')!.addEventListener('seeking',()=> (window as any).__dialogueSeeks++);
++    },{output,channels});
++    await audioWait(page);
++    const full=await bands(page);
++    expect(full.center).toBeGreaterThan(.04);expect(full.front).toBeGreaterThan(.012);expect(full.surround).toBeGreaterThan(.006);
++    await page.getByRole('button',{name:'Dialogue Focus',exact:true}).click();await audioWait(page);
++    const focused=await bands(page);
++    expect(focused.center/full.center).toBeCloseTo(1,1);
++    expect(focused.front/full.front).toBeCloseTo(10**(-9/20),1);
++    await page.getByRole('button',{name:'Center Only',exact:true}).click();await audioWait(page);
++    const center=await bands(page);
++    expect(center.center/full.center).toBeCloseTo(1,1);
++    expect(center.front/full.front).toBeLessThan(.02);expect(center.surround/full.surround).toBeLessThan(.02);
++    await page.locator('#dialogueCenterLevel').fill('6');await audioWait(page);
++    expect((await bands(page)).center/full.center).toBeCloseTo(10**(6/20),1);
++    await page.getByRole('button',{name:'Full Mix',exact:true}).click();await audioWait(page);
++    const restored=await bands(page);
++    expect(restored.front/full.front).toBeCloseTo(1,1);expect(restored.center/full.center).toBeCloseTo(1,1);
++    const after=await page.evaluate(()=> (window as any).eval(`({metrics:JSON.stringify(audioMetrics.editA),start:_audioTimelineStarts.editA,
++      seeks:window.__dialogueSeeks,sameNode:window.__dialogueNode===_continuousScrubEngine.state.node})`));
++    expect(after.metrics).toBe(before.metrics);expect(after.start).toBe(before.start);expect(after.seeks).toBe(0);
++    if(output==='continuous')expect(after.sameNode).toBe(true);
++    await page.evaluate(()=> (window as any).eval('clearAllMedia()'));
++    expect(await page.evaluate(()=> (window as any).eval('_audioMonitorSlots.size+_audioMonitorRoutes.size+_continuousScrubEngine.state.bytes'))).toBe(0);
++  });
++}
++
++for(const [file,channels] of [['dialogue_51_opus.mp4',6],['dialogue_71_opus.mp4',8],['dialogue_51_aac.mp4',6]] as const) {
++  test(`codec center identity survives decode and Continuous: ${file}`,async({page})=>{
++    await load(page,file);
++    const source=await page.evaluate(()=> (window as any).eval(`({channels:audioMetrics.editA.channels,layout:_audioMonitorSlots.get('editA').layout,
++      duration:_videoAudioBuffers.editA.duration,start:_audioTimelineStarts.editA})`));
++    expect(source.channels).toBe(channels);expect(source.layout).toBe(channels===6?'5.1':'7.1');
++    expect(source.duration).toBeCloseTo(8,2);expect(source.start).toBe(0);
++    if(file.includes('opus')) {
++      // FFmpeg applies the Opus pre-skip once. Comparing actual decoded samples
++      // catches a double trim or channel reorder hidden by duration clipping.
++      const reference=execFileSync('ffmpeg',['-v','error','-i',path.join(__dirname,'fixtures',file),'-vn','-af','pan=mono|c0=c2','-t','0.05','-ar','48000','-c:a','pcm_f32le','-f','f32le','-']);
++      const expected=Array.from({length:reference.length/4},(_,i)=>reference.readFloatLE(i*4));
++      const difference=await page.evaluate(expected=> (window as any).eval(`(() => {
++        const actual=_videoAudioBuffers.editA.getChannelData(2), expected=${JSON.stringify(expected)};
++        return Math.sqrt(expected.reduce((sum,v,i)=>sum+(actual[i]-v)**2,0)/expected.reduce((sum,v)=>sum+v*v,0));
++      })()`),expected);
++      expect(difference).toBeLessThan(.01);
++    }
++    await page.evaluate(()=> (window as any).eval(`(async()=>{
++      const ctx=getAudioContext();await ctx.resume();const a=ctx.createAnalyser();a.fftSize=8192;window.__dialogueAnalyser=a;
++      _continuousScrubEngine.update({offset:1,tempo:1,level:1,continuous:false});_continuousScrubEngine.state.gain.connect(a);
++    })()`));
++    await audioWait(page);const full=await bands(page);
++    expect(full.front).toBeGreaterThan(.012);expect(full.center).toBeGreaterThan(.04);
++    await page.evaluate(()=> (window as any).eval("setAudioListening({mode:'center'})"));
++    await audioWait(page);const center=await bands(page);
++    expect(center.center/full.center).toBeCloseTo(1,1);expect(center.front/full.front).toBeLessThan(.02);
++  });
++}
++
++test('dialogue short previews use the same center mix',async({page})=>{
++  await load(page);
++  const sample=async(mode:string)=>{
++    await page.evaluate(mode=> (window as any).eval(`(async()=>{
++      setAudioListening({mode:'${mode}',centerDb:0});const ctx=getAudioContext();await ctx.resume();
++      playScrubSnippet(1);const a=ctx.createAnalyser();a.fftSize=1024;_scrubGain.connect(a);window.__dialogueAnalyser=a;
++    })()`),mode);
++    await audioWait(page,.035);return bands(page);
++  };
++  const full=await sample('full'),center=await sample('center');
++  expect(full.center).toBeGreaterThan(.02);expect(full.front).toBeGreaterThan(.006);
++  expect(center.center).toBeGreaterThan(.02);expect(center.front/center.center).toBeLessThan(.01);
++});
++
++test('dialogue controls keep keyboard focus, show unsupported files, and reset on clear',async({page})=>{
++  await load(page);
++  await page.locator('#audioListeningLabel').click();
++  await page.getByRole('button',{name:'Dialogue Focus',exact:true}).click();
++  await page.locator('#dialogueCenterLevel').focus();await page.keyboard.press('ArrowRight');
++  await expect(page.locator('#dialogueCenterValue')).toHaveText('+1 dB');
++  await page.keyboard.press('Escape');await expect(page.locator('#audioListeningLabel')).toBeFocused();
++  await expect(page.locator('#audioListeningControl')).not.toHaveAttribute('open','');
++  await page.evaluate(()=> (window as any).eval('clearAllMedia()'));
++  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures','side_lr.mp4'));
++  await page.waitForFunction(()=> (window as any).eval('!!_videoAudioBuffers.editA'));
++  await page.locator('#audioListeningLabel').click();
++  await expect(page.getByRole('button',{name:'Center Only',exact:true})).toBeDisabled();
++  await expect(page.locator('#audioListeningStatus')).toContainText('no separate center');
++  await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Full Mix');
++  await page.evaluate(()=> (window as any).eval(`(async()=>{
++    await _finalizeAudioViz('editA',getAudioContext().createBuffer(8,4800,48000));
++  })()`));
++  await expect(page.getByRole('button',{name:'Center Only',exact:true})).toBeDisabled();
++  await expect(page.locator('#audioListeningStatus')).toContainText('could not be verified');
++});
++
++test('dialogue settings follow source handoffs and verified audio-only files',async({page})=>{
++  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.0'));
++  await page.goto('/');
++  await page.locator('#multiFileInput').setInputFiles(['dialogue_51.mp4','side_lr.mp4','dialogue_71.mp4'].map(name=>path.join(__dirname,'fixtures',name)));
++  await page.waitForFunction(()=> (window as any).eval("Object.keys(_videoAudioBuffers).length === 3 && [..._audioMonitorSlots.values()].filter(info=>info.ready).length === 2"));
++  // Files are assigned by modification time; address sources by their identity.
++  const select=async(name:string)=>page.evaluate(name=> (window as any).eval(`selectAudioSource(assetOrder.find(slot=>mediaData[slot]?.name===${JSON.stringify(name)}))`),name);
++  await select('dialogue_51.mp4');
++  await page.evaluate(()=> (window as any).eval("setAudioListening({mode:'dialogue',centerDb:6,otherDb:-12})"));
++  await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Dialogue Focus');
++  await select('side_lr.mp4');
++  await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Full Mix');
++  await expect(page.locator('#audioListeningStatus')).toContainText('no separate center');
++  await select('dialogue_71.mp4');
++  await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Dialogue Focus');
++  await expect(page.locator('#dialogueCenterLevel')).toHaveValue('6');
++  await expect(page.locator('#dialogueOtherLevel')).toHaveValue('-12');
++  await expect(page.locator('#audioListeningStatus')).toContainText('7.1 center');
++  await page.evaluate(()=> (window as any).clearAllMedia());
++  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures','surround_71.wav'));
++  await page.waitForFunction(()=> (window as any).eval("!!_audioSlotVizData.editA"));
++  // The audio-only display and W panel have separate decode owners. Force the
++  // lazy panel decode to finish last; it must retain the same verified layout.
++  await page.evaluate(()=> (window as any).eval(`(async()=>{
++    const bytes=await (await fetch(getLayer('editA').querySelector('audio').src)).arrayBuffer();
++    await decodeAndComputeAudioViz('editA',bytes);
++  })()`));
++  expect(await page.evaluate(()=> (window as any).eval("_audioMonitorSlots.get('editA').ready"))).toBe(true);
++  await page.locator('#audioListeningLabel').click();
++  await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Full Mix');
++  await page.getByRole('button',{name:'Center Only',exact:true}).click();
++  await expect(page.locator('#audioListeningStatus')).toContainText('7.1 center');
++  expect(await page.evaluate(()=> (window as any).eval("({mode:_audioListening.mode,other:[..._audioMonitorSlots.keys()].map(slot=>_audioMonitorPlanForSlot(slot).otherGain)})"))).toEqual({mode:'center',other:[0]});
++});
++
++test('dialogue preparation retains filtered center within budget and cancels stale publication',async({page})=>{
++  await load(page);
++  const result=await page.evaluate(()=> (window as any).eval(`(async()=>{
++    const input=getAudioContext().createBuffer(6,48000,48000);input.getChannelData(2).fill(.8);input.getChannelData(0).fill(.6);
++    const before=input.getChannelData(2)[100];
++    const peaks=await WarpScrubAudio.monitor.peaks(input,'5.1');
++    const boost=WarpScrubAudio.monitor.plan({mode:'dialogue',centerDb:12,otherDb:0},peaks);
++    const plan=_scrubPreviewPlan(input,48000,192000,'5.1');
++    const filtered=await WarpScrubAudio.listeningBuffer(input,{sampleRate:plan.sampleRate},()=>true,'5.1');
++    const pending=_finalizeAudioViz('editB',getAudioContext().createBuffer(6,480000,48000),undefined,0,'5.1');
++    clearAllMedia();await pending;
++    return {before,after:input.getChannelData(2)[100],plan,channels:filtered.numberOfChannels,center:filtered.getChannelData(2)[1000],
++      left:filtered.getChannelData(0)[1000],maxBound:boost.otherGain*peaks.other+Math.SQRT1_2*boost.centerGain*peaks.center,
++      headroom:boost.headroomDb,stale:_audioMonitorSlots.size};
++  })()`));
++  expect(result.before).toBe(result.after);expect(result.channels).toBe(3);expect(result.plan.bytes).toBeLessThanOrEqual(192000);
++  expect(result.center).toBeCloseTo(.8,5);expect(result.left).toBeCloseTo(.6+.8*Math.SQRT1_2,5);
++  expect(result.maxBound).toBeLessThanOrEqual(.980001);expect(result.headroom).toBeLessThan(0);expect(result.stale).toBe(0);
++});
+diff --git a/tests/fixtures/generate.sh b/tests/fixtures/generate.sh
+index 1e84224..49da067 100755
+--- a/tests/fixtures/generate.sh
++++ b/tests/fixtures/generate.sh
+@@ -52,6 +52,23 @@ ffmpeg -hide_banner -loglevel error -y \
+ ffmpeg -hide_banner -loglevel error -y -i "$OUT/surround_71.mp4" \
+     -vn -c:a pcm_s16le "$OUT/surround_71.wav"
+ 
++# Distinct frequencies make each channel's contribution measurable. Center=1500 Hz;
++# front L/R=375/750, surrounds=3000/4500 (plus 6000/7500 in 7.1), LFE=90.
++for layout in 5.1 7.1; do
++    suffix=51; extra=
++    if [[ "$layout" == 7.1 ]]; then suffix=71; extra='|0.04*sin(2*PI*6000*t)|0.04*sin(2*PI*7500*t)'; fi
++    ffmpeg -hide_banner -loglevel error -y \
++        -f lavfi -i "color=c=navy:s=128x72:r=24:d=8" \
++        -f lavfi -i "aevalsrc=0.04*sin(2*PI*375*t)|0.04*sin(2*PI*750*t)|0.1*sin(2*PI*1500*t)|0.04*sin(2*PI*90*t)|0.04*sin(2*PI*3000*t)|0.04*sin(2*PI*4500*t)${extra}:s=48000:d=8:c=${layout}" \
++        -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
++        -c:a flac -strict -2 -movflags +faststart "$OUT/dialogue_${suffix}.mp4"
++    ffmpeg -hide_banner -loglevel error -y -i "$OUT/dialogue_${suffix}.mp4" \
++        -c:v copy -c:a libopus -channel_layout "$layout" -mapping_family 1 -b:a 512k \
++        "$OUT/dialogue_${suffix}_opus.mp4"
++done
++ffmpeg -hide_banner -loglevel error -y -i "$OUT/dialogue_51.mp4" \
++    -c:v copy -c:a aac -channel_layout 5.1 -b:a 512k "$OUT/dialogue_51_aac.mp4"
++
+ # Stereo side-only soundtrack: R is the exact inverse of L. A mono L+R fold-down
+ # cancels this to silence, so it guards scrub preview's channel/phase fidelity.
+ ffmpeg -hide_banner -loglevel error -y \
+diff --git a/tests/global-setup.ts b/tests/global-setup.ts
+index d1b64e4..f1d119d 100644
+--- a/tests/global-setup.ts
++++ b/tests/global-setup.ts
+@@ -20,6 +20,11 @@ const sentinels = [
+   // Center-only 7.1 FLAC with an audio start offset.
+   path.join(fixturesDir, 'surround_71.mp4'),
+   path.join(fixturesDir, 'surround_71.wav'),
++  path.join(fixturesDir, 'dialogue_51.mp4'),
++  path.join(fixturesDir, 'dialogue_71.mp4'),
++  path.join(fixturesDir, 'dialogue_51_opus.mp4'),
++  path.join(fixturesDir, 'dialogue_71_opus.mp4'),
++  path.join(fixturesDir, 'dialogue_51_aac.mp4'),
+   // Browser-incompatible AC-3 soundtrack: exercises the real ffmpeg.wasm fallback.
+   path.join(fixturesDir, 'ac3_video.mp4'),
+ ];
+diff --git a/tests/investigate-dialogue-browser.mjs b/tests/investigate-dialogue-browser.mjs
+new file mode 100644
+index 0000000..cc1ab7d
+--- /dev/null
++++ b/tests/investigate-dialogue-browser.mjs
+@@ -0,0 +1,60 @@
++// Muted browser smoke; retains numbers and hashes, never movie frames or audio.
++// Serve WarpDiff on 8080, then: node tests/investigate-dialogue-browser.mjs file... --out report.json
++import {chromium} from '@playwright/test';
++import fs from 'node:fs';
++import {createHash} from 'node:crypto';
++const args=process.argv.slice(2), outAt=args.indexOf('--out');
++const output=outAt<0?null:args[outAt+1], files=outAt<0?args:args.slice(0,outAt);
++if(!files.length) throw Error('Supply local media files to inspect');
++const browser=await chromium.launch({headless:true,args:['--mute-audio','--autoplay-policy=no-user-gesture-required']});
++const report={method:'Muted headless Chromium. Actual local files, decoded center identity, listening controls, source metrics/timing and desktop geometry. No intelligibility claim.',files:[],geometry:[]};
++try {
++  for(const file of files) {
++    const page=await browser.newPage({viewport:{width:1920,height:1080}}), errors=[];
++    page.on('pageerror',error=>errors.push(error.message));
++    await page.addInitScript(()=>localStorage.setItem('lastSeenVersion','3.17.0'));
++    await page.goto('http://localhost:8080');
++    await page.locator('#multiFileInput').setInputFiles(file);
++    await page.waitForFunction(()=>window.eval('!!_videoAudioBuffers.editA && !!_continuousScrubEngine.state.node'),null,{timeout:45000});
++    const record=await page.evaluate(()=>window.eval(`(() => {
++      const info=_audioMonitorSlots.get('editA'), buffer=_videoAudioBuffers.editA;
++      const originalMetrics=JSON.stringify(audioMetrics.editA), media=getLayer('editA').querySelector('video'), time=media.currentTime;
++      const center=buffer.numberOfChannels>2?buffer.getChannelData(2):null, start=Math.round(buffer.sampleRate), count=Math.round(buffer.sampleRate*.128);
++      const bands=center?[375,750,1500,3000,4500,6000,7500].map(hz=>{
++        let re=0,im=0;for(let i=0;i<count;i++){const angle=2*Math.PI*hz*i/buffer.sampleRate;re+=center[start+i]*Math.cos(angle);im+=center[start+i]*Math.sin(angle);}
++        return {hz,amplitude:2*Math.hypot(re,im)/count};
++      }):[];
++      setAudioListening({mode:'center',centerDb:6});
++      const focused=_audioMonitorPlanForSlot('editA');setAudioListening({mode:'full'});
++      return {layout:info?.layout,ready:info?.ready,originalChannels:info?.channels,storedChannels:buffer.numberOfChannels,
++        selectedBytes:_continuousScrubEngine.state.bytes,start:_audioTimelineStarts.editA,bands,
++        otherMuted:focused.otherGain===0,metricsUnchanged:originalMetrics===JSON.stringify(audioMetrics.editA),timeUnchanged:media.currentTime===time};
++    })()`));
++    record.sourceSha256=createHash('sha256').update(fs.readFileSync(file)).digest('hex');
++    record.synthetic=/dialogue_(51|71)/.test(file);record.pageErrors=errors;
++    record.passed=!!record.ready&&record.otherMuted&&record.metricsUnchanged&&record.timeUnchanged&&!errors.length;console.log(JSON.stringify(record));
++    if(record.synthetic && (!(record.bands.find(b=>b.hz===1500)?.amplitude>=.05) || record.bands.find(b=>b.hz===375)?.amplitude>.005)) record.passed=false;
++    report.files.push(record);
++    if(record.synthetic && !report.geometry.length) {
++      for(const [width,height] of [[1024,768],[1280,720],[1920,1080]]) {
++        await page.setViewportSize({width,height});
++        await page.locator('#audioListeningLabel').click();
++        const geometry=await page.locator('.audio-listening-panel').evaluate(element=>{
++          const r=element.getBoundingClientRect();
++          const controls=[...element.querySelectorAll('button,input')].map(node=>{
++            const b=node.getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom};
++          });
++          return {width:innerWidth,height:innerHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,controls};
++        });
++        if([geometry,...geometry.controls].some(b=>b.left<0||b.right>width||b.top<0||b.bottom>height)) throw Error('Clipped listening controls: '+JSON.stringify(geometry));
++        report.geometry.push(geometry);
++        await page.keyboard.press('Escape');
++      }
++    }
++    await page.evaluate(()=>window.clearAllMedia());
++    const retained=await page.evaluate(()=>window.eval('_audioMonitorSlots.size+_audioMonitorRoutes.size+_continuousScrubEngine.state.bytes'));
++    if(retained!==0) throw Error('Retained listening state after clear');
++    await page.close();
++  }
++} finally {await browser.close();}
++const json=JSON.stringify(report,null,2)+'\n';if(output)fs.writeFileSync(output,json);console.log(json);if(report.files.some(record=>!record.passed))process.exitCode=1;
+diff --git a/tests/investigate-dialogue.mjs b/tests/investigate-dialogue.mjs
+new file mode 100644
+index 0000000..3429109
+--- /dev/null
++++ b/tests/investigate-dialogue.mjs
+@@ -0,0 +1,72 @@
++// Offline measurement of the shipped scrub processor. No sound is played or retained.
++// node tests/investigate-dialogue.mjs [--clip file] --out report.json
++import fs from 'node:fs';
++import vm from 'node:vm';
++import { execFileSync } from 'node:child_process';
++import { createHash } from 'node:crypto';
++const arg = key => process.argv[process.argv.indexOf(key) + 1];
++const sr = 48000, code = fs.readFileSync('js/scrub-worklet.js', 'utf8');
++const processors = new Map();
++vm.runInNewContext(code, { sampleRate:sr,
++  AudioWorkletProcessor:class { constructor() { this.port = { postMessage(){}, close(){} }; } },
++  registerProcessor:(name, processor) => processors.set(name, processor) });
++const Processor = processors.get('phase-vocoder-processor');
++function energy(channels, from, to) {
++  let sum = 0;
++  for (const channel of channels) for (let i = from; i < Math.min(to, channel.length); i++) sum += channel[i] ** 2;
++  return sum / ((to - from) * channels.length);
++}
++function measure(channels, rate, start = 1, seconds = 4) {
++  const processor = new Processor();
++  processor._msg({type:'load', channels:channels.map(ch => ch.slice().buffer)});
++  processor._msg({type:'tempo', value:rate});
++  processor._msg({type:'anchor', pos:start * sr, direction:1});
++  processor._msg({type:'play', value:true});
++  const length = Math.floor(seconds * sr / rate), output = channels.map(() => new Float32Array(length));
++  const block = channels.map(() => new Float32Array(128));
++  for (let i = 0; i < length; i += 128) {
++    processor.process([], [block]);
++    block.forEach((channel, c) => output[c].set(channel.subarray(0, Math.min(128, length-i)), i));
++  }
++  // Exclude the initial overlap-add fill and corresponding source interval.
++  const skip = Math.ceil(0.15 * sr / rate);
++  const inputEnergy = energy(channels, Math.floor(start*sr + skip*rate), Math.floor((start+seconds)*sr));
++  const outputEnergy = energy(output, skip, length);
++  return {rate, sourceStart:start, sourceSeconds:seconds,
++    levelDifferenceDb:Math.round(1000*10*Math.log10(outputEnergy/inputEnergy))/1000};
++}
++const report = { processorSha256:createHash('sha256').update(code).digest('hex'), sampleRate:sr,
++  method:'Offline exact processor; fixed forward speeds; electrical RMS over corresponding source/output spans, excluding startup. Real speech is nonstationary and spectral windows extend beyond each analysis position. These figures do not measure perceived intelligibility, browser decoding, or pointer cadence.',
++  synthetic:[], clip:null };
++for (const kind of ['tone','harmonics','noise']) {
++  let seed = 1; const input = new Float32Array(sr*10);
++  for (let i=0; i<input.length; i++) {
++    seed = (Math.imul(seed,1664525)+1013904223)>>>0;
++    input[i] = kind==='tone' ? .2*Math.sin(2*Math.PI*317*i/sr)
++      : kind==='harmonics' ? .15*Math.sin(2*Math.PI*173*i/sr)+.08*Math.sin(2*Math.PI*346*i/sr)+.04*Math.sin(2*Math.PI*519*i/sr)
++      : (seed/4294967296-.5)*.4;
++  }
++  for (const rate of [.1,.25,.5,1,2]) report.synthetic.push({kind,...measure([input,input],rate,1,1)});
++}
++if (process.argv.includes('--clip')) {
++  const clip = arg('--clip');
++  const probe = JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','a:0','-show_entries','stream=codec_name,channels,channel_layout,sample_rate','-of','json',clip]));
++  const info = probe.streams[0];
++  if (![6,8].includes(info.channels)) throw new Error('Use a known 5.1/7.1 fixture for this probe.');
++  const raw = execFileSync('ffmpeg',['-v','error','-i',clip,'-map','0:a:0','-t','10','-ar',String(sr),'-c:a','pcm_f32le','-f','f32le','-'],{maxBuffer:32*1024*1024});
++  const n = raw.length / 4 / info.channels;
++  const center = new Float32Array(n), left = new Float32Array(n), right = new Float32Array(n);
++  for (let i=0; i<n; i++) {
++    const sample = c => raw.readFloatLE((i*info.channels+c)*4);
++    center[i] = sample(2)*Math.SQRT1_2;
++    const surround = info.channels===8 ? Math.SQRT1_2/2 : Math.SQRT1_2;
++    left[i] = sample(0)+center[i]+surround*(sample(4)+(info.channels===8?sample(6):0));
++    right[i] = sample(1)+center[i]+surround*(sample(5)+(info.channels===8?sample(7):0));
++  }
++  report.clip = { sourceSha256:createHash('sha256').update(fs.readFileSync(clip)).digest('hex'),...info,
++    fullMix:[.25,.5,1,2].map(rate => measure([left,right],rate)),
++    center:[.25,.5,1,2].map(rate => measure([center,center],rate)) };
++}
++const json = JSON.stringify(report,null,2)+'\n';
++if(process.argv.includes('--out')) fs.writeFileSync(arg('--out'),json);
++console.log(json);
+diff --git a/tests/multichannel.spec.ts b/tests/multichannel.spec.ts
+index 05ab3a4..3dc5d37 100644
+--- a/tests/multichannel.spec.ts
++++ b/tests/multichannel.spec.ts
+@@ -111,7 +111,7 @@ test.describe('multichannel listening output', () => {
+         start:_audioTimelineStarts.editA, metrics:JSON.stringify(audioMetrics.editA) };
+     })()`));
+     expect(source.channels).toBe(8);
+-    expect(source.listeningChannels).toBe(2);
++    expect(source.listeningChannels).toBe(3); // Full stereo plus the discrete center for listening controls.
+     expect(source.centerPeak).toBeGreaterThan(0.1);
+     expect(source.start).toBeCloseTo(0.166, 3);
+     const outputRms = () => page.evaluate(() => {
+@@ -151,7 +151,7 @@ test.describe('multichannel listening output', () => {
+     expect(replacement.peak).toBeCloseTo(0.1 * Math.SQRT1_2, 5);
+     expect(replacement.rightPeak).toBeCloseTo(replacement.peak, 6);
+     expect(replacement.originalChannels).toBe(8);
+-    expect(replacement.listeningChannels).toBe(2);
++    expect(replacement.listeningChannels).toBe(3);
+     expect(replacement.metrics).toBe(source.metrics);
+     await page.evaluate(() => (window as any).clearAllMedia());
+     expect(await page.evaluate(() => (window as any).eval('_nativeAudioRoutes.size'))).toBe(0);
+diff --git a/tests/ownership.test.mjs b/tests/ownership.test.mjs
+index 92da016..7882a6c 100644
+--- a/tests/ownership.test.mjs
++++ b/tests/ownership.test.mjs
+@@ -1810,8 +1810,36 @@ function extractFn(name, src = SRC) {
+   }
+ }
+ 
++// Real multistream Opus must configure all channels, with OpusHead byte order.
++{
++  const fixture = new URL('fixtures/dialogue_71_opus.mp4', import.meta.url);
++  if (existsSync(fixture)) {
++    const demux = new Function(extractFn('_demuxMP4Audio') + '\nreturn _demuxMP4Audio;')();
++    const parsed = demux(new Uint8Array(readFileSync(fixture))), head = parsed.description;
++    check('demux[opus]: MP4 config becomes an OpusHead with all eight channels',
++      parsed.channels === 8 && String.fromCharCode(...head.subarray(0,8)) === 'OpusHead' && head[8] === 1 && head[9] === 8);
++    check('demux[opus]: pre-skip/rate use little endian and mapping table survives',
++      new DataView(head.buffer,head.byteOffset,head.byteLength).getUint16(10,true) === parsed.preSkip
++      && new DataView(head.buffer,head.byteOffset,head.byteLength).getUint32(12,true) === 48000
++      && head[18] === 1 && head[19] === 5 && head[20] === 3 && head.length === 29);
++  } else console.log('  ⊘ demux[opus]: generate fixtures to check multistream Opus');
++}
++
+ // Native output routing and Opus switching share one envelope owner.
+ {
++  check('one-owner[dialogue-listening]: comparison setting has one writer and resets through it',
++        countOf(SRC, '_audioListening =') === 2
++        && extractFn('setAudioListening').includes('WarpScrubAudio.monitor.settings(')
++        && extractFn('_clearAudioListening').includes("setAudioListening({mode:'full'"));
++  check('one-owner[dialogue-listening]: source selection and all playback routes use shared policy',
++        extractFn('selectAudioSource').includes('_applyAudioListening()')
++        && extractFn('_connectAudioOutput').includes('_connectMonitoredAudio(')
++        && extractFn('_connectMonitoredAudio').includes('WarpScrubAudio.monitor.connect(')
++        && extractFn('_prepareContinuousScrub').includes('_audioMonitorLayoutForBuffer('));
++  check('one-owner[dialogue-listening]: stale source preparation cannot publish and clear releases it',
++        extractFn('_prepareAudioMonitorSlot').includes('current() && _audioMonitorSlots.get(slot) === info')
++        && extractFn('clearAllMedia').includes('_clearAudioListening()')
++        && extractFn('_audioMonitorPlanForSlot').includes("info?.ready ? _audioListening : {mode:'full'}"));
+   check('one-owner[audio-output]: native, scrub and replacement share channel routing',
+         countOf(SRC, 'function _connectAudioOutput(') === 1
+         && extractFn('_prepareNativeAudio').includes('_connectAudioOutput(')
+diff --git a/tests/warpdiff.spec.ts b/tests/warpdiff.spec.ts
+index 480cf8b..fcd9394 100644
+--- a/tests/warpdiff.spec.ts
++++ b/tests/warpdiff.spec.ts
+@@ -549,7 +549,7 @@ test('an older transcode done timer cannot delete a newer load state', async ({
+ 
+       const buffer = new AudioBuffer({ length: 16, numberOfChannels: 1, sampleRate: 48000 });
+       w.eval('_videoAudioDecodeGen.original = 777; _ffmpegTranscoding.original = { phase:"computing" }');
+-      w._finalizeAudioViz('original', buffer, 777);
++      await w._finalizeAudioViz('original', buffer, 777);
+       const armed = w.eval('_ffmpegTranscoding.original.phase');
+       w.clearAllMedia();
+       w.eval('_ffmpegTranscoding.original = { phase:"transcode", marker:"new-load" }');

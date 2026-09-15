@@ -20,6 +20,11 @@ const sentinels = [
   // Center-only 7.1 FLAC with an audio start offset.
   path.join(fixturesDir, 'surround_71.mp4'),
   path.join(fixturesDir, 'surround_71.wav'),
+  path.join(fixturesDir, 'dialogue_51.mp4'),
+  path.join(fixturesDir, 'dialogue_71.mp4'),
+  path.join(fixturesDir, 'dialogue_51_opus.mp4'),
+  path.join(fixturesDir, 'dialogue_71_opus.mp4'),
+  path.join(fixturesDir, 'dialogue_51_aac.mp4'),
   // Browser-incompatible AC-3 soundtrack: exercises the real ffmpeg.wasm fallback.
   path.join(fixturesDir, 'ac3_video.mp4'),
 ];

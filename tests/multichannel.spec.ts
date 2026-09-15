@@ -111,7 +111,7 @@ test.describe('multichannel listening output', () => {
         start:_audioTimelineStarts.editA, metrics:JSON.stringify(audioMetrics.editA) };
     })()`));
     expect(source.channels).toBe(8);
-    expect(source.listeningChannels).toBe(2);
+    expect(source.listeningChannels).toBe(3); // Full stereo plus the discrete center for listening controls.
     expect(source.centerPeak).toBeGreaterThan(0.1);
     expect(source.start).toBeCloseTo(0.166, 3);
     const outputRms = () => page.evaluate(() => {
@@ -151,7 +151,7 @@ test.describe('multichannel listening output', () => {
     expect(replacement.peak).toBeCloseTo(0.1 * Math.SQRT1_2, 5);
     expect(replacement.rightPeak).toBeCloseTo(replacement.peak, 6);
     expect(replacement.originalChannels).toBe(8);
-    expect(replacement.listeningChannels).toBe(2);
+    expect(replacement.listeningChannels).toBe(3);
     expect(replacement.metrics).toBe(source.metrics);
     await page.evaluate(() => (window as any).clearAllMedia());
     expect(await page.evaluate(() => (window as any).eval('_nativeAudioRoutes.size'))).toBe(0);

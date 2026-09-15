@@ -1,0 +1,22 @@
+(node:71938) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 10 tests using 1 worker
+
+(node:71939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:71939) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:71939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch native: center and background controls preserve source and clocks (3.4s)
+  ✓   2 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓   3 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch replacement: center and background controls preserve source and clocks (4.7s)
+  ✓   4 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch native: center and background controls preserve source and clocks (3.2s)
+  ✓   5 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓   6 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch replacement: center and background controls preserve source and clocks (4.9s)
+  ✓   7 [chromium] › tests/dialogue-listening.spec.ts:89:5 › dialogue short previews use the same center mix (1.8s)
+  ✓   8 [chromium] › tests/dialogue-listening.spec.ts:103:5 › dialogue controls keep keyboard focus, show unsupported files, and reset on clear (2.2s)
+  ✓   9 [chromium] › tests/dialogue-listening.spec.ts:125:5 › dialogue settings follow source handoffs and verified audio-only files (5.1s)
+  ✓  10 [chromium] › tests/dialogue-listening.spec.ts:153:5 › dialogue preparation retains filtered center within budget and cancels stale publication (3.5s)
+
+  10 passed (36.0s)

@@ -14,7 +14,7 @@ test('continuous scrub is standard, retains center dialogue, and releases its st
     channels:_videoAudioBuffers.editA.numberOfChannels, metrics:JSON.stringify(audioMetrics.editA),
     start:_audioTimelineStarts.editA, bytes:_continuousScrubEngine.state.bytes
   })`));
-  expect(before.channels).toBe(2);
+  expect(before.channels).toBe(3); // Full stereo plus an independently retained center.
   expect(JSON.parse(before.metrics).channels).toBe(8);
   expect(before.start).toBeCloseTo(0.166, 3);
   expect(before.bytes).toBeGreaterThan(0);
@@ -123,7 +123,7 @@ test('Grid source changes retain only the selected continuous buffer and clear p
       selectAudioSource(slot); await _prepareContinuousScrub();
       const state = _continuousScrubEngine.state;
       counts.push({selected:state.buffer === _videoAudioBuffers[slot], channels:state.node.numberOfOutputs,
-        bytes:state.bytes, expected:Math.ceil(_videoAudioBuffers[slot].duration * state.ctx.sampleRate) * Math.min(2, _videoAudioBuffers[slot].numberOfChannels) * 4});
+        bytes:state.bytes, expected:Math.ceil(_videoAudioBuffers[slot].duration * state.ctx.sampleRate) * _videoAudioBuffers[slot].numberOfChannels * 4});
     }
     // Start another request and clear immediately. Its completion cannot republish.
     const wasGrid = isGridMode; selectAudioSource(slots[0]); const pending = _prepareContinuousScrub(); clearAllMedia(); await pending;

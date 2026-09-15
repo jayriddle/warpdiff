@@ -52,6 +52,23 @@ ffmpeg -hide_banner -loglevel error -y \
 ffmpeg -hide_banner -loglevel error -y -i "$OUT/surround_71.mp4" \
     -vn -c:a pcm_s16le "$OUT/surround_71.wav"
 
+# Distinct frequencies make each channel's contribution measurable. Center=1500 Hz;
+# front L/R=375/750, surrounds=3000/4500 (plus 6000/7500 in 7.1), LFE=90.
+for layout in 5.1 7.1; do
+    suffix=51; extra=
+    if [[ "$layout" == 7.1 ]]; then suffix=71; extra='|0.04*sin(2*PI*6000*t)|0.04*sin(2*PI*7500*t)'; fi
+    ffmpeg -hide_banner -loglevel error -y \
+        -f lavfi -i "color=c=navy:s=128x72:r=24:d=8" \
+        -f lavfi -i "aevalsrc=0.04*sin(2*PI*375*t)|0.04*sin(2*PI*750*t)|0.1*sin(2*PI*1500*t)|0.04*sin(2*PI*90*t)|0.04*sin(2*PI*3000*t)|0.04*sin(2*PI*4500*t)${extra}:s=48000:d=8:c=${layout}" \
+        -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
+        -c:a flac -strict -2 -movflags +faststart "$OUT/dialogue_${suffix}.mp4"
+    ffmpeg -hide_banner -loglevel error -y -i "$OUT/dialogue_${suffix}.mp4" \
+        -c:v copy -c:a libopus -channel_layout "$layout" -mapping_family 1 -b:a 512k \
+        "$OUT/dialogue_${suffix}_opus.mp4"
+done
+ffmpeg -hide_banner -loglevel error -y -i "$OUT/dialogue_51.mp4" \
+    -c:v copy -c:a aac -channel_layout 5.1 -b:a 512k "$OUT/dialogue_51_aac.mp4"
+
 # Stereo side-only soundtrack: R is the exact inverse of L. A mono L+R fold-down
 # cancels this to silence, so it guards scrub preview's channel/phase fidelity.
 ffmpeg -hide_banner -loglevel error -y \

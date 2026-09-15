@@ -1,0 +1,5 @@
+[mp4-parse] 135 audio samples, timescale=44100, rate=44100, ch=2, elst_media_time=0, skipSamples=0, timelineStart=0, segDur=3024, movieTs=1000, maxSamples=133358
+[mp4-parse] 72 audio samples, timescale=48000, rate=48000, ch=1, elst_media_time=0, skipSamples=0, timelineStart=0.144, segDur=1522, movieTs=1000, maxSamples=73056
+[mp4-parse] 401 audio samples, timescale=48000, rate=48000, ch=8, elst_media_time=312, skipSamples=312, timelineStart=0, segDur=8000, movieTs=1000, maxSamples=384000
+
+404 passed, 0 failed

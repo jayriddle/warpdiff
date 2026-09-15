@@ -19,6 +19,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
     let timelineStartDuration = 0; // leading empty edits, in movie timescale units
     let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
     let foundAudioTrack = false;
+    let audioTrackCount = 0, channelLayout = null;
     const sampleTable = { sizes: [], offsets: [], durations: [] };
     const chunks = [];
 
@@ -59,7 +60,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
                 parseMdhd(boxStart, boxEnd);
             } else if (type === 'hdlr') {
                 parseHdlr(boxStart, boxEnd);
-            } else if (type === 'stsd' && !metadataOnly) {
+            } else if (type === 'stsd') {
                 parseStsd(boxStart, boxEnd);
             } else if (type === 'stsz' && !metadataOnly) {
                 parseStsz(boxStart, boxEnd);
@@ -163,6 +164,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
         _currentTrackIsAudio = (handlerType === 'soun');
         if (_currentTrackIsAudio) {
             foundAudioTrack = true;
+            audioTrackCount++;
+            channelLayout = null;
             // Promote this trak's mdhd timescale to the demuxer-wide variable.
             // Previously the global `timescale` was overwritten by every track,
             // so a data/subtitle track parsed after the audio track (with
@@ -184,6 +187,7 @@ function _demuxMP4Audio(data, metadataOnly = false) {
         const entryStart = start + 8;
         if (entryStart + 8 > end) return;
         let entrySize = view.getUint32(entryStart);
+        if (entrySize < 36 || entryStart + entrySize > end) return;
         const entryType = readStr(entryStart + 4, 4);
 
         // AudioSampleEntry layout after 8-byte box header:
@@ -223,8 +227,27 @@ function _demuxMP4Audio(data, metadataOnly = false) {
                     if (codecPrivate.length >= 4) {
                         preSkip = (codecPrivate[2] << 8) | codecPrivate[3]; // big-endian in dOps
                     }
+                    if (codecPrivate.length >= 13 + channels && codecPrivate[10] === 1 &&
+                        codecPrivate[11] > 0 && codecPrivate[12] <= codecPrivate[11] &&
+                        codecPrivate[11] + codecPrivate[12] <= channels &&
+                        codecPrivate.subarray(13,13+channels).every(value => value === 255 || value < codecPrivate[11]+codecPrivate[12])) {
+                        channelLayout = channels === 6 ? '5.1' : channels === 8 ? '7.1' : null;
+                    }
+                }
+                if (typeof WarpScrubAudio !== 'undefined') {
+                    if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 12)
+                        channelLayout = WarpScrubAudio.monitor.flacLayout(data.subarray(bOff+12,bOff+bSize));
+                    if (bType === 'esds' && entryType === 'mp4a')
+                        channelLayout = WarpScrubAudio.monitor.aacLayout(data.subarray(bOff+8,bOff+bSize));
                 }
                 bOff += bSize;
+            }
+            // An explicit custom channel-description box needs its own mapping;
+            // never override it with an inferred codec default.
+            for (let at=audioStart; at+8<=bEnd;) {
+                const size=view.getUint32(at);if(size<8||at+size>bEnd)break;
+                if(readStr(at+4,4)==='chan')channelLayout=null;
+                at+=size;
             }
         }
     }
@@ -294,7 +317,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
     // decodeAudioData handles the compressed samples itself; callers use this
     // lightweight mode only to retain the MP4 edit-list placement on the video
     // timeline. Do not build or copy the packet table in that path.
-    if (metadataOnly) return foundAudioTrack ? { timelineStart: timelineStart } : null;
+    if (audioTrackCount !== 1) channelLayout = null;
+    if (metadataOnly) return foundAudioTrack ? { timelineStart, channelLayout } : null;
 
     if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
         console.warn('[mp4-parse] no audio samples found');
@@ -364,6 +388,20 @@ function _demuxMP4Audio(data, metadataOnly = false) {
         ', segDur=' + segmentDuration + ', movieTs=' + movieTimescale +
         ', maxSamples=' + maxSamples);
 
+    // WebCodecs expects an OpusHead identification header, not the MP4 dOps
+    // payload. dOps uses big-endian numbers and omits the eight-byte signature.
+    // Passing it through can silently configure a stereo decoder for surround.
+    if (audioCodec === 'opus' && codecPrivate && codecPrivate.length >= 11) {
+        const dops = codecPrivate;
+        const head = new Uint8Array(dops.length + 8);
+        head.set([79,112,117,115,72,101,97,100,1,dops[1]]);
+        head[10]=dops[3]; head[11]=dops[2];
+        head[12]=dops[7]; head[13]=dops[6]; head[14]=dops[5]; head[15]=dops[4];
+        head[16]=dops[9]; head[17]=dops[8];
+        head.set(dops.subarray(10),18);
+        codecPrivate = head;
+    }
+
     return {
         chunks: chunks,
         sampleRate: sampleRate,
@@ -372,7 +410,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
         description: codecPrivate,
         preSkip: skipSamples,
         maxSamples: maxSamples,
-        timelineStart: timelineStart
+        timelineStart: timelineStart,
+        channelLayout: channelLayout
     };
 }
 

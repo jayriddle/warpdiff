@@ -1,0 +1,25 @@
+(node:73130) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 13 tests using 1 worker
+
+(node:73131) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:73131) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:73131) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch native: center and background controls preserve source and clocks (3.5s)
+  ✓   2 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓   3 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch replacement: center and background controls preserve source and clocks (4.6s)
+  ✓   4 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch native: center and background controls preserve source and clocks (3.1s)
+  ✓   5 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓   6 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch replacement: center and background controls preserve source and clocks (4.7s)
+  ✓   7 [chromium] › tests/dialogue-listening.spec.ts:90:7 › codec center identity survives decode and Continuous: dialogue_51_opus.mp4 (2.2s)
+  ✓   8 [chromium] › tests/dialogue-listening.spec.ts:90:7 › codec center identity survives decode and Continuous: dialogue_71_opus.mp4 (2.3s)
+  ✓   9 [chromium] › tests/dialogue-listening.spec.ts:90:7 › codec center identity survives decode and Continuous: dialogue_51_aac.mp4 (2.2s)
+  ✓  10 [chromium] › tests/dialogue-listening.spec.ts:108:5 › dialogue short previews use the same center mix (1.8s)
+  ✓  11 [chromium] › tests/dialogue-listening.spec.ts:122:5 › dialogue controls keep keyboard focus, show unsupported files, and reset on clear (2.1s)
+  ✓  12 [chromium] › tests/dialogue-listening.spec.ts:144:5 › dialogue settings follow source handoffs and verified audio-only files (4.5s)
+  ✓  13 [chromium] › tests/dialogue-listening.spec.ts:172:5 › dialogue preparation retains filtered center within budget and cancels stale publication (3.5s)
+
+  13 passed (42.0s)

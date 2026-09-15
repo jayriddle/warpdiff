@@ -1,0 +1,36 @@
+{
+  "base": "51514236adfcb3f0ee86413b074138f74140e4c5",
+  "canonical": "cbfb6945e2c7c26958ecb94662a32a69038e4688",
+  "files": {
+    "AGENTS.md": "d90720442d3c5f0515e0e74bc1d3b90332a988d91213ff5990b84fda58e84c4a",
+    "FEATURES.md": "1debbc0eb2f791c6e9d57874b719c58773f76fa37570a053edbc1f86fb467ead",
+    "MANUAL.md": "f49fac9b57cb3514f11e9926617a6bdf935018533639bffb205805357e3b3e7c",
+    "README.md": "e9fdc7510188da7496081a31a448586b4fc690899bead24fa690f145ae18de29",
+    "docs/shared-scrub-audio.md": "914e29b72007a056721e3f307592ef87f8405f2c45aa01814ccce77c589de50d",
+    "index.html": "cf5b66f655c6f9fd9ccde8f0d0416b03ea754fd59b5517dddcfe1d01617bcf22",
+    "js/SCRUB_AUDIO_LOCK.json": "adc61c465826985a4399dc48f61988929aed93ff74170a142682d72f2b2698e1",
+    "js/audio-decode.js": "fffcd2191429d00371283d246280cd09e6635f1bde7ae85256f448b4cf946c64",
+    "js/audio-monitor.js": "3814b5356ee3ed6263312a9d638f2b25ef9bbb11cc022903edb63d59b2935ce3",
+    "js/audio-routing.js": "f48e731f8e9e6ab4025c88ae674268934cc41196a5253566d62f7592577a3e43",
+    "js/mp4-demux.js": "8626c23c06d9c558c76dae59c4bc8cd753928c9d50794009a373a8ebee137934",
+    "js/opus-sync.js": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+    "js/scrub-audio-core.js": "f0bdb60c6d38822cafd1619e7dc57b2b1c88a8dba3d1dab5a0ed93c6dd9bf094",
+    "js/scrub-audio.js": "2def75190663e213d5b320bdba96a5fbcfb85d4155cba070c4116e59723eb291",
+    "js/scrub-worklet.js": "c2c423d68fa386ed2a3bac56e627e24c76bb4775c9bc6c447a3d3fa01ff601ae",
+    "memory.md": "00bb17429263e1dbb0960cf9ffc420e0486a78e63a471f53553c7853eef5377d",
+    "sw.js": "8fd66530c5f7cdabcbe46a8d83e9d9f0a980c2c3e6c8e3f69304dbd5464b4b1e",
+    "tests/continuous-scrub.spec.ts": "c0fbb830a92c1ccec3237592d61c186953c89f6562339c40be18ac39b9d5e466",
+    "tests/dialogue-listening.spec.ts": "aea9b3fd480cf5a1447c500c334ffc84b2ecfb9b42eb0649b45c1506c01f4c7c",
+    "tests/fixtures/generate.sh": "3b5e6dad2de9733ed1c79daaafaca20097286fd7870e8128d09a861b8420f55a",
+    "tests/global-setup.ts": "39907d19bf0ca5d2e8dc39cb5caf3e9c7845d0ec1139698c18c2497fb46a196c",
+    "tests/investigate-dialogue-browser.mjs": "2d5f5c99eac0670aee0508a1d8b1d6fa37ed26a73765dfaa9e1a1c4e43d23795",
+    "tests/investigate-dialogue.mjs": "b5d7bf1ca440c7337108b9ccff2cd02dccfbbb4e119ba2645ec116124a8dc8a0",
+    "tests/multichannel.spec.ts": "e2287b7f18a6a5b0cf0562de4f003f465644909d05cc8b562bc2ef166f02a074",
+    "tests/ownership.test.mjs": "293927a77499479886bc2a849d5a8d7d5e7e04d897a8dc4ca768b6d5734c0c21",
+    "tests/warpdiff.spec.ts": "b3ca52fc8c638a1b3e22f9465762285e86b32a41d0657822b36e859223558b7a"
+  },
+  "environment": {
+    "node": "v26.4.0",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  }
+}

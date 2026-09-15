@@ -1,0 +1,21 @@
+(node:69450) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:69451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69451) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:69451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch native: center and background controls preserve source and clocks (3.5s)
+  ✓  2 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓  3 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch replacement: center and background controls preserve source and clocks (4.7s)
+  ✓  4 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch native: center and background controls preserve source and clocks (3.2s)
+  ✓  5 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓  6 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch replacement: center and background controls preserve source and clocks (4.8s)
+  ✓  7 [chromium] › tests/dialogue-listening.spec.ts:89:5 › dialogue short previews use the same center mix (1.8s)
+  ✓  8 [chromium] › tests/dialogue-listening.spec.ts:103:5 › dialogue controls keep keyboard focus, show unsupported files, and reset on clear (2.2s)
+  ✓  9 [chromium] › tests/dialogue-listening.spec.ts:125:5 › dialogue preparation retains filtered center within budget and cancels stale publication (3.5s)
+
+  9 passed (31.1s)

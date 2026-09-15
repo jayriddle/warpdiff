@@ -549,7 +549,7 @@ test('an older transcode done timer cannot delete a newer load state', async ({ 
 
       const buffer = new AudioBuffer({ length: 16, numberOfChannels: 1, sampleRate: 48000 });
       w.eval('_videoAudioDecodeGen.original = 777; _ffmpegTranscoding.original = { phase:"computing" }');
-      w._finalizeAudioViz('original', buffer, 777);
+      await w._finalizeAudioViz('original', buffer, 777);
       const armed = w.eval('_ffmpegTranscoding.original.phase');
       w.clearAllMedia();
       w.eval('_ffmpegTranscoding.original = { phase:"transcode", marker:"new-load" }');

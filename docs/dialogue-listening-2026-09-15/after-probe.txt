@@ -1,0 +1,172 @@
+{
+  "processorSha256": "c2c423d68fa386ed2a3bac56e627e24c76bb4775c9bc6c447a3d3fa01ff601ae",
+  "sampleRate": 48000,
+  "method": "Offline exact processor; fixed forward speeds; electrical RMS over corresponding source/output spans, excluding startup. Real speech is nonstationary and spectral windows extend beyond each analysis position. These figures do not measure perceived intelligibility, browser decoding, or pointer cadence.",
+  "synthetic": [
+    {
+      "kind": "tone",
+      "rate": 0.1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -0.002
+    },
+    {
+      "kind": "tone",
+      "rate": 0.25,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -0.001
+    },
+    {
+      "kind": "tone",
+      "rate": 0.5,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0
+    },
+    {
+      "kind": "tone",
+      "rate": 1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0
+    },
+    {
+      "kind": "tone",
+      "rate": 2,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -0.281
+    },
+    {
+      "kind": "harmonics",
+      "rate": 0.1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -0.002
+    },
+    {
+      "kind": "harmonics",
+      "rate": 0.25,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0.002
+    },
+    {
+      "kind": "harmonics",
+      "rate": 0.5,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0.001
+    },
+    {
+      "kind": "harmonics",
+      "rate": 1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0
+    },
+    {
+      "kind": "harmonics",
+      "rate": 2,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -0.411
+    },
+    {
+      "kind": "noise",
+      "rate": 0.1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -4.941
+    },
+    {
+      "kind": "noise",
+      "rate": 0.25,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -2.379
+    },
+    {
+      "kind": "noise",
+      "rate": 0.5,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -1.337
+    },
+    {
+      "kind": "noise",
+      "rate": 1,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": 0
+    },
+    {
+      "kind": "noise",
+      "rate": 2,
+      "sourceStart": 1,
+      "sourceSeconds": 1,
+      "levelDifferenceDb": -3.289
+    }
+  ],
+  "clip": {
+    "sourceSha256": "ccb6763f19b7a4912b916392db92e8400903e6920fe4a394409135de7292046c",
+    "codec_name": "flac",
+    "sample_rate": "48000",
+    "channels": 6,
+    "channel_layout": "5.1(side)",
+    "fullMix": [
+      {
+        "rate": 0.25,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -2.628
+      },
+      {
+        "rate": 0.5,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -1.684
+      },
+      {
+        "rate": 1,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": 0
+      },
+      {
+        "rate": 2,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -3.239
+      }
+    ],
+    "center": [
+      {
+        "rate": 0.25,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -2.623
+      },
+      {
+        "rate": 0.5,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -1.27
+      },
+      {
+        "rate": 1,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": 0
+      },
+      {
+        "rate": 2,
+        "sourceStart": 1,
+        "sourceSeconds": 4,
+        "levelDifferenceDb": -3.63
+      }
+    ]
+  }
+}
+

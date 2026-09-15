@@ -46,7 +46,8 @@ function _prepareContinuousScrub() {
     if (!buf && _videoScrubStatus[slot]?.unavailable) {
         _noticeScrubFallback(_videoScrubStatus[slot].message);
     }
-    return buf ? _continuousScrubEngine.load(getAudioContext(), buf) : Promise.resolve(false);
+    _continuousScrubEngine.setMonitorMix(_audioMonitorPlanForSlot(slot));
+    return buf ? _continuousScrubEngine.load(getAudioContext(), buf, _audioMonitorLayoutForBuffer(slot, buf)) : Promise.resolve(false);
 }
 function _playContinuousScrub(time) {
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -218,7 +219,7 @@ function playScrubSnippet(time) {
     // Match the current playback rate so the scrub preview sounds like the
     // user's selected speed rather than always playing at 1×.
     source.playbackRate.value = rate;
-    const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
+    const output = _connectAudioOutput(source, gain, buf.numberOfChannels, slot);
     source.start(0, offset, snippetLen);
     _scrubSource = source;
     _scrubGain = gain;

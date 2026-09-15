@@ -1,0 +1,33 @@
+(node:75034) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:75035) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:75035) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:75035) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/dialogue-listening.spec.ts:156:5 › dialogue settings follow source handoffs and verified audio-only files (5.8s)
+
+
+  1) [chromium] › tests/dialogue-listening.spec.ts:156:5 › dialogue settings follow source handoffs and verified audio-only files 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32mtrue[39m
+    Received: [31mfalse[39m
+
+      181 |     await decodeAndComputeAudioViz('editA',bytes);
+      182 |   })()`));
+    > 183 |   expect(await page.evaluate(()=> (window as any).eval("_audioMonitorSlots.get('editA').ready"))).toBe(true);
+          |                                                                                                   ^
+      184 |   await page.locator('#audioListeningLabel').click();
+      185 |   await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Full Mix');
+      186 |   await page.getByRole('button',{name:'Center Only',exact:true}).click();
+        at /Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:183:99
+
+    Error Context: test-results/dialogue-listening-dialogu-4c630-d-verified-audio-only-files-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/dialogue-listening.spec.ts:156:5 › dialogue settings follow source handoffs and verified audio-only files 

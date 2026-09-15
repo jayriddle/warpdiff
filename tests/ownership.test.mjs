@@ -1810,8 +1810,36 @@ function extractFn(name, src = SRC) {
   }
 }
 
+// Real multistream Opus must configure all channels, with OpusHead byte order.
+{
+  const fixture = new URL('fixtures/dialogue_71_opus.mp4', import.meta.url);
+  if (existsSync(fixture)) {
+    const demux = new Function(extractFn('_demuxMP4Audio') + '\nreturn _demuxMP4Audio;')();
+    const parsed = demux(new Uint8Array(readFileSync(fixture))), head = parsed.description;
+    check('demux[opus]: MP4 config becomes an OpusHead with all eight channels',
+      parsed.channels === 8 && String.fromCharCode(...head.subarray(0,8)) === 'OpusHead' && head[8] === 1 && head[9] === 8);
+    check('demux[opus]: pre-skip/rate use little endian and mapping table survives',
+      new DataView(head.buffer,head.byteOffset,head.byteLength).getUint16(10,true) === parsed.preSkip
+      && new DataView(head.buffer,head.byteOffset,head.byteLength).getUint32(12,true) === 48000
+      && head[18] === 1 && head[19] === 5 && head[20] === 3 && head.length === 29);
+  } else console.log('  ⊘ demux[opus]: generate fixtures to check multistream Opus');
+}
+
 // Native output routing and Opus switching share one envelope owner.
 {
+  check('one-owner[dialogue-listening]: comparison setting has one writer and resets through it',
+        countOf(SRC, '_audioListening =') === 2
+        && extractFn('setAudioListening').includes('WarpScrubAudio.monitor.settings(')
+        && extractFn('_clearAudioListening').includes("setAudioListening({mode:'full'"));
+  check('one-owner[dialogue-listening]: source selection and all playback routes use shared policy',
+        extractFn('selectAudioSource').includes('_applyAudioListening()')
+        && extractFn('_connectAudioOutput').includes('_connectMonitoredAudio(')
+        && extractFn('_connectMonitoredAudio').includes('WarpScrubAudio.monitor.connect(')
+        && extractFn('_prepareContinuousScrub').includes('_audioMonitorLayoutForBuffer('));
+  check('one-owner[dialogue-listening]: stale source preparation cannot publish and clear releases it',
+        extractFn('_prepareAudioMonitorSlot').includes('current() && _audioMonitorSlots.get(slot) === info')
+        && extractFn('clearAllMedia').includes('_clearAudioListening()')
+        && extractFn('_audioMonitorPlanForSlot').includes("info?.ready ? _audioListening : {mode:'full'}"));
   check('one-owner[audio-output]: native, scrub and replacement share channel routing',
         countOf(SRC, 'function _connectAudioOutput(') === 1
         && extractFn('_prepareNativeAudio').includes('_connectAudioOutput(')

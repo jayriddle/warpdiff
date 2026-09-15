@@ -74,7 +74,7 @@ function _startOpusSyncAudio(slot, fromTime) {
     source.buffer = buf;
     // Match the video element's playback rate so audio runs in sync at non-1× speeds
     source.playbackRate.value = rate;
-    const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
+    const output = _connectAudioOutput(source, gain, buf.numberOfChannels, slot);
     gain.connect(ctx.destination);
     // The source begins at startTime, not now — the video keeps advancing
     // through the gap, so start the buffer at the sample that will be

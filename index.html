@@ -286,6 +286,20 @@
             stroke-linejoin: round;
         }
 
+        .audio-listening-control { position:relative; flex-shrink:0; color:#ddd; font-size:12px; }
+        .audio-listening-control[hidden] { display:none; }
+        .audio-listening-control summary { cursor:pointer; padding:7px 9px; border:1px solid #555; border-radius:5px; background:#252525; white-space:nowrap; }
+        .audio-listening-control.focused summary { color:#ffda91; border-color:#aa803c; }
+        .audio-listening-panel { position:absolute; bottom:calc(100% + 9px); right:0; width:310px; max-width:calc(100vw - 28px); padding:16px; background:#222; border:1px solid #666; border-radius:8px; box-shadow:0 6px 24px #0009; z-index:500; line-height:1.45; }
+        .audio-listening-panel h3 { font-size:14px; margin:0 0 10px; color:#eee; }
+        .audio-listening-presets { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+        .audio-listening-presets button { border:1px solid #666; background:#333; color:#ddd; padding:6px 9px; border-radius:4px; cursor:pointer; font-size:12px; }
+        .audio-listening-presets button[aria-pressed="true"] { background:#34536b; border-color:#76b6e6; color:#fff; }
+        .audio-listening-panel button:disabled, .audio-listening-panel input:disabled { opacity:.45; cursor:default; }
+        .audio-listening-panel label { display:flex; justify-content:space-between; gap:10px; margin-top:10px; }
+        .audio-listening-panel input { display:block; width:100%; margin:8px 0 12px; accent-color:#88bfee; }
+        .audio-listening-panel p { margin:10px 0 0; color:#bbb; font-size:12px; }
+        .audio-listening-panel :focus-visible, .audio-listening-control summary:focus-visible { outline:2px solid #88bfee; outline-offset:3px; }
         .volume-control {
             display: flex;
             align-items: center;
@@ -3556,6 +3570,23 @@
                     <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><span class="vi-icon" id="muteBtnIcon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span class="vi-label">Muted</span></span>
                     <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
                 </div>
+                <details class="audio-listening-control" id="audioListeningControl" hidden>
+                    <summary id="audioListeningLabel">Listen: Full Mix</summary>
+                    <div class="audio-listening-panel">
+                        <h3>Listening mix</h3>
+                        <div class="audio-listening-presets" role="group" aria-label="Listening preset">
+                            <button type="button" data-listening-mode="full" aria-pressed="true" onclick="setAudioListening({mode:'full'})">Full Mix</button>
+                            <button type="button" data-listening-mode="dialogue" aria-pressed="false" onclick="setAudioListening({mode:'dialogue'})">Dialogue Focus</button>
+                            <button type="button" data-listening-mode="center" aria-pressed="false" onclick="setAudioListening({mode:'center'})">Center Only</button>
+                        </div>
+                        <label for="dialogueCenterLevel">Center level <output id="dialogueCenterValue" for="dialogueCenterLevel">+0 dB</output></label>
+                        <input id="dialogueCenterLevel" type="range" min="0" max="12" step="1" value="0" oninput="setAudioListening({centerDb:Number(this.value)})">
+                        <label for="dialogueOtherLevel">Other channels <output id="dialogueOtherValue" for="dialogueOtherLevel">−9 dB</output></label>
+                        <input id="dialogueOtherLevel" type="range" min="-60" max="0" step="1" value="-9" oninput="setAudioListening({otherDb:Number(this.value)})">
+                        <p id="audioListeningStatus" role="status"></p>
+                        <p>Applies to playback and scrubbing. Analysis uses the original audio. Use Full Mix to check voices outside the center.</p>
+                    </div>
+                </details>
                 <div class="audio-source-selector" id="audioSourceSelector">
                     <button onclick="selectAudioSource('original')" id="audioOriginal" class="active" title="Click to select audio source">
                         <span class="audio-mute-icon" onclick="event.stopPropagation(); toggleAudioMute('original')"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></span>
@@ -3589,12 +3620,13 @@
     <script src="js/tile-check.js"></script>
     <script src="js/scrub-audio-core.js"></script>
     <script src="js/scrub-audio.js"></script>
+    <script src="js/audio-monitor.js"></script>
     <script src="js/audio-routing.js"></script>
     <script src="js/opus-sync.js"></script>
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.16.1';
+        const APP_VERSION = '3.17.0';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -6509,6 +6541,7 @@
             delete spectrogramData[slot];
             delete _videoAudioBuffers[slot];
             delete _videoScrubStatus[slot];
+            _setAudioMonitorSlot(slot, null);
             delete _audioSlotVizData[slot];
             delete _byteScannedCodec[slot];
             _invalidateScrubSession(slot); // scrub session holds the OLD file's bytes
@@ -8869,6 +8902,7 @@
                 if (video && !video.paused) _startOpusSyncAudio(source, video.currentTime);
             }
             _updatePlaybackScopeBtn();
+            _applyAudioListening();
         }
 
         function setVolume(value) {
@@ -10778,6 +10812,7 @@
             audioFileBuffers = {};
             audioMetrics = {};
             _audioSlotVizData = {};
+            _clearAudioListening();
             // Clearing the current-token maps invalidates every pending completion.
             // _audioDecodeEpoch intentionally does not reset: the next load must never
             // reuse a token that an older async decode may still hold.
@@ -13385,6 +13420,7 @@
             _setupWipeController();
             _setupMiniMapInteraction();
             _setupControlsResizeRelayout(); // keep video off the audio-viz panel
+            _setupAudioListeningControl();
 
             // Restore persisted preferences to UI
             const savedVol = _prefs.load('volume', 100);
@@ -13880,6 +13916,7 @@
                 <tr><td>Click on a different slot's canvas</td><td>Switch active audio to that slot</td></tr>
             </table>
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
+            <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Escape closes the panel; slider arrows adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
@@ -13944,6 +13981,7 @@
             <h2>Scrub Audio</h2>
             <p><strong>Continuous</strong> is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Click for a short preview, and hold still to fade out. There is no mode selector.</p>
             <p>Video listening copies use full-rate decoded audio, with surround dialogue folded into a separate stereo mix. Original waveform, spectrogram, and loudness inputs remain intact in both views. A single video follows its displayed frame; multi-video Grid uses the shared pointer timeline. Volume, mute, and intentional audio-start silence still apply.</p>
+            <p>Verified surround previews also retain a separate mono center for listening adjustments. This uses 50% more preview PCM within the same memory budgets, so long surround clips can reach the filtered short-preview fallback sooner. Dialogue Focus changes channel balance; Continuous can still soften articulation.</p>
             <p>If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic short-preview fallback. Long clips may use filtered, lower-rate preview audio. If no useful preview fits, normal playback and analysis remain available. Each video listening copy and the selected Continuous stream have separate 64 MiB limits; decoding and analysis use additional memory. Continuous can soften sharp sounds; use normal playback for final defect inspection.</p>
 
             <h2>Preferences</h2>
@@ -13951,7 +13989,7 @@
             <ul>
                 <li>Zoom loupe size and magnification level</li>
                 <li>Linked zoom on/off</li>
-                <li>Volume level and scrub audio mode</li>
+                <li>Volume level</li>
                 <li>Master mute</li>
                 <li>Stack Fit / Balance mode and per-slot rotation</li>
                 <li>Audio visualization visibility, height, and row split</li>
@@ -14083,6 +14121,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.17.0</h3>
+            <ul>
+                <li><strong>Focus on dialogue.</strong> The Listen control offers Dialogue Focus and Center Only for verified surround soundtracks, with center boost and background reduction during playback and scrubbing. Original audio analysis stays intact; Full Mix is always available.</li>
+                <li><strong>Multichannel Opus.</strong> Surround Opus files now retain all decoded channels, including the center.</li>
+            </ul>
             <h3>v3.16.1</h3>
             <ul>
                 <li><strong>Smoother scrubbing.</strong> Drag forward or backward with continuous, pitch-preserving audio. Click for a short preview; holding still fades the sound out. Short previews are used automatically when Continuous is unavailable.</li>

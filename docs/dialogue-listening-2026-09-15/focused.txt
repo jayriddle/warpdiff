@@ -1,0 +1,61 @@
+(node:69934) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 18 tests using 2 workers
+
+(node:69935) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69936) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:69936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69935) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:69935) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch native: center and background controls preserve source and clocks (3.5s)
+  ✓   1 [chromium] › tests/continuous-scrub.spec.ts:4:5 › continuous scrub is standard, retains center dialogue, and releases its stream (6.0s)
+  ✓   3 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓   4 [chromium] › tests/continuous-scrub.spec.ts:74:5 › old snippet preferences are ignored and failed loading retains click and drag previews (1.8s)
+  ✘   6 [chromium] › tests/continuous-scrub.spec.ts:110:5 › Grid source changes retain only the selected continuous buffer and clear pending work (2.9s)
+(node:69986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:69986) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:69986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 6ch replacement: center and background controls preserve source and clocks (4.6s)
+  ✓   7 [chromium] › tests/full-rate-scrub.spec.ts:3:5 › video preview keeps full-rate high frequencies and stereo phase (415ms)
+  ✓   9 [chromium] › tests/full-rate-scrub.spec.ts:31:5 › surround listening folds center while both analysis views retain original inputs (268ms)
+  ✓  10 [chromium] › tests/full-rate-scrub.spec.ts:52:5 › a preview budget uses filtered, audible fallback and leaves analysis available (437ms)
+  ✓  11 [chromium] › tests/full-rate-scrub.spec.ts:103:5 › clearing during listening preparation skips queued work and fences old publication (132ms)
+  ✓   8 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch native: center and background controls preserve source and clocks (3.2s)
+  ✓  13 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch continuous: center and background controls preserve source and clocks (3.1s)
+  ✓  12 [chromium] › tests/scrub-cadence.spec.ts:4:5 › fallback keeps preview audio alive during slow motion while the picture holds a frame (6.0s)
+  ✓  15 [chromium] › tests/scrub-cadence.spec.ts:80:5 › overlapping held-frame grains retain level, channels, volume, and idle silence (134ms)
+  ✓  14 [chromium] › tests/dialogue-listening.spec.ts:32:7 › dialogue 8ch replacement: center and background controls preserve source and clocks (4.7s)
+  ✓  16 [chromium] › tests/dialogue-listening.spec.ts:89:5 › dialogue short previews use the same center mix (1.8s)
+  ✓  17 [chromium] › tests/dialogue-listening.spec.ts:103:5 › dialogue controls keep keyboard focus, show unsupported files, and reset on clear (2.2s)
+  ✓  18 [chromium] › tests/dialogue-listening.spec.ts:125:5 › dialogue preparation retains filtered center within budget and cancels stale publication (3.5s)
+
+
+  1) [chromium] › tests/continuous-scrub.spec.ts:110:5 › Grid source changes retain only the selected continuous buffer and clear pending work 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m1728000[39m
+    Received: [31m2592000[39m
+
+      132 |   expect(result.wasGrid).toBe(true);
+      133 |   expect(result.grid).toHaveLength(3);
+    > 134 |   for (const row of result.grid) { expect(row.selected).toBe(true); expect(row.bytes).toBe(row.expected); }
+          |                                                                                       ^
+      135 |   expect(result.bytes).toBe(0); expect(result.node).toBe(false);
+      136 | });
+      137 |
+        at /Users/jay/Documents/warpdiff/tests/continuous-scrub.spec.ts:134:87
+
+    Error Context: test-results/continuous-scrub-Grid-sour-38dfe-ffer-and-clear-pending-work-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/continuous-scrub.spec.ts:110:5 › Grid source changes retain only the selected continuous buffer and clear pending work 
+  17 passed (30.9s)
