@@ -259,9 +259,11 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // Keep the original-analysis aggregates for both the small panel and N view.
     // The latter must never recompute its graphs from the stereo listening copy.
     const buckets = Math.max(600, Math.min(Math.ceil(audioBuffer.duration * 1000), Math.round(window.innerWidth * (window.devicePixelRatio || 1))));
-    waveformData[slot] = computeWaveformData(audioBuffer, buckets);
-    spectrogramData[slot] = computeSpectrogramData(audioBuffer);
-    const _mf = computeAudioMetrics(audioBuffer);
+    const analysis = await _computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen));
+    if (!analysis || !_videoAudioDecodeIsCurrent(slot, gen)) return;
+    waveformData[slot] = analysis.waveform;
+    spectrogramData[slot] = analysis.spectrogram;
+    const _mf = analysis.metrics;
     audioMetrics[slot] = _mf;
     // Propagate envelope data to the slot viz data if it already exists (no-video mode)
     if (_audioSlotVizData[slot]) _audioSlotVizData[slot].lufsEnvelope = _mf ? _mf.stBlks : null;
@@ -570,9 +572,9 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         const dpr = window.devicePixelRatio || 1;
         const maxPx = Math.round(window.innerWidth * dpr);
         const numBuckets = Math.min(Math.ceil(audioBuffer.duration * 1000), maxPx);
-        const waveform = computeWaveformData(audioBuffer, numBuckets);
-        const spectrogram = computeSpectrogramData(audioBuffer);
-        const _m = computeAudioMetrics(audioBuffer);
+        const analysis = await _computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen);
+        if (!analysis || _audioDecodeGen[slot] !== gen) return;
+        const { waveform, spectrogram, metrics: _m } = analysis;
         audioMetrics[slot] = _m;
         await _prepareAudioMonitorSlot(slot, audioBuffer, WarpScrubAudio.monitor.waveLayout(new Uint8Array(arrayBuffer)), () => _audioDecodeGen[slot] === gen);
         if (_audioDecodeGen[slot] !== gen) return;

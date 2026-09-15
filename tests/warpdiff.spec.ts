@@ -393,9 +393,7 @@ test('audio-only decode from a cleared load cannot overwrite a newer completion'
     const w = window as any;
     const originals = {
       getAudioContext: w.getAudioContext,
-      computeWaveformData: w.computeWaveformData,
-      computeSpectrogramData: w.computeSpectrogramData,
-      computeAudioMetrics: w.computeAudioMetrics,
+      _computeAudioAnalysis: w._computeAudioAnalysis,
       updateAudioInfoBar: w.updateAudioInfoBar,
       updateDurationDisplay: w.updateDurationDisplay,
       drawAudioSlotCanvas: w.drawAudioSlotCanvas,
@@ -408,9 +406,11 @@ test('audio-only decode from a cleared load cannot overwrite a newer completion'
       w.getAudioContext = () => ({
         decodeAudioData: () => new Promise(resolve => resolvers.push(resolve)),
       });
-      w.computeWaveformData = (buffer: any) => [buffer.marker];
-      w.computeSpectrogramData = () => [];
-      w.computeAudioMetrics = () => ({ stBlks: [] });
+      // This test isolates decode-generation ownership; real worker numerical
+      // parity, cancellation and source integrity live in audio-analysis.spec.ts.
+      w._computeAudioAnalysis = async (buffer: any) => ({
+        waveform: [buffer.marker], spectrogram: [], metrics: { stBlks: [] }
+      });
       w.updateAudioInfoBar = () => {};
       w.updateDurationDisplay = () => {};
       w.drawAudioSlotCanvas = () => {};
@@ -1833,7 +1833,7 @@ test.describe('Solo video playback', () => {
     await expect(page.locator('#loopRangeBtn')).toBeHidden();
 
     await page.keyboard.press('Space');
-    await page.waitForTimeout(300);
+    await expect.poll(async () => (await states(page))[0].t).toBeGreaterThan(0.1);
     let videoStates = await states(page);
     expect(videoStates[0].paused).toBe(false);
     expect(videoStates[0].t).toBeGreaterThan(0.1);
@@ -3158,8 +3158,11 @@ test.describe('Decoded audio timeline placement', () => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'audio_offset.mp4']);
     await page.waitForFunction(() => {
-      const starts = (window as any).__testAPI?._audioTimelineStarts;
-      return starts && starts.editB > 0.1;
+      const api = (window as any).__testAPI;
+      const starts = api?._audioTimelineStarts;
+      // Metadata can precede background analysis; check the graph only once
+      // its original-audio aggregate has arrived.
+      return starts && starts.editB > 0.1 && api.audioVizLayout('editB', 1000).width > 0;
     }, {}, { timeout: 15000 });
     const starts = await getVar(page, '_audioTimelineStarts');
     expect(starts.editA).toBe(0);

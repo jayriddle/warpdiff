@@ -11,6 +11,7 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 
 - `index.html` — the app. One `<style>` block at the top, one `<script>` block at the bottom.
 - `js/audio-viz.js` — waveform/spectrogram FFT, K-weighting biquads, EBU R128 LUFS/LRA/True-Peak computation, palette tables. Exports functions consumed by the script in `index.html`.
+- `js/audio-analysis.js` / `js/audio-analysis-worker.js` — one serialized, cancellable background queue for original video/audio analysis. The worker imports the same `audio-viz.js` algorithms, receives a temporary PCM copy in acknowledged 1 MiB slices, transfers aggregates back, and terminates after each job. Source PCM remains intact. Both decode paths generation-check publication; `clearAllMedia` cancels active and queued jobs. Worker-blocked hosts use the existing foreground calculation. Both files and the imported dependency belong in `sw.js` ASSETS.
 - `js/scopes.js` — video scope rendering (waveform monitor, histogram, vectorscope). Uses `Uint16Array` hit-count buffers + `putImageData`; buffers cached across frames, reallocated on resize.
 - `js/hotkeys.js` — registry-based hotkey table + key→action lookup, with localStorage override for custom bindings.
 - `js/mp4-demux.js` — pure MP4/WebM audio demuxers (`_demuxMP4Audio` / `_demuxWebMAudio`) plus the video sample-table demuxer for scrubbing (`_demuxMP4Video`: stsd/stss/stsz/stsc/stco/stts/ctts/elst → decode-order samples with elst-shifted pts, avcC/hvcC config, RFC 6381 codec strings). No app-state deps.

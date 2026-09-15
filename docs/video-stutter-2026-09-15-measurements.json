@@ -1,0 +1,659 @@
+{
+  "note": "Timing diagnostics only. Early before-run quality counters did not serialize. Cold comparison explicitly releases analysis after playback begins.",
+  "runs": [
+    {
+      "name": "before",
+      "at": "2026-09-15T23:26:27.081Z",
+      "browser": "152.0.7977.83",
+      "version": "3.17.1",
+      "seconds": 18,
+      "arms": [
+        {
+          "arm": "native",
+          "presentations": 421,
+          "frameP50": 33.400000000001455,
+          "frameP95": 66.60000000000036,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.79999999999927,
+          "dropped": null,
+          "total": null,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": null,
+          "errors": [],
+          "costs": []
+        },
+        {
+          "arm": "native-routed",
+          "presentations": 431,
+          "frameP50": 33.400000000001455,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.70000000000005,
+          "dropped": null,
+          "total": null,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": null,
+          "errors": [],
+          "costs": []
+        },
+        {
+          "arm": "app-cold",
+          "presentations": 374,
+          "frameP50": 33.5,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 1,
+          "maxFrameGap": 1149.9,
+          "dropped": null,
+          "total": null,
+          "longTasks": 1,
+          "maxTask": 1289,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 159.60000002384186,
+              "duration": 2.099999964237213
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 161.69999998807907,
+              "duration": 1211.800000011921
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1373.5,
+              "duration": 62.60000002384186
+            }
+          ]
+        },
+        {
+          "arm": "app-ready",
+          "presentations": 430,
+          "frameP50": 33.5,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.70000000000073,
+          "dropped": null,
+          "total": null,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 221.89999997615814,
+              "duration": 2
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 223.89999997615814,
+              "duration": 1207.9000000357628
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1431.800000011921,
+              "duration": 58.5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "panels",
+      "at": "2026-09-15T23:31:25.922Z",
+      "browser": "152.0.7977.83",
+      "version": "3.17.1",
+      "seconds": 22,
+      "arms": [
+        {
+          "arm": "app-ready",
+          "presentations": 527,
+          "frameP50": 33.5,
+          "frameP95": 50.099999999998545,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.70000000000073,
+          "dropped": 0,
+          "total": 528,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 506.7000000476837,
+              "duration": 2.599999964237213
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 509.30000001192093,
+              "duration": 1201.6000000238419
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1710.9000000357628,
+              "duration": 54.69999998807907
+            }
+          ]
+        },
+        {
+          "arm": "app-viz",
+          "presentations": 525,
+          "frameP50": 33.400000000001455,
+          "frameP95": 66.59999999999945,
+          "gapsOver80": 1,
+          "maxFrameGap": 83.30000000000109,
+          "dropped": 0,
+          "total": 527,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 136.5,
+              "duration": 2.199999988079071
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 138.69999998807907,
+              "duration": 1226.800000011921
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1365.5,
+              "duration": 58.59999996423721
+            }
+          ]
+        },
+        {
+          "arm": "app-viz-scrub",
+          "presentations": 526,
+          "frameP50": 33.400000000001455,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.80000000000018,
+          "dropped": 0,
+          "total": 617,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 140.29999995231628,
+              "duration": 2.200000047683716
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 142.5,
+              "duration": 1169.699999988079
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1312.199999988079,
+              "duration": 58.69999998807907
+            }
+          ]
+        },
+        {
+          "arm": "app-scopes",
+          "presentations": 510,
+          "frameP50": 49.899999999999636,
+          "frameP95": 66.69999999999982,
+          "gapsOver80": 8,
+          "maxFrameGap": 100,
+          "dropped": 3,
+          "total": 530,
+          "longTasks": 24,
+          "maxTask": 159,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": true,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 135.69999998807907,
+              "duration": 2
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 137.69999998807907,
+              "duration": 1159.800000011921
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1297.5,
+              "duration": 54.39999997615814
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "after",
+      "at": "2026-09-15T23:41:08.417Z",
+      "browser": "152.0.7977.83",
+      "version": "3.17.1",
+      "seconds": 18,
+      "arms": [
+        {
+          "arm": "app-cold",
+          "presentations": 429,
+          "frameP50": 33.400000000001455,
+          "frameP95": 66.59999999999991,
+          "gapsOver80": 1,
+          "maxFrameGap": 100,
+          "dropped": 13,
+          "total": 430,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": []
+        },
+        {
+          "arm": "app-viz",
+          "presentations": 429,
+          "frameP50": 33.400000000001455,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.69999999999982,
+          "dropped": 0,
+          "total": 430,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": []
+        }
+      ]
+    },
+    {
+      "name": "confirmation",
+      "at": "2026-09-15T23:44:57.878Z",
+      "browser": "152.0.7977.83",
+      "version": "3.17.2",
+      "seconds": 20,
+      "arms": [
+        {
+          "arm": "app-cold-sync",
+          "presentations": 477,
+          "frameP50": 49.89999999999782,
+          "frameP95": 66.60000000000036,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.80000000000109,
+          "dropped": 0,
+          "total": 478,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 314.69999998807907,
+              "duration": 2.800000011920929
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 317.5,
+              "duration": 1157.5
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1475,
+              "duration": 56.59999996423721
+            }
+          ]
+        },
+        {
+          "arm": "app-cold",
+          "presentations": 478,
+          "frameP50": 49.89999999999782,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.60000000000014,
+          "dropped": 18,
+          "total": 478,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": []
+        },
+        {
+          "arm": "app-viz",
+          "presentations": 477,
+          "frameP50": 33.400000000001455,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.70000000000005,
+          "dropped": 0,
+          "total": 478,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": []
+        }
+      ]
+    },
+    {
+      "name": "controlled",
+      "at": "2026-09-15T23:47:32.861Z",
+      "browser": "152.0.7977.83",
+      "version": "3.17.2",
+      "seconds": 18,
+      "arms": [
+        {
+          "arm": "app-cold-sync",
+          "presentations": 400,
+          "frameP50": 49.89999999999782,
+          "frameP95": 50.100000000000364,
+          "gapsOver80": 2,
+          "maxFrameGap": 1216.6,
+          "dropped": 31,
+          "total": 429,
+          "longTasks": 1,
+          "maxTask": 1227,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": [
+            {
+              "name": "computeWaveformData",
+              "at": 519.8000000119209,
+              "duration": 2.5
+            },
+            {
+              "name": "computeSpectrogramData",
+              "at": 522.3000000119209,
+              "duration": 1154
+            },
+            {
+              "name": "computeAudioMetrics",
+              "at": 1676.300000011921,
+              "duration": 60.80000001192093
+            }
+          ]
+        },
+        {
+          "arm": "app-cold",
+          "presentations": 430,
+          "frameP50": 49.899999999999636,
+          "frameP95": 50.09999999999991,
+          "gapsOver80": 0,
+          "maxFrameGap": 66.70000000000005,
+          "dropped": 18,
+          "total": 430,
+          "longTasks": 0,
+          "maxTask": 0,
+          "playingSeeks": 0,
+          "rateWrites": 0,
+          "rateRange": [
+            1,
+            1
+          ],
+          "app": {
+            "opus": false,
+            "scope": "sync",
+            "scrubActive": false,
+            "channels": 8,
+            "ctx": 48000,
+            "ctxState": "running",
+            "scopes": false,
+            "loupe": false,
+            "diff": false
+          },
+          "errors": [],
+          "costs": []
+        }
+      ]
+    }
+  ],
+  "regularChrome": [
+    {
+      "arm": "app-ready",
+      "dropped": 0,
+      "total": 528,
+      "frames": 527,
+      "gapsOver80": 0,
+      "p95": 50.80000000000018,
+      "maxGap": 67.09999999999854,
+      "longTasks": 0,
+      "maxTask": 0,
+      "context": {
+        "rate": 48000,
+        "baseLatency": 0.005333333333333333,
+        "outputLatency": 0.016,
+        "state": "running"
+      }
+    },
+    {
+      "arm": "app-viz",
+      "dropped": 0,
+      "total": 528,
+      "frames": 526,
+      "gapsOver80": 0,
+      "p95": 50.700000000004366,
+      "maxGap": 66.69999999999709,
+      "longTasks": 0,
+      "maxTask": 0,
+      "context": {
+        "rate": 48000,
+        "baseLatency": 0.005333333333333333,
+        "outputLatency": 0.016,
+        "state": "running"
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import {test, expect} from '@playwright/test';
 import path from 'node:path';
 
 test.beforeEach(async ({page}) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.17.1'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.17.2'));
   await page.goto('/');
 });
 

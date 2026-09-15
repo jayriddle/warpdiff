@@ -1673,7 +1673,8 @@ function extractFn(name, src = SRC) {
   const finalize = extractFn('_finalizeAudioViz');
   const populate = extractFn('_populateNoVideoSlotData');
   check('scrub-input: original analysis precedes separate listening preparation',
-    finalize.indexOf('computeAudioMetrics(audioBuffer)') < finalize.indexOf('_prepareVideoScrubBuffer(slot, buf, gen)') &&
+    finalize.indexOf('await _computeAudioAnalysis(audioBuffer, buckets,') >= 0 &&
+    finalize.indexOf('await _computeAudioAnalysis(audioBuffer, buckets,') < finalize.indexOf('_prepareVideoScrubBuffer(slot, buf, gen)') &&
     !SRC.includes('function _downsampleForScrub('));
   check('scrub-input: both displays share original aggregates instead of listening PCM',
     populate.includes('waveformData[slot]') && populate.includes('spectrogramData[slot]') &&
@@ -1686,6 +1687,25 @@ function extractFn(name, src = SRC) {
     SRC.includes('maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES') &&
     extractFn('_scrubPreviewPlan').includes('maxBytes = _SCRUB_PREVIEW_MAX_BYTES') &&
     extractFn('clearAllMedia').includes('_videoScrubStatus = {}'));
+}
+
+// Heavy original analysis has one cancellable queue; numerical primitives stay
+// shared with the compatibility path and every worker dependency works offline.
+{
+  check('one-owner[audio-analysis]: video and audio-only decoding share the background queue',
+    countOf(SRC, 'function _computeAudioAnalysis(') === 1 &&
+    extractFn('_finalizeAudioViz').includes('await _computeAudioAnalysis(audioBuffer, buckets,') &&
+    extractFn('decodeAndComputeAudioSlotViz').includes('await _computeAudioAnalysis(audioBuffer, numBuckets,') &&
+    !extractFn('_finalizeAudioViz').includes('computeSpectrogramData(') &&
+    !extractFn('decodeAndComputeAudioSlotViz').includes('computeSpectrogramData('));
+  check('audio-analysis: clearing media cancels queued and active work',
+    extractFn('clearAllMedia').includes('_clearAudioAnalysis()') &&
+    extractFn('_clearAudioAnalysis').includes('_audioAnalysisQueue.splice(0)') &&
+    extractFn('_clearAudioAnalysis').includes('_audioAnalysisJob.cancel()'));
+  const worker = readFileSync(new URL('js/audio-analysis-worker.js', ROOT), 'utf8');
+  check('audio-analysis: worker imports the original algorithms and is cached offline',
+    worker.includes("importScripts('audio-viz.js')") &&
+    readFileSync(new URL('sw.js', ROOT),'utf8').includes("'js/audio-analysis-worker.js'"));
 }
 
 // Overlapping scrub grains must not meet at opposite waveform phases: that
