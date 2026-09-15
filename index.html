@@ -14097,30 +14097,10 @@
         <div class="quick-start-body">
             <h3>v3.16.0</h3>
             <ul>
-                <li><strong>Continuous scrub is standard.</strong> Drag for pitch-preserving preview; click for a short audition. The mode selector has been removed.</li>
-                <li><strong>Full-rate listening audio.</strong> Video previews are prepared directly from the original decode. Surround dialogue reaches the stereo listening mix while original analysis stays intact in both views.</li>
-                <li>Preview memory limits now trigger an explained fallback. Lower-rate previews use filtering to prevent false tones, and clearing media cancels pending preparation.</li>
-            </ul>
-            <h3>v3.15.0</h3>
-            <ul>
-                <li><strong>Optional continuous scrub audio.</strong> Click Scrub: Snippets beside the volume control to try pitch-preserving preview that follows drag speed and direction. Snippets stays the default and remains available for comparison; continuous mode falls back to snippets if unavailable.</li>
-                <li>Both scrub modes preserve multichannel dialogue, original analysis data, and the soundtrack’s position on the timeline. Holding still fades preview audio out.</li>
-            </ul>
-            <h3>v3.14.10</h3>
-            <ul><li><strong>Slow scrubbing keeps audio active.</strong> Preview snippets continue while the pointer moves within the same video frame, closing the silence between slow frame changes. Holding still or dragging beyond a timeline edge fades the preview out.</li></ul>
-            <h3>v3.14.9</h3>
-            <ul><li><strong>7.1 dialogue stays audible.</strong> Scrub preview and normal playback mix the center and surround channels into stereo correctly, including eight-channel FLAC video. Original channels remain available to analysis; stereo phase and audio start timing are preserved.</li></ul>
-            <h3>v3.14.8</h3>
-            <ul><li><strong>Switching videos keeps the playhead moving forward.</strong> Timeline and waveform cursors share a continuous display clock across active-video changes, so small sync offsets and stale frames from hidden videos no longer cause a brief backward jump. Seeks, pauses, restarts, and loop wraps still show their requested positions immediately.</li></ul>
-            <h3>v3.14.7</h3>
-            <ul>
-                <li><strong>Repeated video switches keep audio timing steady.</strong> Inactive native soundtracks stay running silently, preventing renderer resets and speed-correction pops during A/B changes.</li>
-                <li><strong>Automatic loops jump straight to the start.</strong> Timeline and waveform playheads no longer animate backward at the end of a clip or loop region; restart and loop wrap discard stale frame timing.</li>
-            </ul>
-            <h3>v3.14.6</h3>
-            <ul>
-                <li><strong>Smoother audio switching.</strong> Changing the active video or audio source uses a short fade to prevent clicks, including rapid switches and Opus replacement audio.</li>
-                <li><strong>Restart jumps directly to the head.</strong> Pressing <kbd>R</kbd> snaps the timeline and waveform playheads to the loop in-point, or the beginning when unset, without sweeping backward.</li>
+                <li><strong>Smoother scrubbing.</strong> Drag forward or backward with continuous, pitch-preserving audio. Click for a short preview; holding still fades the sound out. Short previews are used automatically when Continuous is unavailable.</li>
+                <li><strong>Clearer audio previews.</strong> Full-rate audio preserves stereo detail and keeps surround dialogue audible. Original waveform, spectrogram and loudness analysis retain their quality.</li>
+                <li><strong>Smoother video switching.</strong> Short audio fades reduce clicks, and the playhead keeps moving forward as you change active videos.</li>
+                <li><strong>Instant restarts and loops.</strong> Press <kbd>R</kbd> or reach the loop end to jump directly to the beginning or your loop in-point. Timeline and waveform playheads snap to the new position.</li>
             </ul>
             <h3>v3.14.5</h3>
             <ul><li>Managed reviews use the original view controls and inspection icons directly in the toolbar.</li></ul>
