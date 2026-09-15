@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.16.0
+**Current version:** 3.16.1
 
 ---
 
@@ -14,7 +14,9 @@ Comparing two versions of an image, video, or audio file shouldn't require flipp
 
 WarpDiff is an opinionated answer to that problem: load 1–4 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
 
-Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
+Single-video and synced playback keep the timeline and waveform playheads moving evenly at the screen's refresh rate while loop and synchronization logic stays frame-accurate. The playheads stop with playback and jump directly on seeks. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
+
+See the [playhead implementation and before/after measurements](docs/playhead-motion-2026-09-15/README.md).
 
 **Continuous scrubbing** preserves pitch while following drag speed and direction. Video previews now use full-rate mono/stereo listening audio, prepared directly from the original decode. Original waveform, spectrogram, and loudness analysis stay intact. Clicks give short previews; unavailable or oversized Continuous streams fall back automatically with an explanation. Holding still fades the audio out. See the [implementation and verification record](docs/full-rate-scrub-2026-09-15.md).
 

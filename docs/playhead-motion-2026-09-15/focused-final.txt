@@ -1,0 +1,31 @@
+(node:63020) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 19 tests using 1 worker
+
+(node:63022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:63022) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:63022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/playhead-clock.spec.ts:13:7 › single playheads advance evenly and stop when the media clock stops (1.2s)
+  ✓   2 [chromium] › tests/playhead-clock.spec.ts:13:7 › Stack playheads advance evenly and stop when the media clock stops (1.4s)
+  ✓   3 [chromium] › tests/playhead-clock.spec.ts:13:7 › Grid playheads advance evenly and stop when the media clock stops (1.5s)
+  ✓   4 [chromium] › tests/playhead-clock.spec.ts:13:7 › single fast playheads advance evenly and stop when the media clock stops (796ms)
+  ✓   5 [chromium] › tests/warpdiff.spec.ts:2985:7 › Audio viz rendering (W panel) + load hygiene › video waveform playheads use layout-free percentage positioning (1.3s)
+  ✓   6 [chromium] › tests/warpdiff.spec.ts:3845:7 › Seamless mid-playback Stack switch (v3.11.9) › switch covers with the outgoing clip until the incoming presents, then swaps (1.8s)
+  ✓   7 [chromium] › tests/warpdiff.spec.ts:4036:9 › Audio source handoffs and restart jumps › native soundtrack handoffs fade, survive rapid reversal, and retain master volume (landscape_a.mp4) (2.0s)
+  ✓   8 [chromium] › tests/warpdiff.spec.ts:4036:9 › Audio source handoffs and restart jumps › native soundtrack handoffs fade, survive rapid reversal, and retain master volume (vorbis_a.webm) (1.8s)
+  ✓   9 [chromium] › tests/warpdiff.spec.ts:4135:7 › Audio source handoffs and restart jumps › Opus selection ramps both sources and a pending muted start stays silent (1.7s)
+  ✓  10 [chromium] › tests/warpdiff.spec.ts:4171:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0 (1.4s)
+  ✓  11 [chromium] › tests/warpdiff.spec.ts:4171:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0.5 (1.4s)
+  ✓  12 [chromium] › tests/warpdiff.spec.ts:4208:5 › arrow-key video switches keep native renderers running and output continuous (2.2s)
+  ✓  13 [chromium] › tests/warpdiff.spec.ts:4264:7 › automatic native wrap snaps every playhead without reverse animation (1.0s)
+  ✓  14 [chromium] › tests/warpdiff.spec.ts:4264:7 › automatic sync wrap snaps every playhead without reverse animation (1.7s)
+  ✓  15 [chromium] › tests/warpdiff.spec.ts:4264:7 › automatic full wrap snaps every playhead without reverse animation (1.7s)
+  ✓  16 [chromium] › tests/warpdiff.spec.ts:4316:7 › Stack video handoff keeps the displayed timeline and waveform moving forward (1.8s)
+  ✓  17 [chromium] › tests/warpdiff.spec.ts:4316:7 › Grid video handoff keeps the displayed timeline and waveform moving forward (1.8s)
+  ✓  18 [chromium] › tests/warpdiff.spec.ts:4373:7 › Stack rapid arrow switches preserve forward progress on every rendered frame (1.9s)
+  ✓  19 [chromium] › tests/warpdiff.spec.ts:4373:7 › Grid rapid arrow switches preserve forward progress on every rendered frame (2.5s)
+
+  19 passed (32.2s)

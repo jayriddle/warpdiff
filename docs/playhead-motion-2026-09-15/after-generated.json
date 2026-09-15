@@ -1,0 +1,1772 @@
+{
+  "at": "2026-09-15T16:10:09.845Z",
+  "file": "landscape_a.mp4",
+  "browser": "152.0.7977.83",
+  "arms": [
+    {
+      "count": 1,
+      "frames": 127,
+      "regularFrames": 126,
+      "frameGapP95Ms": 16.799999999999727,
+      "display": {
+        "held": 0,
+        "backward": 0,
+        "speedP05": 0.9847809231818666,
+        "speedP50": 0.9995720782950827,
+        "speedP95": 1.0120263332300001
+      },
+      "native": {
+        "held": 0,
+        "backward": 0,
+        "speedP05": 0.8689820359281446,
+        "speedP50": 1.0428143712574804,
+        "speedP95": 1.1345783132530192
+      },
+      "samples": [
+        {
+          "now": 1424,
+          "native": 0.631955,
+          "display": 0.6306713723998563,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.208609,
+          "cursor": 20.860915593303044
+        },
+        {
+          "now": 1440.7,
+          "native": 0.646223,
+          "display": 0.6472259296060057,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.214085,
+          "cursor": 21.408495895303872
+        },
+        {
+          "now": 1457.4,
+          "native": 0.664671,
+          "display": 0.6640088807765371,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.219636,
+          "cursor": 21.96363085638945
+        },
+        {
+          "now": 1474,
+          "native": 0.679184,
+          "display": 0.6804511939706003,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.225075,
+          "cursor": 22.50749842785508
+        },
+        {
+          "now": 1490.7,
+          "native": 0.696599,
+          "display": 0.6970897163752068,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.230579,
+          "cursor": 23.057856073167248
+        },
+        {
+          "now": 1507.3,
+          "native": 0.714047,
+          "display": 0.7134043384296839,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.235975,
+          "cursor": 23.597499964596818
+        },
+        {
+          "now": 1524,
+          "native": 0.729329,
+          "display": 0.7299984227511791,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.241464,
+          "cursor": 24.146387717439655
+        },
+        {
+          "now": 1540.7,
+          "native": 0.746629,
+          "display": 0.7466700970182145,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.246978,
+          "cursor": 24.697841937345434
+        },
+        {
+          "now": 1557.3,
+          "native": 0.765463,
+          "display": 0.7634940756148654,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.252543,
+          "cursor": 25.25433397552495
+        },
+        {
+          "now": 1574.1,
+          "native": 0.780765,
+          "display": 0.7803092991460003,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.258105,
+          "cursor": 25.81053641964529
+        },
+        {
+          "now": 1590.7,
+          "native": 0.798186,
+          "display": 0.7970505873738432,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.263643,
+          "cursor": 26.364293282455236
+        },
+        {
+          "now": 1607.4,
+          "native": 0.812698,
+          "display": 0.8136333993128887,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.269128,
+          "cursor": 26.912808175153934
+        },
+        {
+          "now": 1624.1,
+          "native": 0.830113,
+          "display": 0.8303088615227202,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.274644,
+          "cursor": 27.464387690036464
+        },
+        {
+          "now": 1640.7,
+          "native": 0.847606,
+          "display": 0.8466562248475393,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.280051,
+          "cursor": 28.00511457477588
+        },
+        {
+          "now": 1657.3,
+          "native": 0.862847,
+          "display": 0.8631812786310783,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.285517,
+          "cursor": 28.551718982775924
+        },
+        {
+          "now": 1674.1,
+          "native": 0.880876,
+          "display": 0.8800513594243975,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.291097,
+          "cursor": 29.10973595783296
+        },
+        {
+          "now": 1690.6,
+          "native": 0.896299,
+          "display": 0.8964914798877137,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.296535,
+          "cursor": 29.653530999653142
+        },
+        {
+          "now": 1707.4,
+          "native": 0.914286,
+          "display": 0.91338393814029,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.302123,
+          "cursor": 30.212288160977035
+        },
+        {
+          "now": 1724,
+          "native": 0.928798,
+          "display": 0.9298526943194312,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.30757,
+          "cursor": 30.757030395387407
+        },
+        {
+          "now": 1740.7,
+          "native": 0.946213,
+          "display": 0.9465100876852012,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.31308,
+          "cursor": 31.30801224142475
+        },
+        {
+          "now": 1757.3,
+          "native": 0.960726,
+          "display": 0.9628462486480389,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.318484,
+          "cursor": 31.84836858210911
+        },
+        {
+          "now": 1774,
+          "native": 0.981411,
+          "display": 0.9797303662985573,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.324068,
+          "cursor": 32.40684985871214
+        },
+        {
+          "now": 1790.7,
+          "native": 0.996315,
+          "display": 0.9963916928506512,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.32958,
+          "cursor": 32.95796180399214
+        },
+        {
+          "now": 1807.4,
+          "native": 1.013754,
+          "display": 1.013140825046612,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.33512,
+          "cursor": 33.51197812420572
+        },
+        {
+          "now": 1824,
+          "native": 1.029528,
+          "display": 1.0296976844081203,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.340596,
+          "cursor": 34.05963457532433
+        },
+        {
+          "now": 1840.7,
+          "native": 1.047622,
+          "display": 1.0465080508773494,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.346157,
+          "cursor": 34.61567636087845
+        },
+        {
+          "now": 1857.4,
+          "native": 1.062313,
+          "display": 1.0631084018796713,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.351648,
+          "cursor": 35.164771398696466
+        },
+        {
+          "now": 1874,
+          "native": 1.079728,
+          "display": 1.079710570738321,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.357139,
+          "cursor": 35.713926566320715
+        },
+        {
+          "now": 1890.6,
+          "native": 1.09424,
+          "display": 1.0960814275766135,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.362554,
+          "cursor": 36.25543055340377
+        },
+        {
+          "now": 1907.4,
+          "native": 1.114958,
+          "display": 1.1130820836880329,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.368178,
+          "cursor": 36.81776660937784
+        },
+        {
+          "now": 1924,
+          "native": 1.129882,
+          "display": 1.1296685730932239,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.373664,
+          "cursor": 37.36640314278233
+        },
+        {
+          "now": 1940.7,
+          "native": 1.148027,
+          "display": 1.1465209246221781,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.379238,
+          "cursor": 37.92383368137874
+        },
+        {
+          "now": 1957.4,
+          "native": 1.163216,
+          "display": 1.1631843043475756,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.38475,
+          "cursor": 38.47501354011867
+        },
+        {
+          "now": 1974,
+          "native": 1.181265,
+          "display": 1.179924595999777,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.390287,
+          "cursor": 39.02873743888229
+        },
+        {
+          "now": 1990.7,
+          "native": 1.195828,
+          "display": 1.196535908311802,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.395782,
+          "cursor": 39.578195047393244
+        },
+        {
+          "now": 2007.3,
+          "native": 1.213243,
+          "display": 1.2131477597919624,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.401277,
+          "cursor": 40.127670490138414
+        },
+        {
+          "now": 2024,
+          "native": 1.227755,
+          "display": 1.2296147658684573,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.406724,
+          "cursor": 40.67235483585242
+        },
+        {
+          "now": 2040.7,
+          "native": 1.245182,
+          "display": 1.2461873152684357,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.412205,
+          "cursor": 41.22053027131455
+        },
+        {
+          "now": 2057.4,
+          "native": 1.263321,
+          "display": 1.2629181195018833,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.417739,
+          "cursor": 41.77394035174031
+        },
+        {
+          "now": 2074,
+          "native": 1.280577,
+          "display": 1.2796180382770082,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.423263,
+          "cursor": 42.326328824134805
+        },
+        {
+          "now": 2090.7,
+          "native": 1.296534,
+          "display": 1.296326050015501,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.42879,
+          "cursor": 42.87898499002723
+        },
+        {
+          "now": 2107.4,
+          "native": 1.31483,
+          "display": 1.3132268897804422,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.43438,
+          "cursor": 43.43801938927509
+        },
+        {
+          "now": 2124,
+          "native": 1.328888,
+          "display": 1.3297105913114065,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.439833,
+          "cursor": 43.983255975794236
+        },
+        {
+          "now": 2140.7,
+          "native": 1.346757,
+          "display": 1.346449158145403,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.445369,
+          "cursor": 44.53692282220292
+        },
+        {
+          "now": 2157.4,
+          "native": 1.36127,
+          "display": 1.362939945205215,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.450824,
+          "cursor": 45.08239377899111
+        },
+        {
+          "now": 2174,
+          "native": 1.378685,
+          "display": 1.3794453312691712,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.456283,
+          "cursor": 45.62834763163684
+        },
+        {
+          "now": 2190.7,
+          "native": 1.396687,
+          "display": 1.3961961737212032,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.461824,
+          "cursor": 46.182420522529064
+        },
+        {
+          "now": 2207.4,
+          "native": 1.414758,
+          "display": 1.413092880380243,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.467413,
+          "cursor": 46.741318209731446
+        },
+        {
+          "now": 2224,
+          "native": 1.430079,
+          "display": 1.4297211136181627,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.472913,
+          "cursor": 47.29133551703689
+        },
+        {
+          "now": 2240.6,
+          "native": 1.447558,
+          "display": 1.4464481463777525,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.478446,
+          "cursor": 47.84462084723417
+        },
+        {
+          "now": 2257.3,
+          "native": 1.462857,
+          "display": 1.4631053780810297,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.483956,
+          "cursor": 48.39559734591031
+        },
+        {
+          "now": 2274,
+          "native": 1.480272,
+          "display": 1.4798573286546748,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.489497,
+          "cursor": 48.949706890490106
+        },
+        {
+          "now": 2290.7,
+          "native": 1.494785,
+          "display": 1.4963600093977873,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.494956,
+          "cursor": 49.49557125838634
+        },
+        {
+          "now": 2307.3,
+          "native": 1.515535,
+          "display": 1.513211996357766,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.50053,
+          "cursor": 50.052989738019924
+        },
+        {
+          "now": 2324,
+          "native": 1.529843,
+          "display": 1.5295557300966012,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.505936,
+          "cursor": 50.593596565800745
+        },
+        {
+          "now": 2340.7,
+          "native": 1.547797,
+          "display": 1.546394704145846,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.511506,
+          "cursor": 51.15058461328802
+        },
+        {
+          "now": 2357.3,
+          "native": 1.563578,
+          "display": 1.5630347982203727,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.51701,
+          "cursor": 51.70099424522109
+        },
+        {
+          "now": 2374,
+          "native": 1.581859,
+          "display": 1.5799391173518376,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.522601,
+          "cursor": 52.26014373257115
+        },
+        {
+          "now": 2390.7,
+          "native": 1.596372,
+          "display": 1.5966093782866662,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.528116,
+          "cursor": 52.811551203242445
+        },
+        {
+          "now": 2407.3,
+          "native": 1.613787,
+          "display": 1.6132733017562755,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.533628,
+          "cursor": 53.36274904758091
+        },
+        {
+          "now": 2424,
+          "native": 1.628299,
+          "display": 1.6297868961607431,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.53909,
+          "cursor": 53.90897441009067
+        },
+        {
+          "now": 2440.7,
+          "native": 1.64879,
+          "display": 1.6464008470548468,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.544585,
+          "cursor": 54.45851929581198
+        },
+        {
+          "now": 2457.3,
+          "native": 1.663915,
+          "display": 1.6630713586474442,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.550099,
+          "cursor": 55.00993505756922
+        },
+        {
+          "now": 2474,
+          "native": 1.681981,
+          "display": 1.6799912020513619,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.555696,
+          "cursor": 55.56959804616805
+        },
+        {
+          "now": 2490.7,
+          "native": 1.697279,
+          "display": 1.6967214622229767,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.56123,
+          "cursor": 56.122990130489235
+        },
+        {
+          "now": 2507.4,
+          "native": 1.715363,
+          "display": 1.713602661428819,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.566814,
+          "cursor": 56.681374872778655
+        },
+        {
+          "now": 2524,
+          "native": 1.729887,
+          "display": 1.7301677282306962,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.572293,
+          "cursor": 57.22930280398701
+        },
+        {
+          "now": 2540.7,
+          "native": 1.747302,
+          "display": 1.746916077154345,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.577833,
+          "cursor": 57.78329321565566
+        },
+        {
+          "now": 2557.3,
+          "native": 1.761814,
+          "display": 1.7633277139492645,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.583261,
+          "cursor": 58.32614609420633
+        },
+        {
+          "now": 2574,
+          "native": 1.77966,
+          "display": 1.7799387904629127,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.588756,
+          "cursor": 58.87559590314012
+        },
+        {
+          "now": 2590.6,
+          "native": 1.797388,
+          "display": 1.7966096403183502,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.59427,
+          "cursor": 59.427022853723855
+        },
+        {
+          "now": 2607.4,
+          "native": 1.812499,
+          "display": 1.8132864806026951,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.599786,
+          "cursor": 59.978647951611045
+        },
+        {
+          "now": 2624,
+          "native": 1.830751,
+          "display": 1.82994607674933,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.605297,
+          "cursor": 60.52970265972474
+        },
+        {
+          "now": 2640.6,
+          "native": 1.848836,
+          "display": 1.8467651882557374,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.61086,
+          "cursor": 61.08603370762755
+        },
+        {
+          "now": 2657.3,
+          "native": 1.863401,
+          "display": 1.8634580419632656,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.616382,
+          "cursor": 61.638188486556245
+        },
+        {
+          "now": 2674,
+          "native": 1.880816,
+          "display": 1.8802312946246884,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.62193,
+          "cursor": 62.193002647001826
+        },
+        {
+          "now": 2690.7,
+          "native": 1.895329,
+          "display": 1.8967529058231396,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.627395,
+          "cursor": 62.73949318353079
+        },
+        {
+          "now": 2707.3,
+          "native": 1.913152,
+          "display": 1.9133001282453792,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.632868,
+          "cursor": 63.2868308705744
+        },
+        {
+          "now": 2724,
+          "native": 1.930773,
+          "display": 1.93006413063406,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.638413,
+          "cursor": 63.84133905683543
+        },
+        {
+          "now": 2740.6,
+          "native": 1.946053,
+          "display": 1.9465775748438907,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.643876,
+          "cursor": 64.3875594513099
+        },
+        {
+          "now": 2757.3,
+          "native": 1.964065,
+          "display": 1.9633479848446045,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.649423,
+          "cursor": 64.94227958417198
+        },
+        {
+          "now": 2773.9,
+          "native": 1.97942,
+          "display": 1.979861555855135,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.654885,
+          "cursor": 65.48850417287314
+        },
+        {
+          "now": 2790.7,
+          "native": 1.996916,
+          "display": 1.9966900535993595,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.660451,
+          "cursor": 66.04514569232009
+        },
+        {
+          "now": 2807.3,
+          "native": 2.011429,
+          "display": 2.0130840970010304,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.665874,
+          "cursor": 66.58741662866184
+        },
+        {
+          "now": 2824,
+          "native": 2.028844,
+          "display": 2.0296794328682486,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.671363,
+          "cursor": 67.13634577927668
+        },
+        {
+          "now": 2840.7,
+          "native": 2.04661,
+          "display": 2.0463780486755834,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.676887,
+          "cursor": 67.68869115299526
+        },
+        {
+          "now": 2857.3,
+          "native": 2.064541,
+          "display": 2.0631180366221527,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.682424,
+          "cursor": 68.24240500599204
+        },
+        {
+          "now": 2874,
+          "native": 2.079787,
+          "display": 2.0797805132115528,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.687936,
+          "cursor": 68.79355499141818
+        },
+        {
+          "now": 2890.6,
+          "native": 2.097145,
+          "display": 2.0964439790828076,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.693447,
+          "cursor": 69.34473769963178
+        },
+        {
+          "now": 2907.3,
+          "native": 2.112031,
+          "display": 2.1129970214115885,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.698923,
+          "cursor": 69.89226789355682
+        },
+        {
+          "now": 2924,
+          "native": 2.130431,
+          "display": 2.129757139027765,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.704466,
+          "cursor": 70.44664758197435
+        },
+        {
+          "now": 2940.7,
+          "native": 2.144943,
+          "display": 2.1462885648826737,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.709935,
+          "cursor": 70.99346276098576
+        },
+        {
+          "now": 2957.4,
+          "native": 2.162358,
+          "display": 2.1629183619924026,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.715435,
+          "cursor": 71.54353179697154
+        },
+        {
+          "now": 2973.9,
+          "native": 2.180068,
+          "display": 2.1794626521732385,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.720908,
+          "cursor": 72.09077249334281
+        },
+        {
+          "now": 2990.7,
+          "native": 2.198196,
+          "display": 2.196445139129836,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.726525,
+          "cursor": 72.65250756246108
+        },
+        {
+          "now": 3007.3,
+          "native": 2.212494,
+          "display": 2.212956479732801,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.731987,
+          "cursor": 73.19865837526879
+        },
+        {
+          "now": 3024,
+          "native": 2.231256,
+          "display": 2.2298116249892157,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.737562,
+          "cursor": 73.7561813228682
+        },
+        {
+          "now": 3040.6,
+          "native": 2.245831,
+          "display": 2.246310738490409,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.743019,
+          "cursor": 74.30192769598008
+        },
+        {
+          "now": 3057.3,
+          "native": 2.263946,
+          "display": 2.2631148642718104,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.748578,
+          "cursor": 74.85776305633763
+        },
+        {
+          "now": 3074,
+          "native": 2.278458,
+          "display": 2.2796638000495486,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.754052,
+          "cursor": 75.40515741658062
+        },
+        {
+          "now": 3090.7,
+          "native": 2.295873,
+          "display": 2.296309157644032,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.759557,
+          "cursor": 75.95574115162086
+        },
+        {
+          "now": 3107.3,
+          "native": 2.31353,
+          "display": 2.312631477531426,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.764956,
+          "cursor": 76.49563966669399
+        },
+        {
+          "now": 3123.9,
+          "native": 2.331537,
+          "display": 2.3294516513512815,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.77052,
+          "cursor": 77.05200585307327
+        },
+        {
+          "now": 3140.7,
+          "native": 2.345794,
+          "display": 2.346169258399938,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.77605,
+          "cursor": 77.60497940606169
+        },
+        {
+          "now": 3157.3,
+          "native": 2.364828,
+          "display": 2.3629620111370118,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.781604,
+          "cursor": 78.16043857665046
+        },
+        {
+          "now": 3174,
+          "native": 2.379957,
+          "display": 2.3796661292304244,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.78713,
+          "cursor": 78.7129659512184
+        },
+        {
+          "now": 3190.6,
+          "native": 2.39746,
+          "display": 2.396370805595591,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.792655,
+          "cursor": 79.26551179191694
+        },
+        {
+          "now": 3207.3,
+          "native": 2.411973,
+          "display": 2.412948583239282,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.798139,
+          "cursor": 79.8138601636428
+        },
+        {
+          "now": 3223.9,
+          "native": 2.429388,
+          "display": 2.429530812027468,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.803624,
+          "cursor": 80.36235576727688
+        },
+        {
+          "now": 3240.7,
+          "native": 2.446825,
+          "display": 2.4460585610803918,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.80909,
+          "cursor": 80.90904932755116
+        },
+        {
+          "now": 3257.3,
+          "native": 2.464591,
+          "display": 2.462837668320829,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.814641,
+          "cursor": 81.46405714175049
+        },
+        {
+          "now": 3274,
+          "native": 2.480215,
+          "display": 2.479585467247776,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.82018,
+          "cursor": 82.01802936100503
+        },
+        {
+          "now": 3290.6,
+          "native": 2.498299,
+          "display": 2.4963831768723557,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.825737,
+          "cursor": 82.57365249212283
+        },
+        {
+          "now": 3307.3,
+          "native": 2.51323,
+          "display": 2.5130831571805667,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.83126,
+          "cursor": 83.1260429998666
+        },
+        {
+          "now": 3324,
+          "native": 2.530975,
+          "display": 2.5299158490144635,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.836828,
+          "cursor": 83.68282324853844
+        },
+        {
+          "now": 3340.7,
+          "native": 2.545488,
+          "display": 2.5464902818241866,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.842311,
+          "cursor": 84.2310609821378
+        },
+        {
+          "now": 3357.3,
+          "native": 2.562902,
+          "display": 2.56306944530231,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.847795,
+          "cursor": 84.77945519354564
+        },
+        {
+          "now": 3374,
+          "native": 2.577415,
+          "display": 2.5795073170586527,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.853232,
+          "cursor": 85.32317585417711
+        },
+        {
+          "now": 3390.6,
+          "native": 2.597823,
+          "display": 2.595965960637495,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.858676,
+          "cursor": 85.86758359092276
+        },
+        {
+          "now": 3407.3,
+          "native": 2.6135,
+          "display": 2.612741449019854,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.864225,
+          "cursor": 86.42247170301381
+        },
+        {
+          "now": 3423.9,
+          "native": 2.631682,
+          "display": 2.6295781153283233,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.869794,
+          "cursor": 86.97938341663271
+        },
+        {
+          "now": 3440.6,
+          "native": 2.646791,
+          "display": 2.6463182938217695,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.875331,
+          "cursor": 87.53310357240855
+        },
+        {
+          "now": 3457.3,
+          "native": 2.66449,
+          "display": 2.6631821437762793,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.880909,
+          "cursor": 88.09091444804808
+        },
+        {
+          "now": 3473.9,
+          "native": 2.679002,
+          "display": 2.6796958078650377,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.886371,
+          "cursor": 88.63714211552708
+        },
+        {
+          "now": 3490.6,
+          "native": 2.696417,
+          "display": 2.696398167256063,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.891896,
+          "cursor": 89.1896113169423
+        },
+        {
+          "now": 3507.3,
+          "native": 2.71093,
+          "display": 2.7128567779682213,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.89734,
+          "cursor": 89.73401796654632
+        },
+        {
+          "now": 3523.9,
+          "native": 2.731251,
+          "display": 2.7293337412064047,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.90279,
+          "cursor": 90.27903166843315
+        }
+      ]
+    },
+    {
+      "count": 2,
+      "frames": 64,
+      "regularFrames": 63,
+      "frameGapP95Ms": 33.40000000000009,
+      "display": {
+        "held": 0,
+        "backward": 0,
+        "speedP05": 0.9894919510744857,
+        "speedP50": 1.0017849511125512,
+        "speedP95": 1.0076811096555671
+      },
+      "native": {
+        "held": 0,
+        "backward": 0,
+        "speedP05": 0.955928143712571,
+        "speedP50": 0.9872155688622704,
+        "speedP95": 1.072612612612619
+      },
+      "samples": [
+        {
+          "now": 1764.3,
+          "native": 0.638549,
+          "display": 0.6396213209412125,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.21157,
+          "cursor": 21.156955859686445
+        },
+        {
+          "now": 1797.7,
+          "native": 0.670476,
+          "display": 0.672454562811636,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.22243,
+          "cursor": 22.242991340743842
+        },
+        {
+          "now": 1831,
+          "native": 0.706018,
+          "display": 0.7057657598674528,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.233448,
+          "cursor": 23.344836295984177
+        },
+        {
+          "now": 1864.4,
+          "native": 0.739374,
+          "display": 0.7391540120036334,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.244492,
+          "cursor": 24.449230026383574
+        },
+        {
+          "now": 1897.7,
+          "native": 0.772063,
+          "display": 0.7723672073388268,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.255478,
+          "cursor": 25.54783334784855
+        },
+        {
+          "now": 1930.9,
+          "native": 0.803991,
+          "display": 0.8052183401144998,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.266345,
+          "cursor": 26.63446061201301
+        },
+        {
+          "now": 1964.3,
+          "native": 0.840347,
+          "display": 0.838948701715671,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.277502,
+          "cursor": 27.750170404921608
+        },
+        {
+          "now": 1997.6,
+          "native": 0.873571,
+          "display": 0.8724778719347921,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.288592,
+          "cursor": 28.859225327127767
+        },
+        {
+          "now": 2031,
+          "native": 0.905578,
+          "display": 0.9058111004506452,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.299618,
+          "cursor": 29.96179902390978
+        },
+        {
+          "now": 2064.3,
+          "native": 0.937506,
+          "display": 0.9387547681506021,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.310515,
+          "cursor": 31.051487094905504
+        },
+        {
+          "now": 2097.6,
+          "native": 0.972813,
+          "display": 0.9721786956211682,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.321571,
+          "cursor": 32.1570608695751
+        },
+        {
+          "now": 2131,
+          "native": 1.006238,
+          "display": 1.005643559396188,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.33264,
+          "cursor": 33.2639887072786
+        },
+        {
+          "now": 2164.3,
+          "native": 1.039093,
+          "display": 1.0389767352102344,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.343666,
+          "cursor": 34.36656066082635
+        },
+        {
+          "now": 2197.6,
+          "native": 1.07102,
+          "display": 1.071997739993562,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.354588,
+          "cursor": 35.458806834883404
+        },
+        {
+          "now": 2231,
+          "native": 1.106692,
+          "display": 1.1056220232216623,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.36571,
+          "cursor": 36.57100784004017
+        },
+        {
+          "now": 2264.3,
+          "native": 1.13978,
+          "display": 1.1390321300664534,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.376761,
+          "cursor": 37.67612446551867
+        },
+        {
+          "now": 2297.6,
+          "native": 1.172608,
+          "display": 1.1723933731917004,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.387796,
+          "cursor": 38.77962481035785
+        },
+        {
+          "now": 2331,
+          "native": 1.204535,
+          "display": 1.2055131754276818,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.398751,
+          "cursor": 39.87513893886921
+        },
+        {
+          "now": 2364.3,
+          "native": 1.239819,
+          "display": 1.2389934004827365,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.409826,
+          "cursor": 40.98257488646994
+        },
+        {
+          "now": 2397.6,
+          "native": 1.273535,
+          "display": 1.2725084295755686,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.420912,
+          "cursor": 42.09116205818858
+        },
+        {
+          "now": 2431,
+          "native": 1.306122,
+          "display": 1.3059559845900754,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.431975,
+          "cursor": 43.19751736856979
+        },
+        {
+          "now": 2464.3,
+          "native": 1.33805,
+          "display": 1.3389882560110788,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.442901,
+          "cursor": 44.29013621274929
+        },
+        {
+          "now": 2497.6,
+          "native": 1.374,
+          "display": 1.3725645891766192,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.454008,
+          "cursor": 45.400751158586516
+        },
+        {
+          "now": 2531,
+          "native": 1.40669,
+          "display": 1.4060766819866253,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.465092,
+          "cursor": 46.50924120595343
+        },
+        {
+          "now": 2564.3,
+          "native": 1.439637,
+          "display": 1.4394344725855945,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.476126,
+          "cursor": 47.61262735049367
+        },
+        {
+          "now": 2597.6,
+          "native": 1.471565,
+          "display": 1.4724748496715923,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.487055,
+          "cursor": 48.70551430830679
+        },
+        {
+          "now": 2630.9,
+          "native": 1.506924,
+          "display": 1.5059724630444988,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.498135,
+          "cursor": 49.81352541477296
+        },
+        {
+          "now": 2664.3,
+          "native": 1.540484,
+          "display": 1.539558509273257,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.509245,
+          "cursor": 50.92446164266104
+        },
+        {
+          "now": 2697.7,
+          "native": 1.573152,
+          "display": 1.5730015932084116,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.520307,
+          "cursor": 52.03066906174251
+        },
+        {
+          "now": 2731,
+          "native": 1.605079,
+          "display": 1.6060301775161443,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.531232,
+          "cursor": 53.123165946115215
+        },
+        {
+          "now": 2764.3,
+          "native": 1.640657,
+          "display": 1.6395448121075604,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.542317,
+          "cursor": 54.23174006878628
+        },
+        {
+          "now": 2797.6,
+          "native": 1.673694,
+          "display": 1.6729902638196816,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.55338,
+          "cursor": 55.33802580757212
+        },
+        {
+          "now": 2831,
+          "native": 1.706667,
+          "display": 1.7064518837424993,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.564448,
+          "cursor": 56.44484634735479
+        },
+        {
+          "now": 2864.3,
+          "native": 1.738594,
+          "display": 1.7394948335516645,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.575378,
+          "cursor": 57.53781840394231
+        },
+        {
+          "now": 2897.6,
+          "native": 1.774312,
+          "display": 1.7730506145031946,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.586478,
+          "cursor": 58.6477535377245
+        },
+        {
+          "now": 2931,
+          "native": 1.807172,
+          "display": 1.80656915900715,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.597565,
+          "cursor": 59.75645698980392
+        },
+        {
+          "now": 2964.2,
+          "native": 1.840181,
+          "display": 1.8398603131469007,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.608576,
+          "cursor": 60.8576389791977
+        },
+        {
+          "now": 2997.6,
+          "native": 1.872109,
+          "display": 1.873003954086191,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.619539,
+          "cursor": 61.9539416280056
+        },
+        {
+          "now": 3030.9,
+          "native": 1.907827,
+          "display": 1.9065439462790565,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.630634,
+          "cursor": 63.06335451204532
+        },
+        {
+          "now": 3064.3,
+          "native": 1.941065,
+          "display": 1.94012966224092,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.641743,
+          "cursor": 64.17427981559133
+        },
+        {
+          "now": 3097.7,
+          "native": 1.973696,
+          "display": 1.973566700115275,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.652803,
+          "cursor": 65.28028724721572
+        },
+        {
+          "now": 3131,
+          "native": 2.005624,
+          "display": 2.006590820689684,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.663726,
+          "cursor": 66.37263648327558
+        },
+        {
+          "now": 3164.3,
+          "native": 2.041353,
+          "display": 2.0401541524965743,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.674828,
+          "cursor": 67.48282137907842
+        },
+        {
+          "now": 3197.6,
+          "native": 2.074478,
+          "display": 2.0736006386423345,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.685891,
+          "cursor": 68.58914133415148
+        },
+        {
+          "now": 3230.9,
+          "native": 2.107211,
+          "display": 2.106969538863736,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.696929,
+          "cursor": 69.69289495517151
+        },
+        {
+          "now": 3264.3,
+          "native": 2.139138,
+          "display": 2.1400953162100773,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.707886,
+          "cursor": 70.78860672428992
+        },
+        {
+          "now": 3297.6,
+          "native": 2.174703,
+          "display": 2.17360170601144,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.718969,
+          "cursor": 71.89690813144396
+        },
+        {
+          "now": 3330.9,
+          "native": 2.208172,
+          "display": 2.2071211072769006,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.730056,
+          "cursor": 73.0056399228935
+        },
+        {
+          "now": 3364.3,
+          "native": 2.240726,
+          "display": 2.2405667300565772,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.741119,
+          "cursor": 74.11193132013474
+        },
+        {
+          "now": 3397.6,
+          "native": 2.272653,
+          "display": 2.2735972819840167,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.752045,
+          "cursor": 75.20449328808412
+        },
+        {
+          "now": 3430.9,
+          "native": 2.308354,
+          "display": 2.307130763383565,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.763137,
+          "cursor": 76.31369081256294
+        },
+        {
+          "now": 3464.3,
+          "native": 2.341294,
+          "display": 2.340647716070158,
+          "seeking": false,
+          "fps": 30,
+          "scale": 0.774223,
+          "cursor": 77.42234161159817
+        },
+        {
+          "now": 3497.6,
+          "native": 2.37424,
+          "display": 2.3740126031025826,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.78526,
+          "cursor": 78.52596248710259
+        },
+        {
+          "now": 3531,
+          "native": 2.406337,
+          "display": 2.4071354714784072,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.796216,
+          "cursor": 79.62157803528711
+        },
+        {
+          "now": 3564.3,
+          "native": 2.44247,
+          "display": 2.440841182810201,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.807365,
+          "cursor": 80.73647246347277
+        },
+        {
+          "now": 3597.6,
+          "native": 2.474832,
+          "display": 2.4742368242263364,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.818411,
+          "cursor": 81.84111061141223
+        },
+        {
+          "now": 3630.9,
+          "native": 2.507755,
+          "display": 2.50758525924809,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.829442,
+          "cursor": 82.94418729857867
+        },
+        {
+          "now": 3664.3,
+          "native": 2.539683,
+          "display": 2.5406952895221817,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.840394,
+          "cursor": 84.03937819682928
+        },
+        {
+          "now": 3697.6,
+          "native": 2.572514,
+          "display": 2.573578753248257,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.851271,
+          "cursor": 85.12707488202173
+        },
+        {
+          "now": 3730.9,
+          "native": 2.605749,
+          "display": 2.606560904027144,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.86218,
+          "cursor": 86.21803586993815
+        },
+        {
+          "now": 3764.2,
+          "native": 2.638367,
+          "display": 2.6395292573331175,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.873085,
+          "cursor": 87.30854047449797
+        },
+        {
+          "now": 3797.6,
+          "native": 2.673197,
+          "display": 2.672988874700277,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.884153,
+          "cursor": 88.4152947751165
+        },
+        {
+          "now": 3831,
+          "native": 2.705612,
+          "display": 2.706183158600348,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.895133,
+          "cursor": 89.51327255708644
+        },
+        {
+          "now": 3864.3,
+          "native": 2.738907,
+          "display": 2.7393128493910712,
+          "seeking": false,
+          "fps": 24,
+          "scale": 0.906091,
+          "cursor": 90.60911377243706
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "appVersion": "3.16.1"
+}

@@ -3848,11 +3848,13 @@ test.describe('Seamless mid-playback Stack switch (v3.11.9)', () => {
     await page.keyboard.press('s');
     await page.waitForFunction(() => !(window as any).__testAPI.isGridMode, {}, { timeout: 5000 });
     await startPlayback(page);
-    // Let the drift lock finish absorbing the play() start-latency offset —
-    // switching mid-convergence would measure the transient, not the swap.
+    // Observe a settled swap away from a natural loop boundary. Pending startup
+    // seeks and an ordinary loop wrap are not seeks caused by the switch.
     await page.waitForFunction(() => {
       const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
-      return Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.012;
+      const end = Math.min(...vids.map(v => v.duration));
+      return vids.every(v => !v.seeking && !(v as any)._seekIssued && v.currentTime > 0.3 && v.currentTime < end - 0.5)
+        && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.012;
     }, {}, { timeout: 5000 });
 
     const snap = await page.evaluate(() => {
@@ -4039,8 +4041,10 @@ test.describe('Audio source handoffs and restart jumps', () => {
         (window as any).playAllMedia();
       });
       await page.waitForFunction(() => {
-        const gain = (window as any).__testAPI.nativeAudio.gain('editA');
-        return gain && gain.context.state === 'running';
+        return ['editA', 'editB'].every(slot => {
+          const gain = (window as any).__testAPI.nativeAudio.gain(slot);
+          return gain && gain.context.state === 'running';
+        });
       });
       const result = await page.evaluate(async () => {
         const app = window as any;
@@ -4054,17 +4058,27 @@ test.describe('Audio source handoffs and restart jumps', () => {
           analyser.getFloatTimeDomainData(data);
           return Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length);
         };
-        await new Promise(r => setTimeout(r, 100));
+        const waitForAudio = async (seconds: number) => {
+          const until = a.context.currentTime + seconds;
+          const deadline = performance.now() + 3000;
+          while (a.context.currentTime < until) {
+            if (performance.now() > deadline) throw new Error('Audio processing did not advance');
+            await new Promise(r => setTimeout(r, 5));
+          }
+        };
+        // Wall time can elapse before the device starts processing. Require a
+        // full analyser window at each settled level on the audio clock itself.
+        await waitForAudio(0.15);
         const full = rms();
         app.setVolume(25);
-        await new Promise(r => setTimeout(r, 100));
+        await waitForAudio(0.15);
         const quarter = rms();
         app.selectAudioSource('editB');
         const outgoing = { ...a._audioEnvelope };
         const incoming = { ...b._audioEnvelope };
         // Reverse while the output envelopes are still in flight.
         app.selectAudioSource('editA');
-        await new Promise(r => setTimeout(r, 70));
+        await waitForAudio(0.07);
         const resumed = rms();
         const muted = (document.querySelector('#layerEditA video') as HTMLVideoElement).muted;
         a.disconnect(analyser);
@@ -4121,6 +4135,7 @@ test.describe('Audio source handoffs and restart jumps', () => {
   test('Opus selection ramps both sources and a pending muted start stays silent', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => ['editA', 'editB'].every(slot => (window as any).__testAPI.nativeAudio.gain(slot)));
     const result = await page.evaluate(async () => {
       const app = window as any;
       const opus = app.__testAPI.opus;
@@ -4129,7 +4144,12 @@ test.describe('Audio source handoffs and restart jumps', () => {
       app.selectAudioSource('editA');
       opus.start('editA', 0);
       opus.start('editB', 0);
-      await new Promise(r => setTimeout(r, 40));
+      const envelope = opus.state('editA').envelope;
+      const deadline = performance.now() + 3000;
+      while (opus.ctxTime() < envelope.start + envelope.duration) {
+        if (performance.now() > deadline) throw new Error('Opus source did not reach the end of its fade');
+        await new Promise(r => setTimeout(r, 5));
+      }
       app.selectAudioSource('editB');
       const outgoing = opus.state('editA').envelope;
       const incoming = opus.state('editB').envelope;
@@ -4323,17 +4343,16 @@ for (const mode of ['Stack', 'Grid']) {
         cursor: Number(document.getElementById('waveformCursor')!.style.getPropertyValue('--cursor-pct')),
       });
       app._resolveVideoProgressTime(null);
-      app.updateVideoProgress(outgoing, base + 0.004);
+      let at = performance.now();
+      app.updateVideoProgress(outgoing, base + 0.004, at);
       const result = [sample()];
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
       result.push(sample());
       for (let i = 0; i < 5; i++) {
         incomingTime += 0.016;
-        // This is exactly the candidate the rAF projection gets from an old
-        // hidden frame while the newly shown video is waiting to present.
-        const candidate = app._projectVisualTime((incoming as any)._visualPresentedTime,
-          (incoming as any)._visualPresentedAt, performance.now(), 1, 1 / 24, incomingTime);
-        app.updateVideoProgress(incoming, candidate);
+        at += 16;
+        // Hidden-frame metadata remains stale while the media clock advances.
+        app.updateVideoProgress(incoming, incomingTime, at);
         result.push(sample());
       }
       delete (outgoing as any).currentTime;

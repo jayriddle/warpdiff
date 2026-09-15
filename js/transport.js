@@ -894,25 +894,24 @@ function _normalizeFpsInterval(mediaDelta, presentedFrameDelta) {
     return mediaDelta / frames;
 }
 
-function _projectVisualTime(presentedTime, presentedAt, now, rate, frameDuration, mediaTime) {
-    if (!Number.isFinite(presentedTime) || !Number.isFinite(presentedAt) ||
-        !Number.isFinite(now) || !Number.isFinite(frameDuration) || frameDuration <= 0) {
+function _projectVisualTime(mediaTime, previousTime, elapsed, rate, frameDuration) {
+    if (!Number.isFinite(previousTime) || !Number.isFinite(elapsed) ||
+        !Number.isFinite(frameDuration) || frameDuration <= 0) {
         return mediaTime;
     }
     const speed = Number.isFinite(rate) && rate > 0 ? rate : 1;
-    const elapsed = Math.max(0, (now - presentedAt) / 1000) * speed;
-    const projected = presentedTime + Math.min(elapsed, frameDuration);
-    // Chromium's media clock advances continuously while RVFC metadata advances
-    // once per presented frame. Prefer the leading clock while they agree within
-    // one source frame: that keeps the chrome moving every display refresh and
-    // prevents a slightly late RVFC anchor from pulling it backward. A media clock
-    // farther away than that may be stale or ahead of the displayed picture, so
-    // retain the presentation-bounded value in that case. Playback stalls remain
-    // capped to one frame because a stopped media clock soon leaves this window.
-    if (Number.isFinite(mediaTime) && Math.abs(mediaTime - projected) <= frameDuration) {
-        return Math.max(0, Math.max(projected, mediaTime));
-    }
-    return Math.max(0, projected);
+    const advance = Math.max(0, elapsed) * speed;
+    const projected = previousTime + advance;
+    // Follow display-refresh time, gently correcting native audio-clock sampling
+    // noise over 150 ms. A correction changes visual speed by at most 10%; it
+    // never changes media playbackRate. Re-anchoring at each quantized video
+    // frame instead made a 24 fps clip alternate fast/slow on a 60 Hz display.
+    const correction = Math.max(-advance * 0.1, Math.min(advance * 0.1,
+        (mediaTime - projected) * Math.min(1, elapsed / 0.15)));
+    // A stopped media clock permits at most 25 ms of wall-time extrapolation,
+    // capped to one source frame. Then hold, without reversing the cursor.
+    const lead = Math.min(frameDuration, 0.025 * speed);
+    return Math.max(0, previousTime, Math.min(projected + correction, mediaTime + lead));
 }
 
 // One display clock survives source handoffs. Hidden videos may present an old
@@ -920,34 +919,33 @@ function _projectVisualTime(presentedTime, presentedAt, now, rate, frameDuration
 // frame. Neither should move the displayed timeline backward during playback.
 // This never writes media time or feeds transport/loop decisions.
 let _videoProgressClock = null;
-function _resolveVideoProgressTime(video, candidate) {
+function _resolveVideoProgressTime(video, candidate, now = performance.now()) {
     if (!video) { _videoProgressClock = null; return candidate; }
     const previous = _videoProgressClock;
     const mediaTime = video.currentTime;
     const playing = !video.paused && !video.ended && !isDragging;
     const changedSource = previous && previous.video !== video;
-    const wrapped = previous && !changedSource && mediaTime < previous.mediaTime - 0.001;
-    const reset = !previous || !playing || !previous.playing || video.seeking || wrapped;
-    let followingMedia = !reset && (changedSource || previous.followingMedia);
-    if (followingMedia) {
-        // Use the advancing native clock until the new source presents a frame
-        // near it. Reject both stale pre-switch frames and late pre-loop frames.
-        const frameDuration = 1 / (videoFrameRates[video.src] || 30);
-        const freshFrame = Number.isFinite(video._visualPresentedTime) &&
-            Math.abs(video._visualPresentedTime - mediaTime) <= frameDuration;
-        candidate = freshFrame ? Math.max(candidate, mediaTime) : mediaTime;
-        followingMedia = !freshFrame;
-    } else if (wrapped && playing) {
-        candidate = mediaTime;
-    }
-    const time = reset ? candidate : Math.max(candidate, previous.time);
+    const frameDuration = 1 / (videoFrameRates[video.src] || 30);
+    const elapsed = previous ? Math.max(0, (now - previous.at) / 1000) : 0;
+    const seekGeneration = video._progressSeekGeneration || 0;
+    const seeked = previous && !changedSource && previous.seekGeneration !== seekGeneration;
+    // Explicit seeks are fenced even if they finish between two display frames.
+    // Small native clock corrections are not mistaken for an automatic wrap.
+    const wrapped = previous && !changedSource &&
+        mediaTime < previous.mediaTime - Math.max(0.05, frameDuration * 2);
+    const reset = !previous || !playing || !previous.playing || video.seeking || seeked || wrapped;
+    const time = reset ? (wrapped && playing ? mediaTime : candidate)
+        : video.readyState < 3 ? previous.time
+        : elapsed > 0.25 ? Math.max(mediaTime, previous.time)
+        : _projectVisualTime(mediaTime, previous.time, elapsed, video.playbackRate, frameDuration);
     // Reuse the small state record instead of allocating on every display frame.
     const clock = _videoProgressClock || (_videoProgressClock = {});
     clock.video = video;
     clock.time = time;
     clock.mediaTime = mediaTime;
     clock.playing = playing;
-    clock.followingMedia = followingMedia;
+    clock.at = now;
+    clock.seekGeneration = seekGeneration;
     return time;
 }
 
@@ -977,11 +975,6 @@ function _setupFpsDetection(video, slot) {
         // guard so the next 'play' can start a clean pass instead of two chains
         // racing the same sample buffer.
         if (video.paused || video.ended) { detecting = false; return; }
-        // This same single RVFC chain owns the visual presentation anchor after
-        // FPS detection completes. Keeping it here avoids a second callback
-        // chain racing the detector or the loop-point callback.
-        video._visualPresentedTime = metadata.mediaTime;
-        video._visualPresentedAt = now;
         const presentedFrames = Number(metadata.presentedFrames);
         if (!detected && lastTs !== null) {
             const presentedDelta = lastPresentedFrames !== null && Number.isFinite(presentedFrames)
@@ -1024,7 +1017,8 @@ function _setupFpsDetection(video, slot) {
             updateAssetInfoBar(slot, { fps: `${snapped} fps` });
             updateDurationDisplay(slot, video.duration, snapped);
         }
-        requestNextFrame();
+        if (detected) detecting = false;
+        else requestNextFrame();
     }
 
     // A run boundary must not bridge into a bogus delta: drop the anchor, keep
@@ -1034,12 +1028,10 @@ function _setupFpsDetection(video, slot) {
     video.addEventListener('seeking', function() {
         lastTs = null;
         lastPresentedFrames = null;
-        video._visualPresentedTime = NaN;
-        video._visualPresentedAt = NaN;
     });
 
     video.addEventListener('play', function() {
-        if (detecting) return;
+        if (detected || detecting) return;
         detecting = true;
         // Do NOT clear the accumulated intervals. Detection needs
         // _FPS_SAMPLE_COUNT frames (~1.3 s at 24 fps) and resetting on every
@@ -1102,6 +1094,10 @@ function setupVideoHandlers(video, slot) {
 
     // Passive fps detection — detects during first normal playback
     _setupFpsDetection(video, slot);
+
+    video.addEventListener('seeking', function() {
+        video._progressSeekGeneration = (video._progressSeekGeneration || 0) + 1;
+    });
 
     video.addEventListener('play', function() {
         _resetFrameStepCursor();

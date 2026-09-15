@@ -1,0 +1,27 @@
+(node:61673) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 15 tests using 1 worker
+
+(node:61675) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:61675) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:61675) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/playhead-clock.spec.ts:13:7 › single playheads advance evenly and stop when the media clock stops (1.1s)
+  ✓   2 [chromium] › tests/playhead-clock.spec.ts:13:7 › Stack playheads advance evenly and stop when the media clock stops (1.4s)
+  ✓   3 [chromium] › tests/playhead-clock.spec.ts:13:7 › Grid playheads advance evenly and stop when the media clock stops (1.4s)
+  ✓   4 [chromium] › tests/playhead-clock.spec.ts:13:7 › single fast playheads advance evenly and stop when the media clock stops (827ms)
+  ✓   5 [chromium] › tests/warpdiff.spec.ts:2985:7 › Audio viz rendering (W panel) + load hygiene › video waveform playheads use layout-free percentage positioning (1.3s)
+  ✓   6 [chromium] › tests/warpdiff.spec.ts:4151:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0 (1.5s)
+  ✓   7 [chromium] › tests/warpdiff.spec.ts:4151:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0.5 (1.4s)
+  ✓   8 [chromium] › tests/warpdiff.spec.ts:4188:5 › arrow-key video switches keep native renderers running and output continuous (2.2s)
+  ✓   9 [chromium] › tests/warpdiff.spec.ts:4244:7 › automatic native wrap snaps every playhead without reverse animation (1.0s)
+  ✓  10 [chromium] › tests/warpdiff.spec.ts:4244:7 › automatic sync wrap snaps every playhead without reverse animation (1.7s)
+  ✓  11 [chromium] › tests/warpdiff.spec.ts:4244:7 › automatic full wrap snaps every playhead without reverse animation (1.6s)
+  ✓  12 [chromium] › tests/warpdiff.spec.ts:4296:7 › Stack video handoff keeps the displayed timeline and waveform moving forward (1.7s)
+  ✓  13 [chromium] › tests/warpdiff.spec.ts:4296:7 › Grid video handoff keeps the displayed timeline and waveform moving forward (1.7s)
+  ✓  14 [chromium] › tests/warpdiff.spec.ts:4353:7 › Stack rapid arrow switches preserve forward progress on every rendered frame (1.9s)
+  ✓  15 [chromium] › tests/warpdiff.spec.ts:4353:7 › Grid rapid arrow switches preserve forward progress on every rendered frame (2.5s)
+
+  15 passed (24.8s)

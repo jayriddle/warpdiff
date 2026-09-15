@@ -3594,7 +3594,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.16.0';
+        const APP_VERSION = '3.16.1';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3928,25 +3928,21 @@
         // syncMedia → js/transport.js
 
         // Shared progress display — delegates to audio or video format
-        function updateMediaProgress(media, timeOverride) {
+        function updateMediaProgress(media, timeOverride, now) {
             if (hasAudios) {
                 updateAudioProgress(media);
                 return media.currentTime;
             } else {
-                return updateVideoProgress(media, timeOverride);
+                return updateVideoProgress(media, timeOverride, now);
             }
         }
 
-        // Discontinuous transport moves invalidate the old presented-frame clock
+        // Discontinuous transport moves invalidate the old display clock
         // and publish the new position immediately. Smooth playback comes from
         // the per-frame visual clock, never a CSS transition across a loop wrap.
         function _resetTransportProgress(time) {
             _resolveVideoProgressTime(null);
             const media = getTransportPlayableMedia();
-            media.forEach(m => {
-                m._visualPresentedTime = NaN;
-                m._visualPresentedAt = NaN;
-            });
             const layer = getLayer(currentAudioSource || assetOrder[currentAssetIndex]);
             const selected = layer && layer.querySelector('video, audio');
             const primary = media.includes(selected) ? selected : media[0];
@@ -8639,7 +8635,7 @@
             if (globalAnimationId !== null) return;
             document.body.classList.add('transport-running');
 
-            function updateLoop() {
+            function updateLoop(now = performance.now()) {
                 let primary;
 
                 if (hasAudios) {
@@ -8683,15 +8679,7 @@
                 }
 
                 if (primary && !primary.paused) {
-                    const visualTime = hasAudios || primary.seeking ? primary.currentTime : _projectVisualTime(
-                        primary._visualPresentedTime,
-                        primary._visualPresentedAt,
-                        performance.now(),
-                        primary.playbackRate,
-                        1 / (videoFrameRates[primary.src] || 30),
-                        primary.currentTime
-                    );
-                    const displayTime = updateMediaProgress(primary, visualTime);
+                    const displayTime = updateMediaProgress(primary, primary.currentTime, now);
                     if (_noVideoMode) updateAllAudioSlotCursors(primary, displayTime);
                     if (hasAudios) {
                         if (isDragging) return;
@@ -8915,10 +8903,10 @@
         }
 
         // _resolveVideoProgressTime → js/transport.js (shared display clock)
-        function updateVideoProgress(video, timeOverride) {
+        function updateVideoProgress(video, timeOverride, now) {
             const duration = _getEffectiveDuration(video);
             const currentTime = _resolveVideoProgressTime(video,
-                timeOverride !== undefined ? timeOverride : video.currentTime);
+                timeOverride !== undefined ? timeOverride : video.currentTime, now);
             getProgressEls(); // ensure cache is warm (no-op after first call)
 
             // Guard against NaN when video metadata isn't ready yet
@@ -13859,7 +13847,7 @@
                 <tr><td>Volume slider</td><td>Adjust volume</td></tr>
                 <tr><td><kbd>S/GT</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear, with a brief fade and steady playback timing during source changes</td></tr>
             </table>
-            <p>Timeline and waveform playheads keep moving forward when you switch active videos during playback. They jump directly to the start on restart and automatic loop wrap, while normal playback follows the visual clock smoothly.</p>
+            <p>Timeline and waveform playheads move evenly during single-video and synced playback, including when you switch active videos. They stop with playback and jump directly to the requested position on a seek, restart or loop wrap.</p>
             <p><strong>Keyboard shortcuts:</strong></p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
@@ -14095,11 +14083,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
-            <h3>v3.16.0</h3>
+            <h3>v3.16.1</h3>
             <ul>
                 <li><strong>Smoother scrubbing.</strong> Drag forward or backward with continuous, pitch-preserving audio. Click for a short preview; holding still fades the sound out. Short previews are used automatically when Continuous is unavailable.</li>
                 <li><strong>Clearer audio previews.</strong> Full-rate audio preserves stereo detail and keeps surround dialogue audible. Original waveform, spectrogram and loudness analysis retain their quality.</li>
-                <li><strong>Smoother video switching.</strong> Short audio fades reduce clicks, and the playhead keeps moving forward as you change active videos.</li>
+                <li><strong>Smoother playback and switching.</strong> Timeline and waveform playheads move evenly with one video or a synced comparison. Short audio fades reduce clicks when you change active videos.</li>
                 <li><strong>Instant restarts and loops.</strong> Press <kbd>R</kbd> or reach the loop end to jump directly to the beginning or your loop in-point. Timeline and waveform playheads snap to the new position.</li>
             </ul>
             <h3>v3.14.5</h3>

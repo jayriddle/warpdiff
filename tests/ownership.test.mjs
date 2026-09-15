@@ -1311,8 +1311,10 @@ function extractFn(name, src = SRC) {
   // C5: passive fps detection uses a single-chain guard.
   const fps = extractFn('_setupFpsDetection');
   check('sweep[C5]: fps detection guarded against concurrent chains (detecting flag)',
-        fps.includes('let detecting = false') && fps.includes('if (detecting) return') &&
+        fps.includes('let detecting = false') && fps.includes('if (detected || detecting) return') &&
         fps.includes('cancelVideoFrameCallback(detectionRvfcId)'));
+  check('fps-detect: completed detection stops requesting presentation callbacks',
+        fps.includes('if (detected) detecting = false;\n        else requestNextFrame();'));
 
   // C6: the RVFC exact-time loop wrap suppresses handlers under _bulkSyncActive.
   const wrap = extractFn('_loopWrapToInPoint');
@@ -1555,10 +1557,8 @@ function extractFn(name, src = SRC) {
   }
 }
 
-// Playback chrome follows the last PRESENTED frame, borrowing the continuous
-// media clock only while the clocks agree within one source frame. Transport/
-// loop decisions deliberately continue to use raw media.currentTime; this helper
-// owns visuals only.
+// Playback chrome advances at display cadence with bounded native-clock
+// corrections. Transport/loop decisions continue to use raw media.currentTime.
 {
   check('one-owner[visual-clock]: _projectVisualTime is defined exactly once',
         countOf(SRC, 'function _projectVisualTime(') === 1);
@@ -1566,21 +1566,23 @@ function extractFn(name, src = SRC) {
     const { _projectVisualTime } = new Function(
       extractFn('_projectVisualTime') + '\nreturn { _projectVisualTime };'
     )();
-    check('visual-clock: starts at the presented frame timestamp',
-          _projectVisualTime(2, 1000, 1000, 1, 1 / 24, 2.2) === 2);
-    check('visual-clock: glides continuously between presentations',
-          Math.abs(_projectVisualTime(2, 1000, 1020, 1, 1 / 24, 2.2) - 2.02) < 1e-9);
-    check('visual-clock: never runs more than one frame ahead of the picture',
-          Math.abs(_projectVisualTime(2, 1000, 1100, 1, 1 / 24, 2.2) - (2 + 1 / 24)) < 1e-9);
-    check('visual-clock: uses a nearby continuous media clock instead of freezing',
-          Math.abs(_projectVisualTime(2, 1000, 1100, 1, 1 / 24, 2.07) - 2.07) < 1e-9);
-    check('visual-clock: a new frame anchor cannot nudge a nearby media clock backward',
-          Math.abs(_projectVisualTime(2.04, 1042, 1042, 1, 1 / 24, 2.06) - 2.06) < 1e-9);
-    check('visual-clock: missing presentation metadata falls back to media time',
-          _projectVisualTime(NaN, NaN, 1100, 1, 1 / 24, 2.2) === 2.2);
+    check('visual-clock: steady playback follows elapsed display time',
+          Math.abs(_projectVisualTime(2.02, 2, 0.02, 1, 1 / 24) - 2.02) < 1e-9);
+    check('visual-clock: corrections cannot change visual speed by more than 10 percent',
+          Math.abs(_projectVisualTime(2.2, 2, 0.02, 1, 1 / 24) - 2.022) < 1e-9);
+    check('visual-clock: a stopped native clock caps extrapolation to 25 ms',
+          Math.abs(_projectVisualTime(2, 2.02, 0.02, 1, 1 / 24) - 2.025) < 1e-9);
+    check('visual-clock: extrapolation also stays within one source frame',
+          Math.abs(_projectVisualTime(2, 2, 0.02, 2, 1 / 60) - (2 + 1 / 60)) < 1e-9);
+    check('visual-clock: a stopped clock holds without reversing',
+          _projectVisualTime(2, 2.025, 0.02, 1, 1 / 24) === 2.025);
+    check('visual-clock: missing prior timing falls back to media time',
+          _projectVisualTime(2.2, NaN, 0.02, 1, 1 / 24) === 2.2);
     const loop = extractFn('startProgressUpdateLoop');
     check('one-owner[visual-clock]: progress loop projects visuals but loop logic keeps raw currentTime',
-          loop.includes('_projectVisualTime(') && loop.includes('const t = primary.currentTime'));
+          loop.includes('updateMediaProgress(primary, primary.currentTime, now)')
+          && extractFn('_resolveVideoProgressTime').includes('_projectVisualTime(')
+          && !loop.includes('_visualPresented') && loop.includes('const t = primary.currentTime'));
     const cursors = extractFn('updateAllAudioSlotCursors');
     check('visual-clock: no-video cursors accept and use the presented-time override',
           cursors.includes('timeOverride') &&
@@ -1850,28 +1852,31 @@ function extractFn(name, src = SRC) {
         && extractFn('setupVideoHandlers').includes('_resetTransportProgress(bounds.inP)'));
   check('playhead: compositor positions have no lagging CSS bridge',
         !HTML.includes('transition: transform 50ms linear')
-        && extractFn('startProgressUpdateLoop').includes('hasAudios || primary.seeking'));
+        && extractFn('_resolveVideoProgressTime').includes('video.seeking'));
 }
 
 // Display-only handoff continuity must release for intentional backward moves.
 {
-  const resolve = new Function(`let _videoProgressClock = null;
+  const clock = new Function(`let _videoProgressClock = null;
     const isDragging = false; const videoFrameRates = {};
+    ${extractFn('_projectVisualTime')}
     ${extractFn('_resolveVideoProgressTime')}
     return _resolveVideoProgressTime;`)();
+  let at = 1000;
+  const resolve = (video, candidate) => clock(video, candidate, at += 16);
   const a = { src: 'a', paused: false, ended: false, seeking: false, currentTime: 2 };
   const b = { src: 'b', paused: false, ended: false, seeking: false,
     currentTime: 1.99, _visualPresentedTime: 0.8 };
   resolve(a, 2.004);
   check('display-handoff: a slightly lagging incoming source cannot move progress backward',
-        resolve(b, 0.9) === 2.004);
+        resolve(b, 0.9) >= 2.004);
   b.currentTime = 2.05;
   check('display-handoff: progress advances while hidden-frame metadata catches up',
-        resolve(b, 0.95) === 2.05);
+        resolve(b, 0.95) > 2.02);
   b._visualPresentedTime = 2.04;
   b.currentTime = 2.06;
-  check('display-handoff: coherent presentation resumes the projected clock',
-        resolve(b, 2.064) === 2.064);
+  check('display-handoff: the display remains close to the incoming media clock',
+        Math.abs(resolve(b, 2.064) - b.currentTime) < 0.025);
   b.paused = true; b.currentTime = 1;
   check('display-handoff: paused inspection can go backward', resolve(b, 1) === 1);
   b.paused = false; b.currentTime = 1.01;
@@ -1892,6 +1897,10 @@ function extractFn(name, src = SRC) {
         && extractFn('_resetTransportProgress').includes('_resolveVideoProgressTime(null)')
         && extractFn('clearAllMedia').includes('_resolveVideoProgressTime(null)')
         && !extractFn('_resolveVideoProgressTime').includes('.currentTime ='));
+  check('one-owner[display-seek]: video handler alone advances the seek generation',
+        countOf(SRC, 'video._progressSeekGeneration =') === 1
+        && extractFn('setupVideoHandlers').includes('video._progressSeekGeneration =')
+        && extractFn('_resolveVideoProgressTime').includes('previous.seekGeneration !== seekGeneration'));
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────
