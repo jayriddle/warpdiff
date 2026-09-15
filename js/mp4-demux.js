@@ -20,6 +20,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
     let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
     let foundAudioTrack = false;
     let audioTrackCount = 0, channelLayout = null;
+    let foundMovie = false, metadataValid = true, trackFormat = null;
+    const audioTracks = []; // source metadata only; never derived from playback PCM
     const sampleTable = { sizes: [], offsets: [], durations: [] };
     const chunks = [];
 
@@ -43,11 +45,12 @@ function _demuxMP4Audio(data, metadataOnly = false) {
             } else if (size === 0) {
                 size = end - off; // box extends to end
             }
-            if (size < headerLen || off + size > end) break;
+            if (size < headerLen || off + size > end) { metadataValid = false; break; }
 
             const boxStart = off + headerLen;
             const boxEnd = off + size;
             const fullPath = path + '/' + type;
+            if (type === 'moov' && path === '') foundMovie = true;
 
             // Container boxes — recurse
             if (type === 'moov' || type === 'trak' || type === 'mdia' ||
@@ -166,6 +169,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
             foundAudioTrack = true;
             audioTrackCount++;
             channelLayout = null;
+            trackFormat = { codec: null, channels: null, sampleRate: null, channelLayout: null };
+            audioTracks.push(trackFormat);
             // Promote this trak's mdhd timescale to the demuxer-wide variable.
             // Previously the global `timescale` was overwritten by every track,
             // so a data/subtitle track parsed after the audio track (with
@@ -208,6 +213,14 @@ function _demuxMP4Audio(data, metadataOnly = false) {
             channels = view.getUint16(entryDataStart + 16);
             sampleRate = view.getUint16(entryDataStart + 24); // upper 16 bits of fixed-point
         }
+        // Sample-entry channel counts are placeholders for codecs such as AAC.
+        // Keep display metadata separate from the existing decoder configuration.
+        trackFormat.codec = entryType;
+        if (['sowt', 'twos', 'lpcm', 'in24', 'in32', 'fl32', 'fl64', 'raw '].includes(entryType)
+            && view.getUint16(entryDataStart + 8) === 0) {
+            trackFormat.channels = channels;
+            trackFormat.sampleRate = sampleRate;
+        }
 
         // Look for 'dOps' (Opus) or 'Opus' sub-boxes inside the sample entry
         if (audioStart < entryStart + entrySize) {
@@ -223,6 +236,8 @@ function _demuxMP4Audio(data, metadataOnly = false) {
                     codecPrivate = data.slice(bOff + 8, bOff + bSize);
                     if (codecPrivate.length >= 2) {
                         channels = codecPrivate[1]; // outputChannelCount — authoritative
+                        trackFormat.channels = channels;
+                        trackFormat.sampleRate = 48000; // Opus decode clock, not inputSampleRate
                     }
                     if (codecPrivate.length >= 4) {
                         preSkip = (codecPrivate[2] << 8) | codecPrivate[3]; // big-endian in dOps
@@ -233,6 +248,16 @@ function _demuxMP4Audio(data, metadataOnly = false) {
                         codecPrivate.subarray(13,13+channels).every(value => value === 255 || value < codecPrivate[11]+codecPrivate[12])) {
                         channelLayout = channels === 6 ? '5.1' : channels === 8 ? '7.1' : null;
                     }
+                }
+                if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 50
+                    && (data[bOff + 12] & 127) === 0
+                    && view.getUint32(bOff + 12) % 0x1000000 === 34) {
+                    const si = bOff + 16; // STREAMINFO after FullBox + metadata header
+                    trackFormat.sampleRate = (data[si + 10] << 12) | (data[si + 11] << 4) | (data[si + 12] >> 4);
+                    trackFormat.channels = ((data[si + 12] >> 1) & 7) + 1;
+                }
+                if (bType === 'esds' && entryType === 'mp4a') {
+                    try { parseEsdsFormat(bOff + 12, bOff + bSize, trackFormat); } catch (_) { /* retain only verified fields */ }
                 }
                 if (typeof WarpScrubAudio !== 'undefined') {
                     if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 12)
@@ -249,6 +274,67 @@ function _demuxMP4Audio(data, metadataOnly = false) {
                 if(readStr(at+4,4)==='chan')channelLayout=null;
                 at+=size;
             }
+        }
+        trackFormat.channelLayout = channelLayout;
+    }
+
+    function parseEsdsFormat(start, end, format, depth = 0) {
+        if (depth > 3) return;
+        for (let at = start; at < end;) {
+            const tag = data[at++];
+            let length = 0, complete = false;
+            for (let i = 0; i < 4 && at < end; i++) {
+                const value = data[at++]; length = length * 128 + (value & 127);
+                if (!(value & 128)) { complete = true; break; }
+            }
+            if (!complete || at + length > end) return;
+            const limit = at + length;
+            if (tag === 3 && length >= 3) {
+                let child = at + 3;
+                const flags = data[at + 2];
+                if (flags & 128) child += 2;
+                if (flags & 64) child += 1 + data[child];
+                if (flags & 32) child += 2;
+                parseEsdsFormat(child, limit, format, depth + 1);
+            } else if (tag === 4 && length >= 13) {
+                format.codec = ({64:'aac', 102:'aac', 103:'aac', 104:'aac', 105:'mp3', 107:'mp3',
+                    165:'ac-3', 166:'ec-3', 169:'dtsc', 170:'dtsh', 171:'dtsh', 172:'dtse'})[data[at]] || 'mp4a';
+                parseEsdsFormat(at + 13, limit, format, depth + 1);
+            } else if (tag === 5 && format.codec === 'aac' && length >= 2) {
+                let bit = at * 8;
+                const read = n => {
+                    if (bit + n > limit * 8) throw new Error('Truncated AudioSpecificConfig');
+                    let value = 0;
+                    for (let i = 0; i < n; i++, bit++) value = value * 2 + ((data[bit >> 3] >> (7 - (bit & 7))) & 1);
+                    return value;
+                };
+                const objectType = () => { const type = read(5); return type === 31 ? 32 + read(6) : type; };
+                const frequency = () => {
+                    const index = read(4);
+                    return index === 15 ? read(24) : [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350][index];
+                };
+                const type = objectType();
+                let rate = frequency(), configuration = read(4);
+                let stereoExtension = type === 29;
+                if (type === 5 || type === 29) { rate = frequency(); objectType(); }
+                // Backward-compatible HE-AAC may declare SBR/parametric stereo
+                // in a sync extension instead of the initial object type.
+                if (type !== 5 && type !== 29 && length <= 64) {
+                    for (let probe = bit; probe + 21 <= limit * 8; probe++) {
+                        bit = probe;
+                        if (read(11) !== 0x2b7 || objectType() !== 5 || !read(1)) continue;
+                        rate = frequency();
+                        if (bit + 12 <= limit * 8 && read(11) === 0x548) stereoExtension = !!read(1);
+                        break;
+                    }
+                }
+                // Program Config Elements/custom configurations need their own parser.
+                if ([1,2,3,4,5,29].includes(type)) {
+                    format.sampleRate = rate || null;
+                    format.channels = stereoExtension ? 2 : [null,1,2,3,4,5,6,8][configuration] || null;
+                }
+            }
+            at = limit;
         }
     }
 
@@ -315,10 +401,10 @@ function _demuxMP4Audio(data, metadataOnly = false) {
         ? timelineStartDuration / movieTimescale
         : 0;
     // decodeAudioData handles the compressed samples itself; callers use this
-    // lightweight mode only to retain the MP4 edit-list placement on the video
+    // lightweight mode for source format and edit-list placement on the video
     // timeline. Do not build or copy the packet table in that path.
     if (audioTrackCount !== 1) channelLayout = null;
-    if (metadataOnly) return foundAudioTrack ? { timelineStart, channelLayout } : null;
+    if (metadataOnly) return foundMovie && metadataValid ? { timelineStart, channelLayout, audioTracks } : null;
 
     if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
         console.warn('[mp4-parse] no audio samples found');
@@ -416,13 +502,15 @@ function _demuxMP4Audio(data, metadataOnly = false) {
 }
 
 // --- WebM demuxer ---
-function _demuxWebMAudio(data) {
+function _demuxWebMAudio(data, metadataOnly = false) {
     let audioTrackNum = -1;
     let codecPrivate = null;
     let sampleRate = 48000;
     let channels = 2;
     let timestampScale = 1000000;
     const chunks = [];
+    const audioTracks = [];
+    let foundTracks = false;
 
     function readVint(d, offset) {
         if (offset >= d.length) return null;
@@ -485,7 +573,7 @@ function _demuxWebMAudio(data) {
     const ID = {
         Segment: 0x18538067, Tracks: 0x1654AE6B, TrackEntry: 0xAE,
         TrackNumber: 0xD7, TrackType: 0x83, CodecID: 0x86, CodecPrivate: 0x63A2,
-        Audio: 0xE1, SampleRate: 0xB5, Channels: 0x9F,
+        Audio: 0xE1, SampleRate: 0xB5, OutputSampleRate: 0x78B5, Channels: 0x9F,
         Cluster: 0x1F43B675, Timecode: 0xE7, SimpleBlock: 0xA3,
         Info: 0x1549A966, TimestampScale: 0x2AD7B1
     };
@@ -500,9 +588,10 @@ function _demuxWebMAudio(data) {
                 let o = el.dataOffset;
                 while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TimestampScale) timestampScale = readUint(d, e2.dataOffset, e2.dataSize); o = e2.dataOffset + e2.dataSize; }
             } else if (el.id === ID.Tracks) {
+                foundTracks = true;
                 let o = el.dataOffset;
                 while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TrackEntry) parseTrackEntry(d, e2.dataOffset, e2.dataOffset + e2.dataSize); o = e2.dataOffset + e2.dataSize; }
-            } else if (el.id === ID.Cluster && audioTrackNum >= 0) {
+            } else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) {
                 parseCluster(d, el.dataOffset, dEnd);
             }
             off = dEnd;
@@ -511,20 +600,29 @@ function _demuxWebMAudio(data) {
 
     function parseTrackEntry(d, start, end) {
         let num = -1, type = -1, codec = '', priv = null, sr = 48000, ch = 2;
+        let sourceRate = 8000, sourceChannels = 1, outputRate = null; // Matroska defaults
         let off = start;
         while (off < end) {
             const el = readEl(d, off); if (!el) break;
             const dEnd = el.dataOffset + el.dataSize;
             if (el.id === ID.TrackNumber) num = readUint(d, el.dataOffset, el.dataSize);
             else if (el.id === ID.TrackType) type = readUint(d, el.dataOffset, el.dataSize);
-            else if (el.id === ID.CodecID) codec = readString(d, el.dataOffset, el.dataSize);
-            else if (el.id === ID.CodecPrivate) priv = d.slice(el.dataOffset, dEnd);
+            else if (el.id === ID.CodecID) codec = readString(d, el.dataOffset, Math.min(el.dataSize, 128));
+            else if (el.id === ID.CodecPrivate && !metadataOnly) priv = d.slice(el.dataOffset, dEnd);
             else if (el.id === ID.Audio) {
                 let ao = el.dataOffset;
-                while (ao < dEnd) { const ae = readEl(d, ao); if (!ae) break; if (ae.id === ID.SampleRate) sr = readFloat(d, ae.dataOffset, ae.dataSize); else if (ae.id === ID.Channels) ch = readUint(d, ae.dataOffset, ae.dataSize); ao = ae.dataOffset + ae.dataSize; }
+                while (ao < dEnd) {
+                    const ae = readEl(d, ao); if (!ae || ae.dataOffset + ae.dataSize > dEnd) break;
+                    if (ae.id === ID.SampleRate && [4,8].includes(ae.dataSize)) sr = sourceRate = readFloat(d, ae.dataOffset, ae.dataSize);
+                    else if (ae.id === ID.OutputSampleRate && [4,8].includes(ae.dataSize)) outputRate = readFloat(d, ae.dataOffset, ae.dataSize);
+                    else if (ae.id === ID.Channels) ch = sourceChannels = readUint(d, ae.dataOffset, ae.dataSize);
+                    ao = ae.dataOffset + ae.dataSize;
+                }
             }
             off = dEnd;
         }
+        if (type === 2) audioTracks.push({codec, channels:sourceChannels,
+            sampleRate:codec === 'A_OPUS' ? 48000 : outputRate || sourceRate, channelLayout:null});
         if (type === 2 && (codec === 'A_OPUS' || codec === 'A_VORBIS')) {
             audioTrackNum = num; codecPrivate = priv; sampleRate = sr; channels = ch;
         }
@@ -558,6 +656,7 @@ function _demuxWebMAudio(data) {
         off = el.dataOffset + el.dataSize;
     }
 
+    if (metadataOnly) return foundTracks ? { audioTracks } : null;
     if (chunks.length === 0) return null;
     // OpusHead pre-skip is at bytes 10-11, little-endian
     let preSkip = 0;

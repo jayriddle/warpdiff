@@ -409,6 +409,7 @@ Each asset displays an info bar (Grid mode) or a header strip (Stack mode) showi
 - **FPS** — frame rate, shown dimmed until detected; snaps to nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60)
 - **Duration** — video/audio length with a stopwatch icon; `—` for images
 - **Resolution** and **aspect ratio** — for images and video (e.g. `1920×1080`, `16:9`)
+- **Source audio** — for videos: codec, verified layout or channel count, and sample rate when readable (e.g. `FLAC · 7.1 · 48 kHz`). Hover over this field in Grid or the header strip in Stack for full details. Multiple audio tracks are counted and listed; the browser chooses the playback track. `Audio: Unknown` means the container metadata could not be read, while `No audio track` means the container declares none. Listening presets and stereo output do not change this label. A transcoded video reports the newly loaded audio format.
 - **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple)
 - **Zoom** — current scale percentage, right-aligned
 - For audio files: sample rate, channels, bit depth/codec, file size

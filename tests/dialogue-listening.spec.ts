@@ -3,7 +3,7 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 
 async function load(page:Page, filename='dialogue_51.mp4') {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.0'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.1'));
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures',filename));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
@@ -154,7 +154,7 @@ test('dialogue controls keep keyboard focus, show unsupported files, and reset o
 });
 
 test('dialogue settings follow source handoffs and verified audio-only files',async({page})=>{
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.0'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.1'));
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles(['dialogue_51.mp4','side_lr.mp4','dialogue_71.mp4'].map(name=>path.join(__dirname,'fixtures',name)));
   await page.waitForFunction(()=> (window as any).eval("Object.keys(_videoAudioBuffers).length === 3 && [..._audioMonitorSlots.values()].filter(info=>info.ready).length === 2"));

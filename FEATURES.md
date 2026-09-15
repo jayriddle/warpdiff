@@ -40,6 +40,7 @@ Press `Z` for a circular zoom loupe that follows your cursor, showing magnified 
 - Press `B` for black-and-white review, or `N` to hide video and focus on decoded audio views.
 - Press `T` to cycle the displayed timecode, `C` to copy the current time or marked range, and `Shift+C` to choose the copy format and separator.
 - Grid info bars and the Stack header strip keep the active comparison identifiable with contextual Ref/GT/A/B or media-aware numbered labels plus FPS, duration, resolution, aspect ratio, zoom, and available LUFS/LRA/true-peak metrics.
+- Videos also show source audio format, verified layout or channel count, and sample rate from MP4/WebM metadata, for example **FLAC · 7.1 · 48 kHz**. Hover for full details if space is limited. Multiple audio tracks are counted and listed without claiming which one the browser plays. Unknown metadata and containers with no audio are identified explicitly. These fields describe the loaded file, independently of stereo listening output or dialogue presets.
 
 ## Frame gallery
 

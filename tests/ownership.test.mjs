@@ -18,6 +18,7 @@
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { runInNewContext } from 'node:vm';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -1929,6 +1930,79 @@ function extractFn(name, src = SRC) {
         countOf(SRC, 'video._progressSeekGeneration =') === 1
         && extractFn('setupVideoHandlers').includes('video._progressSeekGeneration =')
         && extractFn('_resolveVideoProgressTime').includes('previous.seekGeneration !== seekGeneration'));
+}
+
+// Source audio metadata must describe the file, not the resampled/stereo preview.
+{
+  const context = { console: { log() {}, warn() {} } };
+  runInNewContext(readFileSync(new URL('js/scrub-audio-core.js', ROOT), 'utf8') + '\n' +
+    readFileSync(new URL('js/mp4-demux.js', ROOT), 'utf8') + '\n' + extractFn('_videoAudioFormatInfo'), context);
+  const mp4 = bytes => context._demuxMP4Audio(new Uint8Array(bytes), true);
+  const text = tracks => context._videoAudioFormatInfo(tracks).text;
+  for (const [file, expected] of [
+    ['dialogue_51.mp4', 'FLAC · 5.1 · 48 kHz'], ['dialogue_71.mp4', 'FLAC · 7.1 · 48 kHz'],
+    ['dialogue_51_aac.mp4', 'AAC · 5.1 · 48 kHz'], ['dialogue_71_opus.mp4', 'Opus · 7.1 · 48 kHz'],
+    ['landscape_a.mp4', 'AAC · Stereo · 44.1 kHz'], ['ac3_video.mp4', 'Dolby Digital'],
+    ['pq_hdr.mp4', 'No audio track']
+  ]) {
+    const fixture = new URL('fixtures/' + file, import.meta.url);
+    if (!existsSync(fixture)) { console.log('  ⊘ source-format: missing ' + file); continue; }
+    const parsed = mp4(readFileSync(fixture));
+    check('source-format: ' + file, text(parsed.audioTracks) === expected && !('chunks' in parsed));
+  }
+  const webmFile = new URL('fixtures/vorbis_a.webm', import.meta.url);
+  if (existsSync(webmFile)) {
+    const parsed = context._demuxWebMAudio(new Uint8Array(readFileSync(webmFile)), true);
+    check('source-format: metadata-only WebM does not mislabel Vorbis as Opus or retain packets',
+      text(parsed.audioTracks) === 'Vorbis · Stereo · 44.1 kHz' && !('chunks' in parsed));
+  }
+  const box = (type, ...parts) => {
+    const body = Buffer.concat(parts), header = Buffer.alloc(8);
+    header.writeUInt32BE(body.length + 8); header.write(type, 4);
+    return Buffer.concat([header, body]);
+  };
+  const desc = (tag, bytes) => Buffer.concat([Buffer.from([tag, bytes.length]), bytes]);
+  const bits = sequence => {
+    const padded = sequence.padEnd(Math.ceil(sequence.length / 8) * 8, '0');
+    return Buffer.from(padded.match(/.{8}/g).map(byte => parseInt(byte, 2)));
+  };
+  function audioTrack(asc, objectType = 64) {
+    const config = Buffer.alloc(13); config[0] = objectType;
+    const esds = box('esds', Buffer.alloc(4), desc(3, Buffer.concat([Buffer.alloc(3), desc(4,
+      Buffer.concat([config, desc(5, asc)]))])));
+    const entry = Buffer.alloc(28); entry.writeUInt16BE(2, 16); entry.writeUInt16BE(48000, 24);
+    const hdlr = Buffer.alloc(12); hdlr.write('soun', 8);
+    const mdhd = Buffer.alloc(24); mdhd.writeUInt32BE(48000, 12);
+    return box('trak', box('tkhd', Buffer.alloc(32)), box('mdia', box('mdhd', mdhd), box('hdlr', hdlr),
+      box('minf', box('stbl', box('stsd', Buffer.from([0,0,0,0,0,0,0,1]), box('mp4a', entry, esds))))));
+  }
+  const lc = audioTrack(bits('00010' + '0011' + '0110' + '000'));
+  const pce = audioTrack(bits('00010' + '0011' + '0000' + '000'));
+  const explicitHE = audioTrack(bits('11101' + '0111' + '0001' + '0100' + '00010' + '000'));
+  const implicitHE = audioTrack(bits('00010' + '0111' + '0001' + '000' + '01010110111' + '00101' + '1' + '0100' + '10101001000' + '1'));
+  check('source-format: explicit HE-AAC uses output rate and stereo extension',
+    text(mp4(box('moov', explicitHE)).audioTracks) === 'AAC · Stereo · 44.1 kHz');
+  check('source-format: implicit HE-AAC does not report its mono half-rate core',
+    text(mp4(box('moov', implicitHE)).audioTracks) === 'AAC · Stereo · 44.1 kHz');
+  check('source-format: custom AAC PCE never borrows placeholder stereo channels',
+    text(mp4(box('moov', pce)).audioTracks) === 'AAC · 48 kHz');
+  check('source-format: mp4a carrying DTS is not labelled AAC',
+    text(mp4(box('moov', audioTrack(Buffer.from([0,0]), 169))).audioTracks) === 'DTS');
+  const multi = mp4(box('moov', lc, explicitHE));
+  check('source-format: multiple audio tracks stay distinct without assuming playback selection',
+    multi.channelLayout === null && multi.audioTracks.length === 2 &&
+    text(multi.audioTracks) === '2 audio tracks' &&
+    context._videoAudioFormatInfo(multi.audioTracks).detail.includes('Audio track 2: AAC · Stereo · 44.1 kHz'));
+  check('source-format: unknown layout is a count, not a guessed surround arrangement',
+    text([{codec:'fLaC', channels:8, sampleRate:96000}]) === 'FLAC · 8 ch · 96 kHz');
+  check('source-format: malformed container and absent metadata stay unknown',
+    mp4(box('moov', Buffer.from([0,0,255,255,116,114,97,107]))) === null &&
+    text(null) === 'Audio: Unknown');
+  check('one-owner[source-format]: source publication is generation-fenced and separate from listening PCM',
+    countOf(SRC, '.audioFormat =') === 1 &&
+    extractFn('_setVideoAudioFormat').includes('_videoAudioDecodeIsCurrent(slot, gen)') &&
+    !extractFn('_videoAudioFormatInfo').includes('audioBuffer') &&
+    !extractFn('_videoAudioFormatInfo').includes('getAudioContext'));
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────

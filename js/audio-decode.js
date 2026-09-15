@@ -15,6 +15,46 @@ function _videoAudioDecodeIsCurrent(slot, gen) {
     return _videoAudioDecodeGen[slot] === gen;
 }
 
+function _videoAudioFormatInfo(tracks) {
+    if (tracks === undefined) return {text:'Reading audio…', detail:'Reading source audio format…'};
+    if (!Array.isArray(tracks)) return {text:'Audio: Unknown', detail:'Source audio format could not be read from this container.'};
+    if (!tracks.length) return {text:'No audio track', detail:'This container has no audio track.'};
+    const names = {fLaC:'FLAC', Opus:'Opus', aac:'AAC', mp3:'MP3', mp4a:'MPEG-4 audio',
+        'ac-3':'Dolby Digital', 'ec-3':'Dolby Digital Plus', dtsc:'DTS', dtse:'DTS Express',
+        dtsh:'DTS-HD', dtsl:'DTS-HD Lossless', mlpa:'Dolby TrueHD', alac:'ALAC',
+        sowt:'PCM', twos:'PCM', lpcm:'PCM', in24:'PCM', in32:'PCM', fl32:'PCM', fl64:'PCM', 'raw ':'PCM',
+        A_OPUS:'Opus', A_VORBIS:'Vorbis', A_FLAC:'FLAC', 'A_AAC':'AAC', 'A_MPEG/L3':'MP3',
+        A_AC3:'Dolby Digital', A_EAC3:'Dolby Digital Plus', A_DTS:'DTS', A_TRUEHD:'Dolby TrueHD',
+        'A_PCM/INT/LIT':'PCM', 'A_PCM/INT/BIG':'PCM', 'A_PCM/FLOAT/IEEE':'PCM'};
+    const formats = tracks.map(track => {
+        const codec = names[track.codec] || (track.codec ? String(track.codec) : 'Unknown codec');
+        const channels = Number.isInteger(track.channels) && track.channels > 0 && track.channels <= 256 ? track.channels : null;
+        const layout = track.channelLayout === '5.1' && channels === 6 || track.channelLayout === '7.1' && channels === 8
+            ? track.channelLayout : channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : channels ? channels + ' ch' : '';
+        const rate = Number.isFinite(track.sampleRate) && track.sampleRate > 0 && track.sampleRate <= 1048575
+            ? (track.sampleRate / 1000).toLocaleString('en-US', {maximumFractionDigits:3}) + ' kHz' : '';
+        return [codec, layout, rate].filter(Boolean).join(' · ');
+    });
+    return {text:formats.length === 1 ? formats[0] : formats.length + ' audio tracks',
+        detail:formats.length === 1 ? 'Source audio: ' + formats[0]
+            : formats.map((format, index) => 'Audio track ' + (index + 1) + ': ' + format).join('\n') + '\nPlayback track is selected by the browser.'};
+}
+
+// One writer; shares the decode generation fence. Store small display strings,
+// never packet data, decoded channel counts, or the audio-device sample rate.
+function _setVideoAudioFormat(slot, tracks, gen) {
+    if (!_videoAudioDecodeIsCurrent(slot, gen) || mediaData[slot]?.type !== 'video') return;
+    const info = Object.freeze(_videoAudioFormatInfo(tracks));
+    mediaData[slot].audioFormat = info;
+    const span = getLayer(slot)?.querySelector('.asset-audio-format');
+    if (span) {
+        span.textContent = info.text;
+        span.title = info.detail;
+        span.setAttribute('aria-label', info.detail);
+    }
+    _updateStackInfoStrip();
+}
+
 function _audioBufferTimeForTimeline(timelineTime, timelineStart) {
     const start = Number.isFinite(timelineStart) && timelineStart > 0 ? timelineStart : 0;
     return timelineTime - start;
@@ -53,6 +93,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     // captured gen is threaded through _decodeAudioWebCodecs → _finalizeAudioViz.
     _videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration();
     const gen = _videoAudioDecodeGen[slot];
+    _setVideoAudioFormat(slot, undefined, gen);
     // Each decode is authoritative about Opus-pending — clear any stale flag so a
     // previous file's pending state can't spuriously activate sync on this one.
     delete _opusSyncPending[slot];
@@ -68,18 +109,24 @@ async function decodeAndComputeAudioViz(slot, source) {
     const isMP4 = bytes.length > 7 &&
         bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
     let timelineStart = null;
+    let audioTracks = null;
     // Audio-only files also enter this lazy W-panel path. Both decode owners
     // must read the same layout so a later panel decode cannot disable center.
     let channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
     if (isMP4) {
         try {
             const timing = _demuxMP4Audio(bytes, true);
+            audioTracks = timing?.audioTracks || null;
             if (timing && Number.isFinite(timing.timelineStart)) timelineStart = timing.timelineStart;
             channelLayout = timing && timing.channelLayout;
         } catch (e) {
             console.warn('[audio-timeline] MP4 timing parse failed for', slot, e);
         }
+    } else if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+        try { audioTracks = _demuxWebMAudio(bytes, true)?.audioTracks || null; }
+        catch (e) { console.warn('[audio-format] WebM metadata parse failed for', slot, e); }
     }
+    _setVideoAudioFormat(slot, audioTracks, gen);
     let isOpus = false;
     const scanRegions = [
         [0, Math.min(bytes.length, 65536)],

@@ -1280,6 +1280,26 @@
         .asset-info-bar .asset-aspect     { color: rgba(255,255,255,0.30); }
         .asset-info-bar .asset-fps        { color: rgba(255,255,255,0.38); }
         .asset-info-bar .asset-duration   { color: rgba(255,255,255,0.82); }
+        .asset-info-bar .asset-audio-format,
+        #stackInfoStrip .sih-audio-format {
+            min-width: 0;
+            max-width: 220px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+            color: rgba(255,255,255,0.65);
+            pointer-events: auto;
+        }
+        .asset-info-bar .asset-audio-format:empty,
+        #stackInfoStrip .sih-audio-format:empty { display: none; }
+        /* Keep the source label hoverable in narrow Grid bars without pushing
+           loudness metrics or zoom off the edge. Height stays one line. */
+        body.grid-mode .asset-info-bar:has(.asset-audio-format:not(:empty)) {
+            gap: 4px;
+            padding-inline: 8px;
+        }
+        .asset-info-bar .asset-audio-format:not(:empty) { min-width: 50px; }
         /* Dim the --fps placeholder until the real value is known */
         .asset-fps:not(:empty) { transition: color 0.2s; }
         .asset-info-bar .asset-fps[data-placeholder] { color: rgba(255,255,255,0.15); }
@@ -1641,6 +1661,7 @@
         #sihTooltip .sih-tr { display: flex; gap: 14px; }
         #sihTooltip .sih-td-lbl { color: rgba(255,255,255,0.35); min-width: 54px; text-align: right; flex-shrink: 0; }
         #sihTooltip .sih-td-val { color: rgba(255,255,255,0.82); }
+        #sihTooltip .sih-audio-detail { white-space: pre-line; }
 
 
 
@@ -3341,6 +3362,8 @@
                     <span class="sih-fps"></span>
                     <span class="sih-duration"></span>
                 </span>
+                <span class="sih-sep sih-sep-audio" aria-hidden="true">·</span>
+                <span class="sih-audio-format"></span>
                 <span class="sih-sep sih-sep-metrics" aria-hidden="true">·</span>
                 <span class="sih-group-metrics">
                     <span class="sih-lufs"></span>
@@ -3626,7 +3649,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.17.0';
+        const APP_VERSION = '3.17.1';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -8279,6 +8302,7 @@
             <span class="asset-aspect">-</span>
             <span class="asset-fps" data-placeholder>--fps</span>
             <span class="asset-duration"></span>
+            <span class="asset-audio-format"></span>
             <span class="asset-lufs"></span>
             <span class="asset-lra"></span>
             <span class="asset-tp"></span>
@@ -10250,7 +10274,7 @@
                 strip.style.display = 'none';
                 if (!getLoadedSlotCount()) {
                     strip.className = '';
-                    strip.querySelectorAll('.sih-name, .sih-resolution, .sih-aspect, .sih-fps, .sih-duration, .sih-lufs, .sih-lra, .sih-tp, .sih-zoom')
+                    strip.querySelectorAll('.sih-name, .sih-resolution, .sih-aspect, .sih-fps, .sih-duration, .sih-audio-format, .sih-lufs, .sih-lra, .sih-tp, .sih-zoom')
                         .forEach(el => { el.textContent = ''; });
                     const tt = document.getElementById('sihTooltip');
                     if (tt) { tt.innerHTML = ''; tt.style.display = 'none'; }
@@ -10277,6 +10301,7 @@
             const lufs       = bar ? bar.querySelector('.asset-lufs')?.textContent       : '';
             const lra        = bar ? bar.querySelector('.asset-lra')?.textContent        : '';
             const tp         = bar ? bar.querySelector('.asset-tp')?.textContent         : '';
+            const audioFormat = mediaData[slot].audioFormat;
             const fullFilename = (mediaData[slot] && mediaData[slot].name) || '';
 
             // Duration: use the user's chosen TC format, same as the info bar.
@@ -10332,6 +10357,12 @@
             const hasSpatial = !!(res || ar);
             strip.querySelector('.sih-group-spatial').style.display = hasSpatial ? 'flex' : 'none';
 
+            const audioEl = strip.querySelector('.sih-audio-format');
+            audioEl.textContent = audioFormat?.text || '';
+            audioEl.title = audioFormat?.detail || '';
+            audioEl.setAttribute('aria-label', audioFormat?.detail || '');
+            const hasAudioFormat = !!audioFormat;
+
             // Metrics group (LUFS / LRA / TP / PLR)
             const lufsEl = strip.querySelector('.sih-lufs');
             const lraEl  = strip.querySelector('.sih-lra');
@@ -10343,19 +10374,21 @@
             strip.querySelector('.sih-group-metrics').style.display = hasMetrics ? 'flex' : 'none';
 
             // Separator dots — shown only when there's content on both sides
-            // Order: name · [spatial] · [time] · [metrics]  zoom→
+            // Order: name · [spatial] · [time] · [source audio] · [metrics]  zoom→
             const hasLeft = showName;
             const sepSpatial = strip.querySelector('.sih-sep-spatial');
             const sepTime    = strip.querySelector('.sih-sep-time');
             const sepMetrics = strip.querySelector('.sih-sep-metrics');
+            const sepAudio   = strip.querySelector('.sih-sep-audio');
             if (sepSpatial) sepSpatial.style.display = (hasSpatial && hasLeft)                            ? '' : 'none';
             if (sepTime)    sepTime.style.display    = (hasTime    && (hasLeft || hasSpatial))             ? '' : 'none';
-            if (sepMetrics) sepMetrics.style.display = (hasMetrics && (hasLeft || hasSpatial || hasTime))  ? '' : 'none';
+            if (sepAudio)   sepAudio.style.display   = (hasAudioFormat && (hasLeft || hasSpatial || hasTime)) ? '' : 'none';
+            if (sepMetrics) sepMetrics.style.display = (hasMetrics && (hasLeft || hasSpatial || hasTime || hasAudioFormat)) ? '' : 'none';
 
             // Hover tooltip — UI font, two-column label/value rows
             const _esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const tipRow = (lbl, val) => val
-                ? `<div class="sih-tr"><span class="sih-td-lbl">${_esc(lbl)}</span><span class="sih-td-val">${_esc(val)}</span></div>`
+                ? `<div class="sih-tr"><span class="sih-td-lbl">${_esc(lbl)}</span><span class="sih-td-val${lbl === 'Audio' ? ' sih-audio-detail' : ''}">${_esc(val)}</span></div>`
                 : '';
             const tt = document.getElementById('sihTooltip');
             if (tt) tt.innerHTML = [
@@ -10366,6 +10399,7 @@
                 tipRow('AR',       ar),
                 tipRow('FPS',      fps),
                 tipRow('Duration', duration),
+                tipRow('Audio',    audioFormat?.detail),
                 tipRow('LUFS',     lufs),
                 tipRow('LRA',      lra),
                 tipRow('True Peak',tp),
@@ -14000,7 +14034,7 @@
             </ul>
 
             <h2>Info Bar</h2>
-            <p>Each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
+            <p>Each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>
             <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60). Video durations are shown as <code>M:SS:FF</code> (frames at the detected rate); audio durations use <code>M:SS.cc</code> (decimal centiseconds) since audio has no inherent frame rate.</p>
             <p>In split modes, the info bar of the asset whose audio is currently playing is highlighted.</p>
@@ -14121,6 +14155,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.17.1</h3>
+            <ul><li><strong>See a video's audio format.</strong> Info bars now identify the source codec, channel layout/count, and sample rate when available. Hover for full details, including files with multiple audio tracks.</li></ul>
             <h3>v3.17.0</h3>
             <ul>
                 <li><strong>Focus on dialogue.</strong> The Listen control offers Dialogue Focus and Center Only for verified surround soundtracks, with center boost and background reduction during playback and scrubbing. Original audio analysis stays intact; Full Mix is always available.</li>

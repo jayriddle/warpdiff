@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.17.0
+**Current version:** 3.17.1
 
 ---
 
@@ -45,6 +45,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
+- Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
 - Adjacent **Playback: Sync/Solo** and **Range: Sync/Full** selectors keep the two playback policies together before the timecode
 - **Solo playback** (`Shift+S`, or the playback-scope button) runs only the selected video; selecting another video hands off at the same absolute time. A shorter target holds paused on its final frame rather than wrapping, while returning to Full Sync preserves the longer timeline and range-limited Sync restarts at its shared in-point
