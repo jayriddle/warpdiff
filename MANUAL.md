@@ -151,7 +151,7 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 | **Shift+S** | Toggle Playback: Sync / Solo |
 | **,** | Step back one frame |
 | **.** | Step forward one frame |
-| **R** | Restart from beginning |
+| **R** | Restart immediately at the loop in-point, or beginning if unset |
 | **J** | Slower (cycle: 0.25×, 0.5×, 0.75×, 1×, 1.25×, 1.5×, 2×) |
 | **K** | Faster (cycle in reverse) |
 | **I** | Set loop in-point at current time (shared across all clips) |
@@ -198,13 +198,15 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
-During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During normal playback, the progress bar and waveform/spectrogram cursor use compositor-smoothed motion between presented frames; loop and synchronization decisions still use the video's unmodified media clock.
+During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During normal playback, the progress bar and waveform/spectrogram cursor update smoothly between presented frames; loop and synchronization decisions still use the video's unmodified media clock. Switching active videos keeps the displayed playheads moving forward, including while the newly visible video catches up with its current frame. Restart and automatic loops snap these playheads directly to the loop in-point or beginning without animating the jump. Changing the active video or audio source during playback uses a brief fade and keeps audio timing steady to prevent switching clicks; paused switching stays silent.
 
 If a video's soundtrack intentionally begins after the first frame, scrub preview remains silent until that start point rather than playing the first audio sample early.
 
+5.1 and 7.1 soundtracks use a stereo listening mix during normal playback and scrubbing: center dialogue reaches both ears, surrounds keep their left/right placement, and LFE is omitted from this mix. Analysis uses the original decoded channels.
+
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
 
-Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
+Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
 
 ---
 

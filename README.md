@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.14.5
+**Current version:** 3.14.10
 
 ---
 
@@ -14,7 +14,9 @@ Comparing two versions of an image, video, or audio file shouldn't require flipp
 
 WarpDiff is an opinionated answer to that problem: load 1–4 assets of one media type—image, video, or audio—align them precisely, and have the scopes and metrics you actually need (waveform, vectorscope, histogram, EBU R128, LUFS) one keystroke away.
 
-Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate.
+Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
+
+Slow scrubbing keeps audio preview active while the pointer moves within the same video frame, and fades out when you stop.
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 

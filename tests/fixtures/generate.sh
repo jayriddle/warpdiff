@@ -42,6 +42,16 @@ ffmpeg -hide_banner -loglevel error -y \
     -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 96k \
     -movflags +faststart "$OUT/audio_offset.mp4"
 
+# 7.1 FLAC with center-only sound and a leading empty edit, matching the movie
+# scrub regression. A stereo discrete fallback is completely silent for this file.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "color=c=black:s=128x72:r=24:d=5" \
+    -itsoffset 0.166 -f lavfi -i "aevalsrc=0|0|0.2*sin(2*PI*440*t)|0|0|0|0|0:s=48000:d=4.5:c=7.1" \
+    -map 0:v:0 -map 1:a:0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
+    -c:a flac -strict -2 -movflags +faststart "$OUT/surround_71.mp4"
+ffmpeg -hide_banner -loglevel error -y -i "$OUT/surround_71.mp4" \
+    -vn -c:a pcm_s16le "$OUT/surround_71.wav"
+
 # Stereo side-only soundtrack: R is the exact inverse of L. A mono L+R fold-down
 # cancels this to silence, so it guards scrub preview's channel/phase fidelity.
 ffmpeg -hide_banner -loglevel error -y \

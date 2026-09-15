@@ -17,6 +17,9 @@ const sentinels = [
   path.join(fixturesDir, 'audio_offset.mp4'),
   // MP4 whose stereo soundtrack is pure side information (L = -R).
   path.join(fixturesDir, 'side_lr.mp4'),
+  // Center-only 7.1 FLAC with an audio start offset.
+  path.join(fixturesDir, 'surround_71.mp4'),
+  path.join(fixturesDir, 'surround_71.wav'),
   // Browser-incompatible AC-3 soundtrack: exercises the real ffmpeg.wasm fallback.
   path.join(fixturesDir, 'ac3_video.mp4'),
 ];

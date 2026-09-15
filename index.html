@@ -166,13 +166,6 @@
             will-change: transform;
         }
 
-        /* Bridge occasional busy main-thread frames without changing the media
-           clock. Transform animation stays on the compositor; scrubbing is
-           immediate because transport-running is removed as playback pauses. */
-        body.transport-running .video-progress-bar {
-            transition: transform 50ms linear;
-        }
-
         .video-progress-bar.loop-active {
             background: #f0a030;
         }
@@ -2167,10 +2160,6 @@
             will-change: transform;
         }
 
-        body.transport-running .spectrogram-cursor {
-            transition: transform 50ms linear;
-        }
-
         .audio-viz-right {
             width: 36px;
             min-width: 36px;
@@ -3599,11 +3588,12 @@
     <script src="js/timecode.js"></script>
     <script src="js/wipe.js"></script>
     <script src="js/tile-check.js"></script>
+    <script src="js/audio-routing.js"></script>
     <script src="js/opus-sync.js"></script>
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.5';
+        const APP_VERSION = '3.14.10';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3940,9 +3930,29 @@
         function updateMediaProgress(media, timeOverride) {
             if (hasAudios) {
                 updateAudioProgress(media);
+                return media.currentTime;
             } else {
-                updateVideoProgress(media, timeOverride);
+                return updateVideoProgress(media, timeOverride);
             }
+        }
+
+        // Discontinuous transport moves invalidate the old presented-frame clock
+        // and publish the new position immediately. Smooth playback comes from
+        // the per-frame visual clock, never a CSS transition across a loop wrap.
+        function _resetTransportProgress(time) {
+            _resolveVideoProgressTime(null);
+            const media = getTransportPlayableMedia();
+            media.forEach(m => {
+                m._visualPresentedTime = NaN;
+                m._visualPresentedAt = NaN;
+            });
+            const layer = getLayer(currentAudioSource || assetOrder[currentAssetIndex]);
+            const selected = layer && layer.querySelector('video, audio');
+            const primary = media.includes(selected) ? selected : media[0];
+            if (!primary) return;
+            const position = Math.min(time, _lastPlayableTime(primary));
+            updateMediaProgress(primary, position);
+            if (_noVideoMode) updateAllAudioSlotCursors(primary, position);
         }
 
         // ── In/Out loop markers ──
@@ -5137,7 +5147,7 @@
 
         // Audio visualization state
         let audioContext = null;       // Lazy-created AudioContext
-        let audioNodes = {};           // { slot: { source } } — per-video audio nodes
+        // Native audio gain routing → js/audio-routing.js
         let waveformData = {};         // { slot: Float32Array } — downsampled amplitude
         let spectrogramData = {};      // { slot: { data: Uint8Array[], sampleRate, duration } }
         let audioMetrics = {};         // { slot: { integratedLUFS, lra, truePeakDBTP, ... } } — EBU R128
@@ -5816,8 +5826,8 @@
         let _scrubSourceLevel = 1;
         let _scrubAudioClockId = 0;
         let _scrubAudioTargetT = null;
-        let _scrubAudioTargetSetAt = 0;
-        let _scrubAudioLastEmittedT = null;
+        let _scrubAudioPointerT = null;
+        let _scrubAudioMotionAt = -Infinity;
         const _SCRUB_OUTPUT_LEN = 0.09;   // 90ms at every playback rate (source span scales with rate)
         const _SCRUB_FADE = 0.01;         // 10ms fade in/out
         const _SCRUB_AUDIO_CLOCK_MS = 50; // steady cadence, independent of pointer/decoder event bursts
@@ -5952,7 +5962,7 @@
             // Match the current playback rate so the scrub preview sounds like the
             // user's selected speed rather than always playing at 1×.
             source.playbackRate.value = rate;
-            source.connect(gain);
+            const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
             source.start(0, offset, snippetLen);
             _scrubSource = source;
             _scrubGain = gain;
@@ -5964,6 +5974,8 @@
             _scrubSourceFadeLen = fadeLen;
             _scrubSourceLevel = outputLevel;
             source.onended = () => {
+                output.disconnect();
+                gain.disconnect();
                 if (_scrubSource === source) {
                     _scrubSource = null; _scrubGain = null; _scrubSourceBuffer = null;
                     _scrubSourceLevel = 1;
@@ -5971,38 +5983,41 @@
             };
         }
 
-        // Feed the newest target into one steady selected-audio clock. Pointer
-        // events and decoder paint callbacks can both arrive in bursts; neither
-        // cadence should be audible. The clock emits only when the target has
-        // advanced and lets overlapping grains bridge the 50ms intervals.
+        // Pointer activity keeps audition alive; presentation chooses its audio
+        // position. A slow drag can hold one frame for hundreds of milliseconds.
+        // Renew overlapping grains even at that same PTS, or a 90ms grain ends
+        // long before the next frame. Late decoder callbacks cannot extend a
+        // stopped gesture, and repeated motion beyond a timeline edge is idle.
         function _scrubAudioTick() {
             _scrubAudioClockId = 0;
             if (!isDragging || _scrubAudioTargetT === null) {
                 _stopScrubAudioNodes();
                 return;
             }
-            const recent = performance.now() - _scrubAudioTargetSetAt < _SCRUB_AUDIO_IDLE_MS;
+            const recent = performance.now() - _scrubAudioMotionAt < _SCRUB_AUDIO_IDLE_MS;
             if (!recent) {
-                _scrubAudioLastEmittedT = null;
                 _stopScrubAudioNodes();
                 return;
             }
-            if (_scrubAudioTargetT !== _scrubAudioLastEmittedT) {
-                playScrubSnippet(_scrubAudioTargetT);
-                _scrubAudioLastEmittedT = _scrubAudioTargetT;
-            }
+            playScrubSnippet(_scrubAudioTargetT);
             _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
+        }
+
+        function _feedScrubAudioMotion(time, atBoundary) {
+            if (!isDragging || !Number.isFinite(time)) return;
+            if (!atBoundary || time !== _scrubAudioPointerT) _scrubAudioMotionAt = performance.now();
+            _scrubAudioPointerT = time;
+            // Fractional pointer motion can round to the same interior time;
+            // it still counts as activity. At an edge, repeated clamped targets
+            // must fade instead of endlessly replaying the first/last sound.
+            if (_scrubAudioUsesPointerClock()) _feedScrubAudio(time);
+            else if (!_scrubAudioClockId && _scrubAudioTargetT !== null) _scrubAudioTick();
         }
 
         function _feedScrubAudio(time) {
             if (!Number.isFinite(time)) return;
             _scrubAudioTargetT = time;
-            _scrubAudioTargetSetAt = performance.now();
-            if (!_scrubAudioClockId) {
-                playScrubSnippet(time);
-                _scrubAudioLastEmittedT = time;
-                _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
-            }
+            if (!_scrubAudioClockId) _scrubAudioTick();
         }
 
         // Resume inside the trusted pointer event. Calling resume only when the
@@ -6033,8 +6048,8 @@
             if (_scrubAudioClockId) clearTimeout(_scrubAudioClockId);
             _scrubAudioClockId = 0;
             _scrubAudioTargetT = null;
-            _scrubAudioTargetSetAt = 0;
-            _scrubAudioLastEmittedT = null;
+            _scrubAudioPointerT = null;
+            _scrubAudioMotionAt = -Infinity;
             _stopScrubAudioNodes();
         }
 
@@ -6743,7 +6758,7 @@
             delete _opusSyncSlots[slot];
             _opusSyncActive = Object.keys(_opusSyncSlots).length > 0;
             // Re-apply audio routing — don't blindly unmute; the slot may not be the active source
-            if (video) video.muted = isMuted || (slot !== currentAudioSource) || !!audioMuteStates[slot];
+            if (video) _setNativeAudioMuted(video, isMuted || (slot !== currentAudioSource) || !!audioMuteStates[slot]);
             _stopOpusSyncAudio(slot);
 
             decodeAndComputeAudioViz(slot, newFile);
@@ -8932,7 +8947,7 @@
                 }
 
                 if (primary && !primary.paused) {
-                    const visualTime = hasAudios ? primary.currentTime : _projectVisualTime(
+                    const visualTime = hasAudios || primary.seeking ? primary.currentTime : _projectVisualTime(
                         primary._visualPresentedTime,
                         primary._visualPresentedAt,
                         performance.now(),
@@ -8940,8 +8955,8 @@
                         1 / (videoFrameRates[primary.src] || 30),
                         primary.currentTime
                     );
-                    updateMediaProgress(primary, visualTime);
-                    if (_noVideoMode) updateAllAudioSlotCursors(primary, visualTime);
+                    const displayTime = updateMediaProgress(primary, visualTime);
+                    if (_noVideoMode) updateAllAudioSlotCursors(primary, displayTime);
                     if (hasAudios) {
                         if (isDragging) return;
                         const t = primary.currentTime;
@@ -9003,6 +9018,7 @@
                             const v = layer && layer.querySelector('video');
                             if (v && !v.paused && v.currentTime >= _opusSyncDuration[s] - 0.05) {
                                 v.currentTime = 0;
+                                _resetTransportProgress(0);
                                 _startOpusSyncAudio(s, 0);
                             }
                         }
@@ -9082,11 +9098,11 @@
             const mediaEl = layer.querySelector('video') || layer.querySelector('audio');
             if (!mediaEl) return;
             if (_opusSyncSlots[source]) {
-                mediaEl.muted = true;
+                _setNativeAudioMuted(mediaEl, true);
                 _updateOpusSyncGains();
                 return;
             }
-            mediaEl.muted = audioMuteStates[source];
+            _setNativeAudioMuted(mediaEl, isMuted || source !== currentAudioSource || audioMuteStates[source]);
         }
 
         function selectAudioSource(source) {
@@ -9094,6 +9110,7 @@
                 mediaData[source] && mediaData[source].type === 'video') {
                 _setSoloPlaybackSlot(source);
             }
+            const switching = source !== currentAudioSource;
             currentAudioSource = source;
 
             // Update button states
@@ -9111,7 +9128,7 @@
                     if (mediaEl) {
                         // Opus sync slots always muted — audio comes from Web Audio
                         const shouldMute = isMuted || _opusSyncSlots[slot] || (slot !== source) || audioMuteStates[slot];
-                        mediaEl.muted = shouldMute;
+                        _setNativeAudioMuted(mediaEl, shouldMute, switching && !_opusSyncSlots[slot]);
                         updateAudioButton(slot, _opusSyncSlots[slot] ? false : shouldMute);
                     }
 
@@ -9160,9 +9177,11 @@
             return video.duration;
         }
 
+        // _resolveVideoProgressTime → js/transport.js (shared display clock)
         function updateVideoProgress(video, timeOverride) {
             const duration = _getEffectiveDuration(video);
-            const currentTime = timeOverride !== undefined ? timeOverride : video.currentTime;
+            const currentTime = _resolveVideoProgressTime(video,
+                timeOverride !== undefined ? timeOverride : video.currentTime);
             getProgressEls(); // ensure cache is warm (no-op after first call)
 
             // Guard against NaN when video metadata isn't ready yet
@@ -9179,6 +9198,7 @@
             // Update ARIA for screen readers
             const pc = document.getElementById('videoProgressContainer');
             if (pc) { pc.setAttribute('aria-valuemax', duration); pc.setAttribute('aria-valuenow', currentTime); }
+            return currentTime;
         }
 
         // Show a warning toast when a frame-based TC format is selected in audio-only mode.
@@ -9382,15 +9402,6 @@
             // clip's timeline (same seconds, different % positions per duration).
             const prevSlot = assetOrder[currentAssetIndex];
             if (prevSlot !== assetKey) {
-                updateLoopMarkerUI();
-                // Force progress bar to reflect new loop bounds
-                const newLayer = getLayer(assetKey);
-                const newMedia = newLayer ? (newLayer.querySelector('video') || newLayer.querySelector('audio')) : null;
-                if (newMedia) {
-                    getProgressEls();
-                    const dur = _getEffectiveDuration(newMedia);
-                    updateProgressBarForLoop(newMedia.currentTime, dur);
-                }
                 if (audioVizVisible) {
                     drawWaveform(assetKey);
                     drawSpectrogram(assetKey);
@@ -9402,6 +9413,7 @@
 
             // Always switch audio to the selected video
             selectAudioSource(assetKey);
+            if (prevSlot !== assetKey) updateLoopMarkerUI();
 
             // Update audio visualizations for the new asset
             updateAudioVisForSlot(assetKey);
@@ -9422,7 +9434,8 @@
             const playable = activeLayer ? activeLayer.querySelector(tag) : null;
             if (playable) {
                 if (!hasAudios) primaryVideoRef = playable;
-                updateMediaProgress(playable);
+                const displayTime = updateMediaProgress(playable);
+                if (_noVideoMode) updateAllAudioSlotCursors(playable, displayTime);
             }
 
             // Mid-playback Stack switch: keep the outgoing clip covering the
@@ -9579,7 +9592,7 @@
                 // In a multi-video Grid, decoded-frame callbacks become bursty
                 // under contention, so the steady pointer timeline owns audio.
                 // Single-video audio remains presentation-clocked.
-                if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t);
+                _feedScrubAudioMotion(t, pct <= 0 || pct >= 1);
             }
 
             function progressBarXToTime(e) {
@@ -9657,7 +9670,7 @@
                 }
                 // See scrubToPosition: multi-video Grid audio follows this
                 // steady target cadence; one-video audio follows painted frames.
-                if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t);
+                _feedScrubAudioMotion(t, pct <= 0 || pct >= 1);
             }
 
             let _scrubCanvas = null; // canvas being scrubbed (null = progress bar scrub)
@@ -10940,6 +10953,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _resolveVideoProgressTime(null);
             _loadingProgressToken = null;
             hideLoading();
             _scrubGestureGeneration++;
@@ -11011,7 +11025,7 @@
             videoFrameRates = {};
 
             // Clean up loop and audio visualization state
-            audioNodes = {};
+            _clearNativeAudioRoutes();
             waveformData = {};
             spectrogramData = {};
             audioMetrics = {};
@@ -12375,11 +12389,7 @@
                     // Reset audio mute states and button icons when leaving split view
                     assetOrder.forEach(slot => {
                         audioMuteStates[slot] = false;
-                        const layer = getLayer(slot);
-                        if (layer) {
-                            const video = layer.querySelector('video');
-                            if (video) video.muted = false;
-                        }
+                        // selectAudioSource below restores the selected route.
                         updateAudioButton(slot, false);
                     });
 
@@ -13085,7 +13095,7 @@
         // persisted mute takes effect on freshly loaded media.
         function _applyMuteState() {
             if (isMuted) {
-                getAllPlayableMedia().forEach(m => { m.muted = true; });
+                getAllPlayableMedia().forEach(m => _setNativeAudioMuted(m, true));
             } else {
                 selectAudioSource(currentAudioSource);   // restore per-source routing
             }
@@ -13925,6 +13935,7 @@
                         startVideo: _opusSyncStartVideo[slot],
                         rate: _opusSyncRate[slot],
                         fadeUntil: _opusSyncFadeUntil[slot] || 0,
+                        envelope: _opusSyncGains[slot] && { ..._opusSyncGains[slot]._audioEnvelope },
                     };
                 },
                 ctxTime() { return getAudioContext().currentTime; },
@@ -13932,6 +13943,14 @@
                 start(slot, fromTime) { _startOpusSyncAudio(slot, fromTime); },
                 stop(slot) { _stopOpusSyncAudio(slot); },
                 updateRate(rate) { _updateOpusSyncRate(rate); },
+            },
+            nativeAudio: {
+                gain(slot) {
+                    const layer = getLayer(slot);
+                    const media = layer && layer.querySelector('video, audio');
+                    return _nativeAudioRoutes.get(media)?.gain || null;
+                },
+                get routeCount() { return _nativeAudioRoutes.size; },
             },
             // WebCodecs scrub-decoder hooks (js/scrub-video.js). decodeProbe drives
             // a full demux → configure → decode-GOP → paint cycle on a throwaway
@@ -14099,14 +14118,15 @@
                 <tr><td>Timecode (left)</td><td>Current position — click to toggle between time and frame count. Video uses <code>M:SS:FF</code> (frames); audio uses <code>M:SS.cc</code> (centiseconds) since audio has no frame rate</td></tr>
                 <tr><td>Speaker icon</td><td>Mute/unmute the active audio source</td></tr>
                 <tr><td>Volume slider</td><td>Adjust volume</td></tr>
-                <tr><td><kbd>S/GT</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear</td></tr>
+                <tr><td><kbd>S/GT</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear, with a brief fade and steady playback timing during source changes</td></tr>
             </table>
+            <p>Timeline and waveform playheads keep moving forward when you switch active videos during playback. They jump directly to the start on restart and automatic loop wrap, while normal playback follows the visual clock smoothly.</p>
             <p><strong>Keyboard shortcuts:</strong></p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
                 <tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
                 <tr><td><kbd>Shift+S</kbd></td><td>Toggle Playback: Sync / Solo</td></tr>
-                <tr><td><kbd>R</kbd></td><td>Restart from beginning</td></tr>
+                <tr><td><kbd>R</kbd></td><td>Restart immediately at the loop in-point, or beginning if unset</td></tr>
                 <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Slower / faster playback (0.25×–2×)</td></tr>
                 <tr><td><kbd>M</kbd></td><td>Mute / Unmute</td></tr>
                 <tr><td><kbd>I</kbd> <kbd>O</kbd></td><td>Set shared loop in / out points</td></tr>
@@ -14132,6 +14152,8 @@
                 <tr><td><kbd>Shift</kbd> + click and drag</td><td>Select a region to set loop in/out points</td></tr>
                 <tr><td>Click on a different slot's canvas</td><td>Switch active audio to that slot</td></tr>
             </table>
+            <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
+            <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
@@ -14328,6 +14350,22 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.14.10</h3>
+            <ul><li><strong>Slow scrubbing keeps audio active.</strong> Preview snippets continue while the pointer moves within the same video frame, closing the silence between slow frame changes. Holding still or dragging beyond a timeline edge fades the preview out.</li></ul>
+            <h3>v3.14.9</h3>
+            <ul><li><strong>7.1 dialogue stays audible.</strong> Scrub preview and normal playback mix the center and surround channels into stereo correctly, including eight-channel FLAC video. Original channels remain available to analysis; stereo phase and audio start timing are preserved.</li></ul>
+            <h3>v3.14.8</h3>
+            <ul><li><strong>Switching videos keeps the playhead moving forward.</strong> Timeline and waveform cursors share a continuous display clock across active-video changes, so small sync offsets and stale frames from hidden videos no longer cause a brief backward jump. Seeks, pauses, restarts, and loop wraps still show their requested positions immediately.</li></ul>
+            <h3>v3.14.7</h3>
+            <ul>
+                <li><strong>Repeated video switches keep audio timing steady.</strong> Inactive native soundtracks stay running silently, preventing renderer resets and speed-correction pops during A/B changes.</li>
+                <li><strong>Automatic loops jump straight to the start.</strong> Timeline and waveform playheads no longer animate backward at the end of a clip or loop region; restart and loop wrap discard stale frame timing.</li>
+            </ul>
+            <h3>v3.14.6</h3>
+            <ul>
+                <li><strong>Smoother audio switching.</strong> Changing the active video or audio source uses a short fade to prevent clicks, including rapid switches and Opus replacement audio.</li>
+                <li><strong>Restart jumps directly to the head.</strong> Pressing <kbd>R</kbd> snaps the timeline and waveform playheads to the loop in-point, or the beginning when unset, without sweeping backward.</li>
+            </ul>
             <h3>v3.14.5</h3>
             <ul><li>Managed reviews use the original view controls and inspection icons directly in the toolbar.</li></ul>
             <h3>v3.14.4</h3>

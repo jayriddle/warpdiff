@@ -67,15 +67,14 @@ function _startOpusSyncAudio(slot, fromTime) {
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     const isCurrent = slot === (currentAudioSource || assetOrder[currentAssetIndex]);
-    const vol = isCurrent && !audioMuteStates[slot]
+    const vol = isCurrent && !isMuted && !audioMuteStates[slot]
         ? (_prefs.load('volume', 100) / 100) : 0;
     // Fade in from 0 to vol over _OPUS_FADE, starting at startTime
-    gain.gain.setValueAtTime(0, startTime);
-    gain.gain.linearRampToValueAtTime(vol, startTime + _OPUS_FADE);
+    _scheduleAudioGain(gain, 0, vol, startTime, _OPUS_FADE);
     source.buffer = buf;
     // Match the video element's playback rate so audio runs in sync at non-1× speeds
     source.playbackRate.value = rate;
-    source.connect(gain);
+    const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
     gain.connect(ctx.destination);
     // The source begins at startTime, not now — the video keeps advancing
     // through the gap, so start the buffer at the sample that will be
@@ -91,6 +90,8 @@ function _startOpusSyncAudio(slot, fromTime) {
     _opusSyncStartVideo[slot] = startVideoTime;
     _opusSyncRate[slot] = rate;
     source.onended = () => {
+        output.disconnect();
+        gain.disconnect();
         if (_opusSyncSources[slot] === source) {
             _opusSyncSources[slot] = null;
             _opusSyncGains[slot] = null;
@@ -115,9 +116,7 @@ function _stopOpusSyncAudio(slot) {
             try { source.stop(); } catch (_) {}
         } else if (gain) {
             // Fade out then stop to avoid click
-            gain.gain.cancelScheduledValues(ctx.currentTime);
-            gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + _OPUS_FADE);
+            _scheduleAudioGain(gain, _audioGainAtTime(gain, ctx.currentTime), 0, ctx.currentTime, _OPUS_FADE);
             // Tell the next _startOpusSyncAudio when this fade goes silent.
             // Pending cancels (branch above) and natural ends produce no
             // fade, so they leave the stamp alone.
@@ -213,11 +212,9 @@ function _updateOpusSyncGains() {
             // overridden when that automation fires — a just-muted slot
             // would ramp back up to the stale volume. Re-schedule the
             // fade-in toward the new target instead.
-            g.gain.cancelScheduledValues(0);
-            g.gain.setValueAtTime(0, startTime);
-            g.gain.linearRampToValueAtTime(target, startTime + _OPUS_FADE);
-        } else {
-            g.gain.value = target;
+            _scheduleAudioGain(g, 0, target, startTime, _OPUS_FADE);
+        } else if (!g._audioEnvelope || g._audioEnvelope.target !== target) {
+            _scheduleAudioGain(g, _audioGainAtTime(g, ctx.currentTime), target, ctx.currentTime, _OPUS_FADE);
         }
     }
 }

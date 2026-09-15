@@ -1554,7 +1554,7 @@ function extractFn(name, src = SRC) {
     check('visual-clock: no-video cursors accept and use the presented-time override',
           cursors.includes('timeOverride') &&
           cursors.includes('timeOverride !== undefined ? timeOverride : primaryAudio.currentTime') &&
-          loop.includes('updateAllAudioSlotCursors(primary, visualTime)'));
+          loop.includes('updateAllAudioSlotCursors(primary, displayTime)'));
     const videoCursor = extractFn('updateSpectrogramCursor');
     check('visual-clock: video waveform cursors avoid per-frame layout reads',
           videoCursor.includes("style.setProperty('--cursor-pct'") &&
@@ -1578,19 +1578,29 @@ function extractFn(name, src = SRC) {
   const begin = extractFn('_scrubOverlayBegin');
   const progressScrub = extractFn('scrubToPosition');
   const canvasScrub = extractFn('canvasScrubToPosition');
+  const motion = countOf(SRC, 'function _feedScrubAudioMotion(') === 1
+    ? extractFn('_feedScrubAudioMotion') : '';
   check('one-owner[scrub-audio-clock]: multi-video Grid contention routes through the pointer clock',
         countOf(SRC, 'function _scrubAudioUsesPointerClock(') === 1 &&
         clock.includes('_scrubOverlaySlots().length > 1') &&
         begin.includes('!_scrubAudioUsesPointerClock()') &&
-        progressScrub.includes('if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t)') &&
-        canvasScrub.includes('if (_scrubAudioUsesPointerClock()) _feedScrubAudio(t)'));
+        motion.includes('if (_scrubAudioUsesPointerClock()) _feedScrubAudio(time)') &&
+        progressScrub.includes('_feedScrubAudioMotion(t, pct <= 0 || pct >= 1)') &&
+        canvasScrub.includes('_feedScrubAudioMotion(t, pct <= 0 || pct >= 1)'));
   const feed = extractFn('_feedScrubAudio');
   const tick = extractFn('_scrubAudioTick');
   check('one-owner[scrub-audio-cadence]: events feed one steady clock rather than emitting grains directly',
         countOf(SRC, 'function _feedScrubAudio(') === 1 &&
         feed.includes('_scrubAudioTargetT = time') &&
-        feed.includes('setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS)') &&
-        tick.includes('_scrubAudioTargetT !== _scrubAudioLastEmittedT'));
+        !feed.includes('playScrubSnippet(') &&
+        tick.includes('setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS)') &&
+        countOf(SRC, 'playScrubSnippet(_scrubAudioTargetT)') === 1);
+  check('one-owner[scrub-audio-activity]: pointer motion owns liveness independently of frame changes',
+        countOf(SRC, 'function _feedScrubAudioMotion(') === 1 &&
+        countOf(SRC, '_scrubAudioMotionAt = performance.now()') === 1 &&
+        motion.includes('_scrubAudioMotionAt = performance.now()') &&
+        tick.includes('performance.now() - _scrubAudioMotionAt') &&
+        !SRC.includes('_scrubAudioLastEmittedT'));
   check('one-owner[scrub-audio-source]: preview grains resolve only the selected audio slot',
         extractFn('playScrubSnippet').includes('currentAudioSource || assetOrder[currentAssetIndex]'));
 }
@@ -1778,6 +1788,92 @@ function extractFn(name, src = SRC) {
     check('scrub[hdr]: session factory refuses PQ/HLG transfers',
           src.includes('transfer === 16') && src.includes('transfer === 18'));
   }
+}
+
+// Native output routing and Opus switching share one envelope owner.
+{
+  check('one-owner[audio-output]: native, scrub and replacement share channel routing',
+        countOf(SRC, 'function _connectAudioOutput(') === 1
+        && extractFn('_prepareNativeAudio').includes('_connectAudioOutput(')
+        && extractFn('playScrubSnippet').includes('_connectAudioOutput(')
+        && extractFn('_startOpusSyncAudio').includes('_connectAudioOutput('));
+  check('one-owner[audio-output]: decoded layout is provided by both current decode owners',
+        extractFn('_finalizeAudioViz').includes('_prepareNativeAudio(')
+        && extractFn('decodeAndComputeAudioSlotViz').includes('_prepareNativeAudio(')
+        && extractFn('_prepareNativeAudio').includes('if (!supported) return null;'));
+  check('one-owner[audio-output]: completed grains, replacement sources and clear release routing',
+        extractFn('playScrubSnippet').includes('output.disconnect()')
+        && extractFn('_startOpusSyncAudio').includes('output.disconnect()')
+        && extractFn('_clearNativeAudioRoutes').includes('route.output.disconnect()'));
+  check('one-owner[audio-routing]: one media-element source per element',
+        countOf(SRC, '.createMediaElementSource(') === 1
+        && extractFn('_prepareNativeAudio').includes('_nativeAudioRoutes.has(media)'));
+  check('one-owner[audio-routing]: selection and replacement mute use the routing owner',
+        extractFn('selectAudioSource').includes('_setNativeAudioMuted(')
+        && extractFn('_finalizeAudioViz').includes('_setNativeAudioMuted(')
+        && extractFn('_applyTranscodedFile').includes('_setNativeAudioMuted('));
+  check('one-owner[audio-routing]: native source switching keeps the decoder running',
+        extractFn('_setNativeAudioMuted').includes('media.muted = !!_opusSyncSlots[media.dataset.slot]')
+        && !extractFn('_setNativeAudioMuted').includes('setTimeout('));
+  check('one-owner[audio-routing]: clear releases connected nodes',
+        extractFn('clearAllMedia').includes('_clearNativeAudioRoutes()')
+        && extractFn('_clearNativeAudioRoutes').includes('route.source.disconnect()'));
+  check('one-owner[opus-gain]: switching and stops preserve the current envelope',
+        extractFn('_updateOpusSyncGains').includes('_audioGainAtTime(')
+        && extractFn('_stopOpusSyncAudio').includes('_audioGainAtTime(')
+        && !extractFn('_updateOpusSyncGains').includes('g.gain.value ='));
+}
+
+// Smooth playback must never animate a discontinuous loop back to the start.
+{
+  check('playhead: restart and both managed-wrap paths reset visual timing',
+        extractFn('restartAllVideos').includes('_resetTransportProgress(startTime)')
+        && extractFn('_loopWrapToInPoint').includes('_resetTransportProgress(bounds.inP)')
+        && extractFn('setupVideoHandlers').includes('_resetTransportProgress(bounds.inP)'));
+  check('playhead: compositor positions have no lagging CSS bridge',
+        !HTML.includes('transition: transform 50ms linear')
+        && extractFn('startProgressUpdateLoop').includes('hasAudios || primary.seeking'));
+}
+
+// Display-only handoff continuity must release for intentional backward moves.
+{
+  const resolve = new Function(`let _videoProgressClock = null;
+    const isDragging = false; const videoFrameRates = {};
+    ${extractFn('_resolveVideoProgressTime')}
+    return _resolveVideoProgressTime;`)();
+  const a = { src: 'a', paused: false, ended: false, seeking: false, currentTime: 2 };
+  const b = { src: 'b', paused: false, ended: false, seeking: false,
+    currentTime: 1.99, _visualPresentedTime: 0.8 };
+  resolve(a, 2.004);
+  check('display-handoff: a slightly lagging incoming source cannot move progress backward',
+        resolve(b, 0.9) === 2.004);
+  b.currentTime = 2.05;
+  check('display-handoff: progress advances while hidden-frame metadata catches up',
+        resolve(b, 0.95) === 2.05);
+  b._visualPresentedTime = 2.04;
+  b.currentTime = 2.06;
+  check('display-handoff: coherent presentation resumes the projected clock',
+        resolve(b, 2.064) === 2.064);
+  b.paused = true; b.currentTime = 1;
+  check('display-handoff: paused inspection can go backward', resolve(b, 1) === 1);
+  b.paused = false; b.currentTime = 1.01;
+  resolve(b, 1.01);
+  b.seeking = true; b.currentTime = 0.7;
+  check('display-handoff: a playing seek can go backward', resolve(b, 0.7) === 0.7);
+  b.seeking = false; b.currentTime = 0.75;
+  resolve(b, 0.75);
+  b.currentTime = 0.002;
+  check('display-handoff: native loop wrap discards the pre-loop presentation clock',
+        resolve(b, 0.8) === 0.002);
+  resolve(null);
+  a.currentTime = 0;
+  check('display-handoff: explicit transport reset starts a fresh clock', resolve(a, 0) === 0);
+  check('one-owner[display-handoff]: progress uses one resolver and lifecycle resets it',
+        countOf(SRC, 'function _resolveVideoProgressTime(') === 1
+        && extractFn('updateVideoProgress').includes('_resolveVideoProgressTime(')
+        && extractFn('_resetTransportProgress').includes('_resolveVideoProgressTime(null)')
+        && extractFn('clearAllMedia').includes('_resolveVideoProgressTime(null)')
+        && !extractFn('_resolveVideoProgressTime').includes('.currentTime ='));
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────

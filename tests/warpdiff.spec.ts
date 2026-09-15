@@ -1410,10 +1410,13 @@ test.describe('Mute Toggle', () => {
 
 // Persistent global mute (cross-session, global-only): users who review muted
 // want it to stay muted across file loads and sessions. Vorbis webm fixtures so
-// the plain <video>.muted routing is exercised (see the muted-state note below).
+// native output gain routing is exercised (rather than Opus replacement audio).
 test.describe('Persistent Mute + First-play Nudge', () => {
   const allMuted = (page: Page) => page.evaluate(() =>
-    [...document.querySelectorAll('.asset-layer video')].every(v => (v as HTMLVideoElement).muted));
+    [...document.querySelectorAll('.asset-layer video')].every(v => {
+      const gain = (window as any).__testAPI.nativeAudio.gain((v as HTMLVideoElement).dataset.slot);
+      return (v as HTMLVideoElement).muted || gain?._audioEnvelope.target === 0;
+    }));
   const btnMuted = (page: Page) => page.evaluate(() =>
     document.getElementById('muteBtn')!.classList.contains('muted'));
   const labelShown = (page: Page) => page.evaluate(() =>
@@ -3429,14 +3432,17 @@ test.describe('Cancelable play intent', () => {
 // ===========================================================================
 // 2026-07 regression suites (v3.11.3–3.11.7 fixes). These use the VP9+Vorbis
 // webm fixtures so they run on open-codec Chromium builds too — and Vorbis
-// (not Opus) so the PLAIN <video>.muted routing is exercised rather than the
+// (not Opus) so native output gain routing is exercised rather than the
 // Chrome Opus Web Audio replacement (where .muted is always true).
 // ===========================================================================
 
-/** Muted flag per loaded video, in DOM order. */
+/** Effective mute per loaded video, in DOM order (native gain or element mute). */
 async function mutedStates(page: Page): Promise<boolean[]> {
   return page.evaluate(() =>
-    Array.from(document.querySelectorAll('.asset-layer video')).map(v => (v as HTMLVideoElement).muted));
+    Array.from(document.querySelectorAll('.asset-layer video')).map(v => {
+      const gain = (window as any).__testAPI.nativeAudio.gain((v as HTMLVideoElement).dataset.slot);
+      return (v as HTMLVideoElement).muted || gain?._audioEnvelope.target === 0;
+    }));
 }
 
 async function startPlayback(page: Page) {
@@ -4022,3 +4028,352 @@ test('managed image inspection retains its task label in Tile Check', async ({pa
   await page.keyboard.press('y');
   await expect(page.locator('#tileCheckSource')).toHaveText('Task texture');
 });
+
+test.describe('Audio source handoffs and restart jumps', () => {
+  for (const files of [['landscape_a.mp4', 'landscape_b.mp4'], ['vorbis_a.webm', 'vorbis_b.webm']]) {
+    test(`native soundtrack handoffs fade, survive rapid reversal, and retain master volume (${files[0]})`, async ({ page }) => {
+      await page.goto('/');
+      await loadMedia(page, files);
+      await page.evaluate(() => {
+        (window as any).selectAudioSource('editA');
+        (window as any).playAllMedia();
+      });
+      await page.waitForFunction(() => {
+        const gain = (window as any).__testAPI.nativeAudio.gain('editA');
+        return gain && gain.context.state === 'running';
+      });
+      const result = await page.evaluate(async () => {
+        const app = window as any;
+        const a = app.__testAPI.nativeAudio.gain('editA');
+        const b = app.__testAPI.nativeAudio.gain('editB');
+        const analyser = a.context.createAnalyser();
+        analyser.fftSize = 2048;
+        a.connect(analyser);
+        const rms = () => {
+          const data = new Float32Array(analyser.fftSize);
+          analyser.getFloatTimeDomainData(data);
+          return Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length);
+        };
+        await new Promise(r => setTimeout(r, 100));
+        const full = rms();
+        app.setVolume(25);
+        await new Promise(r => setTimeout(r, 100));
+        const quarter = rms();
+        app.selectAudioSource('editB');
+        const outgoing = { ...a._audioEnvelope };
+        const incoming = { ...b._audioEnvelope };
+        // Reverse while the output envelopes are still in flight.
+        app.selectAudioSource('editA');
+        await new Promise(r => setTimeout(r, 70));
+        const resumed = rms();
+        const muted = (document.querySelector('#layerEditA video') as HTMLVideoElement).muted;
+        a.disconnect(analyser);
+        app.pauseAllMedia();
+        app.selectAudioSource('editB');
+        return { full, quarter, resumed, outgoing, incoming, muted,
+          paused: [...document.querySelectorAll('.asset-layer video')].every(v => (v as HTMLVideoElement).paused),
+          pausedLevel: a._audioEnvelope.target };
+      });
+      expect(result.full).toBeGreaterThan(0.01);
+      expect(result.quarter / result.full).toBeGreaterThan(0.18);
+      expect(result.quarter / result.full).toBeLessThan(0.32);
+      expect(result.outgoing.from).toBe(1);
+      expect(result.outgoing.target).toBe(0);
+      expect(result.incoming.from).toBe(0);
+      expect(result.incoming.target).toBe(1);
+      expect(result.resumed).toBeGreaterThan(0.005);
+      expect(result.muted).toBe(false);
+      expect(result.paused).toBe(true);
+      expect(result.pausedLevel).toBe(0);
+      await loadMedia(page, ['red.png']);
+      expect(await page.evaluate(() => (window as any).__testAPI.nativeAudio.routeCount)).toBe(0);
+    });
+
+  }
+
+  test('rendered gain envelopes remain continuous through rapid switches', async ({ page }) => {
+    await page.goto('/');
+    const result = await page.evaluate(async () => {
+      const app = window as any;
+      const ctx = new OfflineAudioContext(1, 9600, 48000);
+      const source = ctx.createConstantSource();
+      source.offset.value = 0.6;
+      const gain = ctx.createGain();
+      source.connect(gain).connect(ctx.destination);
+      app._scheduleAudioGain(gain, 0, 1, 0);
+      source.start();
+      const switches = [[0.04, 0], [0.045, 1], [0.05, 0], [0.055, 1]];
+      const pending = switches.map(([at, target]) => ctx.suspend(at).then(() => {
+        app._scheduleAudioGain(gain, app._audioGainAtTime(gain, ctx.currentTime), target, ctx.currentTime);
+        return ctx.resume();
+      }));
+      const rendered = await ctx.startRendering();
+      await Promise.all(pending);
+      const data = rendered.getChannelData(0);
+      let largestStep = 0;
+      for (let i = 1; i < data.length; i++) largestStep = Math.max(largestStep, Math.abs(data[i] - data[i - 1]));
+      return { largestStep, final: data[data.length - 1] };
+    });
+    expect(result.largestStep).toBeLessThan(0.002);
+    expect(result.final).toBeCloseTo(0.6, 4);
+  });
+
+  test('Opus selection ramps both sources and a pending muted start stays silent', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    const result = await page.evaluate(async () => {
+      const app = window as any;
+      const opus = app.__testAPI.opus;
+      opus.installTestBuffer('editA', 3);
+      opus.installTestBuffer('editB', 3);
+      app.selectAudioSource('editA');
+      opus.start('editA', 0);
+      opus.start('editB', 0);
+      await new Promise(r => setTimeout(r, 40));
+      app.selectAudioSource('editB');
+      const outgoing = opus.state('editA').envelope;
+      const incoming = opus.state('editB').envelope;
+      opus.start('editB', 0.2);
+      app.toggleMute();
+      const pending = opus.state('editB');
+      opus.start('editA', 0.2);
+      return { outgoing, incoming, pending, mutedStart: opus.state('editA').envelope };
+    });
+    expect(result.outgoing.target).toBe(0);
+    expect(result.outgoing.from).toBeCloseTo(1, 3);
+    expect(result.incoming.from).toBe(0);
+    expect(result.incoming.target).toBe(1);
+    expect(result.pending.envelope.target).toBe(0);
+    expect(result.mutedStart.target).toBe(0);
+  });
+
+  for (const loopStart of [0, 0.5]) {
+    test(`R snaps timeline and waveform playheads directly to ${loopStart}`, async ({ page }) => {
+      await page.goto('/');
+      await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+      await page.evaluate(() => (window as any).toggleAudioViz());
+      if (loopStart) {
+        await seekVideos(page, loopStart);
+        await page.keyboard.press('i');
+        await seekVideos(page, 2.5);
+        await page.keyboard.press('o');
+      }
+      await seekVideos(page, 1.8);
+      await page.evaluate(() => (window as any).playAllMedia());
+      await page.waitForFunction(() => document.body.classList.contains('transport-running'));
+      await page.waitForTimeout(80); // let the pre-restart CSS transition reach its current position
+      const result = await page.evaluate(() => {
+        const app = window as any;
+        const bar = document.querySelector('.video-progress-bar') as HTMLElement;
+        const before = new DOMMatrix(getComputedStyle(bar).transform).a;
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', bubbles: true }));
+        const after = new DOMMatrix(getComputedStyle(bar).transform).a;
+        const cursor = document.getElementById('waveformCursor') as HTMLElement;
+        const translate = new DOMMatrix(getComputedStyle(cursor).transform).e;
+        const targetPct = Number(cursor.style.getPropertyValue('--cursor-pct'));
+        const width = cursor.parentElement!.getBoundingClientRect().width;
+        return { before, after, translate, expectedTranslate: targetPct * width / 100,
+          transitions: bar.getAnimations().length,
+          times: [...document.querySelectorAll('.asset-layer video')].map(v => (v as HTMLVideoElement).currentTime) };
+      });
+      expect(result.before).toBeGreaterThan(0.3);
+      expect(result.after).toBeLessThan(0.001);
+      expect(result.translate).toBeCloseTo(result.expectedTranslate, 1);
+      expect(result.transitions).toBe(0);
+      result.times.forEach(t => expect(t).toBeCloseTo(loopStart, 1));
+    });
+  }
+});
+
+test('arrow-key video switches keep native renderers running and output continuous', async ({ page }) => {
+  await page.goto('/');
+  await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  const result = await page.evaluate(async () => {
+    const app = window as any;
+    const gains = ['editA', 'editB'].map(slot => app.__testAPI.nativeAudio.gain(slot));
+    const ctx = gains[0].context;
+    const url = URL.createObjectURL(new Blob([`
+      class SwitchProbe extends AudioWorkletProcessor {
+        constructor() { super(); this.previous = null; this.largest = 0; }
+        process(inputs) {
+          const samples = inputs[0][0];
+          if (samples) for (const value of samples) {
+            if (this.previous !== null) this.largest = Math.max(this.largest, Math.abs(value - this.previous));
+            this.previous = value;
+          }
+          this.port.postMessage(this.largest);
+          return true;
+        }
+      }
+      registerProcessor('switch-probe', SwitchProbe);
+    `], { type: 'text/javascript' }));
+    await ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+    app.playAllMedia();
+    await new Promise(r => setTimeout(r, 200));
+    const probe = new AudioWorkletNode(ctx, 'switch-probe');
+    gains.forEach(gain => gain.connect(probe));
+    probe.connect(ctx.destination); // processor outputs silence; analysis stays active
+    let largest = 0;
+    probe.port.onmessage = e => { largest = e.data; };
+    const nativeMutes: boolean[] = [];
+    const selections: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      await new Promise(r => setTimeout(r, 70));
+      selections.push(app.__testAPI.currentAssetIndex);
+      nativeMutes.push(...[...document.querySelectorAll('.asset-layer video')].map(v => (v as HTMLVideoElement).muted));
+    }
+    gains.forEach(gain => gain.disconnect(probe));
+    probe.disconnect();
+    app.pauseAllMedia();
+    return { largest, nativeMutes, selections };
+  });
+  expect(new Set(result.selections).size).toBe(2);
+  expect(result.nativeMutes.every(muted => !muted)).toBe(true);
+  // The fixture is a low-amplitude sine, so large single-sample steps expose
+  // a renderer reset rather than ordinary content or a short linear fade.
+  expect(result.largest).toBeLessThan(0.02);
+});
+
+for (const mode of ['native', 'sync', 'full']) {
+  test(`automatic ${mode} wrap snaps every playhead without reverse animation`, async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, mode === 'native' ? ['vorbis_a.webm'] : ['vorbis_a.webm', 'vorbis_b.webm']);
+    await page.evaluate(mode => {
+      const app = window as any;
+      if (mode !== 'native' && app.__testAPI._loopRangeMode !== mode) app._toggleLoopRangeMode();
+      app.toggleAudioViz();
+    }, mode);
+    const end = await page.evaluate(mode => {
+      const videos = [...document.querySelectorAll('.asset-layer video')] as HTMLVideoElement[];
+      return mode === 'full' ? Math.max(...videos.map(v => v.duration)) : Math.min(...videos.map(v => v.duration));
+    }, mode);
+    await seekVideos(page, end - 0.2);
+    const samples = await page.evaluate(async () => {
+      const app = window as any;
+      const videos = [...document.querySelectorAll('.asset-layer video')] as HTMLVideoElement[];
+      const reference = videos.reduce((a, b) => a.duration > b.duration ? a : b);
+      app.playAllMedia();
+      const result: { time: number; scale: number; cursorError: number; animations: number }[] = [];
+      const started = performance.now();
+      let wrapped = false;
+      await new Promise<void>(resolve => {
+        const tick = () => {
+          const time = reference.currentTime;
+          if (time < 0.4) wrapped = true;
+          if (wrapped) {
+            const bar = document.querySelector('.video-progress-bar') as HTMLElement;
+            const cursor = document.getElementById('waveformCursor') as HTMLElement;
+            const pct = Number(cursor.style.getPropertyValue('--cursor-pct'));
+            const actual = new DOMMatrix(getComputedStyle(cursor).transform).e;
+            const expected = cursor.parentElement!.getBoundingClientRect().width * pct / 100;
+            result.push({ time, scale: new DOMMatrix(getComputedStyle(bar).transform).a,
+              cursorError: Math.abs(actual - expected), animations: bar.getAnimations().length + cursor.getAnimations().length });
+          }
+          if (result.length >= 8 || performance.now() - started > 4000) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
+      app.pauseAllMedia();
+      return result;
+    });
+    expect(samples).toHaveLength(8);
+    for (const sample of samples) {
+      expect(sample.scale).toBeLessThan(0.2);
+      expect(sample.cursorError).toBeLessThan(0.2);
+      expect(sample.animations).toBe(0);
+    }
+  });
+}
+
+for (const mode of ['Stack', 'Grid']) {
+  test(`${mode} video handoff keeps the displayed timeline and waveform moving forward`, async ({ page }) => {
+    await page.goto('/');
+    // Equal duration makes pixel positions directly comparable across sources.
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_a.webm']);
+    await page.evaluate(mode => {
+      const app = window as any;
+      app.setViewMode(mode === 'Stack' ? 'overlay' : 'horizontal');
+      app.toggleAudioViz();
+      app.playAllMedia();
+    }, mode);
+    await page.waitForFunction(() => [...document.querySelectorAll('.asset-layer video')].every(v =>
+      !(v as HTMLVideoElement).paused && (v as HTMLVideoElement).currentTime > 0.3));
+    const samples = await page.evaluate(() => {
+      const app = window as any;
+      const videos = [...document.querySelectorAll('.asset-layer video')] as HTMLVideoElement[];
+      const outgoing = videos[0];
+      const incoming = videos[1];
+      // Reproduce a hidden video's stale RVFC timestamp and a sub-frame native
+      // clock difference without actually seeking or pausing either video.
+      const base = outgoing.currentTime;
+      Object.defineProperty(outgoing, 'currentTime', { configurable: true, get: () => base });
+      let incomingTime = base - 0.012;
+      Object.defineProperty(incoming, 'currentTime', { configurable: true, get: () => incomingTime });
+      Object.assign(incoming, { _visualPresentedTime: base - 0.25, _visualPresentedAt: performance.now() });
+      const sample = () => ({
+        time: Number(document.getElementById('videoProgressContainer')!.getAttribute('aria-valuenow')),
+        scale: new DOMMatrix(getComputedStyle(document.querySelector('.video-progress-bar')!).transform).a,
+        cursor: Number(document.getElementById('waveformCursor')!.style.getPropertyValue('--cursor-pct')),
+      });
+      app._resolveVideoProgressTime(null);
+      app.updateVideoProgress(outgoing, base + 0.004);
+      const result = [sample()];
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      result.push(sample());
+      for (let i = 0; i < 5; i++) {
+        incomingTime += 0.016;
+        // This is exactly the candidate the rAF projection gets from an old
+        // hidden frame while the newly shown video is waiting to present.
+        const candidate = app._projectVisualTime((incoming as any)._visualPresentedTime,
+          (incoming as any)._visualPresentedAt, performance.now(), 1, 1 / 24, incomingTime);
+        app.updateVideoProgress(incoming, candidate);
+        result.push(sample());
+      }
+      delete (outgoing as any).currentTime;
+      delete (incoming as any).currentTime;
+      app.pauseAllMedia();
+      return result;
+    });
+    for (let i = 1; i < samples.length; i++) {
+      expect(samples[i].time).toBeGreaterThanOrEqual(samples[i - 1].time - 1e-6);
+      expect(samples[i].scale).toBeGreaterThanOrEqual(samples[i - 1].scale - 1e-6);
+      expect(samples[i].cursor).toBeGreaterThanOrEqual(samples[i - 1].cursor - 1e-6);
+    }
+    expect(samples.at(-1)!.time).toBeGreaterThan(samples[0].time + 0.04);
+  });
+}
+
+for (const mode of ['Stack', 'Grid']) {
+  test(`${mode} rapid arrow switches preserve forward progress on every rendered frame`, async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_a.webm']);
+    await page.evaluate(mode => {
+      const app = window as any;
+      app.setViewMode(mode === 'Stack' ? 'overlay' : 'horizontal');
+      app.toggleAudioViz();
+      app.playAllMedia();
+    }, mode);
+    await page.waitForFunction(() => [...document.querySelectorAll('.asset-layer video')].every(v =>
+      !(v as HTMLVideoElement).paused && (v as HTMLVideoElement).currentTime > 0.3));
+    const samples = await page.evaluate(async () => {
+      const result: number[] = [];
+      const sample = () => result.push(Number(document.getElementById('videoProgressContainer')!.getAttribute('aria-valuenow')));
+      sample();
+      for (let switchIndex = 0; switchIndex < 6; switchIndex++) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        sample();
+        for (let frame = 0; frame < 4; frame++) {
+          await new Promise(requestAnimationFrame);
+          sample();
+        }
+      }
+      (window as any).pauseAllMedia();
+      return result;
+    });
+    for (let i = 1; i < samples.length; i++) expect(samples[i]).toBeGreaterThanOrEqual(samples[i - 1] - 1e-6);
+    expect(samples.at(-1)!).toBeGreaterThan(samples[0] + 0.1);
+  });
+}

@@ -338,6 +338,8 @@ function _armPlayRetry(media, generation) {
 }
 
 function _playMediaWithIntent(media, generation) {
+    const route = _nativeAudioRoutes.get(media);
+    if (route) route.resume();
     let result;
     try { result = media.play(); }
     catch (_) {
@@ -544,6 +546,7 @@ function _snapAllVideosToFrame() {
 }
 
 function setupAudioHandlers(audio, slot) {
+    _prepareNativeAudio(audio);
     audio.addEventListener('play', function() {
         _reconcilePlayPauseButton();
         if (isDragging || _bulkSyncActive) return;
@@ -588,6 +591,7 @@ function _loopWrapToInPoint() {
         m.currentTime = Math.min(bounds.inP, _lastPlayableTime(m));
         m.play().catch(() => {});
     });
+    _resetTransportProgress(bounds.inP);
     if (_opusSyncActive) {
         for (const s of getTransportSlots()) {
             if (_opusSyncSlots[s]) {
@@ -911,6 +915,42 @@ function _projectVisualTime(presentedTime, presentedAt, now, rate, frameDuration
     return Math.max(0, projected);
 }
 
+// One display clock survives source handoffs. Hidden videos may present an old
+// frame when revealed, and even synced media clocks can differ by part of a
+// frame. Neither should move the displayed timeline backward during playback.
+// This never writes media time or feeds transport/loop decisions.
+let _videoProgressClock = null;
+function _resolveVideoProgressTime(video, candidate) {
+    if (!video) { _videoProgressClock = null; return candidate; }
+    const previous = _videoProgressClock;
+    const mediaTime = video.currentTime;
+    const playing = !video.paused && !video.ended && !isDragging;
+    const changedSource = previous && previous.video !== video;
+    const wrapped = previous && !changedSource && mediaTime < previous.mediaTime - 0.001;
+    const reset = !previous || !playing || !previous.playing || video.seeking || wrapped;
+    let followingMedia = !reset && (changedSource || previous.followingMedia);
+    if (followingMedia) {
+        // Use the advancing native clock until the new source presents a frame
+        // near it. Reject both stale pre-switch frames and late pre-loop frames.
+        const frameDuration = 1 / (videoFrameRates[video.src] || 30);
+        const freshFrame = Number.isFinite(video._visualPresentedTime) &&
+            Math.abs(video._visualPresentedTime - mediaTime) <= frameDuration;
+        candidate = freshFrame ? Math.max(candidate, mediaTime) : mediaTime;
+        followingMedia = !freshFrame;
+    } else if (wrapped && playing) {
+        candidate = mediaTime;
+    }
+    const time = reset ? candidate : Math.max(candidate, previous.time);
+    // Reuse the small state record instead of allocating on every display frame.
+    const clock = _videoProgressClock || (_videoProgressClock = {});
+    clock.video = video;
+    clock.time = time;
+    clock.mediaTime = mediaTime;
+    clock.playing = playing;
+    clock.followingMedia = followingMedia;
+    return time;
+}
+
 function _setupFpsDetection(video, slot) {
     if (typeof video.requestVideoFrameCallback !== 'function') {
         videoFrameRates[video.src] = 30;
@@ -1052,6 +1092,7 @@ function setupVideoHandlers(video, slot) {
     // dies when the element is replaced on the next load.
     if (video._handlersBound) return;
     video._handlersBound = true;
+    _prepareNativeAudio(video);
 
     // Native-loop default for this (possibly just-loaded) element — routes
     // through the policy owner: with a second video already present this
@@ -1136,6 +1177,7 @@ function setupVideoHandlers(video, slot) {
             m.currentTime = Math.min(bounds.inP, _lastPlayableTime(m));
             m.play().catch(() => {});
         });
+        _resetTransportProgress(bounds.inP);
         if (_opusSyncActive) {
             for (const s of getTransportSlots()) {
                 if (_opusSyncSlots[s]) {
@@ -1239,6 +1281,7 @@ function restartAllVideos() {
         m.currentTime = Math.min(startTime, _lastPlayableTime(m));
         _playMediaWithIntent(m, playGeneration);
     });
+    _resetTransportProgress(startTime);
     _startOpusSyncForPlayingSlots(video => Math.min(startTime, _lastPlayableTime(video)));
     startProgressUpdateLoop();
     setTimeout(() => { _bulkSyncActive = false; }, 50);

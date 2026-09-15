@@ -168,6 +168,8 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
     // Without this, a previous file's decode could overwrite the new slot's
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
+    const layerForOutput = getLayer(slot);
+    _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('video, audio'), audioBuffer.numberOfChannels);
     _setAudioTimelineMetadata(slot, timelineStart);
     waveformData[slot] = computeWaveformData(audioBuffer, 600);
     spectrogramData[slot] = computeSpectrogramData(audioBuffer);
@@ -221,7 +223,7 @@ function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null) {
         _opusSyncDuration[slot] = _audioTimelineStarts[slot] + _videoAudioBuffers[slot].duration;
         const layer = getLayer(slot);
         const video = layer && layer.querySelector('video');
-        if (video) video.muted = true;
+        if (video) _setNativeAudioMuted(video, true);
         // Refresh the info bar duration — it was rendered with the inflated
         // raw video.duration at load time, before _opusSyncDuration was known.
         updateDurationDisplay(slot, _opusSyncDuration[slot], videoFrameRates[video && video.src] || null);
@@ -456,6 +458,8 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
     const ctx = getAudioContext();
     ctx.decodeAudioData(arrayBuffer.slice(0)).then(audioBuffer => {
         if (_audioDecodeGen[slot] !== gen) return;
+        const layerForOutput = getLayer(slot);
+        _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('audio'), audioBuffer.numberOfChannels);
         updateLoadingStatus('Computing waveforms…');
         const dpr = window.devicePixelRatio || 1;
         const maxPx = Math.round(window.innerWidth * dpr);
