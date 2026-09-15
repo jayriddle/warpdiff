@@ -17,6 +17,7 @@
  * resolving a function wherever it lives after a future extraction into js/.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -51,6 +52,36 @@ function extractFn(name, src = SRC) {
     else if (ch === '}') { depth--; if (depth === 0) return src.slice(m.index, k + 1); }
   }
   throw new Error('unbalanced braces in: ' + name);
+}
+
+{
+  const lock = JSON.parse(readFileSync(new URL('js/SCRUB_AUDIO_LOCK.json', ROOT), 'utf8'));
+  const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+  const entries = lock.files || [];
+  check('shared-scrub: pinned controller and processor have intact source provenance',
+    lock.schemaVersion === 1 && /^[a-f0-9]{40}$/.test(lock.commit) && entries.length === 2 &&
+    entries.every(file => hash(readFileSync(new URL(file.target, ROOT))) === file.sha256));
+  const core = readFileSync(new URL('js/scrub-audio-core.js', ROOT), 'utf8');
+  check('shared-scrub: one selected stream uses the canonical factory and mode owner',
+    countOf(SRC, 'const _continuousScrubEngine = WarpScrubAudio.create(') === 1 &&
+    countOf(SRC, 'function _setScrubAudioMode(') === 1 &&
+    extractFn('_playContinuousScrub').includes('WarpScrubAudio.motionVelocity(') &&
+    extractFn('_playContinuousScrub').includes('engine.update(') &&
+    extractFn('clearAllMedia').includes('_resetContinuousScrub()') &&
+    extractFn('selectAudioSource').includes('if (switching) _resetContinuousScrub()') &&
+    core.includes('state.generation === generation') &&
+    core.includes('disposeNode(node)'));
+  check('shared-scrub: the unchanged snippet preview remains the default and click fallback',
+    SRC.includes("let _scrubAudioMode = 'snippets'") &&
+    extractFn('_scrubAudioTick').includes("_scrubAudioMode !== 'continuous'") &&
+    extractFn('_playContinuousScrub').includes('playScrubSnippet(time)'));
+  const canonical = new URL('../WarpCap/shared/media/scrub-audio.js', ROOT);
+  if (existsSync(canonical)) {
+    check('shared-scrub: neighboring WarpCap canonical implementation matches the pinned copy',
+      hash(readFileSync(canonical)) === hash(Buffer.from(core)) &&
+      hash(readFileSync(new URL('../WarpCap/audio/wsola-worklet.js', ROOT))) ===
+      hash(readFileSync(new URL('js/scrub-worklet.js', ROOT))));
+  }
 }
 
 {

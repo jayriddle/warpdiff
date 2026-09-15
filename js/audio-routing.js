@@ -19,12 +19,7 @@ function _connectAudioOutput(source, destination, channels) {
         const split = ctx.createChannelSplitter(8);
         const merge = ctx.createChannelMerger(2);
         nodes.push(split, merge);
-        const c = Math.SQRT1_2;
-        const matrix = [
-            [0, 1, 0], [1, 0, 1], [2, c, c],
-            [4, c * 0.5, 0], [5, 0, c * 0.5],
-            [6, c * 0.5, 0], [7, 0, c * 0.5]
-        ];
+        const matrix = WarpScrubAudio.surroundMatrix(channels);
         for (const [channel, left, right] of matrix) {
             for (const [ear, level] of [[0, left], [1, right]]) {
                 if (!level) continue;

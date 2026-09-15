@@ -1351,26 +1351,25 @@
         }
         body.grid-mode #stackSubOptions { display: none !important; }
 
-        /* Playback scope sits directly in the transport bar rather than inside a
-           colored mode group, so give it explicit contrast instead of inheriting
-           the body's black text. Solo uses blue to read as the active override. */
+        /* Transport choices share legible neutral colors outside the colored
+           view-mode groups. Their active overrides use the same blue treatment. */
         .playback-policy-group {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             flex-shrink: 0;
         }
-        #playbackScopeBtn {
+        #playbackScopeBtn, #scrubModeBtn {
             color: rgba(205, 214, 226, 0.9);
             border-color: rgba(205, 214, 226, 0.42);
             background: rgba(205, 214, 226, 0.08);
         }
-        #playbackScopeBtn:hover {
+        #playbackScopeBtn:hover, #scrubModeBtn:hover {
             color: #ffffff;
             border-color: rgba(205, 214, 226, 0.7);
             background: rgba(205, 214, 226, 0.16);
         }
-        #playbackScopeBtn.active {
+        #playbackScopeBtn.active, #scrubModeBtn.active {
             color: #67cfff;
             border-color: rgba(103, 207, 255, 0.78);
             background: rgba(49, 153, 215, 0.18);
@@ -3553,6 +3552,7 @@
                 <div class="video-progress-container" id="videoProgressContainer" role="slider" aria-label="Playback position" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
                     <div class="video-progress-bar" id="videoProgressBar"></div>
                 </div>
+                <button class="mode-sub-btn" id="scrubModeBtn" onclick="_setScrubAudioMode(_scrubAudioMode === 'continuous' ? 'snippets' : 'continuous'); this.blur();" aria-pressed="false" title="Snippets: short previews at playback speed. Continuous: pitch-preserving audio follows drag speed and direction.">Scrub: Snippets</button>
                 <div class="volume-control">
                     <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><span class="vi-icon" id="muteBtnIcon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span class="vi-label">Muted</span></span>
                     <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
@@ -3588,12 +3588,14 @@
     <script src="js/timecode.js"></script>
     <script src="js/wipe.js"></script>
     <script src="js/tile-check.js"></script>
+    <script src="js/scrub-audio-core.js"></script>
+    <script src="js/scrub-audio.js"></script>
     <script src="js/audio-routing.js"></script>
     <script src="js/opus-sync.js"></script>
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.14.10';
+        const APP_VERSION = '3.15.0';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5814,244 +5816,7 @@
             return audioContext;
         }
 
-        // Scrub audio preview — plays short snippets with gain envelope to avoid clicks
-        let _scrubSource = null;
-        let _scrubGain = null;
-        let _scrubSourceBuffer = null;
-        let _scrubSourceOffset = 0;
-        let _scrubSourceStartCtx = 0;
-        let _scrubSourceRate = 1;
-        let _scrubSourceSnippetLen = 0;
-        let _scrubSourceFadeLen = 0;
-        let _scrubSourceLevel = 1;
-        let _scrubAudioClockId = 0;
-        let _scrubAudioTargetT = null;
-        let _scrubAudioPointerT = null;
-        let _scrubAudioMotionAt = -Infinity;
-        const _SCRUB_OUTPUT_LEN = 0.09;   // 90ms at every playback rate (source span scales with rate)
-        const _SCRUB_FADE = 0.01;         // 10ms fade in/out
-        const _SCRUB_AUDIO_CLOCK_MS = 50; // steady cadence, independent of pointer/decoder event bursts
-        const _SCRUB_AUDIO_IDLE_MS = 130; // stop after the pointer/presentation clock holds still
-        const _SCRUB_PHASE_SEARCH = 0.008; // max ±8ms target adjustment (< 1/5 frame at 24fps)
-
-        function _scrubOutputGain(volumePercent) {
-            const value = Number(volumePercent);
-            if (!Number.isFinite(value)) return 1;
-            return Math.max(0, Math.min(1, value / 100));
-        }
-
-        function _scrubGrainLengths(rate, sourceRemaining) {
-            const safeRate = Math.max(0.01, Number(rate) || 1);
-            const source = Math.min(_SCRUB_OUTPUT_LEN * safeRate, Math.max(0, sourceRemaining));
-            return { source, output: source / safeRate };
-        }
-
-        function _scrubEnvelopeGain(elapsed, snippetLen, fadeLen) {
-            if (elapsed <= 0 || snippetLen <= 0) return 0;
-            if (fadeLen > 0 && elapsed < fadeLen) return elapsed / fadeLen;
-            if (elapsed <= snippetLen - fadeLen) return 1;
-            if (fadeLen > 0 && elapsed < snippetLen) return (snippetLen - elapsed) / fadeLen;
-            return 0;
-        }
-
-        function _holdScrubGain(ctx) {
-            if (!_scrubGain) return;
-            const elapsed = Math.max(0, ctx.currentTime - _scrubSourceStartCtx);
-            const held = _scrubEnvelopeGain(elapsed, _scrubSourceSnippetLen, _scrubSourceFadeLen) * _scrubSourceLevel;
-            _scrubGain.gain.cancelScheduledValues(ctx.currentTime);
-            _scrubGain.gain.setValueAtTime(held, ctx.currentTime);
-        }
-
-        // Align a new grain to the outgoing grain's waveform phase within a
-        // tightly bounded neighbourhood of the requested timeline position.
-        // Unaligned overlap can null a steady CENTER tone (or hollow speech)
-        // when the two grains happen to begin on opposite waveform phases.
-        function _phaseAlignScrubOffset(buf, desiredOffset, priorOffset, rate) {
-            const sr = buf && buf.sampleRate;
-            const channels = buf && buf.numberOfChannels;
-            if (!sr || !channels || !buf.length) return desiredOffset;
-            const step = Math.max(0.125, rate || 1);
-            const windowFrames = Math.max(16, Math.round(0.004 * sr / step));
-            const searchFrames = Math.max(1, Math.round(_SCRUB_PHASE_SEARCH * sr));
-            const priorFrame = Math.round(priorOffset * sr);
-            const desiredFrame = Math.round(desiredOffset * sr);
-            if (priorFrame < 0 || priorFrame + Math.round(windowFrames * step) >= buf.length) return desiredOffset;
-            const channelData = [];
-            for (let c = 0; c < channels; c++) channelData.push(buf.getChannelData(c));
-            const scoreAt = (candidateFrame) => {
-                if (candidateFrame < 0 || candidateFrame + Math.round(windowFrames * step) >= buf.length) return -Infinity;
-                let cross = 0, oldEnergy = 0, newEnergy = 0;
-                for (let i = 0; i < windowFrames; i++) {
-                    const advance = Math.round(i * step);
-                    for (let c = 0; c < channels; c++) {
-                        const oldSample = channelData[c][priorFrame + advance];
-                        const newSample = channelData[c][candidateFrame + advance];
-                        cross += oldSample * newSample;
-                        oldEnergy += oldSample * oldSample;
-                        newEnergy += newSample * newSample;
-                    }
-                }
-                if (oldEnergy < 1e-8 || newEnergy < 1e-8) return -Infinity;
-                return cross / Math.sqrt(oldEnergy * newEnergy);
-            };
-            const directScore = scoreAt(desiredFrame);
-            let bestFrame = desiredFrame;
-            let bestScore = directScore;
-            for (let delta = -searchFrames; delta <= searchFrames; delta++) {
-                const score = scoreAt(desiredFrame + delta) - Math.abs(delta) / searchFrames * 0.002;
-                if (score > bestScore) { bestScore = score; bestFrame = desiredFrame + delta; }
-            }
-            // Do not slide arbitrary/noisy jumps for a marginal correlation win.
-            if (bestScore < 0.35 || bestScore < directScore + 0.08) return desiredOffset;
-            return bestFrame / sr;
-        }
-
-        function playScrubSnippet(time) {
-            const ctx = getAudioContext();
-            // Scrub audio has exactly one owner: the explicitly selected slot.
-            // Grid may decode/paint three videos, but it never creates preview
-            // audio for the two unselected slots.
-            const slot = currentAudioSource || assetOrder[currentAssetIndex];
-            if (isMuted || audioMuteStates[slot]) return; // respect global + per-slot mute (Web Audio bypasses video.muted)
-            const vizData = _audioSlotVizData[slot];
-            const buf = (vizData && vizData.audioBuffer) || _videoAudioBuffers[slot];
-            if (!buf) return;
-            let offset = _audioBufferTimeForTimeline(time, _audioTimelineStarts[slot] || 0);
-            // Silence is part of the timeline. In particular, a leading empty
-            // MP4 edit must not clamp to sample zero and repeat the first sound.
-            if (offset < 0 || offset >= buf.duration) {
-                _stopScrubAudioNodes();
-                return;
-            }
-            const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
-            if (_scrubSource && _scrubSourceBuffer === buf) {
-                const priorOffset = _scrubSourceOffset +
-                    Math.max(0, ctx.currentTime - _scrubSourceStartCtx) * _scrubSourceRate;
-                offset = _phaseAlignScrubOffset(buf, offset, priorOffset, rate);
-            }
-            // Hold the OUTPUT grain length steady. The old fixed source span
-            // shrank to 40ms at 2×, shorter than its 50ms scheduling interval,
-            // which guaranteed gaps even with perfectly regular callbacks.
-            const grainLengths = _scrubGrainLengths(rate, buf.duration - offset);
-            const snippetLen = grainLengths.source;
-            const outputSnippetLen = grainLengths.output;
-            const fadeLen = Math.min(_SCRUB_FADE, outputSnippetLen / 2);
-            const outputLevel = _scrubOutputGain(_prefs.load('volume', 100));
-
-            // Fade out previous snippet smoothly
-            if (_scrubGain) {
-                _holdScrubGain(ctx);
-                _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
-            }
-            if (_scrubSource) {
-                const old = _scrubSource;
-                setTimeout(() => { try { old.stop(); } catch (_) {} }, _SCRUB_FADE * 1000 + 10);
-            }
-
-            const gain = ctx.createGain();
-            gain.connect(ctx.destination);
-            // Fade in
-            gain.gain.setValueAtTime(0, ctx.currentTime);
-            gain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + fadeLen);
-            // Fade out before end
-            gain.gain.setValueAtTime(outputLevel, ctx.currentTime + outputSnippetLen - fadeLen);
-            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + outputSnippetLen);
-
-            const source = ctx.createBufferSource();
-            source.buffer = buf;
-            // Match the current playback rate so the scrub preview sounds like the
-            // user's selected speed rather than always playing at 1×.
-            source.playbackRate.value = rate;
-            const output = _connectAudioOutput(source, gain, buf.numberOfChannels);
-            source.start(0, offset, snippetLen);
-            _scrubSource = source;
-            _scrubGain = gain;
-            _scrubSourceBuffer = buf;
-            _scrubSourceOffset = offset;
-            _scrubSourceStartCtx = ctx.currentTime;
-            _scrubSourceRate = rate;
-            _scrubSourceSnippetLen = outputSnippetLen;
-            _scrubSourceFadeLen = fadeLen;
-            _scrubSourceLevel = outputLevel;
-            source.onended = () => {
-                output.disconnect();
-                gain.disconnect();
-                if (_scrubSource === source) {
-                    _scrubSource = null; _scrubGain = null; _scrubSourceBuffer = null;
-                    _scrubSourceLevel = 1;
-                }
-            };
-        }
-
-        // Pointer activity keeps audition alive; presentation chooses its audio
-        // position. A slow drag can hold one frame for hundreds of milliseconds.
-        // Renew overlapping grains even at that same PTS, or a 90ms grain ends
-        // long before the next frame. Late decoder callbacks cannot extend a
-        // stopped gesture, and repeated motion beyond a timeline edge is idle.
-        function _scrubAudioTick() {
-            _scrubAudioClockId = 0;
-            if (!isDragging || _scrubAudioTargetT === null) {
-                _stopScrubAudioNodes();
-                return;
-            }
-            const recent = performance.now() - _scrubAudioMotionAt < _SCRUB_AUDIO_IDLE_MS;
-            if (!recent) {
-                _stopScrubAudioNodes();
-                return;
-            }
-            playScrubSnippet(_scrubAudioTargetT);
-            _scrubAudioClockId = setTimeout(_scrubAudioTick, _SCRUB_AUDIO_CLOCK_MS);
-        }
-
-        function _feedScrubAudioMotion(time, atBoundary) {
-            if (!isDragging || !Number.isFinite(time)) return;
-            if (!atBoundary || time !== _scrubAudioPointerT) _scrubAudioMotionAt = performance.now();
-            _scrubAudioPointerT = time;
-            // Fractional pointer motion can round to the same interior time;
-            // it still counts as activity. At an edge, repeated clamped targets
-            // must fade instead of endlessly replaying the first/last sound.
-            if (_scrubAudioUsesPointerClock()) _feedScrubAudio(time);
-            else if (!_scrubAudioClockId && _scrubAudioTargetT !== null) _scrubAudioTick();
-        }
-
-        function _feedScrubAudio(time) {
-            if (!Number.isFinite(time)) return;
-            _scrubAudioTargetT = time;
-            if (!_scrubAudioClockId) _scrubAudioTick();
-        }
-
-        // Resume inside the trusted pointer event. Calling resume only when the
-        // first asynchronous frame/seek completes is too late on browsers that
-        // enforce user-gesture activation for Web Audio.
-        function _primeScrubAudioContext() {
-            const ctx = getAudioContext();
-            if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
-        }
-
-        function _stopScrubAudioNodes() {
-            const ctx = getAudioContext();
-            if (_scrubGain) {
-                _holdScrubGain(ctx);
-                _scrubGain.gain.linearRampToValueAtTime(0, ctx.currentTime + _SCRUB_FADE);
-            }
-            if (_scrubSource) {
-                const old = _scrubSource;
-                setTimeout(() => { try { old.stop(); } catch (_) {} }, _SCRUB_FADE * 1000 + 10);
-                _scrubSource = null;
-                _scrubGain = null;
-                _scrubSourceBuffer = null;
-                _scrubSourceLevel = 1;
-            }
-        }
-
-        function stopScrubSnippet() {
-            if (_scrubAudioClockId) clearTimeout(_scrubAudioClockId);
-            _scrubAudioClockId = 0;
-            _scrubAudioTargetT = null;
-            _scrubAudioPointerT = null;
-            _scrubAudioMotionAt = -Infinity;
-            _stopScrubAudioNodes();
-        }
+        // Scrub audio preview, motion clock and mode → js/scrub-audio.js
 
         // fft, buildPalette, spectrogramPalettes, paletteNames → js/audio-viz.js
         let currentPaletteIndex = _prefs.load('paletteIndex', paletteNames.indexOf('inferno'));
@@ -9111,6 +8876,7 @@
                 _setSoloPlaybackSlot(source);
             }
             const switching = source !== currentAudioSource;
+            if (switching) _resetContinuousScrub();
             currentAudioSource = source;
 
             // Update button states
@@ -10958,6 +10724,7 @@
             hideLoading();
             _scrubGestureGeneration++;
             _cancelActiveScrubForClear();
+            _resetContinuousScrub();
             _scrubAtTimelineEnd = false;
             // Restore the active label while the loaded-slot context still exists.
             if (_diffMode) _setDiffMode(false, false);
@@ -14214,12 +13981,16 @@
                 <tr><td><kbd>Esc</kbd></td><td>Dismiss loupe / close panel</td></tr>
             </table>
 
+            <h2>Scrub Audio</h2>
+            <p>The <strong>Scrub: Snippets / Continuous</strong> button beside the volume control chooses preview sound for video and audio-only timelines. <strong>Snippets</strong> is the default: short forward previews at the selected playback rate. <strong>Continuous</strong> keeps speech connected and preserves pitch as drag speed changes; dragging backward traverses the audio backward. Clicking still auditions a short snippet. Holding still fades either mode out.</p>
+            <p>Continuous is a listening preview: stretching can soften sharp sounds. Compare both modes and normal playback when inspecting defects. A single video follows the displayed frame; multi-video Grid uses the shared pointer timeline. Master volume, mute, multichannel dialogue, and intentional audio-start silence are preserved. Original waveform, spectrogram, and loudness inputs remain unchanged. If continuous preview cannot load, a notice explains that snippets are being used. The choice is saved on this browser.</p>
+
             <h2>Preferences</h2>
             <p>The following settings are saved to your browser and persist across sessions and page reloads:</p>
             <ul>
                 <li>Zoom loupe size and magnification level</li>
                 <li>Linked zoom on/off</li>
-                <li>Volume level</li>
+                <li>Volume level and scrub audio mode</li>
                 <li>Master mute</li>
                 <li>Stack Fit / Balance mode and per-slot rotation</li>
                 <li>Audio visualization visibility, height, and row split</li>
@@ -14282,6 +14053,7 @@
                 <li><kbd>Space</kbd> play/pause, <kbd>,</kbd> <kbd>.</kbd> frame step</li>
                 <li><kbd>⇧S</kbd> toggles synchronized playback or the selected video by itself</li>
                 <li>Per-source audio switching (S or GT / A / B) with individual mute</li>
+                <li>Scrub: Snippets / Continuous beside volume compares short previews with continuous, pitch-preserving drag audio</li>
             </ul>
 
             <h3>Grid Mode</h3>
@@ -14350,6 +14122,11 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.15.0</h3>
+            <ul>
+                <li><strong>Optional continuous scrub audio.</strong> Click Scrub: Snippets beside the volume control to try pitch-preserving preview that follows drag speed and direction. Snippets stays the default and remains available for comparison; continuous mode falls back to snippets if unavailable.</li>
+                <li>Both scrub modes preserve multichannel dialogue, original analysis data, and the soundtrack’s position on the timeline. Holding still fades preview audio out.</li>
+            </ul>
             <h3>v3.14.10</h3>
             <ul><li><strong>Slow scrubbing keeps audio active.</strong> Preview snippets continue while the pointer moves within the same video frame, closing the silence between slow frame changes. Holding still or dragging beyond a timeline edge fades the preview out.</li></ul>
             <h3>v3.14.9</h3>

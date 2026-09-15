@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/jayriddle/warpcap",
+  "commit": "8416e52fc757f21dc09078fbde1b06b2cf7790f2",
+  "version": "1.0.0",
+  "workingTree": false,
+  "files": [
+    {
+      "source": "shared/media/scrub-audio.js",
+      "target": "js/scrub-audio-core.js",
+      "sha256": "a67376b78be9bab28b820aa08696cc1bab870ec732dd8cadc259008cb3bdff62"
+    },
+    {
+      "source": "audio/wsola-worklet.js",
+      "target": "js/scrub-worklet.js",
+      "sha256": "b1626dbf075acd1bff8d849a2ed6c246a9b662971f6f58639eef2c3aca10fcac"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.14.10
+**Current version:** 3.15.0
 
 ---
 
@@ -16,7 +16,7 @@ WarpDiff is an opinionated answer to that problem: load 1–4 assets of one medi
 
 Synced video playback keeps the timeline and waveform playheads moving smoothly between presented frames while loop and synchronization logic stays frame-accurate. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
 
-Slow scrubbing keeps audio preview active while the pointer moves within the same video frame, and fades out when you stop.
+Slow scrubbing keeps audio preview active while the pointer moves within the same video frame, and fades out when you stop. The **Scrub: Snippets / Continuous** button beside volume adds an optional pitch-preserving mode that follows drag speed and direction. Snippets remains the default and fallback; normal playback and original analysis inputs are preserved.
 
 It started as a personal tool for my own review workflow. Other reviewers asked to use it. Many releases later, here we are.
 
@@ -100,6 +100,8 @@ Files auto-sort oldest → newest by timestamp. Four-item reviews use media-awar
 - **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release (enforced by the ownership test harness, which also checks every `js/*.js` is in the service-worker precache).
 - **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
 - **Two test layers** — a Playwright suite (real headless Chromium) covering transport, difference and wipe modes, pan/zoom, hotkey reassignment, layouts, and audio visualization; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, documentation/build/version hygiene, and pure-function logic without a browser.
+
+The reusable scrub controller and processor are pinned from WarpCap; both WarpDiff and WarpSonic use the same implementation. See [the shared scrub contract](docs/shared-scrub-audio.md) for integration, source ownership, and update checks.
 
 ### Design principles
 

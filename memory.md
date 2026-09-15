@@ -53,3 +53,7 @@
 - Coding style: vanilla JS, edit `index.html` preferentially, `_prefixed` vars, debounced functions.
 
 This file serves as living memory for memory-sensitive implementations. Update when adding new features that allocate buffers, decode media, or render visuals.
+
+## Continuous scrub listening copy
+
+The optional shared continuous engine retains one selected mono/stereo listening copy at the AudioContext rate. A 7.1 source is folded before spectral processing; the channel-preserving analysis/scrub source stays intact. Module loading is cached per context/URL, and preparation is serialized with stale-publication fencing. Mode/source changes and media clear route through `_resetContinuousScrub`; outgoing audible PCM is released after a short fade. `state.bytes` plus `state.retiringBytes` must reach zero after clear. These counters exclude source buffers, transient resampling, processor scratch and video caches; see `docs/shared-scrub-audio.md`.

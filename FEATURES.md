@@ -90,6 +90,10 @@ Press `V` to toggle the video scopes panel. Its source is always identified abov
 
 Scopes update in real time during playback and on frame step. Works on both video frames and still images.
 
+## Scrub audio modes
+
+The **Scrub: Snippets / Continuous** button beside volume applies to video and audio-only timelines and persists on this browser. Snippets is the default: short forward previews at the selected playback rate. Continuous preserves pitch while following drag speed and direction, including backward audio on backward drags. Click audition remains a snippet. Both modes fade out at rest and preserve volume, mute, stereo placement, multichannel dialogue, timeline offsets, and original analysis inputs. A single video follows the displayed picture; multi-video Grid retains its shared pointer clock. Continuous can soften sharp sounds; compare with snippets and normal playback for defect inspection. Unavailable continuous processing falls back to snippets with a notice.
+
 ## Audio visualization
 
 Press `W` to toggle waveform and spectrogram views. The shared **Fit / Ref** control applies to both displays and persists across sessions. **Fit** normalizes each asset's waveform to its own peak and scales its spectrogram to its strongest energy, making quiet detail easy to inspect. **Ref** shows true waveform amplitude against 0 dBFS and maps every spectrogram to the same fixed −70 to 0 dBFS range for direct level comparison. Encoded leading and trailing audio gaps stay blank on the video timeline; decoded audio is never stretched to fill them. Waveform uses dB color coding in Ref — green for normal levels, yellow for caution (>-6dB), red for hot/clipping (>-1dB). Spectrogram supports linear/log frequency scale (`Shift+W`) and multiple color palettes (`P`).
