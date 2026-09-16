@@ -50,6 +50,8 @@ Press `Shift+G` to grab the current frame from the active slot and pin it to a g
 
 Playback controls wrap when a desktop window or embedded pane has limited width, keeping seeking, volume and audio-source selection reachable.
 
+Loading a new comparison immediately clears the previous waveform and spectrogram, even if their panel is closed. The graphs remain blank while the new audio analysis prepares.
+
 Both Play and Restart (`R`) restore looping after a scrub, follow the selected Sync/Solo scope and loop range, and retain cached frames for the next drag.
 
 Videos default to **Sync**, where every clip shares the transport controls. Press `Shift+S` or click **Playback: Sync** to enter **Solo** and run only the selected video. The adjacent **Playback: Sync/Solo** and **Range: Sync/Full** selectors are grouped before the timecode. Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow that one slot. Selecting another video hands playback off at the same absolute time and preserves whether it was playing when that time exists. If a shorter target has already ended, it holds paused on its final frame instead of wrapping; the longer absolute time is retained for switching back or rejoining Full Sync. Returning to a range-limited Sync position outside its shared range restarts at the shared in-point. Custom loop markers remain shared, but their effective out-point is clamped to the Solo target; if the in-point starts after that target ends, playback holds at the final frame and explains why. The multi-clip Range control is hidden in Solo because it does not apply to a single participant.

@@ -3650,7 +3650,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.17.4';
+        const APP_VERSION = '3.17.5';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -10824,6 +10824,13 @@
             _clearAudioAnalysis();
             waveformData = {};
             spectrogramData = {};
+            // These panel canvases survive media replacement. Drop their old
+            // pixels even while hidden: the draw helpers skip zero-size layouts,
+            // so redrawing here cannot reliably clear a collapsed panel.
+            ['panelWaveformCanvas', 'spectrogramCanvas'].forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas) { canvas.width = 0; canvas.height = 0; }
+            });
             audioMetrics = {};
             _stopAllOpusSyncAudio();
             _opusSyncPending = {};
@@ -13956,6 +13963,7 @@
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
             <p>Waveform, spectrogram, and loudness analysis prepare in the background using the same original-audio calculations. Playback can begin before the graphs and scrub preview are ready. In browsers that restrict background processing, analysis can briefly pause the controls.</p>
+            <p>Loading a new comparison clears the previous waveform and spectrogram immediately, including if the panel was closed. The graphs remain blank until the new analysis is ready.</p>
             <p>Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
@@ -14174,6 +14182,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.17.5</h3>
+            <ul><li><strong>Fresh audio graphs when loading videos.</strong> The previous waveform and spectrogram clear immediately while the new video's analysis prepares, including when the panel was closed.</li></ul>
             <h3>v3.17.4</h3>
             <ul><li><strong>Reliable restart after scrubbing.</strong> Pressing <kbd>R</kbd> now keeps videos looping with your selected playback scope and loop range.</li></ul>
             <h3>v3.17.3</h3>

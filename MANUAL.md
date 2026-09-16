@@ -178,6 +178,9 @@ After scrubbing, **Space** resumes playback and **R** restarts at the loop in-po
 ## Audio Visualization
 
 Press **W** to toggle the waveform and spectrogram panel below the video controls.
+
+When loading a new comparison, the previous graphs clear immediately and remain blank until the new analysis is ready, including if the panel was closed.
+
 Waveform, spectrogram, and loudness analysis prepare in the background using the same original-audio calculations. Video playback can start before the graphs and scrub preview are ready. In browsers that restrict background processing, analysis can briefly pause the controls.
 
 Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.

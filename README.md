@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.17.4
+**Current version:** 3.17.5
 
 ---
 
@@ -21,6 +21,8 @@ See the [playhead implementation and before/after measurements](docs/playhead-mo
 After scrubbing, Play and Restart (`R`) restore the selected playback scope and loop range. Restart also suspends the idle scrub decoder while retaining cached frames for the next drag. See the [restart verification record](docs/restart-playback-2026-09-15.md).
 
 Waveform, spectrogram, and loudness analysis run in the background while files prepare, keeping playback and controls responsive with the same original-audio calculations. See the [playback investigation and verification record](docs/video-stutter-2026-09-15.md).
+
+Replacing a video immediately clears its old waveform and spectrogram, including when the panel is closed. The graphs remain blank until the new analysis is ready. See the [verification record](docs/audio-viz-reset-2026-09-16.md).
 
 Clearing or replacing a comparison releases its scrub-audio resources and previous video. A repaired shutdown race prevents audio memory accumulating across loads. See the [memory investigation](docs/memory-leak-2026-09-15.md).
 
