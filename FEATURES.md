@@ -105,6 +105,8 @@ Press `W` to toggle waveform and spectrogram views. The shared **Fit / Ref** con
 
 Waveform, spectrogram, and loudness calculations run in a background worker for video and audio-only review, preserving the existing original-channel analysis while playback and controls continue. Preparation is serialized; clearing or replacing media discards obsolete results. Browsers that block workers retain the foreground compatibility path.
 
+Clearing or replacing a comparison releases its old audio previews, scrub processors, decoded-frame caches, and media elements. Audio shutdown finishes processor cleanup before closing the old context; a new comparison can load immediately.
+
 Scrub previews retain the soundtrack's placement on the video timeline, including intentional leading silence. Native playback remains browser-managed; Chromium's Web Audio replacement for affected Opus files uses the same offset-aware mapping.
 
 If a video container does not expose an audio start timestamp, WarpDiff shows a persistent warning naming the affected slot. Decoded-audio views and tools keep their fallback timeline, native playback is not shifted, and the warning asks you to verify A/V sync. A confirmed start at 0 does not warn.

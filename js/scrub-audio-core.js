@@ -288,10 +288,30 @@
     return off.startRendering();
   }
   function disposeNode(node) {
-    if (!node || node._warpScrubDisposed) return;
+    if (!node) return Promise.resolve(true);
+    if (node._warpScrubDisposed) return node._warpScrubDisposal;
     node._warpScrubDisposed = true;
-    try { node.port.postMessage({type:'dispose'}); } catch (_) {}
-    try { node.disconnect(); } catch (_) {}
+    // Closing a context before process() returns false can strand a Chromium
+    // active-source root. Its error handler also captures the original PCM.
+    // Let context owners await real retirement, and detach that closure now.
+    node.onprocessorerror = null;
+    node._warpScrubDisposal = new Promise(resolve => {
+      const finish = ok => {
+        clearTimeout(timer);
+        node.port.removeEventListener('message', onMessage);
+        try { node.port.close(); } catch (_) {}
+        resolve(ok);
+      };
+      const onMessage = event => { if (event.data?.type === 'disposed') finish(true); };
+      // A failed processor or prohibited/suspended context may never render.
+      // Cleanup must remain bounded; source closures are released either way.
+      const timer = setTimeout(() => finish(false), 1000);
+      node.port.addEventListener('message', onMessage);
+      node.port.start();
+      try { node.port.postMessage({type:'dispose'}); } catch (_) { finish(false); }
+      try { node.disconnect(); } catch (_) {}
+    });
+    return node._warpScrubDisposal;
   }
   function loadModule(ctx, url) {
     let byUrl = modules.get(ctx);
@@ -317,6 +337,7 @@
     let monitorMix = monitorPlan();
     let fadeUntil = 0, fadeContext = null;
     let preparation = Promise.resolve();
+    const retirements = new Set();
     function cancelStop() { if (stoppedTimer !== null) clearTimeout(stoppedTimer); stoppedTimer = null; }
     function levelAt(time) {
       if (!envelope) return 0;
@@ -339,6 +360,7 @@
       cancelStop(); state.generation++;
       const node = state.node, gain = state.gain, bytes = state.bytes;
       const level = state.ctx ? levelAt(state.ctx.currentTime) : 0;
+      let release;
       if (node && gain && level > 0 && state.ctx.state !== 'closed') {
         // Release old PCM after its audible fade. A new stream waits out this
         // window, so a source change never crossfades unrelated dialogue.
@@ -346,14 +368,15 @@
         fadeContext = state.ctx; fadeUntil = state.ctx.currentTime + 0.015;
         const retiringContext = fadeContext, retirement = fadeUntil;
         state.retiringBytes += bytes;
-        setTimeout(() => {
-          disposeNode(node);
+        release = new Promise(resolve => setTimeout(() => {
+          const retired = disposeNode(node);
           try { gain.disconnect(); } catch (_) {}
           state.retiringBytes -= bytes;
           if (fadeContext === retiringContext && fadeUntil === retirement) { fadeContext = null; fadeUntil = 0; }
-        }, 20);
+          resolve(retired);
+        }, 20));
       } else {
-        disposeNode(node);
+        release = disposeNode(node);
         if (gain) { try { gain.disconnect(); } catch (_) {} }
       }
       state.ctx = null; state.buffer = null; state.requestedBuffer = null;
@@ -361,6 +384,11 @@
       state.node = null; state.promise = null; state.gain = null;
       state.active = false; state.bytes = 0; state.error = null;
       destination = null; envelope = null;
+      retirements.add(release);
+      release.then(() => retirements.delete(release));
+      // Include earlier audible replacements still fading out. Reset remains
+      // synchronous for state and reusable; only resource retirement is async.
+      return Promise.all([...retirements]).then(results => results.every(Boolean));
     }
     function load(ctx, buffer, layout = null) {
       if (disposed) return Promise.resolve(false);
@@ -470,8 +498,8 @@
     const view = Object.freeze(Object.defineProperties({}, Object.fromEntries(
       Object.keys(state).map(key => [key, {enumerable:true, get:() => state[key]}]))));
     return Object.freeze({state:view, load, update, stop, reset, setCenterFocus, setMonitorMix,
-      dispose() { reset(); disposed = true; }});
+      dispose() { disposed = true; return reset(); }});
   }
-  root.WarpScrubAudio = Object.freeze({version:'1.2.0', tuning, create, motionVelocity, monitor,
+  root.WarpScrubAudio = Object.freeze({version:'1.2.1', tuning, create, motionVelocity, monitor,
     grainTempo, continuous, streamTempo, listeningBuffer, listeningBytes, surroundMatrix, disposeNode});
 })(globalThis);

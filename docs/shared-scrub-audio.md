@@ -9,7 +9,7 @@ WarpDiff 3.17.0 uses **Continuous** as its standard drag preview. Pitch stays st
 - `js/scrub-worklet.js`: the canonical pitch-preserving processor from WarpSonic.
 - `js/audio-routing.js`: existing listening graph uses the shared surround coefficients. Analysis receives original decoded channels.
 
-The canonical sources are WarpCap's `shared/media/scrub-audio.js` and `audio/wsola-worklet.js`; its `docs/shared-scrub-audio.md` defines the complete contract. Copies here are pinned by commit and SHA-256 in [SCRUB_AUDIO_LOCK.json](../js/SCRUB_AUDIO_LOCK.json). Both apps consume the same implementation with independent stream instances.
+The canonical sources are WarpCap's `shared/media/scrub-audio.js` and `audio/wsola-worklet.js`; its `docs/shared-scrub-audio.md` defines the complete contract. Copies here are pinned by commit and SHA-256 in [SCRUB_AUDIO_LOCK.json](../js/SCRUB_AUDIO_LOCK.json). Both apps consume the same implementation with independent stream instances. Version 1.2.1 makes reset/disposal awaitable: WarpDiff clears state immediately, then lets the old processor finish its terminal render before closing that captured audio context. Original PCM and playback processing are unchanged. See the [memory investigation](memory-leak-2026-09-15.md).
 
 ## Updating the component
 

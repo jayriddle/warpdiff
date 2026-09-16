@@ -35,10 +35,11 @@ function _noticeScrubFallback(message) {
 }
 
 function _resetContinuousScrub() {
-    _continuousScrubEngine.reset();
+    const retired = _continuousScrubEngine.reset();
     _continuousScrubCursor = null;
     _continuousScrubClick = false;
     _scrubContinuousNotice = false;
+    return retired;
 }
 function _prepareContinuousScrub() {
     const slot = currentAudioSource || assetOrder[currentAssetIndex];

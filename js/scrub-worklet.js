@@ -82,8 +82,6 @@ class WsolaProcessor extends AudioWorkletProcessor {
       this.playing = false; this.ready = false; this.disposed = true;
       this.ch = []; this.len = 0; this.pendingAnchor = null;
       this._allocChannels(0);
-      this.port.postMessage({ type:'disposed' });
-      this.port.close();
     } else if (d.type === 'load') {
       this.ch = d.channels.map((b) => new Float32Array(b));
       this.len = this.ch[0] ? this.ch[0].length : 0;
@@ -150,7 +148,10 @@ class WsolaProcessor extends AudioWorkletProcessor {
     this.inPos += direction * Hs * tempo;            // analysis hop = direction·Hs·tempo
   }
   process(_inputs, outputs) {
-    if (this.disposed) return false;
+    if (this.disposed) {
+      this.port.postMessage({ type:'disposed' }); this.port.close();
+      return false;
+    }
     const out = outputs[0];
     const frames = out[0].length;                    // 128
     if (!this.ready || !this.playing || currentTime < this.playAt) {
@@ -252,8 +253,6 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
       this.playing = false; this.ready = false; this.disposed = true;
       this.ch = []; this.len = 0; this.midSide = false; this.monitorCenter = null; this.pendingAnchor = null;
       this._allocChannels(0);
-      this.port.postMessage({ type:'disposed' });
-      this.port.close();
     } else if (d.type === 'load') {
       const channels = d.channels.map((b) => new Float32Array(b));
       this.monitorCenter = d.monitorCenter && channels.length===3 ? channels.pop() : null;
@@ -386,7 +385,12 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     return this.direction > 0 ? this.inPos < this.len : this.inPos >= 0;
   }
   process(_inputs, outputs) {
-    if (this.disposed) return false;
+    if (this.disposed) {
+      // Acknowledge from the terminal render, so the owner may close its
+      // AudioContext after the browser has seen this processor return false.
+      this.port.postMessage({ type:'disposed' }); this.port.close();
+      return false;
+    }
     const out = outputs[0], frames = out[0].length;
     if (!this.ready || !this.playing) {
       for (let c = 0; c < out.length; c++) out[c].fill(0);

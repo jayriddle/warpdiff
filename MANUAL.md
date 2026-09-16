@@ -177,6 +177,8 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 
 Press **W** to toggle the waveform and spectrogram panel below the video controls.
 Waveform, spectrogram, and loudness analysis prepare in the background using the same original-audio calculations. Video playback can start before the graphs and scrub preview are ready. In browsers that restrict background processing, analysis can briefly pause the controls.
+
+Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.
 If a video's audio track begins late or ends early, the waveform, spectrogram, and LUFS envelope preserve those presentation gaps as blank timeline intervals.
 For clips of two minutes or longer, WarpDiff uses a bounded full-timeline spectrogram with lower fine-frequency resolution. Analysis adapts its hop to cap each channel at 8,192 FFT frames, so hour-scale and high-sample-rate media cannot create ever-growing spectrogram buffers; playback, waveform, loudness metrics, and scrub audio remain full-duration.
 

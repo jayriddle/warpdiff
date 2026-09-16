@@ -1,0 +1,2299 @@
+{
+  "date": "2026-09-15",
+  "scope": "Local memory investigation; no source media, frames, PCM or user-browser contents retained.",
+  "revisions": {
+    "warpdiffBefore": "3170a58",
+    "sharedBefore": "cbfb6945e2c7c26958ecb94662a32a69038e4688",
+    "sharedAfter": "1.2.1 working tree; final lock records the canonical commit"
+  },
+  "source": {
+    "filename": "505a7754367fd458-stripped-sync-fixed.mp4",
+    "sha256": "6bf18b8641ba9327920339c275ed3e8804806c864d71bdbf65d2e2729de8c735"
+  },
+  "notes": [
+    "Post-clear samples use two CDP HeapProfiler.collectGarbage requests separated by 120 ms. A WeakRef does not keep the measured object alive.",
+    "Heap backingStorageSize measures array/external-string backing storage, not all native/GPU/audio memory. RSS includes browser allocation pools and is not a live-object count.",
+    "First baseline loop was paused by overlapping transport intents and is invalid as a playback measurement. Its load/clear samples and heap snapshot remain valid.",
+    "First fixed run completed eight load/clear cycles, but its restarted post-scrub video did not keep looping. The new positive playback check stopped that measurement. No steady-play claim uses it.",
+    "Final loop run uses one play command after settled pause, confirms native looping and active playback, and does not force collection during the 90-second interval.",
+    "Runs were isolated muted Chrome 152.0.7977.83. Default browser suite uses Chromium 145.0.7632.6."
+  ],
+  "runs": [
+    {
+      "label": "before",
+      "valid": "load-clear only",
+      "at": "2026-09-16T00:52:15.310Z",
+      "browser": "152.0.7977.83",
+      "reportedVersion": "3.17.2",
+      "errors": [],
+      "samples": [
+        {
+          "phase": "baseline",
+          "gc": true,
+          "at": 746.6999999880791,
+          "heap": {
+            "usedSize": 1134604,
+            "totalSize": 2097152,
+            "embedderHeapUsedSize": 2386152,
+            "backingStorageSize": 908216
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3680,
+            "jsEventListeners": 116
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 472.65625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {}
+        },
+        {
+          "phase": "cycle-1-loaded",
+          "gc": true,
+          "at": 5385.899999976158,
+          "heap": {
+            "usedSize": 3940908,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3607536,
+            "backingStorageSize": 38245847
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3955,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 808.53125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 63
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 118,
+            "time": 6.047879
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-1-cleared",
+          "gc": true,
+          "at": 6307.099999964237,
+          "heap": {
+            "usedSize": 3240688,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 3591016,
+            "backingStorageSize": 5447393
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 155
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 799.234375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-2-loaded",
+          "gc": true,
+          "at": 10716.399999976158,
+          "heap": {
+            "usedSize": 4026380,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3593600,
+            "backingStorageSize": 42780160
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 157
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 825.71875,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.047879
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 2,
+            "context": 2,
+            "node": 2,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-2-cleared",
+          "gc": true,
+          "at": 11634.199999988079,
+          "heap": {
+            "usedSize": 3303696,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 3006664,
+            "backingStorageSize": 9981631
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 818.015625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 2,
+            "context": 2,
+            "node": 2,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-3-loaded",
+          "gc": true,
+          "at": 16040.699999988079,
+          "heap": {
+            "usedSize": 4168996,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3666520,
+            "backingStorageSize": 47314448
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 158
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 872.640625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 69
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.04184
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 3,
+            "context": 3,
+            "node": 3,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-3-cleared",
+          "gc": true,
+          "at": 16964.599999964237,
+          "heap": {
+            "usedSize": 3474336,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3081560,
+            "backingStorageSize": 14515919
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 157
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 863.828125,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 3,
+            "context": 3,
+            "node": 3,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-4-loaded",
+          "gc": true,
+          "at": 21379.19999998808,
+          "heap": {
+            "usedSize": 4222376,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3681768,
+            "backingStorageSize": 51848720
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 159
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 916.6875,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 66
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.04192
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 4,
+            "context": 4,
+            "node": 4,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-4-cleared",
+          "gc": true,
+          "at": 22300.599999964237,
+          "heap": {
+            "usedSize": 3508780,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3095400,
+            "backingStorageSize": 19050254
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 158
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 907.546875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 4,
+            "context": 4,
+            "node": 4,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-5-loaded",
+          "gc": true,
+          "at": 26700.899999976158,
+          "heap": {
+            "usedSize": 4348300,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3694088,
+            "backingStorageSize": 56382992
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 160
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 960.75,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 69
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.031879
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 5,
+            "context": 5,
+            "node": 5,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-5-cleared",
+          "gc": true,
+          "at": 27613.399999976158,
+          "heap": {
+            "usedSize": 3621396,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3107792,
+            "backingStorageSize": 23584463
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 159
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 953.796875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 5,
+            "context": 5,
+            "node": 5,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-6-loaded",
+          "gc": true,
+          "at": 32028.799999952316,
+          "heap": {
+            "usedSize": 4366360,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 3706488,
+            "backingStorageSize": 60917264
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 161
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 1001.078125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.047586
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 6,
+            "context": 6,
+            "node": 6,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-6-cleared",
+          "gc": true,
+          "at": 32950.09999996424,
+          "heap": {
+            "usedSize": 3662488,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3433368,
+            "backingStorageSize": 28118735
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 160
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 991.671875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 6,
+            "context": 6,
+            "node": 6,
+            "session": 0
+          }
+        },
+        {
+          "phase": "loop-start",
+          "gc": true,
+          "at": 36378.5,
+          "heap": {
+            "usedSize": 4407784,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 3716480,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 1022.46875,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-15s",
+          "gc": false,
+          "at": 51411.19999998808,
+          "heap": {
+            "usedSize": 4421620,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 3716264,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 957.53125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-30s",
+          "gc": false,
+          "at": 66446.5,
+          "heap": {
+            "usedSize": 4516296,
+            "totalSize": 5341184,
+            "embedderHeapUsedSize": 3744184,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 952.984375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-45s",
+          "gc": false,
+          "at": 81473.59999996424,
+          "heap": {
+            "usedSize": 4582244,
+            "totalSize": 5341184,
+            "embedderHeapUsedSize": 3744184,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 952.859375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-60s",
+          "gc": false,
+          "at": 96496.89999997616,
+          "heap": {
+            "usedSize": 4647552,
+            "totalSize": 5341184,
+            "embedderHeapUsedSize": 3744184,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 952.9375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-end-collected",
+          "gc": true,
+          "at": 96650.69999998808,
+          "heap": {
+            "usedSize": 4409068,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 3716072,
+            "backingStorageSize": 65451536
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 162
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 952.65625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 122,
+            "time": 0.004423
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 1
+          }
+        },
+        {
+          "phase": "final-cleared",
+          "gc": true,
+          "at": 97825.39999997616,
+          "heap": {
+            "usedSize": 3687992,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3134384,
+            "backingStorageSize": 32653007
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3888,
+            "jsEventListeners": 161
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 943.6875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 1,
+            "buffer": 7,
+            "context": 7,
+            "node": 7,
+            "session": 0
+          }
+        }
+      ]
+    },
+    {
+      "label": "fixed cycles",
+      "valid": "load-clear only",
+      "at": "2026-09-16T00:58:20.801Z",
+      "browser": "152.0.7977.83",
+      "reportedVersion": "3.17.2",
+      "errors": [],
+      "samples": [
+        {
+          "phase": "baseline",
+          "gc": true,
+          "at": 731,
+          "heap": {
+            "usedSize": 1134832,
+            "totalSize": 2097152,
+            "embedderHeapUsedSize": 2386152,
+            "backingStorageSize": 910473
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3680,
+            "jsEventListeners": 116
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 473.71875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {}
+        },
+        {
+          "phase": "cycle-1-loaded",
+          "gc": true,
+          "at": 5341,
+          "heap": {
+            "usedSize": 3942512,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3609504,
+            "backingStorageSize": 38248104
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3955,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 802.375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.047627
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-1-cleared",
+          "gc": true,
+          "at": 6265.599999964237,
+          "heap": {
+            "usedSize": 3241280,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 2948360,
+            "backingStorageSize": 915390
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 783.625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-2-loaded",
+          "gc": true,
+          "at": 10652.699999988079,
+          "heap": {
+            "usedSize": 4024752,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3588792,
+            "backingStorageSize": 38248157
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 857.46875,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.035545
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-2-cleared",
+          "gc": true,
+          "at": 11568.699999988079,
+          "heap": {
+            "usedSize": 3304364,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 3420360,
+            "backingStorageSize": 915356
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 839.734375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-3-loaded",
+          "gc": true,
+          "at": 15979,
+          "heap": {
+            "usedSize": 4173824,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3660024,
+            "backingStorageSize": 38248173
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 900.453125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.047879
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-3-cleared",
+          "gc": true,
+          "at": 16905.099999964237,
+          "heap": {
+            "usedSize": 3471908,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 3451832,
+            "backingStorageSize": 915372
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 881.890625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-4-loaded",
+          "gc": true,
+          "at": 21318.69999998808,
+          "heap": {
+            "usedSize": 4214492,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 4095088,
+            "backingStorageSize": 38248221
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3952,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 934,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.05143
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-4-cleared",
+          "gc": true,
+          "at": 22243.69999998808,
+          "heap": {
+            "usedSize": 3496664,
+            "totalSize": 4030464,
+            "embedderHeapUsedSize": 3013056,
+            "backingStorageSize": 915435
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 915.6875,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-5-loaded",
+          "gc": true,
+          "at": 26632.5,
+          "heap": {
+            "usedSize": 4336540,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3679640,
+            "backingStorageSize": 38248173
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 932.921875,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 153,
+            "time": 6.036243
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-5-cleared",
+          "gc": true,
+          "at": 27555,
+          "heap": {
+            "usedSize": 3608844,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3450296,
+            "backingStorageSize": 915372
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 916.40625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-6-loaded",
+          "gc": true,
+          "at": 31979.099999964237,
+          "heap": {
+            "usedSize": 4342244,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3690768,
+            "backingStorageSize": 38248173
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 771.484375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 66
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.042546
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-6-cleared",
+          "gc": true,
+          "at": 32907.59999996424,
+          "heap": {
+            "usedSize": 3633412,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3425048,
+            "backingStorageSize": 915372
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 752.65625,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-7-loaded",
+          "gc": true,
+          "at": 37351,
+          "heap": {
+            "usedSize": 4383956,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 4207136,
+            "backingStorageSize": 38248220
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3952,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 931.28125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 154,
+            "time": 6.051378
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-7-cleared",
+          "gc": true,
+          "at": 38270.89999997616,
+          "heap": {
+            "usedSize": 3658520,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3458472,
+            "backingStorageSize": 915372
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 910.984375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "cycle-8-loaded",
+          "gc": true,
+          "at": 42697.30000001192,
+          "heap": {
+            "usedSize": 4377804,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 3705336,
+            "backingStorageSize": 38248173
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 960.53125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 68
+              }
+            }
+          },
+          "quality": {
+            "dropped": 1,
+            "total": 154,
+            "time": 6.050604
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "cycle-8-cleared",
+          "gc": true,
+          "at": 43627.09999996424,
+          "heap": {
+            "usedSize": 3660796,
+            "totalSize": 4292608,
+            "embedderHeapUsedSize": 3045576,
+            "backingStorageSize": 915372
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 931.59375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        },
+        {
+          "phase": "loop-start",
+          "gc": true,
+          "at": 47293.30000001192,
+          "heap": {
+            "usedSize": 4637712,
+            "totalSize": 5341184,
+            "embedderHeapUsedSize": 3706640,
+            "backingStorageSize": 38248173
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3950,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 971.59375,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": false,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 67
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 131,
+            "time": 0.378667
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        }
+      ]
+    },
+    {
+      "label": "fixed playback",
+      "valid": "90 seconds active native looping",
+      "at": "2026-09-16T01:00:31.480Z",
+      "browser": "152.0.7977.83",
+      "reportedVersion": "3.17.2",
+      "errors": [],
+      "samples": [
+        {
+          "phase": "baseline",
+          "gc": true,
+          "at": 710.6999999880791,
+          "heap": {
+            "usedSize": 1134832,
+            "totalSize": 2097152,
+            "embedderHeapUsedSize": 2386152,
+            "backingStorageSize": 910473
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3680,
+            "jsEventListeners": 116
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 472.609375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {}
+        },
+        {
+          "phase": "loop-start",
+          "gc": true,
+          "at": 4470.100000023842,
+          "heap": {
+            "usedSize": 3921536,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3601864,
+            "backingStorageSize": 38248076
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3955,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 803.5625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 87,
+            "time": 5.835579
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-15s",
+          "gc": false,
+          "at": 19501.5,
+          "heap": {
+            "usedSize": 4686572,
+            "totalSize": 6914048,
+            "embedderHeapUsedSize": 27989248,
+            "backingStorageSize": 38279393
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 5891,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 841.765625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 447,
+            "time": 4.661371
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-30s",
+          "gc": false,
+          "at": 34535.40000003576,
+          "heap": {
+            "usedSize": 4287852,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 9872416,
+            "backingStorageSize": 38257296
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 4411,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 796.5625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 807,
+            "time": 3.488
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-45s",
+          "gc": false,
+          "at": 49570.90000003576,
+          "heap": {
+            "usedSize": 4233036,
+            "totalSize": 4816896,
+            "embedderHeapUsedSize": 8012680,
+            "backingStorageSize": 38277540
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 4233,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 827.265625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 1167,
+            "time": 2.32
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-60s",
+          "gc": false,
+          "at": 64602.69999998808,
+          "heap": {
+            "usedSize": 4102360,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 4965096,
+            "backingStorageSize": 38274184
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 4023,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 829.015625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 1527,
+            "time": 1.151638
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-75s",
+          "gc": false,
+          "at": 79632.69999998808,
+          "heap": {
+            "usedSize": 4500516,
+            "totalSize": 5341184,
+            "embedderHeapUsedSize": 28617208,
+            "backingStorageSize": 38305282
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 5829,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 734.15625,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 1883,
+            "time": 8.08
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-90s",
+          "gc": false,
+          "at": 94662.10000002384,
+          "heap": {
+            "usedSize": 4330440,
+            "totalSize": 5079040,
+            "embedderHeapUsedSize": 26525488,
+            "backingStorageSize": 38301528
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 5671,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 734.203125,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 2247,
+            "time": 6.906667
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "loop-end-collected",
+          "gc": true,
+          "at": 94821.60000002384,
+          "heap": {
+            "usedSize": 3992144,
+            "totalSize": 4554752,
+            "embedderHeapUsedSize": 3644552,
+            "backingStorageSize": 38248120
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3955,
+            "jsEventListeners": 156
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 697.25,
+          "nativeRoutes": 1,
+          "monitorRoutes": 1,
+          "blobUrls": 1,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 4534272,
+          "continuous": {
+            "bytes": 4534272,
+            "retiringBytes": 0,
+            "active": false,
+            "node": true
+          },
+          "sessions": {
+            "editA": {
+              "suspended": true,
+              "cache": {
+                "frames": 73,
+                "bytes": 199961600,
+                "hits": 65
+              }
+            }
+          },
+          "quality": {
+            "dropped": 0,
+            "total": 2247,
+            "time": 6.906667
+          },
+          "retained": {
+            "video": 1,
+            "buffer": 1,
+            "context": 1,
+            "node": 1,
+            "session": 1
+          }
+        },
+        {
+          "phase": "final-cleared",
+          "gc": true,
+          "at": 95996.60000002384,
+          "heap": {
+            "usedSize": 3257588,
+            "totalSize": 3768320,
+            "embedderHeapUsedSize": 3672784,
+            "backingStorageSize": 915406
+          },
+          "dom": {
+            "documents": 1,
+            "nodes": 3702,
+            "jsEventListeners": 142
+          },
+          "workerTargets": 1,
+          "rendererRssMiB": 684.4375,
+          "nativeRoutes": 0,
+          "monitorRoutes": 0,
+          "blobUrls": 0,
+          "analysisActive": false,
+          "analysisQueue": 0,
+          "listeningBytes": 0,
+          "continuous": {
+            "bytes": 0,
+            "retiringBytes": 0,
+            "active": false,
+            "node": false
+          },
+          "sessions": {},
+          "quality": null,
+          "retained": {
+            "video": 0,
+            "buffer": 0,
+            "context": 0,
+            "node": 0,
+            "session": 0
+          }
+        }
+      ]
+    }
+  ],
+  "baselineHeapSnapshot": {
+    "nativeAudioBuffers": 7,
+    "nativeAudioContexts": 7,
+    "nativeAudioWorkletNodes": 7,
+    "retainingPath": [
+      "Chrome pending-activity root",
+      "AudioWorkletNode",
+      "processorerror listener",
+      "load callback closure",
+      "source AudioBuffer"
+    ],
+    "contextRetainer": "The same active AudioWorkletNode retains its AudioContext.",
+    "lastVideoRetainer": "primaryVideoRef retains the most recently removed video; older videos collected. Bounded retention, distinct from the per-load audio leak.",
+    "omitted": "Full 8.1 MiB heap snapshot stays local scratch; selected counts/retainer chain and a reproducible capture command are retained here."
+  }
+}

@@ -3650,7 +3650,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.17.2';
+        const APP_VERSION = '3.17.3';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -10752,7 +10752,7 @@
             hideLoading();
             _scrubGestureGeneration++;
             _cancelActiveScrubForClear();
-            _resetContinuousScrub();
+            const scrubRetired = _resetContinuousScrub();
             _scrubAtTimelineEnd = false;
             // Restore the active label while the loaded-slot context still exists.
             if (_diffMode) _setDiffMode(false, false);
@@ -10879,9 +10879,16 @@
             // _magState itself: IDs are fixed (3 loupes), so reset to a fresh object rather
             // than pruning — ensures stale clone/overlay refs don't survive.
             Object.keys(_magState).forEach(k => delete _magState[k]);
-            // Close AudioContext so the browser can fully reclaim audio resources between
-            // loads. A fresh context is created lazily on the next getAudioContext() call.
-            if (audioContext) { audioContext.close().catch(() => {}); audioContext = null; }
+            // Clear the app reference immediately, but let the old processor finish
+            // its terminal render before closing that context. Closing first strands
+            // an active AudioWorkletNode (and its PCM) in Chromium across every load.
+            // Routes are disconnected above, so a suspended context can safely drain.
+            const closingContext = audioContext;
+            audioContext = null;
+            if (closingContext) {
+                if (closingContext.state === 'suspended') closingContext.resume().catch(() => {});
+                scrubRetired.then(() => closingContext.close()).catch(() => {});
+            }
             // Keep persisted prefs (magnifierLinked, magnifierZoom, magnifierSize,
             // spectrogramLogScale, palette) — don't reset to defaults
             _magnifierEls.forEach(id => {
@@ -10931,12 +10938,19 @@
             vcReset.classList.remove('images-only');
 
             // Clear layers
+            primaryVideoRef = null;
+            _lastMouseEvent = null;
             assetOrder.forEach(slot => {
                 const layer = getLayer(slot);
                 if (!layer) return;
                 // Remove media container
                 const mediaContainer = layer.querySelector('.media-container');
                 if (mediaContainer) {
+                    mediaContainer.querySelectorAll('video, audio').forEach(media => {
+                        media.pause();
+                        media.removeAttribute('src');
+                        media.load();
+                    });
                     mediaContainer.remove();
                 }
                 layer.classList.remove('active');
@@ -13941,6 +13955,7 @@
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
             <p>Waveform, spectrogram, and loudness analysis prepare in the background using the same original-audio calculations. Playback can begin before the graphs and scrub preview are ready. In browsers that restrict background processing, analysis can briefly pause the controls.</p>
+            <p>Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
             <h2>Audio Timeline Interaction</h2>
@@ -14158,6 +14173,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.17.3</h3>
+            <ul><li><strong>Release memory between comparisons.</strong> Clearing or replacing videos now fully releases old scrub-audio resources and the previous video, preventing memory from accumulating across loads.</li></ul>
             <h3>v3.17.2</h3>
             <ul><li><strong>Smoother playback while files prepare.</strong> Audio analysis now runs in the background, keeping the picture and controls responsive while preserving waveform, spectrogram, and loudness detail.</li></ul>
             <h3>v3.17.1</h3>
