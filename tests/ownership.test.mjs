@@ -524,7 +524,7 @@ function extractFn(name, src = SRC) {
   }
   check('one-owner[sync-lock]: _applyNativeLoopPolicy is the sole managed .loop writer',
         countOf(SRC, '.loop = participants.has(m) && native') === 1);
-  for (const fn of ['playAllMedia', 'setupVideoHandlers']) {
+  for (const fn of ['_preparePlaybackStart', 'setupVideoHandlers']) {
     const b = extractFn(fn);
     check(`one-owner[sync-lock]: ${fn} routes .loop through the policy owner`,
           b.includes('_applyNativeLoopPolicy(') && !b.includes('.loop = '));
@@ -575,7 +575,7 @@ function extractFn(name, src = SRC) {
         extractFn('_setSoloHeldTimelineTime').includes('_soloHeldTimelineTime = Number.isFinite(time)'));
   check('playback-scope: Shift+S is a distinct registered transport shortcut',
         SRC.includes("id: 'playbackScope', defaultKey: 's', shift: true"));
-  for (const fn of ['playAllMedia', 'pauseAllMedia', 'restartAllVideos']) {
+  for (const fn of ['_preparePlaybackStart', 'pauseAllMedia']) {
     check(`playback-scope: ${fn} uses scoped playable participants`,
           extractFn(fn).includes('getTransportPlayableMedia()'));
   }
@@ -639,8 +639,8 @@ function extractFn(name, src = SRC) {
 // (I) Scrub-session lifecycle (2026-07 three-video scrub fix; suspend/resume
 //     refinement after the "choppy with continued use" report):
 //     _releaseScrubSessions is the SOLE owner of the full "close every retained
-//     scrub session" sweep (clearAllMedia routes through it). playAllMedia must
-//     route through _suspendScrubSessions instead — suspend closes ONLY the
+//     scrub session" sweep (clearAllMedia routes through it). Play and Restart
+//     share _preparePlaybackStart, which suspends instead — closing ONLY the
 //     VideoDecoder (idle scrub decoders starve 2–3 playing <video>s → chunky
 //     frames) while keeping file bytes + demux + frame cache; the earlier
 //     full-close-on-play forced every post-play scrub to refetch and re-demux
@@ -658,9 +658,26 @@ function extractFn(name, src = SRC) {
         countOf(SRC, 'for (const k in _scrubVideoSessions)') === 1);
   check('one-owner[scrub-session]: clearAllMedia routes through the owner (no inline sweep)',
         extractFn('clearAllMedia').includes('_releaseScrubSessions()'));
-  check('one-owner[scrub-session]: playAllMedia SUSPENDS scrub decoders (never full-closes — that refetches the file per scrub)',
-        extractFn('playAllMedia').includes('_suspendScrubSessions()') &&
-        !extractFn('playAllMedia').includes('_releaseScrubSessions'));
+  const prepare = extractFn('_preparePlaybackStart');
+  check('one-owner[playback-start]: shared preparation is defined once',
+        countOf(SRC, 'function _preparePlaybackStart(') === 1);
+  check('one-owner[playback-start]: preparation cancels stale play intent and validates Solo before starting',
+        prepare.includes('_resetFrameStepCursor()') && prepare.includes('_cancelPendingPlayIntent()') &&
+        prepare.includes('_scrubAtTimelineEnd = false') && prepare.includes('_soloLoopConstraint(soloVideo)') &&
+        prepare.includes('return null;') && prepare.includes('_setSoloHeldTimelineTime(null)'));
+  check('one-owner[scrub-session]: shared preparation suspends decoders outside a drag and retains their cache',
+        prepare.includes('if (!isDragging) _suspendScrubSessions();') &&
+        !prepare.includes('_releaseScrubSessions'));
+  for (const fn of ['playAllMedia', 'restartAllVideos']) {
+    const body = extractFn(fn);
+    check(`one-owner[playback-start]: ${fn} prepares exactly once before starting scoped media`,
+          countOf(body, '_preparePlaybackStart()') === 1 && body.includes('if (!playback) return;') &&
+          body.includes('const { participants, playGeneration } = playback;') &&
+          body.indexOf('_preparePlaybackStart()') < body.indexOf('_playMediaWithIntent('));
+    check(`one-owner[playback-start]: ${fn} delegates scrub and loop setup to the shared owner`,
+          !body.includes('_suspendScrubSessions(') && !body.includes('_releaseScrubSessions(') &&
+          !body.includes('_applyNativeLoopPolicy(') && !body.includes('.loop = '));
+  }
   const endDrag = extractFn('endScrubDrag');
   check('scrub[end-hold]: resume decision uses the pointer-owned timeline end, never raw duration/currentTime',
         endDrag.includes('const _scrubAtEnd = _scrubAtTimelineEnd') &&
@@ -787,10 +804,11 @@ function extractFn(name, src = SRC) {
         step.includes('_frameStepCursorFrame(_frameStepCursor, ref, observedFrame, refFps, refTotal, now)') &&
         step.includes('frame: targetFrame') && step.includes('targetTime: refTime'));
   check('one-owner[frame-step-cursor]: playback, pause, restart, play events, and both scrub entry points reset it',
-        countOf(SRC, '_resetFrameStepCursor();') === 6 &&
-        extractFn('playAllMedia').includes('_resetFrameStepCursor();') &&
+        countOf(SRC, '_resetFrameStepCursor();') === 5 &&
+        extractFn('_preparePlaybackStart').includes('_resetFrameStepCursor();') &&
         extractFn('pauseAllMedia').includes('_resetFrameStepCursor();') &&
-        extractFn('restartAllVideos').includes('_resetFrameStepCursor();') &&
+        extractFn('playAllMedia').includes('_preparePlaybackStart();') &&
+        extractFn('restartAllVideos').includes('_preparePlaybackStart();') &&
         extractFn('setupVideoHandlers').includes("video.addEventListener('play', function() {\n        _resetFrameStepCursor();") &&
         countOf(HTML, '_resetFrameStepCursor();') === 2);
   check('pause-snap: tolerance uses the COARSER grid, matching the drift lock\'s engage band',

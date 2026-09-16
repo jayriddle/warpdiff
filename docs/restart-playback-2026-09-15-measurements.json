@@ -1,0 +1,189 @@
+{
+  "at": "2026-09-16T05:59:31.452Z",
+  "appVersion": "3.17.4",
+  "baselineRef": "835ff5f",
+  "clip": "505a7754367fd458-stripped-sync-fixed.mp4",
+  "sourceSha256": "6bf18b8641ba9327920339c275ed3e8804806c864d71bdbf65d2e2729de8c735",
+  "media": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 1724,
+        "height": 720,
+        "r_frame_rate": "24000/1001",
+        "start_time": "0.000000",
+        "duration": "8.091417",
+        "side_data_list": [
+          {},
+          {}
+        ]
+      },
+      {
+        "codec_name": "flac",
+        "codec_type": "audio",
+        "sample_rate": "48000",
+        "channels": 8,
+        "channel_layout": "7.1",
+        "r_frame_rate": "0/0",
+        "start_time": "0.000000",
+        "duration": "7.872000"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "phase": "old-transport",
+      "transportSha256": "f9bebb200db0564c4321e5b3d378314aa023835298849b683be6ca04f64ca946",
+      "errors": [],
+      "samples": [
+        {
+          "label": "after-paused-scrub",
+          "time": 5.256183,
+          "duration": 8.091417,
+          "paused": true,
+          "ended": false,
+          "nativeLoop": false,
+          "session": "ready",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 71
+          },
+          "wraps": 0,
+          "firstPresented": null,
+          "quality": {
+            "dropped": 0,
+            "total": 168
+          },
+          "continuousActive": false
+        },
+        {
+          "label": "after-R",
+          "time": 0,
+          "duration": 8.091417,
+          "paused": false,
+          "ended": false,
+          "nativeLoop": false,
+          "session": "ready",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 71
+          },
+          "wraps": 0,
+          "firstPresented": null,
+          "quality": {
+            "dropped": 0,
+            "total": 172
+          },
+          "continuousActive": false
+        },
+        {
+          "label": "stopped-at-end",
+          "time": 8.091417,
+          "duration": 8.091417,
+          "paused": true,
+          "ended": true,
+          "nativeLoop": false,
+          "session": "ready",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 71
+          },
+          "wraps": 0,
+          "firstPresented": 0.041708,
+          "quality": {
+            "dropped": 0,
+            "total": 362
+          },
+          "continuousActive": false
+        }
+      ],
+      "passed": true
+    },
+    {
+      "phase": "shared-preparation",
+      "transportSha256": "3d1dca2b6d212442820a7cf854d36749a6c6a155e3e42b23e55f0f1da2fcf085",
+      "errors": [],
+      "samples": [
+        {
+          "label": "after-paused-scrub",
+          "time": 5.256183,
+          "duration": 8.091417,
+          "paused": true,
+          "ended": false,
+          "nativeLoop": false,
+          "session": "ready",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 75
+          },
+          "wraps": 0,
+          "firstPresented": null,
+          "quality": {
+            "dropped": 0,
+            "total": 103
+          },
+          "continuousActive": false
+        },
+        {
+          "label": "after-R",
+          "time": 0,
+          "duration": 8.091417,
+          "paused": false,
+          "ended": false,
+          "nativeLoop": true,
+          "session": "suspended",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 75
+          },
+          "wraps": 0,
+          "firstPresented": null,
+          "quality": {
+            "dropped": 0,
+            "total": 107
+          },
+          "continuousActive": false
+        },
+        {
+          "label": "after-two-loops",
+          "time": 0.013451,
+          "duration": 8.091417,
+          "paused": false,
+          "ended": false,
+          "nativeLoop": true,
+          "session": "suspended",
+          "sameSession": true,
+          "cache": {
+            "frames": 73,
+            "bytes": 199961600,
+            "hits": 75
+          },
+          "wraps": 2,
+          "firstPresented": 0.041708,
+          "quality": {
+            "dropped": 0,
+            "total": 496
+          },
+          "continuousActive": false
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "browser": "152.0.7977.83",
+  "sourceUnchanged": true,
+  "passed": true
+}

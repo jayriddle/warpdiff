@@ -1987,12 +1987,14 @@ test.describe('Solo video playback', () => {
     expect(await getVar(page, '_loopBounds')).toBeNull();
     expect(await getVar(page, '_loopInPoint')).toBe(3.2);
     expect(await getVar(page, '_loopOutPoint')).toBe(3.8);
-    await page.keyboard.press('Space');
-    await page.waitForTimeout(150);
-    const videoStates = await states(page);
-    expect(videoStates[0].paused).toBe(true);
-    expect(videoStates[0].t).toBeGreaterThan(2.9);
-    await expect(page.locator('#toast')).toContainText('Loop starts after A ends');
+    for (const key of ['Space', 'r']) {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(150);
+      const videoStates = await states(page);
+      expect(videoStates[0].paused).toBe(true);
+      expect(videoStates[0].t).toBeGreaterThan(2.9);
+      await expect(page.locator('#toast')).toContainText('Loop starts after A ends');
+    }
   });
 
   test('effective duration belongs to the supplied video, including corrected Opus tails', async ({ page }) => {

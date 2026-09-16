@@ -159,6 +159,8 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 | **Shift+L** | Playback range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute (persists across loads and sessions) |
 
+After scrubbing, **Space** resumes playback and **R** restarts at the loop in-point or beginning. Both preserve your playback scope and loop range, including automatic looping for a single video.
+
 **Playback scope:** The adjacent **Playback: Sync / Solo** and **Range: Sync / Full** controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip **Range: Sync / Full** control is hidden while Solo is active.
 
 **Audio source selector:** Only one audio track plays at a time. Click a labeled source button to switch sources. Each button has its own mute icon for independent muting. In Sync, muting the active source automatically selects the next unmuted source. In Solo, the source identifies the solo video and remains selected if muted.

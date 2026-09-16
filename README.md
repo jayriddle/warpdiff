@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.17.3
+**Current version:** 3.17.4
 
 ---
 
@@ -17,6 +17,8 @@ WarpDiff is an opinionated answer to that problem: load 1–4 assets of one medi
 Single-video and synced playback keep the timeline and waveform playheads moving evenly at the screen's refresh rate while loop and synchronization logic stays frame-accurate. The playheads stop with playback and jump directly on seeks. Changing the active video preserves forward playhead motion. Restart (`R`) and automatic loops snap directly to the loop in-point or beginning. Audio-source changes use a brief fade and keep playback timing steady to prevent switching clicks. Surround playback and scrubbing preserve center dialogue and left/right surrounds in a stereo listening mix, while analysis uses the original decoded channels.
 
 See the [playhead implementation and before/after measurements](docs/playhead-motion-2026-09-15/README.md).
+
+After scrubbing, Play and Restart (`R`) restore the selected playback scope and loop range. Restart also suspends the idle scrub decoder while retaining cached frames for the next drag. See the [restart verification record](docs/restart-playback-2026-09-15.md).
 
 Waveform, spectrogram, and loudness analysis run in the background while files prepare, keeping playback and controls responsive with the same original-audio calculations. See the [playback investigation and verification record](docs/video-stutter-2026-09-15.md).
 

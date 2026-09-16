@@ -3650,7 +3650,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.17.3';
+        const APP_VERSION = '3.17.4';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -9528,7 +9528,7 @@
                     if (wasPlaying) pauseAllMedia();
                 }
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
-                // Loop is restored by playAllMedia() when playback resumes.
+                // Play and Restart restore looping through _preparePlaybackStart().
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
                 // NOTE: scrub deliberately does NOT touch .muted. We used to unmute every
                 // <video> here as a Chrome decode-warm hack (muted+paused seeks historically
@@ -9638,7 +9638,7 @@
                     if (wasPlaying) pauseAllMedia();
                 }
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
-                // Loop is restored by playAllMedia() when playback resumes.
+                // Play and Restart restore looping through _preparePlaybackStart().
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
                 // NOTE: scrub deliberately does NOT touch .muted. We used to unmute every
                 // <video> here as a Chrome decode-warm hack (muted+paused seeks historically
@@ -13934,6 +13934,7 @@
                 <tr><td><kbd>S/GT</kbd> <kbd>A</kbd> <kbd>B</kbd> buttons</td><td>Select which asset's audio to hear, with a brief fade and steady playback timing during source changes</td></tr>
             </table>
             <p>Timeline and waveform playheads move evenly during single-video and synced playback, including when you switch active videos. They stop with playback and jump directly to the requested position on a seek, restart or loop wrap.</p>
+            <p>After scrubbing, <kbd>Space</kbd> resumes playback and <kbd>R</kbd> restarts at the loop in-point or beginning. Both preserve your playback scope and loop range, including automatic looping for a single video.</p>
             <p><strong>Keyboard shortcuts:</strong></p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
@@ -14173,6 +14174,8 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
+            <h3>v3.17.4</h3>
+            <ul><li><strong>Reliable restart after scrubbing.</strong> Pressing <kbd>R</kbd> now keeps videos looping with your selected playback scope and loop range.</li></ul>
             <h3>v3.17.3</h3>
             <ul><li><strong>Release memory between comparisons.</strong> Clearing or replacing videos now fully releases old scrub-audio resources and the previous video, preventing memory from accumulating across loads.</li></ul>
             <h3>v3.17.2</h3>
