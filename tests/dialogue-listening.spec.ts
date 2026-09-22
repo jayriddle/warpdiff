@@ -131,13 +131,80 @@ test('dialogue short previews use the same center mix',async({page})=>{
   expect(center.center).toBeGreaterThan(.02);expect(center.front/center.center).toBeLessThan(.01);
 });
 
+test('Listen preset choices hand focus back to playback without hiding the level controls',async({page})=>{
+  await load(page,'dialogue_71.mp4');
+  const video=page.locator('#layerEditA video');
+  const playThenPause=async()=>{
+    const time=await video.evaluate((m:HTMLVideoElement)=>m.currentTime);
+    await page.keyboard.press('Space');
+    await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.currentTime)).toBeGreaterThan(time+.05);
+    await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(false);
+    await page.keyboard.press('Space');
+    await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused && !m.seeking)).toBe(true);
+  };
+  await page.locator('#audioListeningLabel').click();
+  for(const name of ['Dialogue Focus','Center Only','Full Mix']) {
+    await page.getByRole('button',{name,exact:true}).click();
+    await playThenPause();
+    await expect(page.locator('#playPauseBtn')).toBeFocused();
+    await expect(page.locator('#audioListeningControl')).toHaveAttribute('open','');
+    await expect(page.getByRole('button',{name,exact:true})).toHaveAttribute('aria-pressed','true');
+  }
+  // Both native keyboard activations select once; the next Space plays.
+  for(const key of ['Enter','Space']) {
+    await page.getByRole('button',{name:'Dialogue Focus',exact:true}).focus();
+    await page.keyboard.press(key);
+    await expect(page.locator('#playPauseBtn')).toBeFocused();
+    expect(await video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(true);
+    await playThenPause();
+  }
+});
+
+test('Listen mouse sliders and dismissal release focus while keyboard sliders keep arrow editing',async({page})=>{
+  await load(page,'dialogue_71.mp4');
+  const video=page.locator('#layerEditA video');
+  await page.locator('#audioListeningLabel').click();
+  await page.getByRole('button',{name:'Dialogue Focus',exact:true}).click();
+  for(const id of ['dialogueCenterLevel','dialogueOtherLevel']) {
+    const slider=page.locator('#'+id), box=(await slider.boundingBox())!;
+    await page.mouse.move(box.x+box.width*.45,box.y+box.height/2);
+    await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+box.height/2);await page.mouse.up();
+    await page.keyboard.press('Space');
+    await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(false);
+    await page.keyboard.press('Space');
+    await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(true);
+    await slider.focus();
+    const value=Number(await slider.inputValue());
+    const time=await video.evaluate((m:HTMLVideoElement)=>m.currentTime);
+    await page.keyboard.press('ArrowLeft');
+    await expect(slider).toBeFocused();await expect(slider).toHaveValue(String(value-1));
+    expect(await video.evaluate((m:HTMLVideoElement)=>m.currentTime)).toBeCloseTo(time,3);
+  }
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#audioListeningControl')).not.toHaveAttribute('open','');
+  await expect(page.locator('#playPauseBtn')).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(false);
+  await page.keyboard.press('Space');
+  await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(true);
+  await page.locator('#audioListeningLabel').click();
+  await expect(page.locator('#playPauseBtn')).toBeFocused();
+  await page.locator('#dialogueCenterLevel').focus();
+  await video.click({position:{x:8,y:8}});
+  await expect(page.locator('#audioListeningControl')).not.toHaveAttribute('open','');
+  expect(await page.evaluate(()=>document.getElementById('audioListeningControl')!.contains(document.activeElement))).toBe(false);
+  const paused=await video.evaluate((m:HTMLVideoElement)=>m.paused);
+  await page.keyboard.press('Space');
+  await expect.poll(()=>video.evaluate((m:HTMLVideoElement)=>m.paused)).toBe(!paused);
+});
+
 test('dialogue controls keep keyboard focus, show unsupported files, and reset on clear',async({page})=>{
   await load(page);
   await page.locator('#audioListeningLabel').click();
   await page.getByRole('button',{name:'Dialogue Focus',exact:true}).click();
   await page.locator('#dialogueCenterLevel').focus();await page.keyboard.press('ArrowRight');
   await expect(page.locator('#dialogueCenterValue')).toHaveText('+1 dB');
-  await page.keyboard.press('Escape');await expect(page.locator('#audioListeningLabel')).toBeFocused();
+  await page.keyboard.press('Escape');await expect(page.locator('#playPauseBtn')).toBeFocused();
   await expect(page.locator('#audioListeningControl')).not.toHaveAttribute('open','');
   await page.evaluate(()=> (window as any).eval('clearAllMedia()'));
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures','side_lr.mp4'));

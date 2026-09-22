@@ -94,17 +94,40 @@ function _clearAudioListening() {
     if (control) control.open = false;
 }
 
+function _returnAudioListeningToPlayback() {
+    document.getElementById('playPauseBtn').focus({preventScroll:true});
+}
+
 function _setupAudioListeningControl() {
     const control = document.getElementById('audioListeningControl');
+    control.addEventListener('click', event => {
+        const preset = event.target.closest('[data-listening-mode]');
+        // Preset activation finishes the choice; the next Space should play,
+        // not activate the focused preset again. Leave the levels available.
+        if ((preset && !preset.disabled) || (event.detail > 0 && event.target.closest('summary'))) {
+            _returnAudioListeningToPlayback();
+        }
+    });
+    control.addEventListener('pointerup', event => {
+        if (event.target.matches('input[type="range"]')) _returnAudioListeningToPlayback();
+    });
     control.addEventListener('keydown', event => {
         if(event.key === 'Escape' && control.open) {
             control.open = false;
-            control.querySelector('summary').focus();
+            _returnAudioListeningToPlayback();
             event.preventDefault();
         }
+        // Keyboard slider edits and preset activation keep their native keys.
+        // A completed choice / Escape hands subsequent keys back to playback.
         event.stopPropagation();
     });
     document.addEventListener('pointerdown', event => {
-        if(control.open && !control.contains(event.target)) control.open = false;
+        if(control.open && !control.contains(event.target)) {
+            control.open = false;
+            // A click on the picture need not focus an element. Do not leave
+            // a hidden slider holding keys; focusable click targets still get
+            // their normal browser focus after this pointerdown handler.
+            if (control.contains(document.activeElement)) document.activeElement.blur();
+        }
     });
 }

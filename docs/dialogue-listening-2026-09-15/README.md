@@ -33,6 +33,8 @@ Full Mix retains the established stretching response. Dialogue controls change t
 
 ## Verification record
 
+**September 22 UI follow-up:** the original focus behavior described above was corrected in local 3.17.6. Preset selection, completed mouse adjustments, and Escape return focus to Play/Pause; keyboard slider editing remains available. See the [focus-fix reproduction and verification](../listen-focus-2026-09-22.md).
+
 - Initial browser exercise: nine new output/UI/lifecycle tests passed. It measures channel frequencies through real native playback, Continuous, short previews and replacement playback with physical audio muted.
 - The first broader scrub run passed 17 cases and failed one old two-plane memory assertion. The assertion now accounts for the retained center; it still verifies exact selected-stream storage.
 - Initial pure DSP tests passed five and failed four. Two exposed panned-channel restoration at slow speeds; rephasing on mix changes fixes this. The other two needed a longer input and a threshold consistent with the pre-existing 2× tone attenuation. All nine then passed, including both directions and restoration positive controls.
