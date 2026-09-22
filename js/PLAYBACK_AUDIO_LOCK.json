@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": "https://github.com/jayriddle/warpcap",
+  "commit": "087e64f4ae14c861829bc31d69daba3699535505",
+  "version": "0.1.0",
+  "workingTree": false,
+  "files": [
+    {
+      "source": "shared/media/playback-audio.js",
+      "target": "js/playback-audio-core.js",
+      "sha256": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6"
+    },
+    {
+      "source": "shared/media/signalsmith/worklet.js",
+      "target": "js/signalsmith-worklet.js",
+      "sha256": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08"
+    },
+    {
+      "source": "shared/media/signalsmith/LICENSE.txt",
+      "target": "js/signalsmith-LICENSE.txt",
+      "sha256": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f"
+    }
+  ]
+}

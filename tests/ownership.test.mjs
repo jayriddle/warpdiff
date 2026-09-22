@@ -86,6 +86,19 @@ function extractFn(name, src = SRC) {
 }
 
 {
+  const lock = JSON.parse(readFileSync(new URL('js/PLAYBACK_AUDIO_LOCK.json', ROOT), 'utf8'));
+  const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+  check('experimental playback: controller, processor and license are pinned to committed canonical source',
+    lock.source === 'https://github.com/jayriddle/warpcap' && lock.workingTree === false &&
+    /^[a-f0-9]{40}$/.test(lock.commit) && lock.files.length === 3 &&
+    lock.files.every(file => hash(readFileSync(new URL(file.target, ROOT))) === file.sha256));
+  if (existsSync(new URL('../WarpCap/shared/media/playback-audio.js', ROOT))) {
+    check('experimental playback: neighboring canonical files match every pinned byte',
+      lock.files.every(file => hash(readFileSync(new URL('../WarpCap/' + file.source, ROOT))) === file.sha256));
+  }
+}
+
+{
   const readCatalog = extractFn('_readHostCommandCatalog');
   const buildKeymap = extractFn('_buildKeymap');
   const announceCatalog = extractFn('_hostCommandCatalogChanged');

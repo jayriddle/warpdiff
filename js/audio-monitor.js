@@ -55,6 +55,7 @@ function _applyAudioListening() {
     for (const {slot, route} of _audioMonitorRoutes) route.setMix(_audioMonitorPlanForSlot(slot));
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
     _continuousScrubEngine.setMonitorMix(_audioMonitorPlanForSlot(slot));
+    _slowPlayback.setMix();
     _renderAudioListening();
 }
 

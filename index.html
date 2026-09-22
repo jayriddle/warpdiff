@@ -3643,6 +3643,8 @@
     <script src="js/wipe.js"></script>
     <script src="js/tile-check.js"></script>
     <script src="js/scrub-audio-core.js"></script>
+    <script src="js/playback-audio-core.js"></script>
+    <script src="js/slow-playback.js"></script>
     <script src="js/scrub-audio.js"></script>
     <script src="js/audio-monitor.js"></script>
     <script src="js/audio-routing.js"></script>
@@ -10753,6 +10755,7 @@
             _scrubGestureGeneration++;
             _cancelActiveScrubForClear();
             const scrubRetired = _resetContinuousScrub();
+            const playbackRetired = _slowPlayback.clear();
             _scrubAtTimelineEnd = false;
             // Restore the active label while the loaded-slot context still exists.
             if (_diffMode) _setDiffMode(false, false);
@@ -10894,7 +10897,7 @@
             audioContext = null;
             if (closingContext) {
                 if (closingContext.state === 'suspended') closingContext.resume().catch(() => {});
-                scrubRetired.then(() => closingContext.close()).catch(() => {});
+                Promise.all([scrubRetired, playbackRetired]).then(() => closingContext.close()).catch(() => {});
             }
             // Keep persisted prefs (magnifierLinked, magnifierZoom, magnifierSize,
             // spectrogramLogScale, palette) — don't reset to defaults

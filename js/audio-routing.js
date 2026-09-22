@@ -41,7 +41,7 @@ function _prepareNativeAudio(media, channels) {
         const route = _nativeAudioRoutes.get(media);
         if (supported && route.channels !== channels) {
             route.output.disconnect();
-            route.output = _connectAudioOutput(route.source, route.gain, channels, media.dataset.slot);
+            route.output = _connectAudioOutput(route.source, route.nativeGain || route.gain, channels, media.dataset.slot);
             route.channels = channels;
         }
         return route;
@@ -54,15 +54,21 @@ function _prepareNativeAudio(media, channels) {
     catch (_) { return null; } // Keep direct browser playback if routing is unavailable.
     const level = media.muted ? 0 : 1;
     _scheduleAudioGain(gain, level, level, ctx.currentTime);
-    const output = _connectAudioOutput(source, gain, channels, media.dataset.slot);
+    const nativeGain = _slowPlayback.enabled ? ctx.createGain() : null;
+    if (nativeGain) {
+        _scheduleAudioGain(nativeGain, 1, 1, ctx.currentTime);
+        nativeGain.connect(gain);
+    }
+    const output = _connectAudioOutput(source, nativeGain || gain, channels, media.dataset.slot);
     gain.connect(ctx.destination);
     media.muted = !!_opusSyncSlots[media.dataset.slot];
     const resume = () => {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     };
     media.addEventListener('play', resume);
-    const route = { source, gain, ctx, resume, output, channels };
+    const route = { source, gain, ctx, resume, output, channels, nativeGain };
     _nativeAudioRoutes.set(media, route);
+    _slowPlayback.attach(media, route);
     if (!media.paused) resume();
     return route;
 }
@@ -80,10 +86,12 @@ function _setNativeAudioMuted(media, muted, fade = false) {
     // Gain owns audibility, even for global mute. Only replacement soundtracks
     // disable the native renderer, because their separate buffer owns playback.
     media.muted = !!_opusSyncSlots[media.dataset.slot];
+    _slowPlayback.refresh();
 }
 
 function _clearNativeAudioRoutes() {
     for (const [media, route] of _nativeAudioRoutes) {
+        _slowPlayback.detach(media, route);
         media.removeEventListener('play', route.resume);
         route.output.disconnect();
         route.source.disconnect();

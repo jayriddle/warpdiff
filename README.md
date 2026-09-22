@@ -130,6 +130,10 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 
 These are the right starting points if you want to understand how the project is structured.
 
+### Local playback experiment
+
+The opt-in [Signalsmith slow-playback prototype](docs/slow-playback-prototype-2026-09-22.md) is available locally at `http://localhost:8080/?slowAudio=signalsmith`. It uses the processor preferred in listening sample E. It is not enabled in the released app; the record describes scope, limits, and verification. Its small pinned MIT-licensed WASM processor is loaded only when the experiment needs it.
+
 ### Running tests
 
 ```bash

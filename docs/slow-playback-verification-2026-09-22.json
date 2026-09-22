@@ -1,0 +1,51 @@
+{
+  "date": "2026-09-22",
+  "canonicalCommit": "087e64f4ae14c861829bc31d69daba3699535505",
+  "release": "3.17.5",
+  "experiment": "localhost only; ?slowAudio=signalsmith",
+  "browser": {
+    "passed": 257,
+    "skipped": 1,
+    "retries": 0,
+    "runnerExitCode": 0,
+    "limitation": "One Node worker remained after every test completed and browsers exited. SIGTERM did not finish it; SIGKILL to that isolated worker allowed the parent runner to summarize and exit 0. Focused six-test runs exited normally."
+  },
+  "ownership": {
+    "passed": 430,
+    "failed": 0
+  },
+  "canonical": {
+    "logicPassed": 1206,
+    "ci": "pass",
+    "auditRecords": "pass",
+    "wrapperProperties": "pass",
+    "historicalNegativeControls": "upstream chunk/disposal oracles fail; earlier adapter handoff injection fails"
+  },
+  "realClip": {
+    "sourceSha256": "6bf18b8641ba9327920339c275ed3e8804806c864d71bdbf65d2e2729de8c735",
+    "samples": 392,
+    "qualitySamples": 386,
+    "modeledClockDriftP95Seconds": 0.025500500029802975,
+    "modeledClockDriftMaxSeconds": 0.02703116670242911,
+    "anchors": 3,
+    "maxPCMBytes": 4534272,
+    "invalidAudio": false,
+    "peak": 0.23489904403686523,
+    "after": {
+      "bytes": 0,
+      "retiring": 0,
+      "context": null
+    },
+    "errors": []
+  },
+  "artifacts": {
+    "fullSuite": {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-20/regression-final-2026-09-22.txt",
+      "sha256": "75c7410d7e5ac4d93268298825cad7b283c642f788cc29ede07bfc5e652b2670"
+    },
+    "realClipTrace": {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-20/live-prototype-2026-09-22.json",
+      "sha256": "7b4936402e559cfebbd10ccd183b2e0dcdf3a36c06638a4e203f121225618576"
+    }
+  }
+}

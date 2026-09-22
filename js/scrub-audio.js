@@ -42,6 +42,7 @@ function _resetContinuousScrub() {
     return retired;
 }
 function _prepareContinuousScrub() {
+    if (_slowPlayback.ownsStream) return Promise.resolve(false);
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
     const buf = (_audioSlotVizData[slot] && _audioSlotVizData[slot].audioBuffer) || _videoAudioBuffers[slot];
     if (!buf && _videoScrubStatus[slot]?.unavailable) {
@@ -291,7 +292,8 @@ function _feedScrubAudio(time) {
 function _primeScrubAudioContext() {
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
-    _prepareContinuousScrub();
+    if (_slowPlayback.enabled) _slowPlayback.forScrub().then(() => _prepareContinuousScrub());
+    else _prepareContinuousScrub();
 }
 
 function _stopScrubAudioNodes() {
