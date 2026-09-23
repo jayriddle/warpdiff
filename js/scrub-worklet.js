@@ -218,6 +218,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     this.prevPhase = []; this.sumPhase = [];
     this.rIdx = 0; this.wIdx = 0; this.count = 0;
     this.firstFrame = true; this.lastHa = this.Hs;
+    this.levelMatch = null;
     this.port.onmessage = (e) => this._msg(e.data);
   }
   _allocChannels(n) {
@@ -236,6 +237,11 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     }
     this.rIdx = 0; this.wIdx = 0; this.count = 0;
     this.firstFrame = true; this.lastHa = this.Hs * this.tempo;
+    if (this.levelMatch) {
+      const level = this.levelMatch;
+      level.energy.fill(0); level.input = 0; level.output = 0; level.gain = 1;
+      level.pending = false; level.expected = 0; level.actual = 0; level.ceiling = 1; level.unity = true;
+    }
   }
   _setAnchor(pos, direction) {
     this.direction = direction < 0 ? -1 : 1;
@@ -252,8 +258,10 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     if (d.type === 'dispose') {
       this.playing = false; this.ready = false; this.disposed = true;
       this.ch = []; this.len = 0; this.midSide = false; this.monitorCenter = null; this.pendingAnchor = null;
+      this.levelMatch = null;
       this._allocChannels(0);
     } else if (d.type === 'load') {
+      this.levelMatch = d.matchSourceLevel === true ? {energy:new Float32Array(this.N)} : null;
       const channels = d.channels.map((b) => new Float32Array(b));
       this.monitorCenter = d.monitorCenter && channels.length===3 ? channels.pop() : null;
       this.midSide = channels.length === 2;
@@ -313,8 +321,32 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     }
     if (inverse) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
   }
+  _writeMatchedLevel(nextCeiling) {
+    const level = this.levelMatch, {Hs, cap} = this;
+    // Compare the source's windowed power with this same synthesized passage,
+    // never with a fixed loudness target. Link both ears to preserve placement.
+    const follow = 1 - Math.exp(-Hs / (sampleRate * 0.15));
+    level.input += (level.expected / Hs - level.input) * follow;
+    level.output += (level.actual / Hs - level.output) * follow;
+    const wanted = !level.unity && level.output > 1e-10
+      ? Math.max(1, Math.min(2, Math.sqrt(level.input / level.output))) : 1;
+    const smooth = level.gain + (wanted - level.gain) * (1 - Math.exp(-Hs / (sampleRate * 0.06)));
+    const next = Math.min(smooth, level.ceiling, nextCeiling);
+    // One completed hop of lookahead bounds BOTH ends of the gain ramp. A loud
+    // next hop can remove the boost before its attack, without clipping samples
+    // or abruptly stepping the gain. Existing overloads receive no extra boost.
+    let ri = (this.wIdx + cap - Hs) % cap;
+    for (let i = 0; i < Hs; i++) {
+      const gain = level.gain + (next - level.gain) * (i + 1) / Hs;
+      for (let c = 0; c < this.nCh; c++) this.ring[c][ri] *= gain;
+      ri = (ri + 1) % cap;
+    }
+    level.gain = next;
+    this.count = Math.min(cap, this.count + Hs);
+  }
   _frame() {
     const { N, Hs, bins, len, direction, win } = this;
+    const level = this.levelMatch;
     // A previously silent band has no useful phase history. Align Mid and Side
     // when the mix changes so restoring a panned voice cannot cancel it. Existing
     // Hann overlap smooths the phase change; position and the stream stay intact.
@@ -348,6 +380,11 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
           }
         }
         re[i] = sample * win[i]; im[i] = 0;
+        if (level && !(this.midSide && this.centerFocus && c > 0)) {
+          // Hann² sums to 3/2 at a quarter-window hop. Keeping this power
+          // envelope alongside the overlap-add aligns quiet/loud source parts.
+          level.energy[i] += sample * sample * win[i] * win[i] * (2 / 3);
+        }
       }
       this._fft(re, im, false);
       const prev = this.prevPhase[c], sum = this.sumPhase[c];
@@ -376,8 +413,27 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < N - Hs; i++) acc[i] = acc[i + Hs];
       for (let i = N - Hs; i < N; i++) acc[i] = 0;
     }
+    if (level) {
+      let expected = 0, actual = 0, peak = 0, ri = this.wIdx;
+      for (let i = 0; i < Hs; i++) {
+        expected += level.energy[i];
+        const mid = this.ring[0][ri], side = this.midSide ? this.ring[1][ri] : 0;
+        actual += mid * mid + (this.centerFocus ? 0 : side * side);
+        // Always include Side in the peak bound, even while Center Focus hides
+        // it: turning that preference off must not expose an unbounded boost.
+        peak = Math.max(peak, Math.abs(mid + side), Math.abs(mid - side));
+        ri = (ri + 1) % this.cap;
+      }
+      // A ceiling is a maximum *additional* gain; use unity when raw peaks
+      // already consume the headroom. The ordinary mix is never compressed.
+      const boostCeiling = peak > 0 ? Math.max(1, 0.95 / peak) : 2;
+      if (level.pending) this._writeMatchedLevel(boostCeiling);
+      level.expected = expected; level.actual = actual; level.ceiling = boostCeiling;
+      level.unity = Math.abs(ha - Hs) < 1e-6 && Math.abs(expectedHa - Hs) < 1e-6;
+      level.pending = true;
+      level.energy.copyWithin(0, Hs); level.energy.fill(0, N - Hs);
+    } else this.count = Math.min(this.cap, this.count + Hs);
     this.wIdx = (this.wIdx + Hs) % this.cap;
-    this.count = Math.min(this.cap, this.count + Hs);
     this.firstFrame = false; this.monitorRephase = false; this.lastHa = ha;
     this.inPos += direction * ha;
   }
@@ -398,6 +454,9 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     }
     let guard = 0;
     while (this.count < frames && this._positionInRange() && guard++ < 128) this._frame();
+    if (this.count < frames && !this._positionInRange() && this.levelMatch?.pending) {
+      this._writeMatchedLevel(2); this.levelMatch.pending = false;
+    }
     for (let c = 0; c < out.length; c++) {
       const ring = this.ring[Math.min(c, this.nCh - 1)], oc = out[c]; let ri = this.rIdx;
       const mid = this.midSide ? this.ring[0] : null, side = this.midSide ? this.ring[1] : null;

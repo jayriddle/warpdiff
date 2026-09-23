@@ -99,6 +99,8 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
 
+Source-relative volume compensation reduces level loss during stretching. One smooth, bounded gain serves both ears, retaining stereo balance and quiet/loud differences; strong peaks limit the boost. It follows the selected Listen mix rather than normalizing clips to a fixed loudness. Some passages can remain quieter, especially in reverse. Normal playback and original analysis remain unchanged.
+
 Video listening copies use the audio device’s sample rate directly from the original decode. Mono/stereo placement and phase are preserved; surround dialogue is folded into a separate stereo listening mix. Original waveform, spectrogram, and loudness inputs remain intact in both visualization views. A single video follows its displayed picture; multi-video Grid retains the shared pointer clock. Volume, mute, and actual audio-start offsets still apply.
 
 Each video preview and the selected Continuous stream have a 64 MiB PCM limit. Oversized video previews use a filtered lower-rate copy for short audition, with a notice; if no useful preview fits, playback and analysis remain available with an explanation. Unavailable worklets also fall back to short previews. Continuous can soften sharp sounds; use normal playback for final defect inspection.

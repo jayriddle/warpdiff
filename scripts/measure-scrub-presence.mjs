@@ -51,7 +51,7 @@ try {
      // Diagnostic acknowledgement only: allow queued load/play messages to arrive
      // before a fast offline render. DSP and render methods are byte-unchanged.
      const url=URL.createObjectURL(new Blob([text+'\nconst msg=PhaseVocoderProcessor.prototype._msg;PhaseVocoderProcessor.prototype._msg=function(d){msg.call(this,d);if(d.type==="play"&&d.value)this.port.postMessage({type:"presence-ready"});};'],{type:'text/javascript'}));
-     const ctx=new OfflineAudioContext(2,Math.ceil((sourceEnd-sourceStart+.1)/tempo*sr),sr),engine=WarpScrubAudio.create({workletUrl:url}),plan=_audioMonitorPlanForSlot('editA');engine.setMonitorMix(plan);
+     const ctx=new OfflineAudioContext(2,Math.ceil((sourceEnd-sourceStart+.1)/tempo*sr),sr),engine=WarpScrubAudio.create({workletUrl:url,matchSourceLevel:true}),plan=_audioMonitorPlanForSlot('editA');engine.setMonitorMix(plan);
      if(!await engine.load(ctx,source,'stereo-center'))throw Error(engine.state.error);
      const ready=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Probe did not receive ready')),5000);engine.state.node.port.onmessage=e=>{if(e.data.type==='presence-ready'){clearTimeout(timer);resolve();}};});
      engine.update({offset:sourceStart-audioStart,tempo,direction:1,level:1,continuous:false});

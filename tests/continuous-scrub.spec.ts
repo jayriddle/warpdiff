@@ -1,6 +1,48 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
+test('the selected scrub engine keeps slow dialogue near its original volume', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(() => (window as any).eval(`(async () => {
+    const sr=48000, ctx=new OfflineAudioContext(2,sr*8,sr), source=ctx.createBuffer(2,sr*3,sr);
+    let phase=0, seed=71;
+    for(let i=0;i<source.length;i++) {
+      const t=i/sr;phase+=2*Math.PI*(183+27*Math.sin(2*Math.PI*2.7*t))/sr;
+      seed=(1664525*seed+1013904223)>>>0;
+      let v=.018*(seed/2147483648-1);
+      for(let k=1;k<=9;k++)v+=.12/k*Math.sin(phase*k+.4*k);
+      v*=.15+.85*Math.sin(Math.PI*((t*4)%1))**2;
+      source.getChannelData(0)[i]=v;source.getChannelData(1)[i]=v;
+    }
+    const text=await (await fetch('js/scrub-worklet.js')).text();
+    // Acknowledgement only; the actual selected app engine and DSP process the
+    // signal. Offline rendering otherwise can outrun queued load/play messages.
+    const url=URL.createObjectURL(new Blob([text+'\\nconst original=PhaseVocoderProcessor.prototype._msg;PhaseVocoderProcessor.prototype._msg=function(d){original.call(this,d);if(d.type==="play"&&d.value)this.port.postMessage({type:"test-ready"});};'],{type:'text/javascript'}));
+    await ctx.audioWorklet.addModule(url);URL.revokeObjectURL(url);
+    ctx.audioWorklet.addModule=async()=>{}; // shipped processor is already registered above
+    const engine=_continuousScrubEngine;
+    if(!await engine.load(ctx,source))throw Error(engine.state.error);
+    const node=engine.state.node;
+    const ready=new Promise((resolve,reject)=>{
+      const timer=setTimeout(()=>reject(Error('No processor acknowledgement')),5000);
+      node.port.onmessage=e=>{if(e.data.type==='test-ready'){clearTimeout(timer);resolve();}};
+    });
+    engine.update({offset:.25,tempo:.25,direction:1,level:1,continuous:false});
+    await ready;
+    const rendered=await ctx.startRendering();node.disconnect();node.port.close();
+    const power=(data,from,to)=>{let sum=0;for(let i=from*sr;i<to*sr;i++)sum+=data[i]*data[i];return sum/((to-from)*sr);};
+    const before=power(source.getChannelData(0),.5,2),after=power(rendered.getChannelData(0),1,7);
+    let error=0,peak=0;
+    for(let i=0;i<rendered.length;i++){const l=rendered.getChannelData(0)[i],r=rendered.getChannelData(1)[i];error=Math.max(error,Math.abs(l-r));peak=Math.max(peak,Math.abs(l));}
+    return {difference:10*Math.log10(after/before),before,after,error,peak};
+  })()`));
+  expect(result.before).toBeGreaterThan(.001);
+  expect(result.after).toBeGreaterThan(.001);
+  expect(Math.abs(result.difference)).toBeLessThan(.65);
+  expect(result.error).toBe(0);
+  expect(result.peak).toBeLessThan(1);
+});
+
 test('continuous scrub is standard, retains center dialogue, and releases its stream', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('pref_scrubAudioMode', JSON.stringify('snippets')));
   await page.goto('/');

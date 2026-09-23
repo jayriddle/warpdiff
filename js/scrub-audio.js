@@ -22,6 +22,7 @@ const _scrubMotionSamples = [];
 let _scrubContinuousNotice = false;
 const _continuousScrubEngine = WarpScrubAudio.create({
     workletUrl:'js/scrub-worklet.js',
+    matchSourceLevel:true,
     maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES,
     onError:error => _noticeScrubFallback(error.includes('memory budget')
         ? 'This clip exceeds the Continuous preview memory limit — using short previews.'

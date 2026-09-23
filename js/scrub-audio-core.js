@@ -426,7 +426,8 @@
           for (let c = 0; c < ready.numberOfChannels; c++) {
             const copy = ready.getChannelData(c).slice(); channels.push(copy.buffer); transfers.push(copy.buffer);
           }
-          node.port.postMessage({type:'load', channels, monitorCenter:!!layout}, transfers);
+          node.port.postMessage({type:'load', channels, monitorCenter:!!layout,
+            matchSourceLevel:options.matchSourceLevel === true}, transfers);
           node.port.postMessage({type:'monitorMix', otherGain:monitorMix.otherGain, centerDelta:monitorMix.centerDelta});
           node.port.postMessage({type:'centerFocus', value:centerFocus});
           // Publish only after every fallible allocation has succeeded. A
@@ -500,6 +501,6 @@
     return Object.freeze({state:view, load, update, stop, reset, setCenterFocus, setMonitorMix,
       dispose() { disposed = true; return reset(); }});
   }
-  root.WarpScrubAudio = Object.freeze({version:'1.2.1', tuning, create, motionVelocity, monitor,
+  root.WarpScrubAudio = Object.freeze({version:'1.3.0', tuning, create, motionVelocity, monitor,
     grainTempo, continuous, streamTempo, listeningBuffer, listeningBytes, surroundMatrix, disposeNode});
 })(globalThis);

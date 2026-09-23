@@ -109,3 +109,7 @@ No processor correction has been implemented or declared accepted in this checkp
 Both new scripts parse successfully; **430 ownership/pure-logic checks pass**. The real-file renderer ran six cases each for the delivered fixture and the movie. The independent validator passed file integrity, lossless equality, eight channel routes, two actual pointer drags, unchanged metrics and cleanup. The MP4 center-speech card was visually inspected. All tool-created browsers exited normally; the user's browser and playback were not controlled.
 
 Production playback code is unchanged, so the full app regression suite was not repeated. Fixed-rate renders isolate DSP from pointer/decoder scheduling; the live gesture probe checks control continuity but does not record every gesture sample for an objective perceptual score. Reverse traversal, CPU/battery cost, physical device response, cross-browser audio quality, and human preference were not established here. Generated audio and private movie captures stay outside Git. The compact measurements, local artifact hashes and reconstruction limits are retained in `scrub-presence-verification-2026-09-22.json`.
+
+## Follow-up after clarification
+
+Jay clarified that “presence” means volume. The [subsequent source-relative correction](scrub-volume-2026-09-22.md) addresses that level loss; this record remains the unchanged historical baseline. No EQ adjustment was adopted.
