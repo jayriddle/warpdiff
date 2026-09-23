@@ -1,0 +1,3627 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-09-23T16:06:39.626Z",
+  "scope": "WarpDiff 3.17.8 / shared scrub 1.3.1 reverse-volume follow-up; local only",
+  "baseline": {
+    "canonicalCommit": "881954a78ba4907b07189931e00122ca3ab07f7d",
+    "warpdiffCommit": "4976ab3",
+    "processor": [
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 13.6,
+        "match": false,
+        "difference": -0.7321732106699734,
+        "peak": 0.6855617761611938,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 13.6,
+        "match": true,
+        "difference": 0.016817760733932374,
+        "peak": 0.7584229707717896,
+        "meanRatio": 1.0994988630839246,
+        "atCap": 0.0009523809523809524,
+        "gain": 1.0982199547644702
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 14,
+        "match": false,
+        "difference": -0.7321819104880198,
+        "peak": 0.6855617761611938,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 14,
+        "match": true,
+        "difference": 0.016809060915885965,
+        "peak": 0.7584229707717896,
+        "meanRatio": 1.0999880131431992,
+        "atCap": 0.0009242144177449168,
+        "gain": 1.0987469281355762
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 15,
+        "match": false,
+        "difference": -0.7321819104880163,
+        "peak": 0.6855617761611938,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 15,
+        "match": true,
+        "difference": 0.016809060915889518,
+        "peak": 0.7584229707717896,
+        "meanRatio": 1.0999880131431992,
+        "atCap": 0.0009242144177449168,
+        "gain": 1.0987469281355762
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 16,
+        "match": false,
+        "difference": -0.7321819104880163,
+        "peak": 0.6855617761611938,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": 1,
+        "to": 16,
+        "match": true,
+        "difference": 0.016809060915889518,
+        "peak": 0.7584229707717896,
+        "meanRatio": 1.101042989178446,
+        "atCap": 0.0009216589861751152,
+        "gain": 1.098871605108773
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 13.6,
+        "match": false,
+        "difference": -9.193642405447385,
+        "peak": 0.3380178213119507,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 13.6,
+        "match": true,
+        "difference": -3.2082445042590244,
+        "peak": 0.6760356426239014,
+        "meanRatio": 2.7698603778137723,
+        "atCap": 0.978744939271255,
+        "gain": 1.9897883275185912
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 14,
+        "match": false,
+        "difference": -9.192343148615223,
+        "peak": 0.3395759165287018,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 14,
+        "match": true,
+        "difference": -3.2069335365536915,
+        "peak": 0.6791518330574036,
+        "meanRatio": 2.7693802255992312,
+        "atCap": 0.978744939271255,
+        "gain": 1.989783505710624
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 15,
+        "match": false,
+        "difference": -9.188343654125049,
+        "peak": 0.32626232504844666,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 15,
+        "match": true,
+        "difference": -3.2033873398697175,
+        "peak": 0.6484370827674866,
+        "meanRatio": 2.768201268317552,
+        "atCap": 0.978744939271255,
+        "gain": 1.9900770897941107
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 16,
+        "match": false,
+        "difference": -9.176529509349418,
+        "peak": 0.3269924521446228,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.5,
+        "direction": -1,
+        "to": 16,
+        "match": true,
+        "difference": -3.1922716394314925,
+        "peak": 0.6539849042892456,
+        "meanRatio": 2.763136655265068,
+        "atCap": 0.9767206477732794,
+        "gain": 1.9895645893562688
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 13.6,
+        "match": false,
+        "difference": -2.4595159833504567,
+        "peak": 0.6320246458053589,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 13.6,
+        "match": true,
+        "difference": -0.10666214287802944,
+        "peak": 0.8868878483772278,
+        "meanRatio": 1.3379242978842836,
+        "atCap": 0.02529182879377432,
+        "gain": 1.3333829965169441
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 14,
+        "match": false,
+        "difference": -2.459520333257302,
+        "peak": 0.6320246458053589,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 14,
+        "match": true,
+        "difference": -0.10666649278487128,
+        "peak": 0.8868878483772278,
+        "meanRatio": 1.3379242978842836,
+        "atCap": 0.02529182879377432,
+        "gain": 1.3333829965169441
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 15,
+        "match": false,
+        "difference": -2.4595203332572986,
+        "peak": 0.6320246458053589,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 15,
+        "match": true,
+        "difference": -0.10666649278487128,
+        "peak": 0.8868878483772278,
+        "meanRatio": 1.3379242978842836,
+        "atCap": 0.02529182879377432,
+        "gain": 1.3333829965169441
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 16,
+        "match": false,
+        "difference": -2.459520333257295,
+        "peak": 0.6320246458053589,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": 1,
+        "to": 16,
+        "match": true,
+        "difference": -0.10666649278486773,
+        "peak": 0.8868878483772278,
+        "meanRatio": 1.3379554175263766,
+        "atCap": 0.025193798449612403,
+        "gain": 1.3326978378544283
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 13.6,
+        "match": false,
+        "difference": -6.162492902492637,
+        "peak": 0.5197535157203674,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 13.6,
+        "match": true,
+        "difference": -0.9067437775269802,
+        "peak": 0.9488539695739746,
+        "meanRatio": 1.921026776707801,
+        "atCap": 0.32406471183013147,
+        "gain": 1.7732252320874786
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 14,
+        "match": false,
+        "difference": -6.163442559134857,
+        "peak": 0.522783637046814,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 14,
+        "match": true,
+        "difference": -0.906852651238033,
+        "peak": 0.9489386677742004,
+        "meanRatio": 1.9210013226781162,
+        "atCap": 0.32457027300303337,
+        "gain": 1.7732661982196187
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 15,
+        "match": false,
+        "difference": -6.164358690465065,
+        "peak": 0.5134381055831909,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 15,
+        "match": true,
+        "difference": -0.9010280424712178,
+        "peak": 0.9488310217857361,
+        "meanRatio": 1.920920339851775,
+        "atCap": 0.3159757330637007,
+        "gain": 1.7727660674236212
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 16,
+        "match": false,
+        "difference": -6.159943757693956,
+        "peak": 0.512891411781311,
+        "meanRatio": null,
+        "atCap": null,
+        "gain": null
+      },
+      {
+        "rate": 0.25,
+        "direction": -1,
+        "to": 16,
+        "match": true,
+        "difference": -0.9024975841001392,
+        "peak": 0.9494521617889404,
+        "meanRatio": 1.9194106461748193,
+        "atCap": 0.3154701718907988,
+        "gain": 1.771080452950051
+      }
+    ],
+    "phaseExploration": [
+      {
+        "name": "baseline",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": -0.7321819104880163,
+        "peak": 0.6855617761611938
+      },
+      {
+        "name": "baseline",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -9.176529509349418,
+        "peak": 0.3269924521446228
+      },
+      {
+        "name": "baseline",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -2.459520333257295,
+        "peak": 0.6320246458053589
+      },
+      {
+        "name": "baseline",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -6.159943757693956,
+        "peak": 0.512891411781311
+      },
+      {
+        "name": "doublePhase",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": -0.7327541151184995,
+        "peak": 0.6808727979660034
+      },
+      {
+        "name": "doublePhase",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -9.196319213043857,
+        "peak": 0.33553165197372437
+      },
+      {
+        "name": "doublePhase",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -2.457871466360203,
+        "peak": 0.632171094417572
+      },
+      {
+        "name": "doublePhase",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -6.164637892275326,
+        "peak": 0.5186629295349121
+      },
+      {
+        "name": "wrappedPhase",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": -0.7327539869428925,
+        "peak": 0.6808779835700989
+      },
+      {
+        "name": "wrappedPhase",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -9.19631893021522,
+        "peak": 0.3355306088924408
+      },
+      {
+        "name": "wrappedPhase",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -2.457881744347567,
+        "peak": 0.6321701407432556
+      },
+      {
+        "name": "wrappedPhase",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -6.1646368245100085,
+        "peak": 0.5186592936515808
+      },
+      {
+        "name": "rectSynthesis",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": 0.20690173606355344,
+        "peak": 0.8065434694290161
+      },
+      {
+        "name": "rectSynthesis",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -2.2480026572161123,
+        "peak": 0.6206943988800049
+      },
+      {
+        "name": "rectSynthesis",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -0.3945063364129986,
+        "peak": 0.8134139776229858
+      },
+      {
+        "name": "rectSynthesis",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -1.6438428766639674,
+        "peak": 0.6774455308914185
+      },
+      {
+        "name": "sqrtWindows",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": -0.8606035268825067,
+        "peak": 0.6950158476829529
+      },
+      {
+        "name": "sqrtWindows",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -4.773171077852734,
+        "peak": 0.5084172487258911
+      },
+      {
+        "name": "sqrtWindows",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -2.0662317487529016,
+        "peak": 0.6962413787841797
+      },
+      {
+        "name": "sqrtWindows",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -3.402765941503997,
+        "peak": 0.6266295313835144
+      },
+      {
+        "name": "time-reversal-equivalence",
+        "direction": -1,
+        "difference": -9.176529509349418
+      },
+      {
+        "name": "time-reversal-equivalence",
+        "direction": 1,
+        "difference": -9.176529509349418
+      }
+    ],
+    "boundedGainExploration": [
+      {
+        "name": "old",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": 0.016809060915889518,
+        "peak": 0.7584229707717896
+      },
+      {
+        "name": "old",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": -3.1922716394314925,
+        "peak": 0.6539849042892456
+      },
+      {
+        "name": "old",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -0.10666649278486773,
+        "peak": 0.8868878483772278
+      },
+      {
+        "name": "old",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": -0.9024975841001392,
+        "peak": 0.9494521617889404
+      },
+      {
+        "name": "old",
+        "rate": 0.1,
+        "direction": 1,
+        "difference": -0.03460213529464795,
+        "peak": 0.949999988079071
+      },
+      {
+        "name": "old",
+        "rate": 0.1,
+        "direction": -1,
+        "difference": -0.07896933698586395,
+        "peak": 0.949999988079071
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.5,
+        "direction": 1,
+        "difference": 0.016818198120745365,
+        "peak": 0.7584229707717896
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.5,
+        "direction": -1,
+        "difference": 0.06638162316067309,
+        "peak": 0.9492323994636536
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.25,
+        "direction": 1,
+        "difference": -0.07316146862434536,
+        "peak": 0.8868878483772278
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.25,
+        "direction": -1,
+        "difference": 0.12248418307900266,
+        "peak": 0.949999988079071
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.1,
+        "direction": 1,
+        "difference": 0.020604428842712963,
+        "peak": 0.949999988079071
+      },
+      {
+        "name": "bounded12dB",
+        "rate": 0.1,
+        "direction": -1,
+        "difference": 0.1759377847686423,
+        "peak": 0.949999988079071
+      },
+      {
+        "name": "old",
+        "frequency": 150,
+        "direction": 1,
+        "difference": -9.066938157169108,
+        "peak": 0.3871843218803406
+      },
+      {
+        "name": "old",
+        "frequency": 150,
+        "direction": -1,
+        "difference": -9.17460955984652,
+        "peak": 0.38121095299720764
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 150,
+        "direction": 1,
+        "difference": -3.0552199670879787,
+        "peak": 0.7743686437606812
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 150,
+        "direction": -1,
+        "difference": -3.2331843412664973,
+        "peak": 0.7624219059944153
+      },
+      {
+        "name": "old",
+        "frequency": 183,
+        "direction": 1,
+        "difference": -6.204054705975157,
+        "peak": 0.3795740306377411
+      },
+      {
+        "name": "old",
+        "frequency": 183,
+        "direction": -1,
+        "difference": -6.2530539241139,
+        "peak": 0.37506505846977234
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 183,
+        "direction": 1,
+        "difference": -0.20976833918525273,
+        "peak": 0.7573697566986084
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 183,
+        "direction": -1,
+        "difference": -0.3184554808437703,
+        "peak": 0.7493395209312439
+      },
+      {
+        "name": "old",
+        "frequency": 300,
+        "direction": 1,
+        "difference": -6.324629014979546,
+        "peak": 0.37662172317504883
+      },
+      {
+        "name": "old",
+        "frequency": 300,
+        "direction": -1,
+        "difference": -6.368938437436949,
+        "peak": 0.37858736515045166
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 300,
+        "direction": 1,
+        "difference": -0.3256706498861064,
+        "peak": 0.7509999871253967
+      },
+      {
+        "name": "bounded12dB",
+        "frequency": 300,
+        "direction": -1,
+        "difference": -0.4293272535428656,
+        "peak": 0.7552648186683655
+      }
+    ]
+  },
+  "browser": {
+    "reference": {
+      "at": "2026-09-23T15:56:18.764Z",
+      "sourceSha256": "c0ced908fbd90111b585775d677199b8d80c5ec78df696aa7c6220759c1d9e15",
+      "sourceStart": 8,
+      "sourceEnd": 16,
+      "directions": [
+        1,
+        -1
+      ],
+      "renders": [
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.22662952542304993,
+            "peakDbfs": -12.893670213106976,
+            "rmsDbfs": -28.714874399532423,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561725730032045,
+              "detail": -46.52723112174967,
+              "high": -47.48359211879417
+            }
+          },
+          "rmsDifferenceDb": -0.00008961613955094094,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.00011234368241730408,
+              "afterLevelMatch": -0.000022727542866363137
+            },
+            "detail": {
+              "raw": -0.0001875855691508832,
+              "afterLevelMatch": -0.00009796942959994226
+            },
+            "high": {
+              "raw": -0.006389702927293683,
+              "afterLevelMatch": -0.0063000867877427424
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.22701680660247803,
+            "peakDbfs": -12.878839794945717,
+            "rmsDbfs": -28.715486567666957,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.57829523875673,
+              "detail": -46.56101918914195,
+              "high": -47.43627746760956
+            }
+          },
+          "rmsDifferenceDb": -0.000701784274085071,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.016681852407103293,
+              "afterLevelMatch": -0.01598006813301822
+            },
+            "detail": {
+              "raw": -0.03397565296143057,
+              "afterLevelMatch": -0.0332738686873455
+            },
+            "high": {
+              "raw": 0.04092494825732018,
+              "afterLevelMatch": 0.04162673253140525
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.21387998759746552,
+            "peakDbfs": -13.3965969951138,
+            "rmsDbfs": -28.697912450970424,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.454929822598878,
+              "detail": -47.4001915412078,
+              "high": -48.32230918968213
+            }
+          },
+          "rmsDifferenceDb": 0.01687233242244801,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.1066835637507495,
+              "afterLevelMatch": 0.08981123132830149
+            },
+            "detail": {
+              "raw": -0.8731480050272822,
+              "afterLevelMatch": -0.8900203374497302
+            },
+            "high": {
+              "raw": -0.8451067738152531,
+              "afterLevelMatch": -0.8619791062377011
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.29830214381217957,
+            "peakDbfs": -10.506872509530167,
+            "rmsDbfs": -28.602535268434043,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.925753306281035,
+              "detail": -43.24467720499817,
+              "high": -44.01720039388833
+            }
+          },
+          "rmsDifferenceDb": 0.11224951495882962,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.36413991993140726,
+              "afterLevelMatch": -0.4763894348902369
+            },
+            "detail": {
+              "raw": 3.2823663311823523,
+              "afterLevelMatch": 3.1701168162235227
+            },
+            "high": {
+              "raw": 3.4600020219785463,
+              "afterLevelMatch": 3.3477525070197167
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.24985399842262268,
+            "peakDbfs": -12.04627392270792,
+            "rmsDbfs": -28.787824203701966,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.648329380634586,
+              "detail": -45.44292863447911,
+              "high": -47.19559248754004
+            }
+          },
+          "rmsDifferenceDb": -0.07303942030909383,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.08671599428495824,
+              "afterLevelMatch": -0.013676573975864414
+            },
+            "detail": {
+              "raw": 1.0841149017014118,
+              "afterLevelMatch": 1.1571543220105056
+            },
+            "high": {
+              "raw": 0.2816099283268372,
+              "afterLevelMatch": 0.354649348635931
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.22627420723438263,
+            "peakDbfs": -12.90729896016208,
+            "rmsDbfs": -28.714784783392872,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.561613386349627,
+              "detail": -46.52704353618052,
+              "high": -47.47720241586688
+            }
+          },
+          "measured": {
+            "peak": 0.40868106484413147,
+            "peakDbfs": -7.772309674161097,
+            "rmsDbfs": -28.34287474167897,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -29.734191460348214,
+              "detail": -42.724864961160534,
+              "high": -45.29568311790826
+            }
+          },
+          "rmsDifferenceDb": 0.3719100417139032,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.1725780739985865,
+              "afterLevelMatch": -0.5444881157124897
+            },
+            "detail": {
+              "raw": 3.802178575019987,
+              "afterLevelMatch": 3.4302685333060836
+            },
+            "high": {
+              "raw": 2.1815192979586158,
+              "afterLevelMatch": 1.8096092562447126
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.8040550351142883,
+            "peakDbfs": -1.8942844820350264,
+            "rmsDbfs": -17.714874845057782,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56172506960814,
+              "detail": -35.52735302520398,
+              "high": -36.483526887479094
+            }
+          },
+          "rmsDifferenceDb": -0.00009021227098315876,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.00011183432560102347,
+              "afterLevelMatch": -0.000021622054617864706
+            },
+            "detail": {
+              "raw": -0.0003096436200209496,
+              "afterLevelMatch": -0.00021943134903779082
+            },
+            "high": {
+              "raw": -0.006324618013437089,
+              "afterLevelMatch": -0.00623440574245393
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.805493175983429,
+            "peakDbfs": -1.878762690129153,
+            "rmsDbfs": -17.715486605939027,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.57829738877307,
+              "detail": -35.5609769783278,
+              "high": -36.43627392131306
+            }
+          },
+          "rmsDifferenceDb": -0.0007019731522284189,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.016684153490530207,
+              "afterLevelMatch": -0.015982180338301788
+            },
+            "detail": {
+              "raw": -0.033933596743843,
+              "afterLevelMatch": -0.03323162359161458
+            },
+            "high": {
+              "raw": 0.040928348152597493,
+              "afterLevelMatch": 0.04163032130482591
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.75867760181427,
+            "peakDbfs": -2.3988547455554894,
+            "rmsDbfs": -17.69800010731884,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.45500101710868,
+              "detail": -36.40090021381132,
+              "high": -37.32115995457239
+            }
+          },
+          "rmsDifferenceDb": 0.01678452546795839,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.10661221817386135,
+              "afterLevelMatch": 0.08982769270590296
+            },
+            "detail": {
+              "raw": -0.8738568322273608,
+              "afterLevelMatch": -0.8906413576953192
+            },
+            "high": {
+              "raw": -0.8439576851067301,
+              "afterLevelMatch": -0.8607422105746885
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.9492301344871521,
+            "peakDbfs": -0.45256966038458357,
+            "rmsDbfs": -17.64729695794839,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.97935738174943,
+              "detail": -32.268881658361536,
+              "high": -33.05741346296533
+            }
+          },
+          "rmsDifferenceDb": 0.06748767483840723,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.41774414646689095,
+              "afterLevelMatch": -0.4852318213052982
+            },
+            "detail": {
+              "raw": 3.258161723222422,
+              "afterLevelMatch": 3.1906740483840146
+            },
+            "high": {
+              "raw": 3.4197888065003283,
+              "afterLevelMatch": 3.352301131661921
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.8866860866546631,
+            "peakDbfs": -1.0446021233975074,
+            "rmsDbfs": -17.787722781123545,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.648065066300127,
+              "detail": -34.44391454423756,
+              "high": -36.19516749832797
+            }
+          },
+          "rmsDifferenceDb": -0.07293814833674617,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.08645183101758747,
+              "afterLevelMatch": -0.013513682680841299
+            },
+            "detail": {
+              "raw": 1.0831288373464005,
+              "afterLevelMatch": 1.1560669856831467
+            },
+            "high": {
+              "raw": 0.28203477113768827,
+              "afterLevelMatch": 0.35497291947443443
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 8,
+          "sourceEnd": 16,
+          "input": {
+            "peak": 0.8028512001037598,
+            "peakDbfs": -1.9072987821490217,
+            "rmsDbfs": -17.7147846327868,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -18.56161323528254,
+              "detail": -35.52704338158396,
+              "high": -36.47720226946566
+            }
+          },
+          "measured": {
+            "peak": 0.949999988079071,
+            "peakDbfs": -0.4455280032165962,
+            "rmsDbfs": -17.592581302620136,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -19.06028081485323,
+              "detail": -31.81344061878646,
+              "high": -34.39892433987708
+            }
+          },
+          "rmsDifferenceDb": 0.12220333016666274,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.4986675795706894,
+              "afterLevelMatch": -0.6208709097373522
+            },
+            "detail": {
+              "raw": 3.7136027627974997,
+              "afterLevelMatch": 3.591399432630837
+            },
+            "high": {
+              "raw": 2.0782779295885803,
+              "afterLevelMatch": 1.9560745994219175
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "environment": {
+        "version": "3.17.7",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "rate": 48000,
+        "channels": 3,
+        "start": 0,
+        "monitor": {
+          "layout": "7.1",
+          "channels": 8,
+          "ready": true,
+          "peaks": {
+            "center": 0.3200000524520874,
+            "other": 0.12000000476837158
+          }
+        }
+      },
+      "originalMetricsUnchanged": true,
+      "after": {
+        "bytes": 0,
+        "retiring": 0,
+        "context": null
+      }
+    },
+    "movie": {
+      "at": "2026-09-23T15:56:18.828Z",
+      "sourceSha256": "78ea9fe777d6c5eadfdcaedf79b32df0438183b6b3cf9c70d3194dc2ae8fb59e",
+      "sourceStart": 0.5,
+      "sourceEnd": 6.5,
+      "directions": [
+        1,
+        -1
+      ],
+      "renders": [
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.8466755747795105,
+            "peakDbfs": -1.4456593748157451,
+            "rmsDbfs": -22.361198633745616,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.68648823913126,
+              "detail": -36.11657773993247,
+              "high": -40.826857268681344
+            }
+          },
+          "rmsDifferenceDb": -0.0001868404729066242,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.0001764494798663918,
+              "afterLevelMatch": 0.000363289952773016
+            },
+            "detail": {
+              "raw": -0.000753224206320624,
+              "afterLevelMatch": -0.0005663837334139998
+            },
+            "high": {
+              "raw": -0.0035077603814741565,
+              "afterLevelMatch": -0.0033209199085675323
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.8491284847259521,
+            "peakDbfs": -1.4205318020559163,
+            "rmsDbfs": -22.361150740964156,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.684834607529286,
+              "detail": -36.06718719027059,
+              "high": -40.947579399912826
+            }
+          },
+          "rmsDifferenceDb": -0.0001389476914468446,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.0018300810818416835,
+              "afterLevelMatch": 0.001969028773288528
+            },
+            "detail": {
+              "raw": 0.048637325455558766,
+              "afterLevelMatch": 0.04877627314700561
+            },
+            "high": {
+              "raw": -0.12422989161295561,
+              "afterLevelMatch": -0.12409094392150877
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.6529032588005066,
+            "peakDbfs": -3.70302327439425,
+            "rmsDbfs": -22.335144309102887,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.666735858476123,
+              "detail": -36.11355583677717,
+              "high": -40.732552980868924
+            }
+          },
+          "rmsDifferenceDb": 0.02586748416982232,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.01992883013500446,
+              "afterLevelMatch": -0.0059386540348178585
+            },
+            "detail": {
+              "raw": 0.002268678948979641,
+              "afterLevelMatch": -0.023598805220842678
+            },
+            "high": {
+              "raw": 0.09079652743094613,
+              "afterLevelMatch": 0.06492904326112381
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.8402726054191589,
+            "peakDbfs": -1.5115959020314826,
+            "rmsDbfs": -22.217959967581574,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.532669637589272,
+              "detail": -35.9605918396366,
+              "high": -40.67519639965888
+            }
+          },
+          "rmsDifferenceDb": 0.14305182569113484,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.1539950510218553,
+              "afterLevelMatch": 0.010943225330720452
+            },
+            "detail": {
+              "raw": 0.15523267608954683,
+              "afterLevelMatch": 0.012180850398411991
+            },
+            "high": {
+              "raw": 0.14815310864099018,
+              "afterLevelMatch": 0.005101282949855346
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.7383285760879517,
+            "peakDbfs": -2.6350064485046913,
+            "rmsDbfs": -22.192922815257393,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.556088405612773,
+              "detail": -35.775241254948426,
+              "high": -40.80430927387879
+            }
+          },
+          "rmsDifferenceDb": 0.16808897801531586,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.130576282998355,
+              "afterLevelMatch": -0.03751269501696086
+            },
+            "detail": {
+              "raw": 0.34058326077771994,
+              "afterLevelMatch": 0.17249428276240408
+            },
+            "high": {
+              "raw": 0.019040234421076718,
+              "afterLevelMatch": -0.14904874359423914
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.8490931987762451,
+            "peakDbfs": -1.4208927559501587,
+            "rmsDbfs": -22.36101179327271,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.686664688611128,
+              "detail": -36.115824515726146,
+              "high": -40.82334950829987
+            }
+          },
+          "measured": {
+            "peak": 0.7195155620574951,
+            "peakDbfs": -2.8591961695688317,
+            "rmsDbfs": -22.334339656553684,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -28.624680062829768,
+              "detail": -36.185080525219796,
+              "high": -40.82867093499643
+            }
+          },
+          "rmsDifferenceDb": 0.02667213671902502,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.06198462578135988,
+              "afterLevelMatch": 0.03531248906233486
+            },
+            "detail": {
+              "raw": -0.06925600949364963,
+              "afterLevelMatch": -0.09592814621267465
+            },
+            "high": {
+              "raw": -0.0053214266965611046,
+              "afterLevelMatch": -0.031993563415586124
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.9041396975517273,
+            "peakDbfs": -0.8752892403026037,
+            "rmsDbfs": -18.684829758949558,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00856410090631,
+              "detail": -32.44728043034221,
+              "high": -37.19467651077356
+            }
+          },
+          "rmsDifferenceDb": -0.00023490605173392964,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.00011636034397000117,
+              "afterLevelMatch": 0.0003512663957039308
+            },
+            "detail": {
+              "raw": -0.0007148039072504275,
+              "afterLevelMatch": -0.0004798978555164979
+            },
+            "high": {
+              "raw": -0.004136802175587206,
+              "afterLevelMatch": -0.0039018961238532768
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.9054866433143616,
+            "peakDbfs": -0.8623590301934181,
+            "rmsDbfs": -18.68484235902304,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.029297813803858,
+              "detail": -32.40392402155876,
+              "high": -37.37707120504895
+            }
+          },
+          "rmsDifferenceDb": -0.00024750612521629023,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.020617352553578883,
+              "afterLevelMatch": -0.020369846428362592
+            },
+            "detail": {
+              "raw": 0.042641604876202166,
+              "afterLevelMatch": 0.042889111001418456
+            },
+            "high": {
+              "raw": -0.186531496450975,
+              "afterLevelMatch": -0.1862839903257587
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.865848183631897,
+            "peakDbfs": -1.2511649954702428,
+            "rmsDbfs": -18.6588185824886,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.057129738438647,
+              "detail": -32.37352461520468,
+              "high": -36.92950148000476
+            }
+          },
+          "rmsDifferenceDb": 0.025776270409224367,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.048449277188368,
+              "afterLevelMatch": -0.07422554759759237
+            },
+            "detail": {
+              "raw": 0.07304101123028062,
+              "afterLevelMatch": 0.04726474082105625
+            },
+            "high": {
+              "raw": 0.2610382285932147,
+              "afterLevelMatch": 0.23526195818399032
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.9273991584777832,
+            "peakDbfs": -0.6546660503790334,
+            "rmsDbfs": -18.520277676834716,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.98878432483202,
+              "detail": -32.374164295793655,
+              "high": -37.0855262968273
+            }
+          },
+          "rmsDifferenceDb": 0.1643171760631077,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.01989613641825727,
+              "afterLevelMatch": -0.14442103964485042
+            },
+            "detail": {
+              "raw": 0.0724013306413056,
+              "afterLevelMatch": -0.09191584542180209
+            },
+            "high": {
+              "raw": 0.10501341177067758,
+              "afterLevelMatch": -0.05930376429243012
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.9460505247116089,
+            "peakDbfs": -0.48171338153056237,
+            "rmsDbfs": -18.49041695323891,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.35318161076811,
+              "detail": -31.961052257005523,
+              "high": -37.051381913287834
+            }
+          },
+          "rmsDifferenceDb": 0.1941778996589143,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.34450114951783206,
+              "afterLevelMatch": -0.5386790491767464
+            },
+            "detail": {
+              "raw": 0.48551336942943735,
+              "afterLevelMatch": 0.29133546977052305
+            },
+            "high": {
+              "raw": 0.1391577953101404,
+              "afterLevelMatch": -0.05502010434877391
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 2.476006147831531,
+            "centerDelta": 1.7508007373912569,
+            "headroomDb": -3.1249656262694527
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.9057337045669556,
+            "peakDbfs": -0.8599894159278834,
+            "rmsDbfs": -18.684594852897824,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.00868046125028,
+              "detail": -32.44656562643496,
+              "high": -37.190539708597974
+            }
+          },
+          "measured": {
+            "peak": 0.949999988079071,
+            "peakDbfs": -0.4455280032165962,
+            "rmsDbfs": -18.765126010522625,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -25.236407366465308,
+              "detail": -32.468499804862944,
+              "high": -37.38448484578745
+            }
+          },
+          "rmsDifferenceDb": -0.0805311576248009,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.2277269052150288,
+              "afterLevelMatch": -0.1471957475902279
+            },
+            "detail": {
+              "raw": -0.021934178427983397,
+              "afterLevelMatch": 0.0585969791968175
+            },
+            "high": {
+              "raw": -0.19394513718947337,
+              "afterLevelMatch": -0.11341397956467247
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "environment": {
+        "version": "3.17.7",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "rate": 48000,
+        "channels": 3,
+        "start": 0.166,
+        "monitor": {
+          "layout": "7.1",
+          "channels": 8,
+          "ready": true,
+          "peaks": {
+            "center": 0.5597438812255859,
+            "other": 0.4933616301885344
+          }
+        }
+      },
+      "originalMetricsUnchanged": true,
+      "after": {
+        "bytes": 0,
+        "retiring": 0,
+        "context": null
+      }
+    },
+    "second-movie": {
+      "at": "2026-09-23T15:56:18.768Z",
+      "sourceSha256": "6bf18b8641ba9327920339c275ed3e8804806c864d71bdbf65d2e2729de8c735",
+      "sourceStart": 0.5,
+      "sourceEnd": 6.5,
+      "directions": [
+        1,
+        -1
+      ],
+      "renders": [
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.25830456614494324,
+            "peakDbfs": -11.757358331506575,
+            "rmsDbfs": -30.77801661130243,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.807776356349486,
+              "detail": -48.76357356506641,
+              "high": -54.65173955160087
+            }
+          },
+          "rmsDifferenceDb": -0.00009157776636570247,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.00003348641930500662,
+              "afterLevelMatch": 0.00005809134706069585
+            },
+            "detail": {
+              "raw": -0.0007766738606918011,
+              "afterLevelMatch": -0.0006850960943260986
+            },
+            "high": {
+              "raw": -0.004016404774233706,
+              "afterLevelMatch": -0.003924827007868004
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.25810477137565613,
+            "peakDbfs": -11.764079338571282,
+            "rmsDbfs": -30.777940159940886,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.89850633805689,
+              "detail": -48.846203683467266,
+              "high": -54.653636198690414
+            }
+          },
+          "rmsDifferenceDb": -0.000015126404822041195,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.09076346812670977,
+              "afterLevelMatch": -0.09074834172188773
+            },
+            "detail": {
+              "raw": -0.0834067922615489,
+              "afterLevelMatch": -0.08339166585672686
+            },
+            "high": {
+              "raw": -0.005913051863778662,
+              "afterLevelMatch": -0.005897925458956621
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.2267351746559143,
+            "peakDbfs": -12.889622003824439,
+            "rmsDbfs": -30.847145761414087,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.961943647362595,
+              "detail": -48.98077716237738,
+              "high": -54.993025946609364
+            }
+          },
+          "rmsDifferenceDb": -0.06922072787802236,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.15420077743241478,
+              "afterLevelMatch": -0.08498004955439242
+            },
+            "detail": {
+              "raw": -0.21798027117166185,
+              "afterLevelMatch": -0.1487595432936395
+            },
+            "high": {
+              "raw": -0.34530279978272915,
+              "afterLevelMatch": -0.2760820719047068
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.27207106351852417,
+            "peakDbfs": -11.30635291468008,
+            "rmsDbfs": -30.702779357947488,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.70837689912923,
+              "detail": -48.99163118384852,
+              "high": -54.545799065805944
+            }
+          },
+          "rmsDifferenceDb": 0.07514567558857621,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.09936597080095311,
+              "afterLevelMatch": 0.024220295212376897
+            },
+            "detail": {
+              "raw": -0.22883429264280153,
+              "afterLevelMatch": -0.30397996823137774
+            },
+            "high": {
+              "raw": 0.10192408102069095,
+              "afterLevelMatch": 0.026778405432114738
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.26674073934555054,
+            "peakDbfs": -11.478212987906051,
+            "rmsDbfs": -30.719842773678128,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -34.121287812550406,
+              "detail": -48.320481484269564,
+              "high": -54.37755875741574
+            }
+          },
+          "rmsDifferenceDb": 0.05808225985793669,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.3135449426202257,
+              "afterLevelMatch": -0.3716272024781624
+            },
+            "detail": {
+              "raw": 0.442315406936153,
+              "afterLevelMatch": 0.3842331470782163
+            },
+            "high": {
+              "raw": 0.27016438941089405,
+              "afterLevelMatch": 0.21208212955295735
+            }
+          }
+        },
+        {
+          "mode": "full",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 1,
+            "centerGain": 1,
+            "centerDelta": 0,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.25833413004875183,
+            "peakDbfs": -11.756364256506293,
+            "rmsDbfs": -30.777925033536064,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.80774286993018,
+              "detail": -48.76279689120572,
+              "high": -54.647723146826635
+            }
+          },
+          "measured": {
+            "peak": 0.26527705788612366,
+            "peakDbfs": -11.526006154842124,
+            "rmsDbfs": -30.79640607414177,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -33.7975150128351,
+              "detail": -48.73873764981049,
+              "high": -54.38391941247241
+            }
+          },
+          "rmsDifferenceDb": -0.018481040605706767,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.01022785709508156,
+              "afterLevelMatch": 0.028708897700788327
+            },
+            "detail": {
+              "raw": 0.024059241395228526,
+              "afterLevelMatch": 0.04254028200093529
+            },
+            "high": {
+              "raw": 0.26380373435422655,
+              "afterLevelMatch": 0.2822847749599333
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.7967068552970886,
+            "peakDbfs": -1.9740289182704664,
+            "rmsDbfs": -21.1970422753725,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.545681672321283,
+              "detail": -39.11309786661133,
+              "high": -44.34482745276334
+            }
+          },
+          "rmsDifferenceDb": -0.00010840779384935217,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.000018076038443837206,
+              "afterLevelMatch": 0.00009033175540551497
+            },
+            "detail": {
+              "raw": -0.0007797949883965316,
+              "afterLevelMatch": -0.0006713871945471794
+            },
+            "high": {
+              "raw": -0.005147256361617281,
+              "afterLevelMatch": -0.0050388485677679284
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 1,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.7958242297172546,
+            "peakDbfs": -1.9836568485950554,
+            "rmsDbfs": -21.196930707482373,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.538211157429725,
+              "detail": -39.21673142052148,
+              "high": -44.33600461082576
+            }
+          },
+          "rmsDifferenceDb": 0.0000031600962770994556,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.007452438853114529,
+              "afterLevelMatch": 0.00744927875683743
+            },
+            "detail": {
+              "raw": -0.10441334889854659,
+              "afterLevelMatch": -0.10441650899482369
+            },
+            "high": {
+              "raw": 0.003675585575962259,
+              "afterLevelMatch": 0.0036724254796851596
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.7588932514190674,
+            "peakDbfs": -2.396386183805797,
+            "rmsDbfs": -21.22210839120743,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.803428138143218,
+              "detail": -39.18895171497487,
+              "high": -44.70650313099475
+            }
+          },
+          "rmsDifferenceDb": -0.02517452362878103,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.25776454186037867,
+              "afterLevelMatch": -0.23259001823159764
+            },
+            "detail": {
+              "raw": -0.0766336433519399,
+              "afterLevelMatch": -0.051459119723158864
+            },
+            "high": {
+              "raw": -0.3668229345930243,
+              "afterLevelMatch": -0.34164841096424325
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.5,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.8310294151306152,
+            "peakDbfs": -1.6076720729863971,
+            "rmsDbfs": -21.076704432311672,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.249863231777997,
+              "detail": -39.14543773205841,
+              "high": -43.896202349632944
+            }
+          },
+          "rmsDifferenceDb": 0.12022943526697816,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.29580036450484215,
+              "afterLevelMatch": 0.175570929237864
+            },
+            "detail": {
+              "raw": -0.033119660435481535,
+              "afterLevelMatch": -0.1533490957024597
+            },
+            "high": {
+              "raw": 0.4434778467687792,
+              "afterLevelMatch": 0.32324841150180106
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": 1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.8485445380210876,
+            "peakDbfs": -1.4265071539228993,
+            "rmsDbfs": -21.29012662761756,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.6770775104247,
+              "detail": -38.868861275740215,
+              "high": -44.25387947098823
+            }
+          },
+          "rmsDifferenceDb": -0.0931927600389102,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": -0.13141391414185932,
+              "afterLevelMatch": -0.03822115410294913
+            },
+            "detail": {
+              "raw": 0.24345679588271452,
+              "afterLevelMatch": 0.3366495559216247
+            },
+            "high": {
+              "raw": 0.08580072541349182,
+              "afterLevelMatch": 0.178993485452402
+            }
+          }
+        },
+        {
+          "mode": "center",
+          "tempo": 0.25,
+          "direction": -1,
+          "sampleRate": 48000,
+          "plan": {
+            "otherGain": 0,
+            "centerGain": 3.548133892335755,
+            "centerDelta": 2.508909535828432,
+            "headroomDb": 0
+          },
+          "sourceStart": 0.5,
+          "sourceEnd": 6.5,
+          "input": {
+            "peak": 0.7956722378730774,
+            "peakDbfs": -1.985315896435007,
+            "rmsDbfs": -21.19693386757865,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.54566359628284,
+              "detail": -39.11231807162293,
+              "high": -44.33968019640172
+            }
+          },
+          "measured": {
+            "peak": 0.7899467945098877,
+            "peakDbfs": -2.048043177454617,
+            "rmsDbfs": -21.254967694546334,
+            "over": 0,
+            "nonfinite": 0,
+            "bandsDb": {
+              "body": -24.374676264550573,
+              "detail": -38.97842443656624,
+              "high": -44.1635276115187
+            }
+          },
+          "rmsDifferenceDb": -0.058033826967683666,
+          "bandDifferencesDb": {
+            "body": {
+              "raw": 0.17098733173226677,
+              "afterLevelMatch": 0.22902115869995043
+            },
+            "detail": {
+              "raw": 0.13389363505668683,
+              "afterLevelMatch": 0.1919274620243705
+            },
+            "high": {
+              "raw": 0.17615258488302032,
+              "afterLevelMatch": 0.234186411850704
+            }
+          }
+        }
+      ],
+      "errors": [],
+      "environment": {
+        "version": "3.17.7",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+        "rate": 48000,
+        "channels": 3,
+        "start": 0,
+        "monitor": {
+          "layout": "7.1",
+          "channels": 8,
+          "ready": true,
+          "peaks": {
+            "center": 0.38031005859375,
+            "other": 0.12852347014196752
+          }
+        }
+      },
+      "originalMetricsUnchanged": true,
+      "after": {
+        "bytes": 0,
+        "retiring": 0,
+        "context": null
+      }
+    }
+  },
+  "loudness": [
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.0001868404729066242
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.0001389476914468446
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -19,
+        "truePeakDbfs": -3.7
+      },
+      "loudnessDifference": 0.1999999999999993,
+      "rmsDifference": 0.02586748416982232
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -19,
+        "truePeakDbfs": -1.5
+      },
+      "loudnessDifference": 0.1999999999999993,
+      "rmsDifference": 0.14305182569113484
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -18.4,
+        "truePeakDbfs": -2.6
+      },
+      "loudnessDifference": 0.8000000000000007,
+      "rmsDifference": 0.16808897801531586
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -19.2,
+        "truePeakDbfs": -1.4
+      },
+      "output": {
+        "lufs": -18.6,
+        "truePeakDbfs": -2.8
+      },
+      "loudnessDifference": 0.5999999999999979,
+      "rmsDifference": 0.02667213671902502
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00023490605173392964
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00024750612521629023
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -15.1,
+        "truePeakDbfs": -1.2
+      },
+      "loudnessDifference": 0.09999999999999964,
+      "rmsDifference": 0.025776270409224367
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -15.1,
+        "truePeakDbfs": -0.7
+      },
+      "loudnessDifference": 0.09999999999999964,
+      "rmsDifference": 0.1643171760631077
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -14.6,
+        "truePeakDbfs": -0.5
+      },
+      "loudnessDifference": 0.5999999999999996,
+      "rmsDifference": 0.1941778996589143
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -15.2,
+        "truePeakDbfs": -0.9
+      },
+      "output": {
+        "lufs": -15,
+        "truePeakDbfs": -0.4
+      },
+      "loudnessDifference": 0.1999999999999993,
+      "rmsDifference": -0.0805311576248009
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00008961613955094094
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.000701784274085071
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -24.2,
+        "truePeakDbfs": -13.4
+      },
+      "loudnessDifference": 0.40000000000000213,
+      "rmsDifference": 0.01687233242244801
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -23.9,
+        "truePeakDbfs": -10.5
+      },
+      "loudnessDifference": 0.7000000000000028,
+      "rmsDifference": 0.11224951495882962
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -23.9,
+        "truePeakDbfs": -12
+      },
+      "loudnessDifference": 0.7000000000000028,
+      "rmsDifference": -0.07303942030909383
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -24.6,
+        "truePeakDbfs": -12.9
+      },
+      "output": {
+        "lufs": -23.4,
+        "truePeakDbfs": -7.8
+      },
+      "loudnessDifference": 1.2000000000000028,
+      "rmsDifference": 0.3719100417139032
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00009021227098315876
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.0007019731522284189
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -13.2,
+        "truePeakDbfs": -2.4
+      },
+      "loudnessDifference": 0.40000000000000036,
+      "rmsDifference": 0.01678452546795839
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -12.9,
+        "truePeakDbfs": -0.4
+      },
+      "loudnessDifference": 0.6999999999999993,
+      "rmsDifference": 0.06748767483840723
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -12.9,
+        "truePeakDbfs": -1
+      },
+      "loudnessDifference": 0.6999999999999993,
+      "rmsDifference": -0.07293814833674617
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -13.6,
+        "truePeakDbfs": -1.9
+      },
+      "output": {
+        "lufs": -12.6,
+        "truePeakDbfs": -0.4
+      },
+      "loudnessDifference": 1,
+      "rmsDifference": 0.12220333016666274
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00009157776636570247
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.000015126404822041195
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28.2,
+        "truePeakDbfs": -12.9
+      },
+      "loudnessDifference": -0.1999999999999993,
+      "rmsDifference": -0.06922072787802236
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28,
+        "truePeakDbfs": -11.3
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": 0.07514567558857621
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28,
+        "truePeakDbfs": -11.5
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": 0.05808225985793669
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -28,
+        "truePeakDbfs": -11.8
+      },
+      "output": {
+        "lufs": -28.2,
+        "truePeakDbfs": -11.5
+      },
+      "loudnessDifference": -0.1999999999999993,
+      "rmsDifference": -0.018481040605706767
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 1,
+      "direction": 1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.8,
+        "truePeakDbfs": -1.9
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": -0.00010840779384935217
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 1,
+      "direction": -1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "loudnessDifference": 0,
+      "rmsDifference": 0.0000031600962770994556
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": 1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.5,
+        "truePeakDbfs": -2.4
+      },
+      "loudnessDifference": 0.3000000000000007,
+      "rmsDifference": -0.02517452362878103
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 0.5,
+      "direction": -1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.5,
+        "truePeakDbfs": -1.6
+      },
+      "loudnessDifference": 0.3000000000000007,
+      "rmsDifference": 0.12022943526697816
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": 1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.4,
+        "truePeakDbfs": -1.4
+      },
+      "loudnessDifference": 0.40000000000000213,
+      "rmsDifference": -0.0931927600389102
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "tempo": 0.25,
+      "direction": -1,
+      "input": {
+        "lufs": -16.8,
+        "truePeakDbfs": -2
+      },
+      "output": {
+        "lufs": -16.5,
+        "truePeakDbfs": -2
+      },
+      "loudnessDifference": 0.3000000000000007,
+      "rmsDifference": -0.058033826967683666
+    }
+  ],
+  "gesture": {
+    "integrity": true,
+    "losslessSamplesEqual": true,
+    "frames": 1536000,
+    "sourceChannels": [
+      {
+        "id": "FL",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "FR",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "FC",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "LFE",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "BL",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "BR",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "SL",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      },
+      {
+        "id": "SR",
+        "peak": 0.12000000476837158,
+        "otherChannelPeak": 0,
+        "stemDifference": 0
+      }
+    ],
+    "app": {
+      "version": "3.17.8",
+      "originalChannels": 8,
+      "previewChannels": 3,
+      "rate": 48000,
+      "layout": "7.1",
+      "duration": 32
+    },
+    "native": [
+      {
+        "id": "FL",
+        "amplitude": [
+          0.11999999166144028,
+          0
+        ]
+      },
+      {
+        "id": "FR",
+        "amplitude": [
+          0,
+          0.11999998410585054
+        ]
+      },
+      {
+        "id": "FC",
+        "amplitude": [
+          0.08485279634171622,
+          0.08485279634171622
+        ]
+      },
+      {
+        "id": "LFE",
+        "amplitude": [
+          0,
+          0
+        ]
+      },
+      {
+        "id": "BL",
+        "amplitude": [
+          0.04242639739064237,
+          0
+        ]
+      },
+      {
+        "id": "BR",
+        "amplitude": [
+          0,
+          0.04242639817085818
+        ]
+      },
+      {
+        "id": "SL",
+        "amplitude": [
+          0.042426396385490305,
+          0
+        ]
+      },
+      {
+        "id": "SR",
+        "amplitude": [
+          0,
+          0.04242639817085836
+        ]
+      }
+    ],
+    "nativeRoutingPass": true,
+    "sourcePass": true,
+    "metricsUnchanged": true,
+    "cleared": {
+      "bytes": 0,
+      "retiring": 0,
+      "context": null
+    },
+    "errors": [],
+    "pass": true,
+    "gestures": [
+      {
+        "mode": "full",
+        "ticks": 98,
+        "active": 97,
+        "anchors": 1,
+        "directions": [
+          -1
+        ],
+        "steadyGainMinimum": 1,
+        "idle": {
+          "active": false,
+          "snippet": false
+        }
+      },
+      {
+        "mode": "center",
+        "ticks": 98,
+        "active": 97,
+        "anchors": 1,
+        "directions": [
+          -1
+        ],
+        "steadyGainMinimum": 1,
+        "idle": {
+          "active": false,
+          "snippet": false
+        }
+      }
+    ]
+  },
+  "sourceFiles": [
+    {
+      "path": "/Users/jay/Documents/WarpCap/audio/wsola-worklet.js",
+      "sha256": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6"
+    },
+    {
+      "path": "/Users/jay/Documents/WarpCap/shared/media/scrub-audio.js",
+      "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff/scripts/measure-scrub-presence.mjs",
+      "sha256": "45bf95ce5fc0b46f6d1f59f1a9a3bfaa91d65b9129ebd613334e39d85b9be19e"
+    }
+  ],
+  "limitations": [
+    "Fixed-rate browser renders measure volume independently of live gesture cadence. The separate real-pointer check verifies control continuity, not perceived loudness.",
+    "RMS level matching does not imply identical LUFS, spectrum, attacks or texture. Integrated differences across the 36 captures ranged from -0.2 to +1.2 LU.",
+    "A finite 12.04 dB cap and sample-peak headroom still leave some signals quieter. Some extreme sustained harmonic probes require more gain; existing raw overloads are not attenuated.",
+    "Subjective listening, other browsers/devices and CPU/battery cost remain unestablished. No push, deployment, host rollout or WarpCap vendored WarpDiff refresh.",
+    "Fixed-rate captures ran before the cosmetic 3.17.8 version bump. Exact component hashes identify their DSP; reverse pointer and final browser tests ran on 3.17.8.",
+    "Exploratory bounded-gain and window scripts originally read the then-current 1.3.0 baseline from disk; reruns must use canonical 881954a source. Only the bounded gain allowance change was adopted."
+  ],
+  "slowEdge": [
+    {
+      "name": "reference",
+      "mode": "full",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.04765633146766035,
+      "samplePeak": 0.31413909792900085,
+      "truePeakDbfs": -10,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "reference",
+      "mode": "full",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.2626641869847681,
+      "samplePeak": 0.33425992727279663,
+      "truePeakDbfs": -9.5,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.020604428842712963,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.4,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "reference",
+      "mode": "center",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.1759377847686423,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.4,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.11972920879522775,
+      "samplePeak": 0.7162215709686279,
+      "truePeakDbfs": -2.9,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "movie",
+      "mode": "full",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.0013641435697451243,
+      "samplePeak": 0.7585252523422241,
+      "truePeakDbfs": -2.3,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": -0.017841292070777115,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.4,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "movie",
+      "mode": "center",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": -0.044015639370137194,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.4,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.05125075466122908,
+      "samplePeak": 0.34425482153892517,
+      "truePeakDbfs": -9.3,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "second-movie",
+      "mode": "full",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.011100572292082944,
+      "samplePeak": 0.34576156735420227,
+      "truePeakDbfs": -10.8,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "direction": 1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.15031416416007914,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.7,
+      "over": 0,
+      "nonfinite": 0
+    },
+    {
+      "name": "second-movie",
+      "mode": "center",
+      "direction": -1,
+      "rate": 0.1,
+      "rmsDifferenceDb": 0.03131241814007524,
+      "samplePeak": 0.949999988079071,
+      "truePeakDbfs": -0.5,
+      "over": 0,
+      "nonfinite": 0
+    }
+  ],
+  "checks": {
+    "processorProperties": 18,
+    "warpdiffBrowser": 24,
+    "canonicalBrowser": 39,
+    "canonicalLogic": 1206,
+    "warpdiffOwnership": 430,
+    "canonicalCI": "passed",
+    "historicalCanonical": "two new sustained-voice cases fail; current source restored",
+    "historicalBrowser": "reverse fails at 6.355499 dB; forward passes; current pin restored",
+    "noRetries": true,
+    "finalSourceIntegrity": "passed against committed canonical source"
+  },
+  "canonicalCheckpoint": "03eb2a303ddd30a7fe24610050ada90afe1bbdaf",
+  "pin": {
+    "schemaVersion": 1,
+    "source": "https://github.com/jayriddle/warpcap",
+    "commit": "03eb2a303ddd30a7fe24610050ada90afe1bbdaf",
+    "version": "1.3.1",
+    "workingTree": false,
+    "files": [
+      {
+        "source": "shared/media/scrub-audio.js",
+        "target": "js/scrub-audio-core.js",
+        "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1"
+      },
+      {
+        "source": "audio/wsola-worklet.js",
+        "target": "js/scrub-worklet.js",
+        "sha256": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6"
+      }
+    ]
+  }
+}

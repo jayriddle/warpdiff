@@ -1,17 +1,19 @@
 // Isolated, physically muted browser measurement; audio stays in OUTPUT_DIR.
-// node scripts/measure-scrub-presence.mjs INPUT OUTPUT_DIR [SOURCE_START=.5] [SOURCE_END=6.5]
+// node scripts/measure-scrub-presence.mjs INPUT OUTPUT_DIR [SOURCE_START=.5] [SOURCE_END=6.5] [forward|reverse|both]
 // Fixed-rate DSP measurement; pointer/decoder timing needs a separate live probe.
 // Input must have a verified surround layout with the retained center plane.
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import {chromium} from 'playwright';
-const [input,output,startArg='.5',endArg='6.5']=process.argv.slice(2);
+const [input,output,startArg='.5',endArg='6.5',directionArg='forward']=process.argv.slice(2);
 const sourceStart=Number(startArg),sourceEnd=Number(endArg);
 if(!input||!output||!Number.isFinite(sourceStart)||!Number.isFinite(sourceEnd)||sourceEnd-sourceStart<=1)throw Error('Supply input, output directory, and an ordered source interval longer than one second.');
+if(!['forward','reverse','both'].includes(directionArg))throw Error('Direction must be forward, reverse, or both.');
+const directions=directionArg==='both'?[1,-1]:[directionArg==='reverse'?-1:1];
 const dir=path.resolve(output);await mkdir(dir,{recursive:true});
 const sourceSha256=createHash('sha256').update(await readFile(input)).digest('hex');
-const report={at:new Date().toISOString(),sourceSha256,sourceStart,sourceEnd,renders:[],errors:[]};
+const report={at:new Date().toISOString(),sourceSha256,sourceStart,sourceEnd,directions,renders:[],errors:[]};
 function wav(planes,sr) {
  const p=planes.map(x=>Buffer.from(x,'base64')),n=p.length,frames=p[0].length/4,b=Buffer.alloc(44+frames*n*4);
  b.write('RIFF');b.writeUInt32LE(b.length-8,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(3,20);b.writeUInt16LE(n,22);b.writeUInt32LE(sr,24);b.writeUInt32LE(sr*n*4,28);b.writeUInt16LE(n*4,32);b.writeUInt16LE(32,34);b.write('data',36);b.writeUInt32LE(b.length-44,40);
@@ -42,8 +44,8 @@ try {
      return {peak,peakDbfs:20*Math.log10(peak),rmsDbfs:10*Math.log10(sum/((hi-lo)*planes.length)),over,nonfinite,bandsDb:Object.fromEntries(Object.entries(energy).map(([name,sum])=>[name,10*Math.log10(sum/frames)]))};
    };
  });
- for(const mode of ['full','center'])for(const tempo of [1,.5,.25]) {
-   const result=await page.evaluate(async({mode,tempo,sourceStart,sourceEnd})=>{
+ for(const mode of ['full','center'])for(const tempo of [1,.5,.25])for(const direction of directions) {
+   const result=await page.evaluate(async({mode,tempo,sourceStart,sourceEnd,direction})=>{
      setAudioListening({mode,centerDb:11,otherDb:-9});
      const source=_videoAudioBuffers.editA,sr=source.sampleRate,audioStart=_audioTimelineStarts.editA||0;
      if(sourceStart<audioStart||sourceEnd-audioStart>source.duration)throw Error('Interval is outside the decoded audio.');
@@ -54,7 +56,7 @@ try {
      const ctx=new OfflineAudioContext(2,Math.ceil((sourceEnd-sourceStart+.1)/tempo*sr),sr),engine=WarpScrubAudio.create({workletUrl:url,matchSourceLevel:true}),plan=_audioMonitorPlanForSlot('editA');engine.setMonitorMix(plan);
      if(!await engine.load(ctx,source,'stereo-center'))throw Error(engine.state.error);
      const ready=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Probe did not receive ready')),5000);engine.state.node.port.onmessage=e=>{if(e.data.type==='presence-ready'){clearTimeout(timer);resolve();}};});
-     engine.update({offset:sourceStart-audioStart,tempo,direction:1,level:1,continuous:false});
+     engine.update({offset:(direction>0?sourceStart:sourceEnd)-audioStart,tempo,direction,level:1,continuous:false});
      await ready;URL.revokeObjectURL(url);
      const rendered=await ctx.startRendering(),planes=[rendered.getChannelData(0),rendered.getChannelData(1)];
      engine.state.node.disconnect();engine.state.node.port.close();
@@ -63,12 +65,12 @@ try {
      const measured=__stats(planes,sr,.2/tempo,(sourceEnd-sourceStart-.2)/tempo),input=__stats(reference,sr,sourceStart+.2-audioStart,sourceEnd-.2-audioStart);
      if(!(measured.peak>0)||measured.nonfinite)throw Error('Probe produced silent or invalid output');
      const rmsDifferenceDb=measured.rmsDbfs-input.rmsDbfs;
-     return {planes:__encode(planes),reference:tempo===1?__encode(reference):null,mode,tempo,sampleRate:sr,plan,sourceStart,sourceEnd,input,measured,rmsDifferenceDb,
+     return {planes:__encode(planes),reference:tempo===1?__encode(reference):null,mode,tempo,direction,sampleRate:sr,plan,sourceStart,sourceEnd,input,measured,rmsDifferenceDb,
        bandDifferencesDb:Object.fromEntries(Object.keys(input.bandsDb).map(name=>[name,{raw:measured.bandsDb[name]-input.bandsDb[name],afterLevelMatch:measured.bandsDb[name]-input.bandsDb[name]-rmsDifferenceDb}]))};
-   },{mode,tempo,sourceStart,sourceEnd});
-   await writeFile(dir+`/presence-${mode}-${tempo}.wav`,wav(result.planes,result.sampleRate));delete result.planes;
+   },{mode,tempo,sourceStart,sourceEnd,direction});
+   await writeFile(dir+`/presence-${mode}-${tempo}${direction<0?'-reverse':''}.wav`,wav(result.planes,result.sampleRate));delete result.planes;
    if(result.reference)await writeFile(dir+`/presence-${mode}-input.wav`,wav(result.reference,result.sampleRate));delete result.reference;
-   report.renders.push(result);console.log(JSON.stringify({mode,tempo,rmsDifferenceDb:result.rmsDifferenceDb,bandDifferencesDb:result.bandDifferencesDb,over:result.measured.over}));
+   report.renders.push(result);console.log(JSON.stringify({mode,tempo,direction,rmsDifferenceDb:result.rmsDifferenceDb,bandDifferencesDb:result.bandDifferencesDb,over:result.measured.over}));
  }
  report.originalMetricsUnchanged=await page.evaluate(prior=>JSON.stringify(audioMetrics.editA)===prior,before);
  await page.evaluate(()=>clearAllMedia());await page.waitForFunction(()=>_continuousScrubEngine.state.bytes+_continuousScrubEngine.state.retiringBytes===0);

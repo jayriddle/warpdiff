@@ -261,7 +261,10 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
       this.levelMatch = null;
       this._allocChannels(0);
     } else if (d.type === 'load') {
-      this.levelMatch = d.matchSourceLevel === true ? {energy:new Float32Array(this.N)} : null;
+      // Some reversed speech loses more than 6 dB in the phase vocoder. Allow
+      // recovery up to 12.04 dB, still limited by measured source power and the
+      // linked output-peak lookahead. This is never a fixed reverse boost.
+      this.levelMatch = d.matchSourceLevel === true ? {energy:new Float32Array(this.N), maxGain:4} : null;
       const channels = d.channels.map((b) => new Float32Array(b));
       this.monitorCenter = d.monitorCenter && channels.length===3 ? channels.pop() : null;
       this.midSide = channels.length === 2;
@@ -329,7 +332,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     level.input += (level.expected / Hs - level.input) * follow;
     level.output += (level.actual / Hs - level.output) * follow;
     const wanted = !level.unity && level.output > 1e-10
-      ? Math.max(1, Math.min(2, Math.sqrt(level.input / level.output))) : 1;
+      ? Math.max(1, Math.min(level.maxGain, Math.sqrt(level.input / level.output))) : 1;
     const smooth = level.gain + (wanted - level.gain) * (1 - Math.exp(-Hs / (sampleRate * 0.06)));
     const next = Math.min(smooth, level.ceiling, nextCeiling);
     // One completed hop of lookahead bounds BOTH ends of the gain ramp. A loud
@@ -426,7 +429,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
       }
       // A ceiling is a maximum *additional* gain; use unity when raw peaks
       // already consume the headroom. The ordinary mix is never compressed.
-      const boostCeiling = peak > 0 ? Math.max(1, 0.95 / peak) : 2;
+      const boostCeiling = peak > 0 ? Math.max(1, 0.95 / peak) : level.maxGain;
       if (level.pending) this._writeMatchedLevel(boostCeiling);
       level.expected = expected; level.actual = actual; level.ceiling = boostCeiling;
       level.unity = Math.abs(ha - Hs) < 1e-6 && Math.abs(expectedHa - Hs) < 1e-6;
@@ -455,7 +458,7 @@ class PhaseVocoderProcessor extends AudioWorkletProcessor {
     let guard = 0;
     while (this.count < frames && this._positionInRange() && guard++ < 128) this._frame();
     if (this.count < frames && !this._positionInRange() && this.levelMatch?.pending) {
-      this._writeMatchedLevel(2); this.levelMatch.pending = false;
+      this._writeMatchedLevel(this.levelMatch.maxGain); this.levelMatch.pending = false;
     }
     for (let c = 0; c < out.length; c++) {
       const ring = this.ring[Math.min(c, this.nCh - 1)], oc = out[c]; let ri = this.rIdx;

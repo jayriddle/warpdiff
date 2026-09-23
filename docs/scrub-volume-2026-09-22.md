@@ -127,3 +127,7 @@ Reload local WarpDiff and confirm **3.17.7**. Compare ordinary play with slow fo
 dragging, first Full Mix, then Center Only +11 around the reported 2.775 s passage.
 The acceptance question is whether volume is closer without pumping between words
 or introducing harsh attacks. Listening acceptance remains pending.
+
+## Follow-up — 2026-09-23
+
+The reverse-speech limitation above was investigated in shared component 1.3.1 / WarpDiff 3.17.8. The [follow-up record](reverse-scrub-volume-2026-09-23.md) explains the increased correction allowance, unchanged peak protection, measured improvement, rejected alternatives and remaining limits. The measurements in this original report describe 1.3.0 and remain preserved.

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
-test('the selected scrub engine keeps slow dialogue near its original volume', async ({ page }) => {
+for (const direction of [1, -1]) test(`the selected scrub engine keeps ${direction > 0 ? 'forward' : 'reverse'} slow dialogue near its original volume`, async ({ page }) => {
   await page.goto('/');
-  const result = await page.evaluate(() => (window as any).eval(`(async () => {
+  const result = await page.evaluate(direction => (window as any).eval(`(async () => {
+    const direction=${direction};
     const sr=48000, ctx=new OfflineAudioContext(2,sr*8,sr), source=ctx.createBuffer(2,sr*3,sr);
     let phase=0, seed=71;
     for(let i=0;i<source.length;i++) {
@@ -12,6 +13,14 @@ test('the selected scrub engine keeps slow dialogue near its original volume', a
       let v=.018*(seed/2147483648-1);
       for(let k=1;k<=9;k++)v+=.12/k*Math.sin(phase*k+.4*k);
       v*=.15+.85*Math.sin(Math.PI*((t*4)%1))**2;
+      if(direction<0) {
+        // A voiced segment after silence exposed the old correction ceiling.
+        const voiced=t-.127;v=0;
+        if(voiced>=0&&voiced<2) {
+          for(let k=1;k<=16;k++)v+=.15/k*Math.sin(2*Math.PI*300*k*voiced);
+          v*=Math.min(1,voiced/.02,(2-voiced)/.02);
+        }
+      }
       source.getChannelData(0)[i]=v;source.getChannelData(1)[i]=v;
     }
     const text=await (await fetch('js/scrub-worklet.js')).text();
@@ -27,15 +36,15 @@ test('the selected scrub engine keeps slow dialogue near its original volume', a
       const timer=setTimeout(()=>reject(Error('No processor acknowledgement')),5000);
       node.port.onmessage=e=>{if(e.data.type==='test-ready'){clearTimeout(timer);resolve();}};
     });
-    engine.update({offset:.25,tempo:.25,direction:1,level:1,continuous:false});
+    engine.update({offset:direction>0?.25:2.25,tempo:direction>0?.25:.5,direction,level:1,continuous:false});
     await ready;
     const rendered=await ctx.startRendering();node.disconnect();node.port.close();
     const power=(data,from,to)=>{let sum=0;for(let i=from*sr;i<to*sr;i++)sum+=data[i]*data[i];return sum/((to-from)*sr);};
-    const before=power(source.getChannelData(0),.5,2),after=power(rendered.getChannelData(0),1,7);
+    const before=power(source.getChannelData(0),.5,2),after=power(rendered.getChannelData(0),direction>0?1:.5,direction>0?7:3.5);
     let error=0,peak=0;
     for(let i=0;i<rendered.length;i++){const l=rendered.getChannelData(0)[i],r=rendered.getChannelData(1)[i];error=Math.max(error,Math.abs(l-r));peak=Math.max(peak,Math.abs(l));}
     return {difference:10*Math.log10(after/before),before,after,error,peak};
-  })()`));
+  })()`), direction);
   expect(result.before).toBeGreaterThan(.001);
   expect(result.after).toBeGreaterThan(.001);
   expect(Math.abs(result.difference)).toBeLessThan(.65);

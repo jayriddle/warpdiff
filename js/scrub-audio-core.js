@@ -501,6 +501,6 @@
     return Object.freeze({state:view, load, update, stop, reset, setCenterFocus, setMonitorMix,
       dispose() { disposed = true; return reset(); }});
   }
-  root.WarpScrubAudio = Object.freeze({version:'1.3.0', tuning, create, motionVelocity, monitor,
+  root.WarpScrubAudio = Object.freeze({version:'1.3.1', tuning, create, motionVelocity, monitor,
     grainTempo, continuous, streamTempo, listeningBuffer, listeningBytes, surroundMatrix, disposeNode});
 })(globalThis);
