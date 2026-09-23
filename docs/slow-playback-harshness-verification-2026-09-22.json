@@ -1,0 +1,402 @@
+{
+  "date": "2026-09-22",
+  "implementationRevision": "d244e2e",
+  "sourceSha256": "78ea9fe777d6c5eadfdcaedf79b32df0438183b6b3cf9c70d3194dc2ae8fb59e",
+  "environment": {
+    "version": "3.17.6",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.0.0 Safari/537.36",
+    "rate": 48000,
+    "channels": 3,
+    "bufferDuration": 13.765166666666667,
+    "audioStart": 0.166,
+    "monitor": {
+      "layout": "7.1",
+      "channels": 8,
+      "ready": true,
+      "peaks": {
+        "center": 0.5597438812255859,
+        "other": 0.4933616301885344
+      }
+    },
+    "listening": {
+      "mode": "full",
+      "centerDb": 0,
+      "otherDb": -9
+    }
+  },
+  "question": {
+    "sourceTimelineSeconds": 2.775,
+    "mode": "center",
+    "centerDb": 11,
+    "rate": 0.5
+  },
+  "renders": [
+    {
+      "name": "center11-half",
+      "mode": "center",
+      "centerDb": 11,
+      "rate": 0.5,
+      "sampleRate": 48000,
+      "plan": {
+        "otherGain": 0,
+        "centerGain": 2.476006147831531,
+        "centerDelta": 1.7508007373912569,
+        "headroomDb": -3.1249656262694527
+      },
+      "latency": 0.12,
+      "renderMs": 435.89999997615814,
+      "all": {
+        "peak": 0.8251533508300781,
+        "peakDbfs": -1.6693066476603597,
+        "peakAt": 11.296333333333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -20.190525035051117,
+        "largestStep": 0.48582836985588074
+      },
+      "atReportedPoint": {
+        "peak": 0.6671015620231628,
+        "peakDbfs": -3.5161608488507183,
+        "peakAt": 5.51475,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -19.968450278892817,
+        "largestStep": 0.4245375692844391
+      },
+      "window": {
+        "timelineStart": 2.55,
+        "timelineEnd": 3
+      },
+      "input": {
+        "peak": 0.9800000190734863,
+        "peakDbfs": -0.17547831709888284,
+        "peakAt": 8.763375,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -18.95576928442538,
+        "largestStep": 0.6566604897379875
+      },
+      "inputAtReportedPoint": {
+        "peak": 0.7872238159179688,
+        "peakDbfs": -2.0780355129444037,
+        "peakAt": 2.590145833333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -18.677844782955876,
+        "largestStep": 0.47704149782657623
+      }
+    },
+    {
+      "name": "center0-half",
+      "mode": "center",
+      "centerDb": 0,
+      "rate": 0.5,
+      "sampleRate": 48000,
+      "plan": {
+        "otherGain": 0,
+        "centerGain": 1,
+        "centerDelta": 0.7071067811865476,
+        "headroomDb": 0
+      },
+      "latency": 0.12,
+      "renderMs": 433.0999999642372,
+      "all": {
+        "peak": 0.33793407678604126,
+        "peakDbfs": -9.42336024772548,
+        "peakAt": 17.85775,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -28.064559875232007,
+        "largestStep": 0.16030597686767578
+      },
+      "atReportedPoint": {
+        "peak": 0.2696174681186676,
+        "peakDbfs": -11.385039478506728,
+        "peakAt": 5.51475,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -27.843558924555705,
+        "largestStep": 0.1447546558920294
+      },
+      "window": {
+        "timelineStart": 2.55,
+        "timelineEnd": 3
+      },
+      "input": {
+        "peak": 0.3957986831665039,
+        "peakDbfs": -8.050513100746684,
+        "peakAt": 8.763375,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -26.830803658325713,
+        "largestStep": 0.2652095463126898
+      },
+      "inputAtReportedPoint": {
+        "peak": 0.31794098019599915,
+        "peakDbfs": -9.95306982383978,
+        "peakAt": 2.590145833333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -26.552879159693138,
+        "largestStep": 0.1926657184958458
+      }
+    },
+    {
+      "name": "full-half",
+      "mode": "full",
+      "centerDb": 0,
+      "rate": 0.5,
+      "sampleRate": 48000,
+      "plan": {
+        "otherGain": 1,
+        "centerGain": 1,
+        "centerDelta": 0,
+        "headroomDb": 0
+      },
+      "latency": 0.12,
+      "renderMs": 434.89999997615814,
+      "all": {
+        "peak": 0.6807731986045837,
+        "peakDbfs": -3.33995100697864,
+        "peakAt": 11.831,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -24.00525783034515,
+        "largestStep": 0.35355307161808014
+      },
+      "atReportedPoint": {
+        "peak": 0.5938235521316528,
+        "peakDbfs": -4.526851629647261,
+        "peakAt": 5.516208333333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -23.049177457837985,
+        "largestStep": 0.35355307161808014
+      },
+      "window": {
+        "timelineStart": 2.55,
+        "timelineEnd": 3
+      },
+      "input": {
+        "peak": 0.8490931987762451,
+        "peakDbfs": -1.4208927559501587,
+        "peakAt": 5.752125,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -22.78503957232875,
+        "largestStep": 0.4254661053419113
+      },
+      "inputAtReportedPoint": {
+        "peak": 0.7029168605804443,
+        "peakDbfs": -3.061920786271634,
+        "peakAt": 2.590145833333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -21.774279857824006,
+        "largestStep": 0.4254661053419113
+      }
+    },
+    {
+      "name": "center11-input",
+      "mode": "center",
+      "centerDb": 11,
+      "rate": 1,
+      "sampleRate": 48000,
+      "plan": {
+        "otherGain": 0,
+        "centerGain": 2.476006147831531,
+        "centerDelta": 1.7508007373912569,
+        "headroomDb": -3.1249656262694527
+      },
+      "latency": null,
+      "renderMs": null,
+      "all": {
+        "peak": 0.9800000190734863,
+        "peakDbfs": -0.17547831709888284,
+        "peakAt": 8.929375,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -19.007829422790383,
+        "largestStep": 0.6566604897379875
+      },
+      "atReportedPoint": {
+        "peak": 0.7872238159179688,
+        "peakDbfs": -2.0780355129444037,
+        "peakAt": 2.7561458333333335,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -18.67803891387859,
+        "largestStep": 0.47704149782657623
+      },
+      "window": {
+        "timelineStart": 2.55,
+        "timelineEnd": 3
+      },
+      "input": {
+        "peak": 0.9800000190734863,
+        "peakDbfs": -0.17547831709888284,
+        "peakAt": 8.763375,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -18.95576928442538,
+        "largestStep": 0.6566604897379875
+      },
+      "inputAtReportedPoint": {
+        "peak": 0.7872238159179688,
+        "peakDbfs": -2.0780355129444037,
+        "peakAt": 2.590145833333333,
+        "samplesAboveFullScale": 0,
+        "nonfinite": 0,
+        "rmsDbfs": -18.677844782955876,
+        "largestStep": 0.47704149782657623
+      }
+    }
+  ],
+  "truePeaks": {
+    "center11-half": {
+      "window": [
+        5.1,
+        6
+      ],
+      "summary": "Summary:\n\n  Integrated loudness:\n    I:         -15.5 LUFS\n    Threshold: -25.5 LUFS\n\n  Loudness range:\n    LRA:         0.0 LU\n    Threshold:   0.0 LUFS\n    LRA low:     0.0 LUFS\n    LRA high:    0.0 LUFS\n\n  True peak:\n    Peak:       -3.5 dBFS\n[out#0/null @ 0x7b93020240] video:0KiB audio:169KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:00:06.00 bitrate=N/A speed=1.54e+03x elapsed=0:00:00.00"
+    },
+    "center11-live": {
+      "window": [
+        5.238456666618982,
+        6.138456666618982
+      ],
+      "summary": "Summary:\n\n  Integrated loudness:\n    I:         -15.5 LUFS\n    Threshold: -25.5 LUFS\n\n  Loudness range:\n    LRA:         0.0 LU\n    Threshold:   0.0 LUFS\n    LRA low:     0.0 LUFS\n    LRA high:    0.0 LUFS\n\n  True peak:\n    Peak:       -3.8 dBFS\n[out#0/null @ 0x77d5018240] video:0KiB audio:169KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:00:06.13 bitrate=N/A speed=1.56e+03x elapsed=0:00:00.00"
+    },
+    "center11-input": {
+      "window": [
+        2.55,
+        3
+      ],
+      "summary": "Summary:\n\n  Integrated loudness:\n    I:         -14.5 LUFS\n    Threshold: -24.5 LUFS\n\n  Loudness range:\n    LRA:         0.0 LU\n    Threshold:   0.0 LUFS\n    LRA low:     0.0 LUFS\n    LRA high:    0.0 LUFS\n\n  True peak:\n    Peak:       -2.0 dBFS\n[out#0/null @ 0x779f018240] video:0KiB audio:84KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: unknown\nsize=N/A time=00:00:03.00 bitrate=N/A speed=1.31e+03x elapsed=0:00:00.00"
+    }
+  },
+  "live": {
+    "seconds": 12,
+    "all": {
+      "peak": 0.921755850315094,
+      "peakDbfs": -0.7076819455733492,
+      "peakAt": 10.014270833333333,
+      "samplesAboveFullScale": 0,
+      "nonfinite": 0,
+      "rmsDbfs": -20.257776192536653,
+      "largestStep": 0.4917115718126297
+    },
+    "atReportedPoint": {
+      "peak": 0.6455305218696594,
+      "peakDbfs": -3.8016643734138422,
+      "peakAt": 5.951291666666667,
+      "samplesAboveFullScale": 0,
+      "nonfinite": 0,
+      "rmsDbfs": -19.998860557279382,
+      "largestStep": 0.39028577506542206
+    },
+    "anchorChanges": [
+      {
+        "ctx": 4.704,
+        "media": 0.010606,
+        "anchor": null,
+        "native": 1,
+        "slow": 0
+      },
+      {
+        "ctx": 4.725333333333333,
+        "media": 0.021049,
+        "anchor": {
+          "offset": -0.06392583331545154,
+          "at": 4.859333333333334,
+          "rate": 0.5
+        },
+        "native": 1,
+        "slow": 0
+      },
+      {
+        "ctx": 5.285333333333333,
+        "media": 0.216861,
+        "anchor": {
+          "offset": 0.13577166669050916,
+          "at": 5.424666666666667,
+          "rate": 0.5
+        },
+        "native": 0,
+        "slow": 1
+      }
+    ],
+    "events": [
+      {
+        "type": "play",
+        "ctx": 4.682666666666667,
+        "media": 0
+      },
+      {
+        "type": "playing",
+        "ctx": 4.682666666666667,
+        "media": 0
+      }
+    ],
+    "nearbyObservations": 55,
+    "nearbyNativeGain": [
+      0,
+      0
+    ],
+    "nearbyProcessedGain": [
+      1,
+      1
+    ]
+  },
+  "after": {
+    "bytes": 0,
+    "retiring": 0,
+    "context": null
+  },
+  "errors": [],
+  "localArtifacts": [
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/inspect-harshness.mjs",
+      "sha256": "aa6f560b47ca5b4d7bb971029a26b79f9ebb9d8b76197db6ac34a0c89085dd09"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/harshness.json",
+      "sha256": "b695a73bf5f56e6f4b1ec2e3e5c5fe28aeedb81c90ca26ce970b37c0322f5223"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center11-input.wav",
+      "sha256": "30ebb1587edc66b392906f79eebb8ff3dea965abe1dc21f3fff22996dce0ea81"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center11-half.wav",
+      "sha256": "4b83dd84074d678eb6d576dcbdf7e36e7e05856a6d52c66d7e57dafcb52d1e74"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center0-half.wav",
+      "sha256": "af4cf402abd2f2db4de4b74eba579d142292f2836b1ac564bbff99e1084ec4ba"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/full-half.wav",
+      "sha256": "54d5bc692309da61c3a5e32eaa8ac6fd05e3ad34371b44b4c2cd43560afd6d0e"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center11-live.wav",
+      "sha256": "b595444b6d98dc96e16e6df94b0b1156d5f69328d8461cd2d11e2074ab941d03"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center11-half-passage.wav",
+      "sha256": "3d5e76271198e698a90771bb4cc6637731e3c034c5fe573794dfdc87ed8082a9"
+    },
+    {
+      "path": "/Users/jay/Documents/warpdiff-audio-check-2026-09-22/center11-live-passage.wav",
+      "sha256": "0c97ea21727cf12cf4676c7d17e79569f4adfa774d9ed78be402fcfe35ef1bee"
+    }
+  ],
+  "limitations": [
+    "Isolated steady-playback reproduction; the user browser was not inspected or modified.",
+    "Numerical checks do not establish subjective cause or quality acceptance.",
+    "True peak was measured only around the reported passage.",
+    "No physical device or A/V latency measurement; no CPU/battery/heap benchmark.",
+    "No runtime code changed and no regression suite rerun."
+  ]
+}

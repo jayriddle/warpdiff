@@ -77,3 +77,7 @@ npm run test:ownership
 ```
 
 Private media and prior audition WAV files remain outside both repositories. The first investigation and D/E comparison are preserved in `half-speed-audio-investigation-2026-09-18.md` and `half-speed-audio-reference-2026-09-20.md`.
+
+## Later listening feedback: harsh center-channel passage
+
+Jay subsequently reported harshness in a different 7.1 FLAC clip, `de3f59c8de544e18.mp4`, around 2.775 s, especially with Center Only at +11 dB. An isolated reproduction found no digital overload or transport correction at that passage; perceived cause and an improvement remain unconfirmed. The [follow-up investigation](slow-playback-harshness-2026-09-22.md) records the exact settings, offline/live captures, true-peak checks, algorithm tradeoffs, and next comparison. This feedback does not establish acceptance of the prototype across clips. Playback implementation remains unchanged by the follow-up.
