@@ -153,3 +153,15 @@ byte equality against canonical Git contents. The post-pin ownership gate passes
 all 430 checks. APP_VERSION, service-worker cache, README, What’s New and affected
 manual/feature descriptions are aligned at 3.17.8. No runtime audio code changed
 after the successful browser/processor captures. Nothing was pushed or deployed.
+
+## Listening feedback — 2026-09-29
+
+After using the update for several days, Jay reported:
+
+> Using this update over the last few days, I will say the scrubbing is definitely improved.
+
+This adds positive listening feedback from everyday use to the measured improvement
+above. The feedback concerns scrubbing overall; it does not specify individual
+clips, directions, speeds or Listen settings. The previously reported harsh sound
+near 2.775 s remains a separate issue without specific confirmation of resolution.
+No processing, playback or release changes were made in response to this feedback.
