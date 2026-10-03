@@ -2,7 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.18.12 (release candidate)
+## v3.18.13 (release prepared October 3, 2026)
+
+- No separate What’s New announcement for this analytics maintenance update. The last important summary remains 3.18.12, shown only to users who missed it. Daily activity stays in the usage summary and brief expandable privacy Details.
+- Optional usage sharing adds a separate daily active-browser estimate for ready-review use, including retained tabs. A local UTC date and an atomic cross-tab claim limit it to one attempted count per browser/day, with no identifier or date sent.
+- Visit, ready-review and feature counts retain their definitions. Consent scope 4 remains; No, offline, host and incomplete-update exclusions still apply. Disclosure and user manuals explain the local marker and interpretation limits.
+
+## v3.18.12 (released October 2, 2026)
 
 - Adds opt-in coarse window-size groups once per ready comparison, with consent scope 4 and matching disclosure/integrity updates. Exact dimensions and resize history remain excluded.
 - Finalizes the verified provider settings, Jay Riddle’s privacy contact and configured 365-day retention.

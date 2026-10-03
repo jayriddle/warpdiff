@@ -50,7 +50,8 @@ All reports concern consenting, reportable activity. They do not describe the en
 
 | Candidate | What it tells us | Counting definition | Priority |
 | --- | --- | --- | --- |
-| Visits | How often WarpDiff is opened | Existing visit event, at most one attempt per document after consent; not an exact count of people | Existing |
+| Visits | Consented engaged document launches | Existing `/` visit, at most one attempt per document after consent; a retained tab does not renew daily | Existing |
+| Daily active browsers | How many consenting browsers use ready comparisons each day | Stable `daily-active` event, at most once per browser/UTC day across coordinated tabs/reloads; local date only, no user ID or cross-day linkage | Implemented in 3.18.13, scope 4 retained |
 | Ready review sets by media type | Image, video and audio workload | One event at readiness for each new set; distinguish single-item review from 2–4-item comparison | Implemented for 1–4 in scope 2 |
 | Items per set: 1, 2, 3, 4 | Typical comparison size; demand for four-item support | Number successfully ready at the readiness boundary, not file-picker clicks | Implemented for 1–4 in scope 2 |
 | Total item loads reviewed | Overall volume of assets handled | Derive from set-size counts: sum of size × ready sets; repeat loads count again, so this is not unique files | Derived |

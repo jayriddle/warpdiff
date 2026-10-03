@@ -3527,7 +3527,7 @@
             <aside id="usageInvitation" hidden aria-label="Optional usage sharing">
                 <strong id="usageInvitationTitle">Help shape WarpDiff</strong><span id="usageInvitationTest" hidden> · Local test only</span>
                 <p id="usageConsentReview" hidden>Please review the current details. Sharing is paused until you agree again.</p>
-                <p>Help improve WarpDiff with optional counts of visits, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way. <button type="button" id="usageDetails">What’s shared and who receives it</button></p>
+                <p>Help improve WarpDiff with optional counts of visits, daily activity, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way. <button type="button" id="usageDetails">What’s shared and who receives it</button></p>
                 <div class="usage-actions"><button type="button" data-usage-choice="no">No thanks</button><button type="button" data-usage-choice="yes">Share usage counts</button></div>
             </aside>
             <div class="landing-status" id="landingStatus" role="status" aria-live="polite">Loading…</div>
@@ -3750,7 +3750,7 @@
     <script>
         // Bind this document's disclosure to its exact collector. If loading or
         // integrity validation fails, the rest of WarpDiff keeps working quietly.
-        const _USAGE_DOCUMENT_CONTRACT = '3.18.12/scope-4';
+        const _USAGE_DOCUMENT_CONTRACT = '3.18.13/scope-4';
         var _usage = Object.freeze({
             setup() {
                 document.getElementById('usageInvitation').hidden = true;
@@ -3758,11 +3758,11 @@
                 document.getElementById('usageStatus').textContent = 'Usage sharing is unavailable because its update is incomplete. Nothing is reported. Reload when online to try again.';
             },
             beginLoad() {}, comparisonReady() {}, feature() {}, scrub() {},
-            startOperation() { return null; }, outcome() {}, slotState() {},
+            startOperation() { return null; }, outcome() {}, slotState() {}, activity() {},
             resetComparison() {}, enterStandalone() {}, hostLaunch() {}, epoch: 0
         });
     </script>
-    <script src="js/usage.js" integrity="sha256-D9dsUTie8UWB9gfEf84gTtysJGT1vFfXMUuzNYbjglE="></script>
+    <script src="js/usage.js" integrity="sha256-TnipocZqA5CuAUe6IyZF8EsFzuxvopwb/npCZfLmh1I="></script>
     <script src="js/appearance.js"></script>
     <script src="js/audio-viz.js"></script>
     <script src="js/audio-analysis.js"></script>
@@ -3784,7 +3784,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.18.12';
+        const APP_VERSION = '3.18.13';
+        // Only a release with meaningful user-facing news advances this marker.
+        // Quiet maintenance updates keep the preceding summary without repeating it.
+        const _CHANGELOG_VERSION = '3.18.12';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -9168,6 +9171,16 @@
             _updateGridInfoBarDurations();
         }
 
+        function _shouldShowChangelog(lastSeen) {
+            if (!/^\d+\.\d+\.\d+$/.test(lastSeen)) return true;
+            const seen = lastSeen.split('.').map(Number);
+            const announced = _CHANGELOG_VERSION.split('.').map(Number);
+            for (let i = 0; i < announced.length; i++) {
+                if (seen[i] !== announced[i]) return seen[i] < announced[i];
+            }
+            return false;
+        }
+
         function toggleQuickStart() {
             if (_managedReviewActive()) return;
             const popup = document.getElementById('quickStartPopup');
@@ -13669,6 +13682,8 @@
 
             e.preventDefault();
             action.fn(e);
+            // Daily use owner → js/usage.js; no key/action ID sent, no text-entry counts.
+            if (e.isTrusted && !e.target.closest?.('input:not([type="range"]),textarea,select,[contenteditable]')) _usage.activity();
         });
 
         // Initialize
@@ -13699,12 +13714,12 @@
                 if (c) { c.width = magnifierSize; c.height = magnifierSize; }
             });
 
-            // Show welcome popup on first visit, or changelog on version update
+            // Welcome new users; announce only important notes they haven't seen.
             const lastSeen = localStorage.getItem('lastSeenVersion');
             if (!_managedReviewActive() && !lastSeen) {
                 document.getElementById('quickStartPopup').classList.add('show');
                 document.getElementById('quickStartBackdrop').classList.add('show');
-            } else if (!_managedReviewActive() && lastSeen !== APP_VERSION) {
+            } else if (!_managedReviewActive() && _shouldShowChangelog(lastSeen)) {
                 document.getElementById('changelogPopup').classList.add('show');
                 document.getElementById('changelogBackdrop').classList.add('show');
             }
@@ -13712,7 +13727,7 @@
             const popupVer = document.getElementById('popupVersion');
             if (popupVer) popupVer.textContent = 'v' + APP_VERSION;
             const changelogVer = document.getElementById('changelogVersion');
-            if (changelogVer) changelogVer.textContent = 'v' + APP_VERSION;
+            if (changelogVer) changelogVer.textContent = 'v' + _CHANGELOG_VERSION;
 
             // Register service worker for PWA / offline caching
             if (!_inIframe && 'serviceWorker' in navigator) {
@@ -14080,13 +14095,14 @@
         <div class="usage-section">
             <h3>Help shape WarpDiff</h3>
             <p id="usageTestNotice" hidden><strong>Local test</strong> — counts go only to this computer. This choice is separate from live-site consent.</p>
-            <p>Help improve WarpDiff with optional counts of visits, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way.</p>
+            <p>Help improve WarpDiff with optional counts of visits, daily activity, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way.</p>
             <details id="usageDisclosure">
                 <summary>What’s shared and who receives it</summary>
-                <p>Optional statistics help WarpDiff’s developer improve the tool: visits; ready reviews of 1–4 items; use of Stack/Grid, scopes, audio graphs, Difference, wipe, loupe, Tile Check, loops and listening tools; completed scrub drags by surface and frequency band; and fixed counts of loading failures, audio analysis failures and compatibility fallbacks. Events include the app release, media type and item count. No filenames, media contents, raw errors, logs, pointer paths or playback positions are sent.</p>
+                <p>Optional statistics help WarpDiff’s developer improve the tool: visits and daily activity; ready reviews of 1–4 items; use of Stack/Grid, scopes, audio graphs, Difference, wipe, loupe, Tile Check, loops and listening tools; completed scrub drags by surface and frequency band; and fixed counts of loading failures, audio analysis failures and compatibility fallbacks. Review and tool events include the app release, media type and item count. No filenames, media contents, raw errors, logs, pointer paths or playback positions are sent.</p>
                 <p class="appearance-note">WarpDiff is operated by Jay Riddle. With your agreement, GoatCounter receives your IP address and browser headers to process requests and distinguish repeat visits, and retains browser, operating-system and country-level counts. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. No analytics cookies. The dashboard is private, and statistics are configured for automatic deletion after 365 days. Privacy questions: <a href="mailto:warpdiff@gmail.com">warpdiff@gmail.com</a>. <a href="https://www.goatcounter.com/help/privacy" target="_blank" rel="noopener noreferrer">GoatCounter privacy</a>. GitHub Pages separately logs IP addresses for hosting security.</p>
                 <p class="appearance-note">Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent.</p>
                 <p class="appearance-note">Your choice is saved in this browser with the sharing details you accepted. Routine app updates do not ask again. If the sharing scope changes, we ask again before reporting; a saved No stays off. Change your choice here anytime. Turning sharing off stops future reporting; it cannot retract counts already sent. If saving No fails, we try to remove the old permission. If that also fails, a warning asks you to clear site data before reopening WarpDiff. Offline counts are not queued.</p>
+                <p class="appearance-note">Daily activity counts use of ready comparisons at most once per browser per UTC day. We remember only the last reporting date locally to avoid duplicates across tabs and reloads; no date or user ID is sent. Idle tabs don’t count. These figures estimate active browsers, not people.</p>
                 <p class="appearance-note">A saved Yes starts reporting only after you load files here; choosing Yes explicitly can also begin a visit. Opening the page alone sends nothing. Host-loaded viewers stay excluded. An incomplete analytics update keeps sharing off while comparisons remain available.</p>
                 <p class="appearance-note">Load files without answering to continue with sharing off. We remember that locally and stop showing the invitation. You can enable sharing here later. If browser storage is cleared or unavailable, the invitation may return.</p>
             </details>
@@ -14119,6 +14135,7 @@
             <p>Use the appearance button at the right of the header to choose Original, Starfield, Solar, Nebula or Glacier. Preferences stay in this browser. Solar has bodies moving in the same direction on fixed orbital planes; Nebula has orbiting stars and faint spiral arms around a softly glowing hub in violet haze; Glacier has sparse icy stars. Choose <strong>Starfield</strong> for a slower Ad Astra animation across a wide landing background. It is now a regular appearance; the hidden X toggle has been removed. Decorations appear only on the landing screen, and reduced motion stops animation. Media, scopes and slot colors stay unchanged.</p>
             <p>WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.</p>
             <p>Usage sharing appears first in the panel, followed by appearances. Expand “What’s shared and who receives it” for the exact categories, GoatCounter’s identity and privacy link, and how to stop sharing. Loading files without answering remembers a local invitation dismissal, keeps sharing off and stops automatic reminders—even after returning to the landing screen or reopening WarpDiff. It records neither Yes nor No and sends nothing. You can enable sharing later from this panel; clearing browser storage or unavailable storage may bring the invitation back.</p>
+            <p>Daily activity counts use of ready comparisons at most once per browser per UTC day. We remember only the last reporting date locally to avoid duplicates across tabs and reloads; no date or user ID is sent. Idle tabs don’t count. These figures estimate active browsers, not people.</p>
             <p>Usage sharing is opt-in when a GoatCounter destination is configured. Consent is tied to the sharing scope you accepted. Routine updates do not ask again; a changed scope pauses sharing until a new Yes. No is remembered across scope changes; no analytics request is made before Yes or after turning sharing off. With consent, sharing counts visits, ready reviews of 1–4 items, deliberate comparison-tool use, completed scrub drags, and basic failure/fallback categories, labeled by app release, media type and item count. Features count once per ready review; scrub frequency uses thresholds of 1, 2, 6 and 21 drags. Waveform and spectrogram appear together; their separate scrub surfaces indicate interaction, not separate panel choices. Reloading a set counts again. No files, filenames, contents, raw errors or logs are sent. Failed/canceled sets are not ready reviews; no offline or pre-consent activity is replayed. All appearances remain available with sharing off. The official site uses WarpDiff’s GoatCounter account after consent. Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent. GoatCounter receives IP addresses and browser headers to process requests and distinguish repeat visits; it retains browser/OS and country counts in a private dashboard configured for automatic deletion after 365 days. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. WarpDiff is operated by Jay Riddle; privacy contact: <a href="mailto:warpdiff@gmail.com">warpdiff@gmail.com</a>.</p>
             <h2>Loading Files</h2>
             <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>

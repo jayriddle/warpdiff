@@ -71,6 +71,14 @@ Introduced in the unpublished 3.18.12 release candidate. Existing provider confi
 
 The [event contract](usage-events.md) is authoritative for counting and denominator limits. Appearance reporting and detailed remaining-media-area or resize measurements remain deferred.
 
+## Daily-use counting clarification — 3.18.13 (scope 4 retained)
+
+Jay requested one active-use count per browser/day when an open tab is used over several days. This remains within the disclosed visit/usage-frequency purpose: same recipient, provider settings and retention; no new feature, location, media metadata, identifiers, duration or cross-day linkage. Scope 4 stays valid, and any No stays off. This is the implementation's scope assessment, not a claim that the wording authorizes arbitrary future metrics or proves legal compliance.
+
+The invitation now explicitly includes daily activity. Details, README and both manuals explain the UTC day and the local last-date marker, which is never sent. `daily-active` has a stable path with no release/media/item cohort. Ready reviews or deliberate input on a still-counted review can trigger it, at most once per browser/UTC day across reloads and coordinated tabs. Idle time does not count. Missing coordination/storage and blocked or failed delivery can undercount; it is not an exact person count. Local marker: `pref_usageActiveDay`, with a separate test key. See the [daily event contract](usage-events.md#daily-active-browsers--31813).
+
+Document/adapter contract: `3.18.13/scope-4`, with refreshed SHA-256 integrity. Mixed protected revisions stay silent. The structured consent record below remains unchanged.
+
 ## Local record and compatibility
 
 New choices use the existing `pref_usageConsent` key (or `pref_usageConsentTest` locally) with a JSON record:

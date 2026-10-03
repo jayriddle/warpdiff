@@ -85,11 +85,11 @@ test('official site sends only after current consent, remembers No, and excludes
   await choice(page, 'yes');
   await expect.poll(() => counted.length).toBe(1);
   await loadPair(page);
-  await expect.poll(() => counted.length).toBe(5);
-  expect(counted.map(r => r.params.p).sort()).toEqual(['/', 'comparison-active', 'comparison-image-2', 'load-attempt-image-2', 'workspace-wide-tall-image-2']);
+  await expect.poll(() => counted.length).toBe(6);
+  expect(counted.map(r => r.params.p).sort()).toEqual(['/', 'comparison-active', 'comparison-image-2', 'daily-active', 'load-attempt-image-2', 'workspace-wide-tall-image-2']);
   expect(counted.find(r => r.params.p === 'comparison-image-2')!.params.ns).toBe('true');
   for (const event of counted) {
-    expect(event.rawPath).toBe(event.params.e === 'true' ? `v${appVersion}/` + event.params.p : '/');
+    expect(event.rawPath).toBe(event.params.e === 'true' && event.params.p !== 'daily-active' ? `v${appVersion}/` + event.params.p : event.params.p);
     expect(event.headers.cookie).toBeUndefined();
     expect(event.headers.referer).toBeUndefined();
     expect(Object.keys(event.params).sort()).toEqual((event.params.ns ? ['e','ns','p','r','rnd','t'] : ['e','p','r','rnd','t']).sort());
@@ -97,7 +97,7 @@ test('official site sends only after current consent, remembers No, and excludes
   }
   await choice(page, 'no');
   await loadPair(page);
-  expect(counted).toHaveLength(5);
+  expect(counted).toHaveLength(6);
   expect(blocked).toEqual([]);
 });
 
@@ -144,9 +144,9 @@ test('confirmed Reset aborts pending counts; canceling Reset preserves them and 
   try {
     await page.goto(origin + '/warpdiff/');
     await loadPair(page);
-    await expect.poll(() => heldPaths.length).toBe(5);
+    await expect.poll(() => heldPaths.length).toBe(6);
     expect(heldPaths.map(p => p.replace(/^v[0-9.]+\//, '')).sort()).toEqual([
-      '/', 'comparison-active', 'comparison-image-2', 'load-attempt-image-2', 'workspace-wide-tall-image-2'
+      '/', 'comparison-active', 'comparison-image-2', 'daily-active', 'load-attempt-image-2', 'workspace-wide-tall-image-2'
     ]);
     expect((await audit()).every(r => !r.aborted && !r.settled)).toBe(true);
 
@@ -161,10 +161,10 @@ test('confirmed Reset aborts pending counts; canceling Reset preserves them and 
     // Check immediately after the real Reset action, not after the sender's
     // three-second timeout, which would conceal missing Clear cancellation.
     const retired = await audit();
-    expect(retired).toHaveLength(5);
+    expect(retired).toHaveLength(6);
     expect(retired.every(r => r.aborted)).toBe(true);
     await expect.poll(async () => (await audit()).every(r => r.settled)).toBe(true);
-    expect(heldPaths).toHaveLength(5);
+    expect(heldPaths).toHaveLength(6);
 
     releaseReplies();
     await page.unroute(pattern);
@@ -295,14 +295,14 @@ test('current production Yes resumes but outdated Yes waits for renewed consent'
   await expect(page.locator('#usageInvitation')).toBeHidden();
   expect(counted).toHaveLength(1);
   await loadPair(page);
-  await expect.poll(() => counted.length).toBe(6);
+  await expect.poll(() => counted.length).toBe(7);
   await page.evaluate(version => localStorage.setItem('pref_usageConsent', JSON.stringify({
     choice: 'yes', version, decidedAt: new Date().toISOString()
   })), scope + 1);
   await page.reload();
   await expect(page.locator('#usageConsentReview')).toBeVisible();
   await loadPair(page);
-  expect(counted).toHaveLength(6);
+  expect(counted).toHaveLength(7);
   expect(blocked).toEqual([]);
 });
 
@@ -358,7 +358,7 @@ test('scope-2 Yes requires review and cannot replay the prior load under scope 4
   expect(counted[0].params.p).toBe('/');
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pref_usageConsent')!).version)).toBe(4);
   await loadPair(page);
-  await expect.poll(() => counted.length).toBe(5);
+  await expect.poll(() => counted.length).toBe(6);
   expect(blocked).toEqual([]);
 });
 

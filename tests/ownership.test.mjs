@@ -71,6 +71,12 @@ function check(name, cond) { if (cond) { pass++; } else { fail++; console.error(
     !usage.includes('APP_VERSION,'));
   check('usage: embedded viewers and non-local test URLs cannot activate reporting',
     usage.includes('window.top === window.self') && usage.includes('const testMode = local &&'));
+  check('usage: one daily owner coordinates readiness and trusted review input',
+    usage.split('function activity(').length === 2 &&
+    usage.includes("navigator.locks.request('warpdiff-' + activeDayKey, { ifAvailable: true }") &&
+    usage.includes("_prefs.save(activeDayKey, day)") &&
+    usage.includes("send('daily-active', true, true)") &&
+    HTML.includes("if (e.isTrusted && !e.target.closest?.('input:not([type=\"range\"]),textarea,select,[contenteditable]')) _usage.activity();"));
   check('usage: counting endpoint is never service-worker cached',
     !readFileSync(new URL('sw.js', ROOT), 'utf8').includes('__goatcounter_test__'));
   check('usage: readiness requires all slots and a counted, nonfailed load',
@@ -201,6 +207,11 @@ function extractFn(name, src = SRC) {
   const cacheVer = (SW.match(/const CACHE_NAME = 'warpdiff-v([^']+)'/) || [])[1];
   check(`version-sync: APP_VERSION (${appVer}) === sw.js CACHE_NAME (${cacheVer})`,
         appVer && cacheVer && appVer === cacheVer);
+  check('release notes: one announcement owner separates meaningful news from maintenance versions',
+    (HTML.match(/function _shouldShowChangelog\(/g) || []).length === 1 &&
+    HTML.split('_shouldShowChangelog(lastSeen)').length === 3 &&
+    /const _CHANGELOG_VERSION = '\d+\.\d+\.\d+'/.test(HTML) &&
+    HTML.includes("changelogVer.textContent = 'v' + _CHANGELOG_VERSION"));
 
   // README's "Current version:" line must track APP_VERSION — it lives outside
   // the app so nothing else catches it, and it silently rotted 9 versions behind

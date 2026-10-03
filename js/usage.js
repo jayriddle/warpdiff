@@ -14,10 +14,10 @@ var _usage = (() => {
     // This check protects new adapters under older/mismatched HTML. The HTML's
     // integrity attribute protects the other direction, including old adapters
     // that predate this check. Keep the document's harmless fallback if blocked.
-    if (typeof _USAGE_DOCUMENT_CONTRACT === 'undefined' || _USAGE_DOCUMENT_CONTRACT !== '3.18.12/scope-4') {
+    if (typeof _USAGE_DOCUMENT_CONTRACT === 'undefined' || _USAGE_DOCUMENT_CONTRACT !== '3.18.13/scope-4') {
         return typeof _usage === 'object' ? _usage : Object.freeze({
             setup() {}, beginLoad() {}, comparisonReady() {}, feature() {}, scrub() {},
-            startOperation() { return null; }, outcome() {}, slotState() {},
+            startOperation() { return null; }, outcome() {}, slotState() {}, activity() {},
             resetComparison() {}, enterStandalone() {}, hostLaunch() {}, epoch: 0
         });
     }
@@ -28,6 +28,8 @@ var _usage = (() => {
             ? _USAGE_ENDPOINT : '';
     const key = testMode ? 'usageConsentTest' : 'usageConsent';
     const invitationKey = testMode ? 'usageInvitationDismissedTest' : 'usageInvitationDismissed';
+    const activeDayKey = testMode ? 'usageActiveDayTest' : 'usageActiveDay';
+    let activeDayChecking = false, lastActiveDay = '';
     let invitationDismissed = false;
     let consent = null, needsReview = false, epoch = 0, seenEpoch = -1, visitSent = false;
     let initialized = false, localRefusal = false, persistenceWarning = '';
@@ -40,7 +42,7 @@ var _usage = (() => {
     const outcomes = new Set(['analysis-failed', 'analysis-fallback', 'preview-unavailable',
         'preview-reduced', 'continuous-fallback']);
     const pending = new Set();
-    const totals = { visits: 0, comparisons: 0, events: 0, failures: 0 };
+    const totals = { visits: 0, activeDays: 0, comparisons: 0, events: 0, failures: 0 };
 
     function restoreConsent() {
         // A failed withdrawal write must never resurrect a readable older Yes
@@ -79,7 +81,7 @@ var _usage = (() => {
         // browser storage ID, exact dimensions, campaign or referrer data.
         const match = /^(.*)-(image|video|audio|mixed)-([1234])$/.exec(path);
         const label = match && match[1];
-        if (!['/', 'comparison-active'].includes(path) && !(match && (
+        if (!['/', 'comparison-active', 'daily-active'].includes(path) && !(match && (
             ['comparison', 'load-attempt', 'load-failed'].includes(label) ||
             (label.startsWith('feature-') && features.has(label.slice(8))) ||
             (label.endsWith('-attempt') && operations.has(label.slice(0, -8))) || outcomes.has(label) ||
@@ -88,7 +90,11 @@ var _usage = (() => {
         const url = new URL(endpoint);
         // Release belongs in the event path: GoatCounter page titles alone do
         // not provide a reliable historical breakdown between app releases.
-        url.search = new URLSearchParams({ p: event ? `v${APP_VERSION}/${path}` : path, t: event ? 'WarpDiff ' + APP_VERSION : 'WarpDiff',
+        // Daily participation has one stable path across app releases. The local
+        // date is never sent, nor is a user ID or review/media/release cohort.
+        const daily = path === 'daily-active';
+        url.search = new URLSearchParams({ p: event && !daily ? `v${APP_VERSION}/${path}` : path,
+            t: daily ? 'WarpDiff daily active browsers (UTC)' : event ? 'WarpDiff ' + APP_VERSION : 'WarpDiff',
             e: event ? 'true' : 'false', r: '', rnd: String(Math.random()) }).toString();
         if (every) url.searchParams.set('ns', 'true');
         const controller = new AbortController();
@@ -110,6 +116,50 @@ var _usage = (() => {
             totals.visits++;
         }
         render();
+    }
+    function activity() {
+        // One owner for both readiness and deliberate use of an existing review.
+        // Never sample startup, visibility restoration, passive playback or idle.
+        const context = review, generation = decisionGeneration;
+        const eligible = () => allowed() && document.visibilityState === 'visible' &&
+            context && context === review && context === load && context.epoch === epoch &&
+            context.decisionGeneration === generation && generation === decisionGeneration;
+        if (!eligible() || activeDayChecking) return;
+        let day;
+        try { day = new Date().toISOString().slice(0, 10); } catch (_) { return; }
+        if (lastActiveDay >= day) return;
+        // Atomic cross-tab claims require both Web Locks and durable storage.
+        // If either is unavailable, omit this metric rather than multiply users.
+        try {
+            if (!navigator.locks) return;
+            activeDayChecking = true;
+            navigator.locks.request('warpdiff-' + activeDayKey, { ifAvailable: true }, lock => {
+                if (!lock || !eligible() || new Date().toISOString().slice(0, 10) !== day || pending.size >= 64) return;
+                let saved;
+                try {
+                    // Recheck the durable decision inside the asynchronous
+                    // claim, including a foreign No whose event is still queued.
+                    const choice = _prefs.load(key, null);
+                    if (choice?.choice !== 'yes' || choice.version !== _USAGE_CONSENT_VERSION ||
+                        typeof choice.decidedAt !== 'string' ||
+                        !Number.isFinite(Date.parse(choice.decidedAt))) return;
+                    saved = _prefs.load(activeDayKey, null);
+                    if (typeof saved === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved) &&
+                        Number.isFinite(Date.parse(saved + 'T00:00:00.000Z')) &&
+                        new Date(saved + 'T00:00:00.000Z').toISOString().slice(0, 10) === saved && saved >= day) {
+                        lastActiveDay = saved;
+                        return;
+                    }
+                    // Reserve before dispatch: failed/dropped requests are not
+                    // retried and cannot produce a second daily count in a tab.
+                    _prefs.save(activeDayKey, day);
+                } catch (_) { return; }
+                lastActiveDay = day;
+                if (send('daily-active', true, true)) totals.activeDays++;
+                render();
+            }).catch(() => { /* Optional metric: a rejected lock stays silent. */ })
+                .finally(() => { activeDayChecking = false; });
+        } catch (_) { activeDayChecking = false; }
     }
     function render() {
         if (!initialized) return;
@@ -134,7 +184,7 @@ var _usage = (() => {
         document.querySelector('#appearancePanel [data-usage-choice="no"]').textContent = consent === 'yes' ? 'Turn sharing off' : 'Keep sharing off';
         document.getElementById('usageTestStats').hidden = !testMode;
         document.getElementById('usageTestStats').textContent =
-            `Local requests this page: ${totals.visits} visit · ${totals.comparisons} ready reviews · ${totals.events} events · ${totals.failures} failed requests`;
+            `Local requests this page: ${totals.visits} visit · ${totals.activeDays} daily activity · ${totals.comparisons} ready reviews · ${totals.events} events · ${totals.failures} failed requests`;
     }
     function choose(value) {
         if (!available() || !['yes', 'no'].includes(value)) return;
@@ -196,6 +246,21 @@ var _usage = (() => {
         });
         window.addEventListener('pagehide', abortPending);
         window.addEventListener('offline', abortPending);
+        document.addEventListener('pointerdown', event => {
+            if (event.isTrusted && event.target.closest?.('#comparisonView, #videoControls, #headerRight')) activity();
+        }, { passive: true, capture: true });
+        document.addEventListener('wheel', event => {
+            if (event.isTrusted && event.target.closest?.('#comparisonView')) activity();
+        }, { passive: true, capture: true });
+        const controlKeys = new Set(['Enter', ' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
+        // Local controls (for example the wipe slider) intentionally stop key
+        // propagation. Observe their action keys without changing that policy.
+        document.addEventListener('keydown', event => {
+            if (event.isTrusted && !event.metaKey && !event.ctrlKey && !event.altKey && controlKeys.has(event.key) &&
+                event.target.closest?.('#comparisonView, #videoControls, #headerRight') &&
+                event.target.closest?.('button,summary,input[type="range"],[role="slider"]') &&
+                !event.target.closest?.('input:not([type="range"]),textarea,select,[contenteditable]')) activity();
+        }, { passive: true, capture: true });
         visit();
     }
     function once(context, label) {
@@ -259,6 +324,7 @@ var _usage = (() => {
         if (once(load, 'comparison')) {
             review = load;
             totals.comparisons++;
+            activity();
             send('comparison-active', true); // Session-deduplicated participation estimate.
             if (allowed()) {
                 const space = workingSpaceLabel();
@@ -267,7 +333,7 @@ var _usage = (() => {
             render();
         }
     }
-    return { setup, beginLoad, comparisonReady, feature, scrub, startOperation, outcome, enterStandalone,
+    return { setup, beginLoad, comparisonReady, feature, scrub, startOperation, outcome, enterStandalone, activity,
         hostLaunch() { hostOwned = true; standalone = false; abortPending(); render(); },
         slotState(slot, kind) {
             if (!load || !['original', 'editA', 'editB', 'editC'].includes(slot)) return;
