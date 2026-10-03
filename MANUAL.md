@@ -2,7 +2,31 @@
 
 WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
 
+WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+
 ---
+
+## Appearance and privacy
+
+Open **Appearance and privacy** at the right of the header. Choose **Original**, **Starfield** (a slower Ad Astra animation across a wide, softly faded landing background), **Solar** (amber bodies moving in the same direction at different speeds along fixed orbital planes), **Nebula** (violet haze, a soft galaxy hub, faint spiral arms and slowly orbiting stars), or **Glacier** (icy accents and sparse stars). Changes preview immediately and stay in this browser. The landing decorations disappear during review; media, scopes and slot colors stay unchanged. Solar, Nebula and Starfield animation stop for reduced motion or when the page is hidden. The hidden X toggle is removed. An enabled legacy starfield migrates to Starfield if no different appearance was selected; explicit Solar, Nebula or Glacier choices are preserved. Escape closes the panel and returns focus to its button.
+
+Usage sharing appears first in the panel, followed by appearances. Expand “What’s shared and who receives it” for the exact categories, GoatCounter’s identity and privacy link, and how to stop sharing. Loading files without answering remembers a local invitation dismissal, keeps sharing off and stops automatic reminders—even after returning to the landing screen or reopening WarpDiff. It records neither Yes nor No and sends nothing. You can enable sharing later from this panel; clearing browser storage or unavailable storage may bring the invitation back.
+
+All appearances are available with usage sharing off. Sharing is opt-in; the official site uses WarpDiff’s GoatCounter account after consent. Other hosting addresses do not report, and local test mode sends only to its loopback recorder. Choose **Share usage counts** or **Keep sharing off** in this panel, or answer the landing invitation when connected. No is remembered without an analytics request. You can turn sharing off at any time and keep your appearance. A different browser/device/site address or clearing site data may require choosing again.
+
+Your choice is stored locally with the consent scope version and decision time. Routine app updates keep that choice. If the sharing scope changes, an older Yes pauses reporting until you review the details and agree again. Unversioned or unrecognized Yes records also require review; a saved No remains off across scope changes without another prompt. The decision time and consent version are not sent to GoatCounter. See the [scope record](docs/usage-consent.md).
+
+A saved Yes starts reporting only after an accepted manual file load. Choosing Yes explicitly can also begin the visit. Merely opening or reloading the page sends nothing. Host-loaded documents (including top-level viewers) cannot report for the rest of that document’s lifetime. Visits therefore describe engaged launches, not every app opening.
+
+If saving No fails, WarpDiff tries to remove the previous permission and keeps sharing off for the current page. If removal succeeds, a later launch may ask again. If removal also fails, a visible warning tells you to clear WarpDiff’s site data before reopening it: the old Yes may still exist. An incomplete analytics update also leaves sharing off; reload online to recover.
+
+With consent, sharing counts engaged visits, ready reviews of 1–4 items, deliberate comparison-tool use, completed scrub drags, and basic failure/fallback categories, labeled by app release, media type and item count. Features count once per ready review; scrub frequency uses thresholds of 1, 2, 6 and 21 drags. Waveform and spectrogram appear together; their separate scrub surfaces indicate interaction, not separate panel choices. Reloading a set counts again. No files, filenames, contents, raw errors or logs are sent. Failed/canceled sets are not ready reviews; no offline or pre-consent activity is replayed. Loading attempts are counted separately from readiness; reliability outcomes count once per category per load, with operation-attempt denominators. These are best-effort counts, not completed-work totals or exact daily headcounts. Browser blocking and offline use cause undercounts. See the [event definitions](docs/usage-events.md) for interpretation.
+
+No filenames, file contents, page query strings, referrers, exact dimensions, monitor resolution or persistent user IDs are sent by the adapter. WarpDiff is operated by Jay Riddle. With your agreement, GoatCounter receives your IP address and browser headers to process requests and distinguish repeat visits, and retains browser, operating-system and country-level counts. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. No analytics cookies. The dashboard is private, and statistics are configured for automatic deletion after 365 days. Privacy questions: [warpdiff@gmail.com](mailto:warpdiff@gmail.com). See its [privacy policy](https://www.goatcounter.com/help/privacy). GitHub Pages separately logs IP addresses for hosting security. Turning sharing off stops future reporting and aborts pending requests, but cannot retract counts already received.
+
+Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent.
+
+The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.md) sends requests to a local recorder and uses a separate consent preference. It does not enable reporting on the public site.
 
 ## Loading Files
 
@@ -45,7 +69,7 @@ The layout auto-picks horizontal (left/right) or vertical (top/bottom) based on 
 All three assets are displayed in a grid. Press **3** to toggle between Inline (columns or rows, auto-picked by aspect ratio) and Offset (Ref on the left, A/B paired on the right — often more space-efficient).
 
 ### Grid (4 files)
-All four assets use **Inline** in a balanced 2×2 grid. Offset is hidden because it is specific to the three-item Ref/A/B arrangement. Hiding one slot switches to the normal three-item layout; restoring it returns to 2×2.
+All four assets use **Inline** in a balanced 2×2 grid. Offset is available when exactly three assets are visible. Hiding one slot switches to the normal three-item layout while preserving the remaining assets' order and labels; restoring it returns to 2×2.
 
 ---
 
@@ -53,7 +77,7 @@ All four assets use **Inline** in a balanced 2×2 grid. Offset is hidden because
 
 In Grid mode, you can hide any slot to give more screen space to the remaining assets.
 
-**To hide a slot:** click its colored label pill in the info bar. The slot disappears and the remaining assets expand to fill the space.
+**To hide a slot:** click its colored label pill in the info bar. The slot disappears and the remaining assets expand to fill the space in their original order. For example, hiding Video-1 leaves Video-2, Video-3, Video-4. Inline keeps that order across columns or rows; Offset puts the first visible asset on the left and the next two on the right. Labels retain their original numbers.
 
 **To restore a hidden slot:** click its ghost pill in the header. Hidden slots appear as dimmed, colored labels next to the mode icons — click one to bring that slot back.
 
@@ -205,6 +229,8 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 - **P** cycles through color palettes (Viridis, Magma, Inferno, Plasma)
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
+
+In Safari, video drag seeks wait for the preceding seek to finish and paint before following the latest pointer position. Returning to the tab refreshes its video surfaces. A drag interrupted by changing tabs ends paused; press Play to continue. Scrub preview uses native sound output to avoid silent previews; Continuous processing, listening controls and short-preview fallback still apply. A new scrub gesture also wakes the separate processing engine after Safari suspends or interrupts it. Desktop mono/stereo video keeps Safari's native audio output to reduce picture stalls after seeking. Surround audio still uses the shared listening mix and may retain Safari's brief playback-start delay.
 
 During video scrubbing, WarpDiff previews only the currently selected soundtrack and follows the same master volume as normal playback. With one visible video, audio is anchored to the frame WarpDiff actually displays. In multi-video Grid, it follows the shared scrub target on a steady clock so competing decoder callbacks cannot chop the audio. During single-video and synced playback, the progress bar and waveform/spectrogram cursor advance evenly at the screen's refresh rate. They stop with playback and jump directly on seeks; loop and synchronization decisions still use the video's unmodified media clock. Switching active videos keeps the displayed playheads moving forward, including while the newly visible video catches up with its current frame. Restart and automatic loops snap these playheads directly to the loop in-point or beginning without animating the jump. Changing the active video or audio source during playback uses a brief fade and keeps audio timing steady to prevent switching clicks; paused switching stays silent.
 

@@ -5,12 +5,13 @@ const _audioAnalysisQueue = [];
 let _audioAnalysisJob = null;
 
 function _computeAudioAnalysis(audioBuffer, buckets, isCurrent = () => true) {
+    const usageTicket = _usage.startOperation('analysis');
     if (_audioAnalysisJob && !_audioAnalysisJob.isCurrent()) {
         _audioAnalysisJob.cancelled = true;
         if (_audioAnalysisJob.cancel) _audioAnalysisJob.cancel();
     }
     return new Promise((resolve, reject) => {
-        _audioAnalysisQueue.push({ audioBuffer, buckets, isCurrent, resolve, reject, cancelled: false });
+        _audioAnalysisQueue.push({ audioBuffer, buckets, isCurrent, resolve, reject, usageTicket, cancelled: false });
         _pumpAudioAnalysis();
     });
 }
@@ -86,7 +87,11 @@ async function _pumpAudioAnalysis() {
                         spectrogram: computeSpectrogramData(job.audioBuffer),
                         metrics: computeAudioMetrics(job.audioBuffer)
                     };
-                } catch (fallbackError) { job.reject(fallbackError); }
+                    _usage.outcome(job.usageTicket, 'analysis-fallback');
+                } catch (fallbackError) {
+                    _usage.outcome(job.usageTicket, 'analysis-failed');
+                    job.reject(fallbackError);
+                }
             }
         } finally {
             _audioAnalysisJob = null;

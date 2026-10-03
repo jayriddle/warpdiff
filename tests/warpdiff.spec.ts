@@ -1974,6 +1974,9 @@ test.describe('Solo video playback', () => {
   test('a custom loop starting after the Solo target ends holds and refuses playback', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_long.webm']);
+    // The comparison container becomes visible before first-frame activation.
+    // Let its loading notice finish before checking user-triggered loop notices.
+    await expect(page.locator('#toast')).toContainText('Clips differ in length');
     await page.keyboard.press('Shift+s');
     await page.evaluate(() => {
       const api = (window as any).__testAPI;
@@ -3431,6 +3434,232 @@ test.describe('Cancelable play intent', () => {
       (window as any).playAllMedia();
     });
     await expect(page.locator('#playPauseBtn')).toHaveText('▶');
+  });
+});
+
+test.describe('Safari native scrub scheduling and restored surfaces', () => {
+  test('a platform with locked native volume keeps inactive soundtracks on graph gains', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
+      (window as any).GestureEvent = class {};
+      Object.defineProperty(HTMLMediaElement.prototype, 'volume', { configurable: true, get:()=>1, set() {} });
+    });
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => (window as any).__testAPI.nativeAudio.routeCount === 2);
+    const outputs = await page.evaluate(() => {
+      const audio = (window as any).__testAPI.nativeAudio;
+      return ['editA','editB'].map(slot=>({direct:audio.directLevel(slot),gain:audio.gain(slot)._audioEnvelope.target}));
+    });
+    expect(outputs.map(output=>output.direct)).toEqual([null,null]);
+    expect(outputs.map(output=>output.gain).sort()).toEqual([0,1]);
+  });
+
+  test('verified surround video keeps the shared monitoring graph on Safari', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
+      (window as any).GestureEvent = class {};
+    });
+    await page.goto('/');
+    await loadMedia(page, ['dialogue_51_aac.mp4']);
+    await page.waitForFunction(() => (window as any).__testAPI.nativeAudio.routeCount === 1);
+    expect(await page.evaluate(() => (window as any).__testAPI.nativeAudio.directLevel('editA'))).toBeNull();
+    await expect(page.locator('[data-listening-mode="center"]')).toBeEnabled();
+    await page.evaluate(() => (window as any).setAudioListening({mode:'center'}));
+    await expect(page.locator('#audioListeningLabel')).toHaveText('Listen: Center Only');
+  });
+
+  test('mono/stereo native output preserves volume, selection, mute and cancellation', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
+      (window as any).GestureEvent = class {};
+    });
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => ['editA', 'editB'].every(slot =>
+      (window as any).__testAPI.nativeAudio.directLevel(slot)));
+    const read = () => page.evaluate(() => {
+      const app = window as any;
+      return { routes: app.__testAPI.nativeAudio.routeCount,
+        levels: ['editA', 'editB'].map(slot => app.__testAPI.nativeAudio.directLevel(slot)),
+        muted: Array.from(document.querySelectorAll('.asset-layer video')).map(video => (video as HTMLVideoElement).muted) };
+    });
+    await page.evaluate(() => { (window as any).selectAudioSource('editA'); (window as any).setVolume(25); });
+    expect(await read()).toEqual({ routes: 0, muted: [false, false], levels: [
+      {level: 1, target: 1, volume: 0.25}, {level: 0, target: 0, volume: 0} ] });
+    await startPlayback(page);
+    await page.evaluate(() => {
+      const app = window as any;
+      app.selectAudioSource('editB'); app.selectAudioSource('editA'); app.selectAudioSource('editB');
+      Object.defineProperty(document, 'hidden', {configurable:true,value:true});
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'hidden', {configurable:true,value:false});
+      app.setVolume(60);
+    });
+    await page.waitForTimeout(50); // a retired fade must not overwrite the final source or master level
+    expect(await read()).toEqual({ routes: 0, muted: [false, false], levels: [
+      {level: 0, target: 0, volume: 0}, {level: 1, target: 1, volume: 0.6} ] });
+    await page.keyboard.press('m');
+    expect((await read()).levels.map((level: any) => level.volume)).toEqual([0, 0]);
+    await page.keyboard.press('m');
+    expect((await read()).levels.map((level: any) => level.volume)).toEqual([0, 0.6]);
+    const retired = await page.evaluate(async () => {
+      const app = window as any, videos = [...document.querySelectorAll('.asset-layer video')] as HTMLVideoElement[];
+      app.selectAudioSource('editA'); // retire this fade while it is pending
+      app.clearAllMedia();
+      const before = videos.map(video => video.volume);
+      await new Promise(resolve => setTimeout(resolve,50));
+      return {before, after:videos.map(video=>video.volume), direct:app.__testAPI.nativeAudio.directLevel('editA')};
+    });
+    expect(retired.after).toEqual(retired.before);
+    expect(retired.direct).toBeNull();
+  });
+
+  test('Safari native output resumes an interrupted scrub engine and produces preview PCM', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
+      (window as any).GestureEvent = class {};
+    });
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => !!(window as any).__testAPI.continuousScrubState.node);
+    await page.evaluate(async () => {
+      const app=window as any, ctx=app.getAudioContext();
+      app.pauseAllMedia();
+      await ctx.suspend();
+      // Safari's interruption label is fault-injected; the underlying context
+      // really is stopped. Chromium cannot induce an OS audio interruption.
+      const resume=ctx.resume.bind(ctx);
+      Object.defineProperty(ctx,'state',{configurable:true,get:()=> 'interrupted'});
+      app.scrubResumes=0;
+      ctx.resume=()=>{app.scrubResumes++;delete ctx.state;return resume();};
+      const analyser=ctx.createAnalyser();analyser.fftSize=1024;
+      app.__testAPI.continuousScrubState.gain.connect(analyser);
+      app.scrubMeter=analyser;
+      app.readScrubRms=()=>{
+        const pcm=new Float32Array(analyser.fftSize);analyser.getFloatTimeDomainData(pcm);
+        return Math.sqrt(pcm.reduce((sum: number,v: number)=>sum+v*v,0)/pcm.length);
+      };
+    });
+    const box=(await page.locator('#videoProgressContainer').boundingBox())!;
+    await page.mouse.move(box.x+box.width*.15,box.y+box.height/2);
+    await page.mouse.down();
+    let peak=0;
+    for(let i=0;i<16;i++) {
+      await page.mouse.move(box.x+box.width*(.15+i*.035),box.y+box.height/2);
+      await page.waitForTimeout(45);
+      peak=Math.max(peak,await page.evaluate(()=>(window as any).readScrubRms()));
+    }
+    expect(await page.evaluate(()=>(window as any).scrubResumes)).toBe(1);
+    expect(await page.evaluate(()=>(window as any).getAudioContext().state)).toBe('running');
+    expect(peak).toBeGreaterThan(.01);
+    // No native source graph is needed for preview PCM. This headless meter
+    // does not establish speaker audibility; native listening is recorded separately.
+    expect(await page.evaluate(()=>(window as any).__testAPI.nativeAudio.routeCount)).toBe(0);
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    expect(await page.evaluate(()=>(window as any).readScrubRms())).toBeLessThan(.001);
+    await page.keyboard.press('m');
+    await page.mouse.down();
+    for(let i=0;i<8;i++) {
+      await page.mouse.move(box.x+box.width*(.65-i*.035),box.y+box.height/2);
+      await page.waitForTimeout(45);
+      expect(await page.evaluate(()=>(window as any).readScrubRms())).toBeLessThan(.001);
+    }
+    await page.mouse.up();
+  });
+
+  test('Grid waits for slow seeks and keeps only the latest timeline target', async ({ page }) => {
+    // Exercise the shipped Safari branch in Chromium with controlled decoder
+    // latency. This verifies scheduling, not native Safari decoding behavior.
+    await page.addInitScript(() => {
+      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
+      (window as any).GestureEvent = class {};
+    });
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('.asset-layer video'))
+      .every(video => (video as HTMLVideoElement).readyState >= 2));
+    await page.evaluate(() => {
+      (window as any).slowSeeks = Array.from(document.querySelectorAll('.asset-layer video')).map(video => {
+        const state = { time: 0, seeking: false, targets: [] as number[] };
+        Object.defineProperty(video, 'currentTime', {
+          configurable: true, get: () => state.time,
+          set: time => { state.time = time; state.seeking = true; state.targets.push(time); },
+        });
+        Object.defineProperty(video, 'seeking', { configurable: true, get: () => state.seeking });
+        return { video, state };
+      });
+    });
+    const box = (await page.locator('#videoProgressContainer').boundingBox())!;
+    const point = (pct: number) => ({ x: box.x + box.width * pct, y: box.y + box.height / 2 });
+    await page.mouse.move(point(0.1).x, point(0.1).y);
+    await page.mouse.down();
+    for (const pct of [0.3, 0.5, 0.7]) {
+      await page.waitForTimeout(120); // exceeds the old fixed-throttle interval
+      await page.mouse.move(point(pct).x, point(pct).y);
+    }
+    const before = await page.evaluate(() => (window as any).slowSeeks.map(({state}: any) => [...state.targets]));
+    expect(before.map((targets: number[]) => targets.length)).toEqual([1, 1]);
+    await page.evaluate(() => {
+      for (const {video, state} of (window as any).slowSeeks) {
+        state.seeking = false; video.dispatchEvent(new Event('seeked'));
+      }
+    });
+    await page.waitForFunction(() => (window as any).slowSeeks.every(({state}: any) => state.targets.length === 2));
+    const latest = await page.evaluate(() => (window as any).slowSeeks.map(({state}: any) => [...state.targets]));
+    latest.forEach((targets: number[]) => expect(targets[1]).toBeCloseTo(3.023 * 0.7, 2));
+    await page.mouse.up();
+    // A late seeked after release must not replay any gesture-owned target.
+    const settled = await page.evaluate(() => (window as any).slowSeeks.map(({state}: any) => state.targets.length));
+    await page.evaluate(() => {
+      for (const {video, state} of (window as any).slowSeeks) {
+        state.seeking = false; video.dispatchEvent(new Event('seeked'));
+      }
+    });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await page.evaluate(() => (window as any).slowSeeks.map(({state}: any) => state.targets.length))).toEqual(settled);
+  });
+
+  test('hiding a page retires a drag and its deferred resume', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
+    await startPlayback(page);
+    const box = (await page.locator('#videoProgressContainer').boundingBox())!;
+    await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.evaluate(() => {
+      // Blur queues the existing deferred resume; hidden must invalidate it
+      // even when isDragging has already become false.
+      window.dispatchEvent(new Event('blur'));
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    });
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    expect(await getVar(page, 'isDragging')).toBe(false);
+    expect(await page.evaluate(() => Array.from(document.querySelectorAll('.asset-layer video'))
+      .every(video => (video as HTMLVideoElement).paused))).toBe(true);
+    await page.mouse.up();
+    await startPlayback(page); // a new user play remains available
+  });
+
+  test('surface refresh preserves rotation and a newer layout transform', async ({ page }) => {
+    await page.goto('/');
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    const rotations = await page.evaluate(async () => {
+      const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
+      video.style.transform = 'rotate(90deg)';
+      (window as any)._forceVideoRepaint();
+      (window as any)._forceVideoRepaint();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const preserved = video.style.transform;
+      (window as any)._forceVideoRepaint();
+      video.style.transform = 'rotate(180deg)';
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return { preserved, latest: video.style.transform };
+    });
+    expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
   });
 });
 

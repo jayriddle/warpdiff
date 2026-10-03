@@ -136,6 +136,7 @@ function _isTransportMedia(media) {
 
 function _commitPlaybackScope(scope, slot) {
     _playbackScope = scope;
+    if (scope === 'solo') _usage.feature('solo');
     _soloPlaybackSlot = scope === 'solo' ? slot : null;
 }
 
@@ -771,6 +772,52 @@ const _RATE_TRIM_IS_SMOOTH = !_IS_WEBKIT_MEDIA;
 const _WK_SEEK_STABLE_TICKS = 8;   // consecutive ticks past threshold before seeking
 const _WK_SEEK_COOLDOWN_MS = 800;  // min spacing between re-align seeks
 
+// Safari's native decoder must finish and present a seek before another target
+// replaces it. Each visible scrubbed video owns one in-flight seek and only the
+// newest queued target; a slower/background-restored decoder cannot be starved
+// by Grid's fixed 100 ms throttle. The gesture controller owns cancellation.
+const _nativeScrubSeeks = new Map();
+function _queueNativeScrubSeek(video, time) {
+    if (!_IS_WEBKIT_MEDIA || hasAudios || !isDragging) return false;
+    let state = _nativeScrubSeeks.get(video);
+    if (!state) {
+        state = { target: null, waiting: false, raf: null, seeked: null, flush: null };
+        state.flush = () => {
+            if (_nativeScrubSeeks.get(video) !== state || !isDragging || document.hidden ||
+                state.waiting || video.seeking || state.target === null) return;
+            const target = state.target;
+            state.target = null;
+            // A same-time assignment may emit no seeked event. Never make it
+            // the pending operation on which all subsequent targets depend.
+            if (Math.abs(video.currentTime - target) < 1e-7) return;
+            state.waiting = true;
+            video.currentTime = target;
+        };
+        state.seeked = () => {
+            if (_nativeScrubSeeks.get(video) !== state) return;
+            state.waiting = false;
+            if (state.raf !== null) return;
+            state.raf = requestAnimationFrame(() => {
+                state.raf = null;
+                state.flush();
+            });
+        };
+        _nativeScrubSeeks.set(video, state);
+        video.addEventListener('seeked', state.seeked);
+    }
+    state.target = time;
+    if (state.raf === null) state.flush();
+    return true;
+}
+
+function _cancelNativeScrubSeeks() {
+    for (const [video, state] of _nativeScrubSeeks) {
+        video.removeEventListener('seeked', state.seeked);
+        if (state.raf !== null) cancelAnimationFrame(state.raf);
+    }
+    _nativeScrubSeeks.clear();
+}
+
 function _driftLockTick(primary) {
     if (hasAudios || !primary || primary.paused) return;
     if (isDragging || _bulkSyncActive) return;
@@ -1199,6 +1246,7 @@ function setupVideoHandlers(video, slot) {
     
     video.addEventListener('seeked', function() {
         if (isDragging) _scheduleNativeScrubAudio(video);
+        if (isDragging && _IS_WEBKIT_MEDIA) return; // per-video native scrub owner advances the queue
         if (isDragging && !isGridMode) {
             // Only the active (scrubbed) video drives the reactive-seek chain. A
             // stray 'seeked' from a non-active element (a late-landing seek queued

@@ -435,11 +435,15 @@
             font-weight: 600;
         }
 
+        /* One owner for Help / What's New body text; content inherits this size. */
         .quick-start-body {
             padding: 16px 20px;
             overflow-y: auto;
             flex: 1;
             min-height: 0;
+            font-size: 13px;
+            color: #ccc;
+            line-height: 1.7;
         }
 
         .quick-start-body h3 {
@@ -458,11 +462,10 @@
         .quick-start-body ul {
             margin: 0;
             padding-left: 16px;
-            font-size: 13px;
-            color: #ccc;
-            line-height: 1.7;
         }
 
+        .quick-start-body p { margin: 0 0 8px; }
+        .quick-start-body table { font-size: inherit; }
         .quick-start-body li { margin-bottom: 2px; }
 
         .quick-start-body kbd {
@@ -484,7 +487,7 @@
             border: 1px solid #333;
             border-radius: 8px;
             z-index: 2000;
-            width: 420px;
+            width: min(420px, calc(100vw - 32px));
             max-height: 80vh;
             display: none;
             flex-direction: column;
@@ -585,15 +588,15 @@
         @keyframes border-spin {
             to { --grad-angle: 360deg; }
         }
-        .landing-dropzone.starfield-off > canvas.dropzone-starfield {
+        body:not([data-appearance="starfield"]) .landing-atmosphere > canvas.dropzone-starfield {
             display: none;
         }
-        .landing-dropzone > canvas.dropzone-starfield {
+        .landing-atmosphere > canvas.dropzone-starfield {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
-            border-radius: 14px; /* slightly inside the 16px parent radius */
+            opacity: .7;
             pointer-events: none;
         }
         .landing-logo {
@@ -984,7 +987,8 @@
             display: block;
         }
 
-        /* Offset grid: Original left-half, Edit A top-right, Edit B bottom-right */
+        /* Offset grid: the first visible asset spans the left side; the next
+           two fill the right. positionLabelsToMedia owns those cell positions. */
         body.offset .asset-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -1007,9 +1011,8 @@
             align-items: stretch;
             justify-items: stretch;
         }
-        body.inline-cols #layerOriginal { grid-column: 1; grid-row: 1; }
-        body.inline-cols #layerEditA   { grid-column: 2; grid-row: 1; }
-        body.inline-cols #layerEditB   { grid-column: 3; grid-row: 1; }
+        /* Inline cells flow in DOM/asset order, skipping hidden slots. Fixed
+           slot coordinates would let slot 4 fill a hidden earlier slot's gap. */
 
         body.inline-rows .asset-container {
             display: grid;
@@ -1021,9 +1024,6 @@
             align-items: stretch;
             justify-items: stretch;
         }
-        body.inline-rows #layerOriginal { grid-column: 1; grid-row: 1; }
-        body.inline-rows #layerEditA   { grid-column: 1; grid-row: 2; }
-        body.inline-rows #layerEditB   { grid-column: 1; grid-row: 3; }
 
         /* Four-input Inline layout: an equal-weight 2×2 grid. The initial 1fr
            tracks are a safe pre-layout fallback; positionLabelsToMedia replaces
@@ -1081,21 +1081,6 @@
             max-width: none;
             max-height: none;
             object-fit: contain;
-        }
-
-        body.offset #layerOriginal {
-            grid-column: 1;
-            grid-row: 1 / 3;
-        }
-
-        body.offset #layerEditA {
-            grid-column: 2;
-            grid-row: 1;
-        }
-
-        body.offset #layerEditB {
-            grid-column: 2;
-            grid-row: 2;
         }
 
         /* fit-cover toggles */
@@ -3334,6 +3319,126 @@
         body.managed-review .asset-name, body.managed-review .asset-btn { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         body.managed-review .audio-source-selector { flex-wrap:wrap; }
         body.managed-review .audio-source-selector button { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+        /* Appearances: decoration belongs to the landing screen, never media layers. */
+        body { --appearance-accent: #bcbcbc; --appearance-rgb: 188,188,188; }
+        body[data-appearance="starfield"] { --appearance-accent: #a4c8f4; --appearance-rgb: 164,200,244; }
+        body[data-appearance="solar"] { --appearance-accent: #f0ae48; --appearance-rgb: 240,174,72; }
+        body[data-appearance="nebula"] { --appearance-accent: #c5a2f3; --appearance-rgb: 197,162,243; }
+        body[data-appearance="glacier"] { --appearance-accent: #87cddd; --appearance-rgb: 135,205,221; }
+        #appearanceButton { margin-left: auto; flex: 0 0 auto; display: flex; align-items: center; gap: 7px;
+            color: var(--appearance-accent); background: transparent; border: 1px solid transparent;
+            border-radius: 6px; padding: 4px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+        #appearanceButton:hover, #appearanceButton[aria-expanded="true"] { background: #252525; border-color: #444; }
+        #appearanceButton svg { width: 18px; height: 18px; }
+        body:has(#comparisonView.active) #appearanceLabel { display: none; }
+        #appearancePanel[hidden], #usageInvitation[hidden], #usageTestNotice[hidden], #usageTestStats[hidden] { display: none; }
+        #appearancePanel { position: fixed; top: 52px; right: 14px; z-index: 1100; width: min(340px, calc(100vw - 28px));
+            max-height: calc(100dvh - 72px); overflow: auto; padding: 20px; border-radius: 14px;
+            border: 1px solid #414141; background: #181818; box-shadow: 0 12px 48px #000a; font-size: 12px; line-height: 1.55; }
+        .appearance-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .appearance-heading h2 { font-size: 15px; font-weight: 600; }
+        #appearanceClose { border: 0; background: transparent; color: #aaa; cursor: pointer; padding: 4px 8px; font-size: 18px; }
+        .appearance-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .appearance-choice { position: relative; padding: 12px; border: 1px solid #3d3d3d; border-radius: 9px;
+            background: #202020; color: #ddd; text-align: left; cursor: pointer; font: inherit; }
+        .appearance-choice[aria-pressed="true"] { border-color: var(--appearance-accent); background: rgba(var(--appearance-rgb),.09); }
+        .appearance-choice[aria-pressed="true"]::after { content: '✓'; position: absolute; right: 10px; color: var(--appearance-accent); }
+        .appearance-swatch { display: inline-block; vertical-align: -2px; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px;
+            background: var(--swatch); box-shadow: 0 0 12px color-mix(in srgb, var(--swatch) 25%, transparent); }
+        .appearance-note { color: #aaa; font-size: 11px; }
+        .appearance-section { border-top: 1px solid #333; margin-top: 18px; padding-top: 16px; }
+        .usage-section h3, .appearance-section h3 { font-size: 13px; margin-bottom: 7px; }
+        .usage-section p { margin-bottom: 10px; color: #bbb; }
+        #usageDisclosure { margin-bottom: 12px; }
+        #usageDisclosure summary { cursor: pointer; color: var(--appearance-accent); margin-bottom: 10px; }
+        #usageDisclosure summary:focus-visible { outline: 2px solid var(--appearance-accent); outline-offset: 3px; }
+        .usage-section a { color: var(--appearance-accent); }
+        .usage-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .usage-actions button { border: 1px solid #555; border-radius: 6px; background: #262626; color: #eee; padding: 7px 11px; cursor: pointer; font: inherit; }
+        .usage-actions button[aria-pressed="true"] { border-color: var(--appearance-accent); }
+        .usage-actions button:disabled { opacity: .45; cursor: default; }
+        #appearancePanel button:focus-visible, #appearanceButton:focus-visible, #usageInvitation button:focus-visible {
+            outline: 2px solid var(--appearance-accent); outline-offset: 3px; }
+        #usageStatus { margin-top: 10px; font-size: 11px; color: #bbb; }
+        #usageTestNotice { color: #edc276; border: 1px solid #65512f; padding: 8px; border-radius: 5px; }
+        #usageTestStats { margin-top: 10px; font-size: 11px; }
+        .landing-cta { position: relative; isolation: isolate; }
+        .landing-atmosphere { display: none; position: absolute; pointer-events: none; z-index: -1;
+            width: min(1040px, 140vw); height: min(660px, 85vh); left: 50%; top: calc(50% - 35px); transform: translate(-50%,-50%); }
+        body:is([data-appearance="starfield"],[data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .landing-atmosphere { display: block; }
+        body:is([data-appearance="starfield"],[data-appearance="nebula"]) .appearance-stars { display: none; }
+        .nebula-galaxy { display: none; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        body[data-appearance="nebula"] .nebula-galaxy { display: block; }
+        body[data-appearance="starfield"] .landing-atmosphere { width: min(1250px, 168vw); }
+        body:is([data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .landing-dropzone {
+            background: radial-gradient(ellipse at center, rgba(var(--appearance-rgb),.065), transparent 65%), #090909;
+            box-shadow: 0 0 65px rgba(var(--appearance-rgb),.025); }
+        body:is([data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .landing-dropzone::before {
+            background: linear-gradient(125deg, rgba(var(--appearance-rgb),.95), rgba(var(--appearance-rgb),.45), rgba(var(--appearance-rgb),.9));
+            padding: 1px; animation: none; }
+        .appearance-logo { display: none; position: absolute; width: 64px; height: 64px; background: var(--appearance-accent);
+            mask: url('WarpDiff_Logo_v1.png') center / contain no-repeat; -webkit-mask: url('WarpDiff_Logo_v1.png') center / contain no-repeat; }
+        body:is([data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .appearance-logo { display: block; }
+        body:is([data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .landing-logo { opacity: 0; }
+        .landing-cta.loading .appearance-logo { width: 96px; height: 96px; }
+        .header-brand-mark { display: inline-block; width: 22px; height: 22px; background: url('WarpDiff_Logo_v1.png') center / contain no-repeat; }
+        body:is([data-appearance="solar"],[data-appearance="nebula"],[data-appearance="glacier"]) .header-brand-mark {
+            background: var(--appearance-accent); mask: url('WarpDiff_Logo_v1.png') center / contain no-repeat;
+            -webkit-mask: url('WarpDiff_Logo_v1.png') center / contain no-repeat; }
+        body:not([data-appearance="original"]) .landing-title { color: #ddd; text-shadow: 0 0 6px #080808, 0 0 12px #080808; }
+        body:not([data-appearance="original"]) .landing-hints { color: #999; text-shadow: 0 0 6px #080808; }
+        body:is([data-appearance="starfield"],[data-appearance="nebula"],[data-appearance="glacier"]) .landing-atmosphere {
+            mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%); }
+        .solar-orbit { display: none; position: absolute; width: 91%; height: 43%; left: 4.5%; top: 28.5%;
+            border: 1px solid rgba(240,174,72,.21); border-radius: 50%; transform: rotate(-18deg); }
+        .solar-body { position: absolute; left: 0; top: 0; width: 4px; height: 4px; border-radius: 50%;
+            background: #f0ae48; box-shadow: 0 0 8px #f0ae4880; offset-path: var(--solar-path);
+            offset-rotate: 0deg; offset-distance: 0%; animation: solar-body 60s linear infinite; }
+        .solar-body.secondary { width: 2px; height: 2px; offset-distance: 50%; animation-delay: -30s; }
+        .solar-orbit.inner { width: 76%; height: 34%; left: 12%; top: 33%; border-color: rgba(240,174,72,.12); }
+        .solar-orbit.inner .solar-body { animation-duration: 90s; offset-distance: 25%; animation-delay: -22.5s; }
+        .solar-orbit.inner .solar-body.secondary { offset-distance: 75%; animation-delay: -67.5s; }
+        body[data-appearance="solar"] .solar-orbit { display: block; }
+        body[data-appearance="solar"] .landing-atmosphere { background: radial-gradient(ellipse at center, #f0a03008, transparent 55%); }
+        body[data-appearance="nebula"] .landing-atmosphere { background:
+            radial-gradient(ellipse at 28% 35%, #7d409d2e, transparent 40%),
+            radial-gradient(ellipse at 73% 39%, #4248ae24, transparent 37%),
+            radial-gradient(ellipse at 52% 67%, #7548ae18, transparent 42%); }
+        body[data-appearance="glacier"] .landing-atmosphere { background:
+            radial-gradient(ellipse at 33% 42%, #4797b51c, transparent 44%),
+            radial-gradient(ellipse at 68% 55%, #739fd211, transparent 38%); }
+        .appearance-stars { position: absolute; inset: 0; color: var(--appearance-accent); }
+        .appearance-stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: currentColor; opacity: .65; box-shadow: 0 0 6px currentColor; }
+        .appearance-stars i:nth-child(1) { left: 17%; top: 24%; }
+        .appearance-stars i:nth-child(2) { left: 24%; top: 72%; width: 1px; height: 1px; }
+        .appearance-stars i:nth-child(3) { left: 85%; top: 39%; }
+        .appearance-stars i:nth-child(4) { left: 72%; top: 80%; }
+        .appearance-stars i:nth-child(5) { left: 65%; top: 13%; width: 1px; height: 1px; }
+        @keyframes solar-body { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+        body.appearance-paused .solar-body, .landing-cta.hidden .solar-body { animation-play-state: paused; }
+        #usageInvitation { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); width: min(480px, calc(100% - 32px));
+            background: #181818; border: 1px solid #383838; border-radius: 10px; padding: 14px 16px; font-size: 12px; line-height: 1.5; }
+        #usageInvitation p { color: #aaa; margin: 5px 0 10px; }
+        #usageDetails { background: none; border: 0; color: var(--appearance-accent); text-decoration: underline; cursor: pointer; font: inherit; }
+        #usageInvitation .usage-actions { justify-content: flex-end; }
+        body:has(#appearancePanel:not([hidden])) #usageInvitation { visibility: hidden; }
+        body.managed-review #appearanceButton, body.managed-review #appearancePanel,
+        body.managed-review #usageInvitation, body.managed-review .landing-atmosphere { display: none; }
+        @media (max-width: 700px) { #appearanceLabel { display: none; } }
+        @media (max-width: 600px) {
+            /* Keep privacy reachable during review even when tool strips need
+               another row. The layout owner reads the resulting header height. */
+            .header { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+            #headerRight { max-width: 100%; overflow-x: auto; }
+            #appearanceButton { margin-left: auto; }
+        }
+        @media (max-height: 650px) { #usageInvitation { position: fixed; bottom: 10px; font-size: 11px; }
+            #usageInvitation p { margin: 2px 0 6px; } }
+        @media (prefers-reduced-motion: reduce) {
+            .solar-body, .landing-dropzone::before, .landing-cta.loading .landing-logo { animation: none; }
+        }
     </style>
 </head>
 <body>
@@ -3341,7 +3446,7 @@
         <div class="header">
             <div id="sihAccentBar"></div>
             <div id="headerLeft" style="position: relative;">
-                <img src="WarpDiff_Logo_v1.png" alt="" style="width: 22px; height: 22px;"><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
+                <span class="header-brand-mark" aria-hidden="true"></span><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
                 <button class="analysis-btn" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" title="Load files (L)" style="margin-left: 12px;"></button>
                 <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button class="analysis-btn" onclick="resetAll()" style="display: none;" id="resetBtn" title="Reset"></button>
@@ -3404,17 +3509,27 @@
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
             </div><!-- /headerRight -->
+            <button id="appearanceButton" type="button" aria-label="Appearance and privacy" title="Appearance and privacy" aria-expanded="false" aria-controls="appearancePanel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+                <span id="appearanceLabel">Original</span><span aria-hidden="true">⌄</span>
+            </button>
         </div>
 
         <div class="landing-cta" id="landingCta">
+            <div class="landing-atmosphere" aria-hidden="true"><canvas class="nebula-galaxy" id="nebulaGalaxy"></canvas><canvas class="dropzone-starfield" id="dropzoneStarfield"></canvas><div class="solar-orbit"><i class="solar-body"></i><i class="solar-body secondary"></i></div><div class="solar-orbit inner"><i class="solar-body"></i><i class="solar-body secondary"></i></div><div class="appearance-stars"><i></i><i></i><i></i><i></i><i></i></div></div>
             <div class="landing-dropzone">
-                <canvas class="dropzone-starfield" id="dropzoneStarfield"></canvas>
-                <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo">
+                <img src="WarpDiff_Logo_v1.png" alt="" class="landing-logo"><span class="appearance-logo" aria-hidden="true"></span>
             </div>
             <div class="landing-title">Drop 1–4 files to review</div>
             <div class="landing-hints">
                 <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
             </div>
+            <aside id="usageInvitation" hidden aria-label="Optional usage sharing">
+                <strong id="usageInvitationTitle">Help shape WarpDiff</strong><span id="usageInvitationTest" hidden> · Local test only</span>
+                <p id="usageConsentReview" hidden>Please review the current details. Sharing is paused until you agree again.</p>
+                <p>Help improve WarpDiff with optional counts of visits, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way. <button type="button" id="usageDetails">What’s shared and who receives it</button></p>
+                <div class="usage-actions"><button type="button" data-usage-choice="no">No thanks</button><button type="button" data-usage-choice="yes">Share usage counts</button></div>
+            </aside>
             <div class="landing-status" id="landingStatus" role="status" aria-live="polite">Loading…</div>
         </div>
 
@@ -3632,6 +3747,23 @@
         </div>
     </div>
 
+    <script>
+        // Bind this document's disclosure to its exact collector. If loading or
+        // integrity validation fails, the rest of WarpDiff keeps working quietly.
+        const _USAGE_DOCUMENT_CONTRACT = '3.18.12/scope-4';
+        var _usage = Object.freeze({
+            setup() {
+                document.getElementById('usageInvitation').hidden = true;
+                document.querySelectorAll('[data-usage-choice]').forEach(button => { button.disabled = true; });
+                document.getElementById('usageStatus').textContent = 'Usage sharing is unavailable because its update is incomplete. Nothing is reported. Reload when online to try again.';
+            },
+            beginLoad() {}, comparisonReady() {}, feature() {}, scrub() {},
+            startOperation() { return null; }, outcome() {}, slotState() {},
+            resetComparison() {}, enterStandalone() {}, hostLaunch() {}, epoch: 0
+        });
+    </script>
+    <script src="js/usage.js" integrity="sha256-D9dsUTie8UWB9gfEf84gTtysJGT1vFfXMUuzNYbjglE="></script>
+    <script src="js/appearance.js"></script>
     <script src="js/audio-viz.js"></script>
     <script src="js/audio-analysis.js"></script>
     <script src="js/scopes.js"></script>
@@ -3652,7 +3784,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.17.8';
+        const APP_VERSION = '3.18.12';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3662,7 +3794,6 @@
         }
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
-        if (!localStorage.getItem('starfieldOn')) document.querySelector('.landing-dropzone').classList.add('starfield-off');
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
         // Append the deployed commit hash. version.json carries Jekyll front
         // matter, so GitHub Pages substitutes {{ site.github.build_revision }}
@@ -4105,6 +4236,7 @@
                 showToast('Out: ' + formatLoopTime(t));
             }
             if (_loopInPoint !== null && _loopOutPoint !== null) {
+                _usage.feature('loop');
                 _applyNativeLoopPolicy();
                 // Start frame-accurate RVFC loop detection if a video is already playing
                 if (primaryVideoRef && !primaryVideoRef.paused) _startLoopRvfc(primaryVideoRef);
@@ -4537,6 +4669,7 @@
         let _magnifierHintShown = false;
         function toggleMagnifier() {
             magnifierEnabled = !magnifierEnabled;
+            if (magnifierEnabled) _usage.feature('loupe');
             const el = document.getElementById('pixelMagnifier');
             if (magnifierEnabled) {
                 document.body.classList.add('magnifier-active');
@@ -5358,11 +5491,14 @@
 
             const PERIOD = 6000; // ms — full 1500→10000→1500 K sweep
             let _rafId = null;
+            const _logoReducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
             function _tick(ts) {
                 const cta  = document.getElementById('landingCta');
                 const logo = cta && cta.querySelector('.landing-logo');
-                if (!cta || !logo || cta.classList.contains('hidden')) {
+                if (!cta || !logo || cta.classList.contains('hidden') || document.hidden || _logoReducedMotion.matches ||
+                    (document.body.dataset.appearance && !['original', 'starfield'].includes(document.body.dataset.appearance))) {
+                    if (logo) { logo.style.filter = ''; logo.style.transform = ''; }
                     _rafId = null; return;
                 }
                 if (cta.classList.contains('loading')) {
@@ -5386,6 +5522,10 @@
                 _rafId = requestAnimationFrame(_tick);
             }
 
+            document.addEventListener('warpdiff-appearance-change', _start);
+            document.addEventListener('visibilitychange', _start);
+            _logoReducedMotion.addEventListener('change', _start);
+            new MutationObserver(_start).observe(document.getElementById('landingCta'), { attributes: true, attributeFilter: ['class'] });
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', _start);
             } else {
@@ -5500,6 +5640,8 @@
         }
 
         function _beginLoadingProgress(assignments, assetType, cancelable) {
+            const usageTypes = assignments.map(({ file }) => ['image', 'video', 'audio'].find(type => (file.type || '').startsWith(type + '/')));
+            _usage.beginLoad(usageTypes.every(type => type === usageTypes[0]) ? usageTypes[0] : 'mixed', assignments.length);
             clearInterval(_loadingProgressTimer);
             _loadingProgressToken = {};
             _loadingProgressAssetType = assetType;
@@ -5527,6 +5669,7 @@
         }
 
         function _setLoadingSlotState(slot, state, kind = 'working') {
+            _usage.slotState(slot, kind);
             const item = _loadingProgressItems.find(entry => entry.slot === slot);
             if (!item) return;
             item.state = state;
@@ -5639,6 +5782,7 @@
         }
 
         function _hostLoadBegin(event) {
+            _usage.hostLaunch(); // Disable reporting before any host negotiation or media work.
             if (_hostLoadAbortController) _hostLoadAbortController.abort();
             _hostLoadAbortController = new AbortController();
             const request = {
@@ -5841,6 +5985,7 @@
             };
             const assignedSlots = loadSlots[sortedFiles.length];
             const assignments = sortedFiles.map((file, i) => ({ slot: assignedSlots[i], file }));
+            if (!(opts && (opts.loadGeneration || opts.skipToast))) _usage.enterStandalone();
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
 
             // Check if any two files have near-identical timestamps (within 2 s).
@@ -6999,7 +7144,7 @@
             });
         })();
 
-        function toggleAudioViz() {
+        function toggleAudioViz(userInitiated = true) {
             // N mode and W panel are mutually exclusive — opening W exits N mode first
             if (!audioVizVisible && _noVideoMode) {
                 _noVideoHidWPanel = false; // prevent N-exit from re-closing W
@@ -7010,6 +7155,7 @@
             const controls = document.getElementById('videoControls');
 
             audioVizVisible = !audioVizVisible;
+            if (audioVizVisible && userInitiated) _usage.feature('audio-viz');
             if (audioVizVisible) {
                 if (panel) panel.classList.add('active');
                 _applyAudioVizLayout(false); // set row heights before transition plays
@@ -7274,7 +7420,7 @@
                 // W panel and N mode are mutually exclusive — auto-close W when entering N
                 if (audioVizVisible) {
                     _noVideoHidWPanel = true;
-                    toggleAudioViz();
+                    toggleAudioViz(false);
                 }
                 _noVideoLayoutSnapshot = { isGridMode, layoutMode };
                 document.body.classList.add('no-video');
@@ -7307,7 +7453,7 @@
                 // Restore W panel if it was open before N mode was entered
                 if (_noVideoHidWPanel) {
                     _noVideoHidWPanel = false;
-                    toggleAudioViz();
+                    toggleAudioViz(false);
                 }
             }
             _syncAudioVizLevelButtons();
@@ -7588,6 +7734,7 @@
                 if (_wipeMode) _setWipeMode(false, false);
                 if (magnifierEnabled) toggleMagnifier();
                 _tileCheckMode = true;
+                _usage.feature('tile-check');
                 const activeSlot = assetOrder[currentAssetIndex];
                 _tileCheckSlot = slots.includes(activeSlot) ? activeSlot : slots[0];
             } else {
@@ -7761,6 +7908,7 @@
             if (enabled && _wipeMode) _setWipeMode(false, false);
             if (enabled && _tileCheckMode) _setTileCheckMode(false, false);
             _diffMode = enabled;
+            if (enabled) _usage.feature('difference');
             const pairs = _getDiffPairs();
             if (_diffMode) {
                 _ensureDiffCanvas();
@@ -7793,6 +7941,7 @@
 
         function toggleVideoScopes() {
             videoScopesVisible = !videoScopesVisible;
+            if (videoScopesVisible) _usage.feature('scopes');
             _prefs.save('videoScopesVisible', videoScopesVisible);
             const panel = document.getElementById('scopesPanel');
             if (panel) panel.classList.toggle('active', videoScopesVisible);
@@ -8366,7 +8515,7 @@
             audio.src = blobUrl;
             audio.controls = false;
             audio.loop = true;
-            audio.volume = _prefs.load('volume', 100) / 100;
+            _setMediaVolume(audio, _prefs.load('volume', 100) / 100);
             audio.style.display = 'none';
             mediaContainer.appendChild(audio);
 
@@ -8459,7 +8608,7 @@
             video.dataset.slot = slot;
             video.src = blobUrl;
             video.controls = false;
-            video.volume = _prefs.load('volume', 100) / 100;
+            _setMediaVolume(video, _prefs.load('volume', 100) / 100);
 
             video.addEventListener('loadedmetadata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
@@ -8935,7 +9084,7 @@
         function setVolume(value) {
             const volume = value / 100;
             document.querySelectorAll('.asset-layer video, .asset-layer audio').forEach(v => {
-                v.volume = volume;
+                _setMediaVolume(v, volume);
             });
             _prefs.save('volume', Number(value));
             _updateOpusSyncGains();
@@ -9326,13 +9475,16 @@
                 // Stack mode drag: reactive seek — only issue next seek after previous decode
                 // completes (via 'seeked' event). Fixes scrubbing for videos with infrequent
                 // keyframes where decode takes longer than a fixed throttle interval.
-                // Grid mode and mouseup use the fixed-throttle path for multi-video sync.
+                // Safari uses a per-video reactive owner in both modes; other
+                // Grid browsers and mouseup use the fixed-throttle path.
                 const now = performance.now();
                 if (isDragging) _scrubOverlayRequestAll(t, !_scrubDragMoved); // paints all live overlays; records t (direct until the pointer actually drags)
                 if (!isGridMode && isDragging && _scrubOverlayEffective(video)) {
                     // WebCodecs overlay is painting decoded frames — skip <video>
                     // seeks during the drag (they'd compete for the hardware
                     // decoder); the final position is seeked on mouseup.
+                } else if (_queueNativeScrubSeek(video, t)) {
+                    // Native Safari seeks are serialized by js/transport.js.
                 } else if (!isGridMode && isDragging) {
                     _scrubNextTime = t;
                     if (!_scrubSeekPending) {
@@ -9354,7 +9506,7 @@
                     // Stack mode: inactive videos are hidden — skip their seeks during drag.
                     // Grid mode: throttle inactive seeks to ~100ms; all synced on mouseup.
                     const seekInactive = !isDragging ||
-                        (isGridMode && now - _inactiveLastSeekTime >= 100);
+                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
                     if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
                     for (let i = 0; i < _scrubAllVideos.length; i++) {
                         const v = _scrubAllVideos[i];
@@ -9362,7 +9514,8 @@
                             if (!seekInactive) continue;
                             if (isDragging && _scrubOverlayEffective(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
-                            v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
                         }
                     }
                 }
@@ -9415,6 +9568,8 @@
                 if (!isGridMode && isDragging && _scrubOverlayEffective(media)) {
                     // WebCodecs overlay is painting — skip <video> seeks (see
                     // scrubToPosition); final position seeked on mouseup.
+                } else if (_queueNativeScrubSeek(media, t)) {
+                    // Shares the timeline's per-video native Safari seek owner.
                 } else if (!isGridMode && isDragging) {
                     _scrubNextTime = t;
                     if (!_scrubSeekPending) {
@@ -9434,7 +9589,7 @@
                 }
                 if (_scrubAllVideos) {
                     const seekInactive = !isDragging ||
-                        (isGridMode && now - _inactiveLastSeekTime >= 100);
+                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
                     if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
                     for (let i = 0; i < _scrubAllVideos.length; i++) {
                         const v = _scrubAllVideos[i];
@@ -9442,7 +9597,8 @@
                             if (!seekInactive) continue;
                             if (isDragging && _scrubOverlayEffective(v)) continue;
                             const vfps = videoFrameRates[v.src] || 30;
-                            v.currentTime = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
                         }
                     }
                 }
@@ -9483,7 +9639,6 @@
                 _resetFrameStepCursor();
                 if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
                 _cancelPendingPlayIntent();
-                _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
                 // A mousedown while "dragging" means the previous drag's mouseup
                 // was lost — finalize it (restores muted states, suspends
@@ -9529,6 +9684,7 @@
                     wasPlaying = !_scrubVideo.paused;
                     if (wasPlaying) pauseAllMedia();
                 }
+                _primeScrubAudioContext();
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
                 // Play and Restart restore looping through _preparePlaybackStart().
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
@@ -9553,6 +9709,7 @@
             let _draggingLoopMarker = null; // 'in' or 'out' during loop marker drag
 
             function _cancelScrubForMediaClear() {
+                _cancelNativeScrubSeeks();
                 if (!isDragging) return;
                 // A media/task boundary owns cancellation, never finalization:
                 // do not seek from the old pointer and do not carry the old
@@ -9582,7 +9739,6 @@
                 _resetFrameStepCursor();
                 if (_isSoloPlayback()) _setSoloHeldTimelineTime(null);
                 _cancelPendingPlayIntent();
-                _primeScrubAudioContext();
                 e.preventDefault(); // prevent default drag/selection behavior from trackpad taps
 
                 // A mousedown while "dragging" means the previous drag's mouseup
@@ -9639,6 +9795,7 @@
                     wasPlaying = !_scrubVideo.paused;
                     if (wasPlaying) pauseAllMedia();
                 }
+                _primeScrubAudioContext();
                 // Disable loop during scrub so seeking near the end can't wrap to 0.
                 // Play and Restart restore looping through _preparePlaybackStart().
                 if (_scrubAllVideos) _scrubAllVideos.forEach(v => v.loop = false);
@@ -9740,6 +9897,19 @@
             // position-dependent seeks and settle on the last scrubbed time.
             function endScrubDrag(e) {
                 if (!isDragging) return;
+                _cancelNativeScrubSeeks(); // retire queued targets before the final pointer seek
+                // One completed gesture, never seeks, frames or recovery/cancel.
+                if (e && _scrubDragMoved && !_draggingLoopMarker && _regionSelectStart === null &&
+                    _scrubVideo && Number.isFinite(_scrubVideo.duration)) {
+                    let surface = 'timeline';
+                    if (_scrubCanvas) {
+                        const rect = _scrubCanvas.getBoundingClientRect();
+                        surface = _scrubCanvas.id === 'spectrogramCanvas' ||
+                            (_scrubCanvas.classList.contains('audio-viz-slot-canvas') &&
+                                _scrubDownY - rect.top >= rect.height * 0.4) ? 'spectrogram' : 'waveform';
+                    }
+                    _usage.scrub(surface);
+                }
                 {
                     isDragging = false;
                     if (_draggingLoopMarker) {
@@ -9764,6 +9934,7 @@
                             _applyNativeLoopPolicy();
                             if (_scrubCanvas) redrawAudioSlotCanvases();
                             if (_loopInPoint !== null) {
+                                _usage.feature('loop');
                                 showToast('Loop: ' + formatLoopTime(_loopInPoint) + ' → ' + formatLoopTime(_loopOutPoint));
                             }
                         }
@@ -9836,6 +10007,18 @@
             // Alt-Tab / focus loss mid-drag: the mouseup is delivered to another
             // window (or nowhere) — finalize immediately.
             window.addEventListener('blur', () => endScrubDrag(null));
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) return;
+                // A suspended page's rAF can resume much later. Retire the old
+                // gesture and its play intent before that callback can run.
+                const interruptedDrag = isDragging;
+                _scrubGestureGeneration++;
+                wasPlaying = false;
+                endScrubDrag(null);
+                _setScrubPreviewOutput('pause'); // settle a released gesture's pending output fade too
+                _cancelNativeScrubSeeks();
+                if (interruptedDrag) _cancelPendingPlayIntent();
+            });
         });
 
         // Browser fullscreen change handler — recalculates layout when chrome disappears/reappears.
@@ -10749,12 +10932,14 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _usage.resetComparison(); // invalidate pending usage readiness → js/usage.js
             _resolveVideoProgressTime(null);
             _loadingProgressToken = null;
             hideLoading();
             _scrubGestureGeneration++;
             _cancelActiveScrubForClear();
             const scrubRetired = _resetContinuousScrub();
+            _setScrubPreviewOutput('clear'); // Safari preview sink → js/scrub-audio.js
             const playbackRetired = _slowPlayback.clear();
             _scrubAtTimelineEnd = false;
             // Restore the active label while the loaded-slot context still exists.
@@ -11239,6 +11424,7 @@
             const isTripartite = isTripartiteMode();
             const isQuad = isQuadMode();
             const isEqualLayout = isInlineMode();
+            const isOffset = isTripartite && !isEqualLayout;
             // Reset video controls position when not in vertical-stack (CSS takes over)
             if (!isVertical) {
                 const controls = document.querySelector('.video-controls');
@@ -11248,9 +11434,15 @@
             // Always clear stale inline width/height overrides before measuring.
             // A previous tripartite layout (inline-cols/rows/offset) may have set explicit
             // px values that corrupt cw/ch when switching to a 2-asset layout.
-            slots.forEach(slot => {
+            slots.forEach((slot, index) => {
                 const l = getLayer(slot);
-                if (l) { l.style.width = ''; l.style.height = ''; l.style.marginTop = ''; }
+                if (l) {
+                    l.style.width = ''; l.style.height = ''; l.style.marginTop = '';
+                    // Offset roles follow visible order. Clear them for Inline,
+                    // including a return to four cells, so normal DOM order wins.
+                    l.style.gridColumn = isOffset ? (index === 0 ? '1' : '2') : '';
+                    l.style.gridRow = isOffset ? (index === 0 ? '1 / 3' : String(index)) : '';
+                }
             });
             // Always clear gridTemplateRows/Columns before measuring so cells revert to
             // CSS-driven dimensions. Offset mode re-sets both after computing content sizes.
@@ -11407,11 +11599,14 @@
                         const ratios = {};
                         loadedSlots.forEach(s => { ratios[s] = gridLayout[s].nw / gridLayout[s].nh; });
 
-                        const dRef = gridLayout['original'];
-                        const dA   = gridLayout['editA'];
-                        const dB   = gridLayout['editB'];
-                        const rA     = dA ? ratios['editA'] : 1;
-                        const rB     = dB ? ratios['editB'] : 1;
+                        // Ref/A/B are layout roles, assigned to the three visible
+                        // slots in asset order, even when an earlier slot is hidden.
+                        const [refSlot, aSlot, bSlot] = slots;
+                        const dRef = gridLayout[refSlot];
+                        const dA   = gridLayout[aSlot];
+                        const dB   = gridLayout[bSlot];
+                        const rA     = dA ? ratios[aSlot] : 1;
+                        const rB     = dB ? ratios[bSlot] : 1;
 
                         // Use the actual grid container dimensions rather than viewport math.
                         // After the first layout pass the grid tracks are fixed-px, so
@@ -11428,7 +11623,7 @@
                         let fitArea = Infinity;
                         if (dA && dB) {
                             // Width: √T·(√rRef + max(√rA,√rB)) ≤ offAvailW − 4 (col gap)
-                            const sqrtRRef = dRef ? Math.sqrt(ratios['original']) : 0;
+                            const sqrtRRef = dRef ? Math.sqrt(ratios[refSlot]) : 0;
                             const aFromW = Math.pow((offAvailW - 4) / (sqrtRRef + Math.sqrt(Math.max(rA, rB))), 2);
                             // Height (right col): √T·(1/√rA + 1/√rB) ≤ offAvailH − ibA − ibB − 4
                             const sumInvSqrtR = 1 / Math.sqrt(rA) + 1 / Math.sqrt(rB);
@@ -11456,7 +11651,7 @@
                         if (splitZoomLevel !== 1) {
                             if (dA && dB) {
                                 const projRightH = Math.sqrt(targetArea / rA) + Math.sqrt(targetArea / rB) + offIbA + offIbB + 4;
-                                const projGridW  = (dRef ? Math.sqrt(targetArea * ratios['original']) : 0)
+                                const projGridW  = (dRef ? Math.sqrt(targetArea * ratios[refSlot]) : 0)
                                                  + Math.max(Math.sqrt(targetArea * rA), Math.sqrt(targetArea * rB)) + 8;
                                 if (projRightH > offAvailH + 1 || projGridW > offAvailW) clamped = true;
                             } else {
@@ -11496,11 +11691,11 @@
                         slots.forEach(s => {
                             const d = gridLayout[s];
                             if (!d) return;
-                            d._ty = s === 'original'
+                            d._ty = s === refSlot
                                 ? Math.max(d.ibH || 0, Math.round((d.ch - d.rh) / 2))
                                 : d.ibH || 0;
                             // Ref flush-right in left column, A/B flush-left in right column (2px each = 4px gap)
-                            d._tx = s === 'original'
+                            d._tx = s === refSlot
                                 ? Math.max(0, Math.round(d.cw - d.rw) - 2)
                                 : Math.min(2, Math.round(d.cw - d.rw));
                         });
@@ -12188,6 +12383,12 @@
 
         const splitModeClasses = ['side-by-side', 'vertical-stack', 'offset', 'inline-cols', 'inline-rows', 'quad-grid', 'grid-mode', 'two-asset', 'four-asset', 'single-asset', 'zoom-100'];
 
+        // Only explicit layout controls use this wrapper; restoration/resizing stays uncounted.
+        function _setUserViewMode(mode) {
+            setViewMode(mode);
+            _usage.feature(isGridMode ? 'grid' : 'stack');
+        }
+
         function setViewMode(mode) {
             if (_tileCheckMode) _setTileCheckMode(false, false);
             // Update view mode
@@ -12453,14 +12654,14 @@
             const gridIconBtn = document.getElementById('gridIconBtn');
             if (stackIconBtn) {
                 stackIconBtn.classList.toggle('active', normalised === 'overlay');
-                stackIconBtn.onclick = () => { setViewMode('overlay'); stackIconBtn.blur(); };
+                stackIconBtn.onclick = () => { _setUserViewMode('overlay'); stackIconBtn.blur(); };
             }
             if (gridIconBtn) {
                 gridIconBtn.classList.toggle('active', normalised !== 'overlay');
                 gridIconBtn.onclick = () => {
                     const count = getVisibleSlots().length;
                     const gm = hasAudios ? 'vertical' : count === 4 ? 'quad' : count === 3 ? 'offset' : (layoutMode || 'horizontal');
-                    setViewMode(gm);
+                    _setUserViewMode(gm);
                     gridIconBtn.blur();
                 };
             }
@@ -12762,6 +12963,7 @@
                     .filter(Boolean);
 
                 const activationGeneration = _viewLoadGeneration;
+                const activationUsageEpoch = _usage.epoch;
                 function startFadeIn() {
                     if (activationGeneration !== _viewLoadGeneration) return;
                     hideLoading();
@@ -12782,6 +12984,10 @@
                     // Host readiness means the complete media batch reached the
                     // same first-frame boundary used by the visible UI.
                     _hostLoadReady(activationGeneration);
+                    // Count this ready batch once; no media identity enters the adapter.
+                    _usage.comparisonReady(activationUsageEpoch, assetOrder
+                        .filter(slot => mediaData[slot])
+                        .map(slot => mediaData[slot]._videoLoadFailed ? 'failed' : mediaData[slot].type));
                     // Wait for positionLabelsToMedia to commit wrapper dimensions before
                     // revealing layers. Without this guard a race between startFadeIn's
                     // rAF chain and the layout rAF chain can make layers briefly visible
@@ -13072,18 +13278,18 @@
         // Actions with `paired` share a row in the panel (e.g. frame back/forward).
         function _toggleStackGridMode() {
             if (isGridMode) {
-                setViewMode('overlay');
+                _setUserViewMode('overlay');
                 return;
             }
             const visibleCount = getVisibleSlots().length;
             if (hasAudios) {
-                setViewMode('vertical');
+                _setUserViewMode('vertical');
             } else if (visibleCount === 4) {
-                setViewMode('quad');
+                _setUserViewMode('quad');
             } else if (visibleCount === 3) {
-                setViewMode('offset');
+                _setUserViewMode('offset');
             } else {
-                setViewMode(layoutMode);
+                _setUserViewMode(layoutMode);
             }
         }
 
@@ -13123,15 +13329,6 @@
               fn: () => {
                   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
                   else document.exitFullscreen();
-              } },
-            { id: 'toggleStarfield', managed: false, defaultKey: 'x', label: 'Ad Astra', section: 'view', global: true, hidden: true,
-              fn: () => {
-                  const dz = document.querySelector('.landing-dropzone');
-                  if (!dz) return;
-                  const off = dz.classList.toggle('starfield-off');
-                  if (window._starfieldSetVisible) window._starfieldSetVisible(!off);
-                  localStorage.setItem('starfieldOn', off ? '' : '1');
-                  showToast('Ad Astra ' + (off ? 'OFF' : 'ON'));
               } },
             { id: 'rotateCW',  defaultKey: 'ArrowRight', alt: true, label: 'Rotate CW 90°',  section: 'view', paired: 'rotate',
               fn: () => { if (_wipeMode) _rotateWipeSide(90); else _rotateSlot(assetOrder[currentAssetIndex], 90); } },
@@ -13424,6 +13621,7 @@
 
             // Skip when reassigning a key
             if (_reassigningActionId) return;
+            if (e.target.closest?.('#appearanceButton, #appearancePanel, #usageInvitation')) return;
 
             // Escape: dismiss magnifier, close panels, or double-tap to clear loop markers
             if (e.key === 'Escape') {
@@ -13481,6 +13679,7 @@
             _setupMiniMapInteraction();
             _setupControlsResizeRelayout(); // keep video off the audio-viz panel
             _setupAudioListeningControl();
+            _setupAppearance(); // appearance + usage preference owners → js/appearance.js, js/usage.js
 
             // Restore persisted preferences to UI
             const savedVol = _prefs.load('volume', 100);
@@ -13525,10 +13724,23 @@
         // after the window returns from being hidden (Mission Control / Spaces swipe).
         // Hardware-decoded video surfaces can go black in both cases; a brief translateZ(0)
         // nudge forces the compositor to rebuild the overlay.
+        const _videoRepaintStates = new WeakMap();
         function _forceVideoRepaint() {
             document.querySelectorAll('.video-wrapper video').forEach(v => {
-                v.style.transform = 'translateZ(0)';
-                requestAnimationFrame(() => { v.style.transform = ''; });
+                const pending = _videoRepaintStates.get(v);
+                const original = pending && v.style.transform === pending.temporary
+                    ? pending.original : v.style.transform;
+                const state = { original, temporary: (original + ' translateZ(0)').trim() };
+                _videoRepaintStates.set(v, state);
+                v.style.transform = state.temporary;
+                state.temporary = v.style.transform; // use the browser's normalized CSS (0 may become 0px)
+                requestAnimationFrame(() => {
+                    if (_videoRepaintStates.get(v) !== state) return;
+                    // A layout/rotation write that arrives meanwhile owns its
+                    // new transform; this repaint must not erase it.
+                    if (v.style.transform === state.temporary) v.style.transform = state.original;
+                    _videoRepaintStates.delete(v);
+                });
             });
         }
         // Re-apply wrapper geometry when the tab becomes visible or is restored from BFCache.
@@ -13536,12 +13748,16 @@
         // tab is restored. Use a short delay so the browser fully re-composites before we
         // re-measure and re-position — bypassing rafThrottle which may be suppressed when
         // a resize event fires on the same frame.
+        let _pageRestoreTimer = null;
         function _onPageRestore() {
-            if (isGridMode) {
-                setTimeout(() => positionLabelsToMedia(5), 200);
-            } else {
-                setTimeout(() => applyZoom(), 200);
-            }
+            clearTimeout(_pageRestoreTimer);
+            _pageRestoreTimer = setTimeout(() => {
+                _pageRestoreTimer = null;
+                if (document.hidden) return;
+                if (isGridMode) positionLabelsToMedia(5);
+                else applyZoom();
+                _forceVideoRepaint();
+            }, 200);
         }
         window.addEventListener('pageshow', e => { if (e.persisted) _onPageRestore(); });
         document.addEventListener('visibilitychange', () => {
@@ -13668,6 +13884,12 @@
                     data ? data.duration : 0, media ? _getEffectiveDuration(media) : (data ? data.duration : 0), width);
             },
             scrubOutputGain(value) { return _scrubOutputGain(value); },
+            get continuousScrubState() { return _continuousScrubEngine.state; },
+            get scrubPreviewOutput() {
+                const output = _scrubPreviewOutput;
+                return output ? {audio:output.audio, stream:output.destination.stream,
+                    context:output.ctx, requested:output.requested} : null;
+            },
             scrubGrainLengths(rate, sourceRemaining = 10) {
                 return _scrubGrainLengths(rate, sourceRemaining);
             },
@@ -13768,6 +13990,11 @@
                 updateRate(rate) { _updateOpusSyncRate(rate); },
             },
             nativeAudio: {
+                directLevel(slot) {
+                    const media = getLayer(slot)?.querySelector('video, audio');
+                    const state = _nativeDirectOutputs.get(media);
+                    return state ? { level: state.level, target: state.target, volume: media.volume } : null;
+                },
                 gain(slot) {
                     const layer = getLayer(slot);
                     const media = layer && layer.querySelector('video, audio');
@@ -13847,6 +14074,39 @@
         <div id="ffmpegPanelBody"></div>
     </div>
 
+
+    <section id="appearancePanel" hidden role="dialog" aria-labelledby="appearanceTitle">
+        <div class="appearance-heading"><h2 id="appearanceTitle">Appearance and privacy</h2><button type="button" id="appearanceClose" aria-label="Close appearance and privacy">×</button></div>
+        <div class="usage-section">
+            <h3>Help shape WarpDiff</h3>
+            <p id="usageTestNotice" hidden><strong>Local test</strong> — counts go only to this computer. This choice is separate from live-site consent.</p>
+            <p>Help improve WarpDiff with optional counts of visits, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way.</p>
+            <details id="usageDisclosure">
+                <summary>What’s shared and who receives it</summary>
+                <p>Optional statistics help WarpDiff’s developer improve the tool: visits; ready reviews of 1–4 items; use of Stack/Grid, scopes, audio graphs, Difference, wipe, loupe, Tile Check, loops and listening tools; completed scrub drags by surface and frequency band; and fixed counts of loading failures, audio analysis failures and compatibility fallbacks. Events include the app release, media type and item count. No filenames, media contents, raw errors, logs, pointer paths or playback positions are sent.</p>
+                <p class="appearance-note">WarpDiff is operated by Jay Riddle. With your agreement, GoatCounter receives your IP address and browser headers to process requests and distinguish repeat visits, and retains browser, operating-system and country-level counts. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. No analytics cookies. The dashboard is private, and statistics are configured for automatic deletion after 365 days. Privacy questions: <a href="mailto:warpdiff@gmail.com">warpdiff@gmail.com</a>. <a href="https://www.goatcounter.com/help/privacy" target="_blank" rel="noopener noreferrer">GoatCounter privacy</a>. GitHub Pages separately logs IP addresses for hosting security.</p>
+                <p class="appearance-note">Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent.</p>
+                <p class="appearance-note">Your choice is saved in this browser with the sharing details you accepted. Routine app updates do not ask again. If the sharing scope changes, we ask again before reporting; a saved No stays off. Change your choice here anytime. Turning sharing off stops future reporting; it cannot retract counts already sent. If saving No fails, we try to remove the old permission. If that also fails, a warning asks you to clear site data before reopening WarpDiff. Offline counts are not queued.</p>
+                <p class="appearance-note">A saved Yes starts reporting only after you load files here; choosing Yes explicitly can also begin a visit. Opening the page alone sends nothing. Host-loaded viewers stay excluded. An incomplete analytics update keeps sharing off while comparisons remain available.</p>
+                <p class="appearance-note">Load files without answering to continue with sharing off. We remember that locally and stop showing the invitation. You can enable sharing here later. If browser storage is cleared or unavailable, the invitation may return.</p>
+            </details>
+            <div class="usage-actions"><button type="button" data-usage-choice="no">Keep sharing off</button><button type="button" data-usage-choice="yes">Share usage counts</button></div>
+            <p id="usageStatus" role="status"></p>
+            <p id="usageTestStats" hidden></p>
+        </div>
+        <div class="appearance-section">
+            <h3>Appearance</h3>
+            <div class="appearance-choices" role="group" aria-label="Choose appearance">
+                <button type="button" class="appearance-choice" data-appearance-choice="original" aria-pressed="true"><span class="appearance-swatch" style="--swatch:#bcbcbc"></span>Original</button>
+                <button type="button" class="appearance-choice" data-appearance-choice="starfield" aria-pressed="false"><span class="appearance-swatch" style="--swatch:#a4c8f4"></span>Starfield</button>
+                <button type="button" class="appearance-choice" data-appearance-choice="solar" aria-pressed="false"><span class="appearance-swatch" style="--swatch:#f0ae48"></span>Solar</button>
+                <button type="button" class="appearance-choice" data-appearance-choice="nebula" aria-pressed="false"><span class="appearance-swatch" style="--swatch:#c5a2f3"></span>Nebula</button>
+                <button type="button" class="appearance-choice" data-appearance-choice="glacier" aria-pressed="false"><span class="appearance-swatch" style="--swatch:#87cddd"></span>Glacier</button>
+            </div>
+            <p class="appearance-note">A little atmosphere for your workspace. Media, scopes and comparison colors stay unchanged. All appearances are available without sharing usage.</p>
+        </div>
+    </section>
+
     <div class="manual-backdrop" id="manualBackdrop" onclick="toggleManualPanel()"></div>
     <div class="manual-panel" id="manualPanel" tabindex="-1">
         <div class="shortcuts-panel-header">
@@ -13855,6 +14115,11 @@
         </div>
         <div class="manual-content">
             <p>Managed review hosts supply the media and its labels. Their viewer keeps the original Grid / Stack icons (Compare together / Single candidate in tooltips), view controls, inspection icons and media details in their native positions; task actions and Help belong to the host.</p>
+            <h2>Appearance and privacy</h2>
+            <p>Use the appearance button at the right of the header to choose Original, Starfield, Solar, Nebula or Glacier. Preferences stay in this browser. Solar has bodies moving in the same direction on fixed orbital planes; Nebula has orbiting stars and faint spiral arms around a softly glowing hub in violet haze; Glacier has sparse icy stars. Choose <strong>Starfield</strong> for a slower Ad Astra animation across a wide landing background. It is now a regular appearance; the hidden X toggle has been removed. Decorations appear only on the landing screen, and reduced motion stops animation. Media, scopes and slot colors stay unchanged.</p>
+            <p>WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.</p>
+            <p>Usage sharing appears first in the panel, followed by appearances. Expand “What’s shared and who receives it” for the exact categories, GoatCounter’s identity and privacy link, and how to stop sharing. Loading files without answering remembers a local invitation dismissal, keeps sharing off and stops automatic reminders—even after returning to the landing screen or reopening WarpDiff. It records neither Yes nor No and sends nothing. You can enable sharing later from this panel; clearing browser storage or unavailable storage may bring the invitation back.</p>
+            <p>Usage sharing is opt-in when a GoatCounter destination is configured. Consent is tied to the sharing scope you accepted. Routine updates do not ask again; a changed scope pauses sharing until a new Yes. No is remembered across scope changes; no analytics request is made before Yes or after turning sharing off. With consent, sharing counts visits, ready reviews of 1–4 items, deliberate comparison-tool use, completed scrub drags, and basic failure/fallback categories, labeled by app release, media type and item count. Features count once per ready review; scrub frequency uses thresholds of 1, 2, 6 and 21 drags. Waveform and spectrogram appear together; their separate scrub surfaces indicate interaction, not separate panel choices. Reloading a set counts again. No files, filenames, contents, raw errors or logs are sent. Failed/canceled sets are not ready reviews; no offline or pre-consent activity is replayed. All appearances remain available with sharing off. The official site uses WarpDiff’s GoatCounter account after consent. Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent. GoatCounter receives IP addresses and browser headers to process requests and distinguish repeat visits; it retains browser/OS and country counts in a private dashboard configured for automatic deletion after 365 days. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. WarpDiff is operated by Jay Riddle; privacy contact: <a href="mailto:warpdiff@gmail.com">warpdiff@gmail.com</a>.</p>
             <h2>Loading Files</h2>
             <p>WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.</p>
             <p><strong>Three ways to load files:</strong></p>
@@ -13885,7 +14150,7 @@
             <p><strong>Grid (4 files)</strong> — All four assets use <strong>Inline</strong> in a balanced 2×2 grid. Offset is available only when exactly three assets are visible.</p>
 
             <h2>Hiding Slots in Grid</h2>
-            <p>Click a slot label in a Grid info bar to hide it and give the remaining assets more room. Click its dimmed header pill to restore it. <kbd>Shift+1</kbd> through <kbd>Shift+4</kbd> toggle slots 1–4; the final visible slot cannot be hidden. Hiding one item from a four-item grid switches to three-up, and restoring it returns to 2×2.</p>
+            <p>Click a slot label in a Grid info bar to hide it and give the remaining assets more room. Click its dimmed header pill to restore it. <kbd>Shift+1</kbd> through <kbd>Shift+4</kbd> toggle slots 1–4; the final visible slot cannot be hidden. Hiding one item from a four-item grid switches to three-up, preserving the remaining assets' order and labels: hiding #1 leaves #2, #3, #4. In Offset, the first visible asset is on the left and the next two are on the right. Restoring all four returns to 2×2.</p>
 
             <h2>Switching Modes</h2>
             <table>
@@ -13945,6 +14210,7 @@
             </table>
             <p>Timeline and waveform playheads move evenly during single-video and synced playback, including when you switch active videos. They stop with playback and jump directly to the requested position on a seek, restart or loop wrap.</p>
             <p>After scrubbing, <kbd>Space</kbd> resumes playback and <kbd>R</kbd> restarts at the loop in-point or beginning. Both preserve your playback scope and loop range, including automatic looping for a single video.</p>
+            <p>In Safari, video drag seeks wait for decoded frames before following the latest pointer target. Returning to the tab refreshes video surfaces. A drag interrupted by changing tabs ends paused; press Play to continue. Scrub preview uses native sound output to avoid silent previews; Continuous processing, listening controls and short-preview fallback still apply. A new gesture wakes the separate processing engine after suspension or interruption. Desktop mono/stereo video uses native audio to reduce picture stalls after seeking; surround audio keeps the shared listening mix and may retain a brief playback-start delay.</p>
             <p><strong>Keyboard shortcuts:</strong></p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
@@ -14102,8 +14368,14 @@
                 <li>Files auto-sort by save time (Ref, A, B; audio uses GT, A, B) — save files one at a time so timestamps reflect the correct order</li>
             </ul>
 
+            <h3>Appearance and privacy</h3>
+            <ul>
+                <li>Choose Original, Starfield, Solar, Nebula or Glacier from Appearance and privacy in the header.</li>
+                <li>Usage sharing is optional. All features and appearances work with sharing off.</li>
+                <li>Your choice is remembered. Read what's shared and change your choice anytime in that panel.</li>
+            </ul>
             <h3>Header Icons</h3>
-            <table style="font-size:12px; margin: 4px 0 8px; border-spacing: 0 6px;" id="helpIconTable"></table>
+            <table style="margin: 4px 0 8px; border-spacing: 0 6px;" id="helpIconTable"></table>
 
             <h3>Zoom Loupe</h3>
             <ul>
@@ -14123,7 +14395,7 @@
             <h3>Grid Mode</h3>
             <ul>
                 <li>Click a slot label (Ref / A / B) in the info bar to hide that asset</li>
-                <li>A dimmed pill appears in the header — click it to restore the hidden slot</li>
+                <li>A dimmed pill appears in the header — click it to restore the hidden slot. Remaining assets keep their original order and labels.</li>
                 <li><kbd>⇧1</kbd> <kbd>⇧2</kbd> <kbd>⇧3</kbd> toggle slot visibility from the keyboard</li>
             </ul>
 
@@ -14186,401 +14458,10 @@
             <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
         </div>
         <div class="quick-start-body">
-            <h3>v3.17.8</h3>
-            <ul><li><strong>More consistent backward scrub volume.</strong> Recovers larger drops in dialogue level while retaining stereo balance and peak protection.</li></ul>
-            <h3>v3.17.7</h3>
-            <ul><li><strong>More consistent scrub volume.</strong> Speech stays closer to its playback level as you drag, with bounded compensation that preserves stereo balance and backs off around strong peaks. Original audio analysis remains intact.</li></ul>
-            <h3>v3.17.6</h3>
-            <ul><li><strong>Resume playback easily after changing the listening mix.</strong> Choosing a Listen preset or adjusting a level with the mouse returns focus to Play/Pause, so Space works immediately. Escape closes the panel and returns to playback; keyboard slider arrows still adjust levels.</li></ul>
-            <h3>v3.17.5</h3>
-            <ul><li><strong>Fresh audio graphs when loading videos.</strong> The previous waveform and spectrogram clear immediately while the new video's analysis prepares, including when the panel was closed.</li></ul>
-            <h3>v3.17.4</h3>
-            <ul><li><strong>Reliable restart after scrubbing.</strong> Pressing <kbd>R</kbd> now keeps videos looping with your selected playback scope and loop range.</li></ul>
-            <h3>v3.17.3</h3>
-            <ul><li><strong>Release memory between comparisons.</strong> Clearing or replacing videos now fully releases old scrub-audio resources and the previous video, preventing memory from accumulating across loads.</li></ul>
-            <h3>v3.17.2</h3>
-            <ul><li><strong>Smoother playback while files prepare.</strong> Audio analysis now runs in the background, keeping the picture and controls responsive while preserving waveform, spectrogram, and loudness detail.</li></ul>
-            <h3>v3.17.1</h3>
-            <ul><li><strong>See a video's audio format.</strong> Info bars now identify the source codec, channel layout/count, and sample rate when available. Hover for full details, including files with multiple audio tracks.</li></ul>
-            <h3>v3.17.0</h3>
             <ul>
-                <li><strong>Focus on dialogue.</strong> The Listen control offers Dialogue Focus and Center Only for verified surround soundtracks, with center boost and background reduction during playback and scrubbing. Original audio analysis stays intact; Full Mix is always available.</li>
-                <li><strong>Multichannel Opus.</strong> Surround Opus files now retain all decoded channels, including the center.</li>
-            </ul>
-            <h3>v3.16.1</h3>
-            <ul>
-                <li><strong>Smoother scrubbing.</strong> Drag forward or backward with continuous, pitch-preserving audio. Click for a short preview; holding still fades the sound out. Short previews are used automatically when Continuous is unavailable.</li>
-                <li><strong>Clearer audio previews.</strong> Full-rate audio preserves stereo detail and keeps surround dialogue audible. Original waveform, spectrogram and loudness analysis retain their quality.</li>
-                <li><strong>Smoother playback and switching.</strong> Timeline and waveform playheads move evenly with one video or a synced comparison. Short audio fades reduce clicks when you change active videos.</li>
-                <li><strong>Instant restarts and loops.</strong> Press <kbd>R</kbd> or reach the loop end to jump directly to the beginning or your loop in-point. Timeline and waveform playheads snap to the new position.</li>
-            </ul>
-            <h3>v3.14.5</h3>
-            <ul><li>Managed reviews use the original view controls and inspection icons directly in the toolbar.</li></ul>
-            <h3>v3.14.4</h3>
-            <ul><li>Managed comparisons retain the original Grid and Stack icons, with explanations in tooltips and accessible labels.</li></ul>
-            <h3>v3.14.3</h3>
-            <ul><li>Managed review hosts can request focused inspection controls and supply authoritative media labels.</li></ul>
-            <h3>v3.14.2</h3>
-            <ul><li><strong>Playback controls stay reachable in smaller desktop panes.</strong> The transport wraps when space is limited, keeping seeking, volume and audio-source controls visible.</li></ul>
-            <h3>v3.14.1</h3>
-            <ul>
-                <li><strong>Timeline and waveform playheads now move smoothly during synced video playback.</strong> The visual clock no longer pauses or nudges backward between presented frames; the progress fill uses a compositor transform, and a short linear bridge hides occasional busy main-thread frames without changing loop or sync timing.</li>
-                <li><strong>Three-image Grid views no longer show an empty C info bar.</strong> Both Inline and Offset layouts now keep the unused fourth slot hidden.</li>
-                <li><strong>The Playback: Sync / Solo control is visible again.</strong> Sync has a clear neutral treatment in the transport bar, while Solo uses a blue active state.</li>
-                <li><strong>Playback behavior is grouped.</strong> Playback: Sync/Solo now sits directly beside Range: Sync/Full, before the timecode, so the two related selectors read as one control group.</li>
-            </ul>
-            <h3>v3.14.0</h3>
-            <ul>
-                <li><strong>Tile Check finds image seams before they reach a surface.</strong> Press <kbd>Y</kbd> to inspect any loaded image as a repeated 3×3 tile or move all four edges to the center with Offset. Separate Left↔Right, Top↔Bottom, corner, and overall ratings compare boundary color, alpha, and texture direction with the image's normal detail.</li>
-                <li><strong>Heatmap shows where to look.</strong> Toggle it to mark suspicious seam segments, then switch among as many as four loaded images from the source controls or arrow keys. The visual preview remains available because technical continuity cannot guarantee that a recognizable motif will not repeat.</li>
-            </ul>
-            <h3>v3.13.0</h3>
-            <ul>
-                <li><strong>Four-item comparison is here.</strong> Load four files with type-aware labels: Image-1…Image-4, Video-1…Video-4, or Audio-1…Audio-4. Visual media opens in a balanced 2×2 Inline grid, while audio keeps four vertically aligned timelines.</li>
-                <li><strong>Four-item layouts adapt as you review.</strong> Hide slot 4 with <kbd>Shift+4</kbd> or any label pill to expand the remaining three assets; restoring all four returns to 2×2. Difference and image wipe offer all six pairs.</li>
-                <li><strong>Any video can now run by itself.</strong> Press <kbd>Shift+S</kbd> or use the playback-scope button to switch between Sync and Solo. Selecting another video hands off at the same absolute time; shorter clips hold at their final frame, custom loops clamp safely to the Solo target, and returning to Sync preserves Full-range time or restarts at the shared in-point.</li>
-            </ul>
-            <h3>v3.12.41</h3>
-            <ul>
-                <li><strong>Slow video preparation now stays visibly active and specific.</strong> The loading screen lists each assigned slot and filename, checks off ready files, identifies which video is still decoding its first frame, explains why WarpDiff waits to reveal the comparison together, and offers Cancel.</li>
-            </ul>
-            <h3>v3.12.40</h3>
-            <ul>
-                <li><strong>A replaced comparison now fully cancels an in-progress scrub.</strong> Releasing the old pointer after new media loads can no longer seek or start playback in the new comparison.</li>
-            </ul>
-            <h3>v3.12.39</h3>
-            <ul>
-                <li><strong>One-key Stack / Grid switching is restored.</strong> Press either <kbd>S</kbd> or <kbd>G</kbd> repeatedly to move back and forth between the two views without changing keys.</li>
-            </ul>
-            <h3>v3.12.38</h3>
-            <ul>
-                <li><strong>The wipe header is focused on the comparison again.</strong> Its centered control now shows only the active pair; scopes choose and clearly label their source inside the scopes panel.</li>
-                <li><strong>Wipe tools now follow where you are working.</strong> The zoom loupe and rotation act on the visible side under the cursor, and their labels or confirmation messages identify the affected asset.</li>
-            </ul>
-            <h3>v3.12.37</h3>
-            <ul>
-                <li><strong>Wipe analysis now follows an explicit Left/Right target.</strong> Scopes identify and analyze that selected asset, rotation applies to it without leaving wipe, and the zoom loupe samples and labels whichever visible side is under the cursor—even with mismatched aspect ratios.</li>
-                <li><strong>Wipe controls are more resilient and accessible.</strong> The centered control moves below crowded narrow headers, pair selection preserves keyboard focus, clicking the divider focuses its slider, only left/right arrows cycle pairs, and small click jitter no longer pans the plate.</li>
-                <li><strong>Stack and Grid shortcuts are now direct.</strong> S always selects Stack and G always selects Grid instead of toggling when the requested mode is already active.</li>
-            </ul>
-            <h3>v3.12.36</h3>
-            <ul>
-                <li><strong>Image comparisons now support a live wipe in Stack.</strong> Pair order matches Grid order (first asset left, second right), clicking the plate snaps the cutoff, and the centered header control directly selects Ref–A, Ref–B, or A–B. The idle guide disappears while dragging, neutral presentation mattes prevent aspect-ratio bleed-through, and zoom, pan, rotation, resize, and pair cycling remain aligned. Video wipe stays gated while compositor behavior is validated.</li>
-                <li><strong>A/B assets now have a clear visual separation in Grid.</strong> Side-by-side images and videos use a small horizontal gap, while stacked comparisons keep a matching vertical gap without disturbing fit or centering.</li>
-            </ul>
-            <h3>v3.12.35</h3>
-            <ul>
-                <li><strong>Multi-video scrubbing now sends one shared target per display frame.</strong> High-rate pointer input no longer makes every visible decoder repeatedly chase intermediate positions that could never be displayed.</li>
-                <li><strong>Selected scrub audio now follows a steady clock.</strong> Only the chosen track is previewed, with overlapping grains of consistent audible length at every playback speed, so decoder and pointer-event bursts do not create avoidable gaps.</li>
-            </ul>
-            <h3>v3.12.34</h3>
-            <ul>
-                <li><strong>Scrubbing past the timeline end now stays stopped.</strong> End detection follows the pointer target—even when corrected audio duration differs from the container—and stale scrub callbacks can no longer restart playback.</li>
-            </ul>
-            <h3>v3.12.33</h3>
-            <ul>
-                <li><strong>Pause now works throughout the full tail of unequal-length comparisons.</strong> After a shorter video ends, Space correctly stops any longer video that is still playing.</li>
-            </ul>
-            <h3>v3.12.32</h3>
-            <ul>
-                <li><strong>Selected audio now stays smooth while scrubbing multiple videos in Grid.</strong> The preview follows the steady shared scrub timeline instead of inheriting gaps from competing video decoders.</li>
-            </ul>
-            <h3>v3.12.31</h3>
-            <ul>
-                <li><strong>Reset now clears the Stack header completely.</strong> After removing the last asset, its filename, resolution, timing, metrics, and zoom no longer remain in the header.</li>
-            </ul>
-            <h3>v3.12.30</h3>
-            <ul>
-                <li><strong>Leaving a stacked difference comparison now restores every Grid label.</strong> Switching to Grid no longer leaves the active asset labeled “Diff: A–B” after the difference overlay closes.</li>
-            </ul>
-            <h3>v3.12.29</h3>
-            <ul>
-                <li><strong>Videos now flag unknown audio timing metadata.</strong> If a container does not expose where its audio starts, a persistent warning identifies the affected slot and asks you to verify A/V sync. A confirmed start at 0 remains silent.</li>
-            </ul>
-            <h3>v3.12.28</h3>
-            <ul>
-                <li><strong>Audio visualizations now preserve the source timeline.</strong> Waveforms, spectrograms, and LUFS envelopes leave real leading and trailing gaps blank instead of stretching decoded audio to fill the video.</li>
-            </ul>
-            <h3>v3.12.27</h3>
-            <ul>
-                <li><strong>Clearing or replacing media can no longer revive an older audio analysis.</strong> Decode generations remain unique across reloads, so late async completions cannot overwrite the current comparison.</li>
-                <li><strong>Hosts that omit FFmpeg now report unsupported audio honestly.</strong> Embed owners declare the capability explicitly, so other iframe hosts retain transcoding while constrained hosts explain that external conversion and reload are required.</li>
-            </ul>
-            <h3>v3.12.26</h3>
-            <ul>
-                <li><strong>Embedded host loads are now correlated and cancelable.</strong> Newer requests supersede stale fetches, readiness is acknowledged only after media activation, and exact-origin parents are supported without a vendor-only patch.</li>
-                <li><strong>Embedding no longer installs WarpDiff's service worker.</strong> Standalone caching is restricted to WarpDiff's own versioned runtime assets, and malformed preferences recover one key at a time.</li>
-            </ul>
-            <h3>v3.12.25</h3>
-            <ul>
-                <li><strong>Long spectrogram analysis is now genuinely bounded.</strong> Hour-scale and high-sample-rate media adapt their timeline sampling to a fixed frame budget instead of growing into gigabyte-sized FFT buffers.</li>
-                <li><strong>Ref spectrogram levels are calibrated to dBFS.</strong> Hann-window gain is compensated, and audio-only video cursors now follow the same presented-frame clock as the progress bar and timecode.</li>
-            </ul>
-            <h3>v3.12.24</h3>
-            <ul>
-                <li><strong>Fit / Ref now lives with the audio visualization it changes.</strong> Video places the Scale control beside the waveform; audio-only review uses one shared toolbar above the canvases. Higher-contrast buttons and clear pressed states remain legible in the dark theme.</li>
-            </ul>
-            <h3>v3.12.23</h3>
-            <ul>
-                <li><strong>Scrub sound now follows the frame actually shown and matches normal playback volume.</strong> This tightens picture/sound correspondence without sacrificing stereo spatial cues.</li>
-                <li><strong>Playback indicators move more evenly and remain truthful.</strong> The progress bar, timecode, and audio cursor follow presented-frame timing, while canceled or rejected play requests can no longer restart unexpectedly or leave the control showing Pause.</li>
-            </ul>
-            <h3>v3.12.22</h3>
-            <ul>
-                <li><strong>Waveforms and spectrograms now share a persistent Fit / Ref level control.</strong> Fit reveals the detail in each asset; Ref preserves true waveform amplitude and uses a common −70 to 0 dBFS spectrogram scale for honest level comparisons.</li>
-            </ul>
-            <h3>v3.12.21</h3>
-            <ul>
-                <li><strong>Long videos no longer freeze the interface while loading.</strong> Clips of two minutes or more use a bounded full-timeline spectrogram analysis instead of generating hundreds of thousands of oversized FFT frames.</li>
-            </ul>
-            <h3>v3.12.20</h3>
-            <ul>
-                <li><strong>50 fps videos now report and step at their actual frame rate.</strong> Detection also remains accurate when the browser combines multiple presented frames into one callback.</li>
-            </ul>
-            <h3>v3.12.19</h3>
-            <ul>
-                <li><strong>Removed pronounced clicks introduced by the previous scrub-smoothing change.</strong> Grain transitions now derive their current envelope level directly instead of relying on browser gain-automation hold behaviour.</li>
-            </ul>
-            <h3>v3.12.18</h3>
-            <ul>
-                <li><strong>Scrub audio no longer pulses or drops in level on centered material.</strong> Successive snippets are phase-aligned within a tightly bounded window before crossfading, and gain transitions now hold their true instantaneous level.</li>
-            </ul>
-            <h3>v3.12.17</h3>
-            <ul>
-                <li><strong>Scrubbing now preserves stereo phase and channel placement.</strong> Side-only material such as <kbd>L = −R</kbd> no longer disappears from the scrub preview.</li>
-            </ul>
-            <h3>v3.12.16</h3>
-            <ul>
-                <li><strong>Repeated frame stepping no longer misses a tap.</strong> While a previous seek is still settling, <kbd>,</kbd> and <kbd>.</kbd> now advance from the last requested frame instead of asking for the same settled frame again.</li>
-            </ul>
-            <h3>v3.12.15</h3>
-            <ul>
-                <li><strong>Scrub audio now respects a video's intentional audio start offset.</strong> Files whose soundtrack begins after the first frame retain that leading silence instead of previewing the audio early; Chromium's Opus correction follows the same timeline mapping.</li>
-            </ul>
-            <h3>v3.12.14</h3>
-            <ul>
-                <li><strong>The waveform panel no longer overlaps the videos.</strong> With two clips in Grid view, opening the panel or loading clips while it was already open could leave the bottom of the videos tucked under the waveform. The video area now resizes reliably whenever the panel does.</li>
-            </ul>
-            <h3>v3.12.13</h3>
-            <ul>
-                <li><strong>Firefox is no longer treated as Safari.</strong> The Safari-specific playback and switching behaviour added in 3.12.12 was keyed off a browser feature Firefox also has, so Firefox was quietly getting workarounds that were never tested there. Firefox now uses the standard path again.</li>
-                <li><strong>Zoom loupe fixed in Stack mode on Safari.</strong> It could sample the hidden clip instead of the one you're looking at.</li>
-                <li><strong>Frame stepping is safe before clips finish loading</strong>, and stays correct on clips whose metadata overstates their length.</li>
-                <li><strong>Pause alignment matches the sync tolerance on mixed-frame-rate pairs</strong> — it was nudging clips that were already close enough.</li>
-                <li><strong>Better scrubbing on clips with very few keyframes</strong> (long recordings with no scene cuts), which were sized against the wrong frame budget.</li>
-            </ul>
-            <h3>v3.12.12</h3>
-            <ul>
-                <li><strong>Playback sync overhaul.</strong> Two clips now lock into sync as soon as playback starts, pauses land cleanly on the same frame, and frame stepping (<kbd>,</kbd> / <kbd>.</kbd>) stays aligned even when clips have different frame rates.</li>
-                <li><strong>Smoother backward scrubbing</strong>, especially on clips with sparse keyframes.</li>
-                <li><strong>Clicking a video always selects it</strong> — fixed for mixed portrait/landscape layouts.</li>
-                <li><strong>More reliable frame-rate detection</strong>, including when reviewing in short bursts.</li>
-                <li><strong>Safari fixes:</strong> the unselected clip plays smoothly, and A/B switching in Stack mode is instant. (Brief hitches at play start and at unmuted loop restarts are Safari's own — muting avoids the loop ones.)</li>
-            </ul>
-            <h3>v3.12.4</h3>
-            <ul>
-                <li><strong>Grid pause no longer makes the other clip stutter.</strong> Following up on v3.12.3: when you paused, the selected clip held still but the other one would visibly hop a frame or two to catch up (and the roles swapped if you selected the other clip). The pause-align step was seeking the non-selected clip onto the selected clip's exact frame. It now leaves a clip that's already within the normal sync tolerance right where it froze — both clips stop cleanly, no hop.</li>
-            </ul>
-            <h3>v3.12.3</h3>
-            <ul>
-                <li><strong>Fixed the frame jump when pausing two videos in Grid.</strong> Tapping Space to pause could make one or both clips jump ahead and then hop back a frame or two. The pause-time frame-align step was re-seeking every clip on every pause — even when they were already on the same frame — and that needless seek is what flashed the picture. It now only nudges a clip that's genuinely on the wrong frame, so pausing lands cleanly.</li>
-            </ul>
-            <h3>v3.12.2</h3>
-            <ul>
-                <li><strong>Internal cleanup — scrubbing no longer juggles the mute state.</strong> WarpDiff used to briefly unmute every clip while you scrubbed (an old workaround for a Chrome bug that skipped frame decoding on muted, paused video). That bug is long fixed, and the workaround was the source of the v3.12.1 mute glitch, so it's been removed entirely. No change you'll see or hear — scrubbing and audio behave exactly as before, with one less thing to go wrong.</li>
-            </ul>
-            <h3>v3.12.1</h3>
-            <ul>
-                <li><strong>Fixed a muted-audio glitch when scrubbing right after loading.</strong> If you began dragging the scrubber the instant a new comparison finished loading, the non-active clips could briefly re-mute mid-scrub (a side effect of the new persistent-mute applying itself on load). Scrubbing now keeps full ownership of audio while you drag.</li>
-            </ul>
-            <h3>v3.12.0</h3>
-            <ul>
-                <li><strong>Mute now sticks.</strong> If you review with audio muted, WarpDiff remembers it — the mute state now persists across new file loads and across sessions, so you no longer have to re-mute every time you drop in a new comparison. When you press the mute button it also shows an amber <em>Muted</em> label so the state is unmistakable at a glance, and the first time you hit play while muted a brief reminder offers a one-click <em>Enable</em> in case you didn't mean to.</li>
-            </ul>
-            <h3>v3.11.9</h3>
-            <ul>
-                <li><strong>Truly seamless clip switching.</strong> Switching between clips mid-playback could still flash a moment of older video and hesitate — the just-revealed clip briefly showed the frame from when it was last on screen while its decoder caught up. The outgoing clip now keeps playing on screen until the incoming one has a current frame ready, then they swap — no backward flash, no hesitation, even on nearly identical clips. The hidden clip is also held more tightly to the clock (within ~8&thinsp;ms), so the swap lands sub-frame.</li>
-            </ul>
-            <h3>v3.11.8</h3>
-            <ul>
-                <li><strong>Switching clips during playback no longer jumps backward.</strong> In Stack mode, the hidden clip was being constantly re-seeked to stay in sync — each seek stalled it briefly, leaving it always a frame or two behind, so switching to it dragged everything backward and stuttered. The hidden clip now stays locked via an imperceptible playback-rate trim instead (it's hidden and muted, so nothing is visible or audible), and switching mid-playback is seamless in both directions.</li>
-            </ul>
-            <h3>v3.11.7</h3>
-            <ul>
-                <li><strong>Fixed choppy playback and doubled audio after interrupted scrubs.</strong> Releasing the mouse outside the window (or switching apps) mid-scrub could silently leave WarpDiff thinking a drag was still in progress — playback sync and decoder management shut off (progressively choppier video) and every clip could end up unmuted at once (two audio tracks playing together). Interrupted drags are now detected and cleaned up automatically.</li>
-            </ul>
-            <h3>v3.11.6</h3>
-            <ul>
-                <li><strong>Version now shows the deployed build hash.</strong> The version in the top-left corner (e.g. <code>v3.11.6 · a2e5aa7</code>) now includes the short commit hash of the build being served, so you can tell at a glance whether you're on the latest deploy — handy when a stale PWA cache or a pending Pages deploy is serving an older build.</li>
-            </ul>
-            <h3>v3.11.5</h3>
-            <ul>
-                <li><strong>Smoother playback and faster reverse scrubbing in long sessions.</strong> The smooth-scrub engine now goes dormant during playback instead of being torn down — no more re-reading the whole file on every scrub after play, which caused playback to get progressively choppier with continued use. Its frame cache also survives play/pause cycles and skips redundant work, so scrubbing backward is much lighter.</li>
-            </ul>
-            <h3>v3.11.4</h3>
-            <ul>
-                <li><strong>Pause always lands on the same frame.</strong> Stopping synced playback (spacebar) now snaps every video to the exact same frame, closing a rare edge case where two clips could land a frame apart even though they were tightly synced during playback.</li>
-            </ul>
-            <h3>v3.11.3</h3>
-            <ul>
-                <li><strong>Cleaner clip switching and clicking.</strong> Flipping between two clips (arrow keys) no longer flashes the frame backward at the switch — the newly-shown clip repaints its exact frame immediately. And clicking a spot on the timeline while paused now jumps straight to that frame instead of briefly fast-forwarding through the frames in between.</li>
-            </ul>
-            <h3>v3.11.2</h3>
-            <ul>
-                <li><strong>Fixed scrubbing with three videos.</strong> When scrubbing three videos side-by-side, one slot could freeze while the other two moved. WarpDiff now detects when a slot's smooth-scrub preview isn't keeping up and falls back to seeking that video directly, so all three track together. Playback after scrubbing is smoother too — the scrub decoders are now released when you press play, freeing them up for the videos.</li>
-            </ul>
-            <h3>v3.11.1</h3>
-            <ul>
-                <li><strong>Different-length clips now default to Full.</strong> Load clips of different lengths and WarpDiff plays each in full by default (instead of quietly looping only the shortest) — with a clearer heads-up and the highlighted <strong>Loop</strong> button pulsing so it's obvious how to switch. Press <strong>Shift+L</strong> for frame-locked comparison (Sync). In Sync mode, any part of a clip past the loop is now shown hatched on the progress bar.</li>
-            </ul>
-            <h3>v3.11.0</h3>
-            <ul>
-                <li><strong>Compare clips of different lengths.</strong> New <strong>Loop: Full</strong> mode (Shift+L, or the Loop button on the transport bar) plays every clip to its full length — a shorter clip holds on its last frame while the longest plays out, then all restart together. The default <strong>Loop: Sync</strong> still frame-locks to the shortest clip for A/B comparison. And when you load clips of different lengths, WarpDiff now tells you.</li>
-                <li><strong>Loop points are shared across clips.</strong> Setting an in/out loop region now applies to every clip and stays put when you switch the active clip (previously each clip kept its own separate region).</li>
-            </ul>
-            <h3>v3.10.33</h3>
-            <ul>
-                <li><strong>Stability &amp; robustness sweep.</strong> A batch of smaller reliability fixes: additional bounds checks in the media parsers, tighter scrub-preview memory use, more resilient A/V sync during clip switches and loop wraps, and cleanup of leftover video resources. No changes to how you use the app.</li>
-            </ul>
-            <h3>v3.10.32</h3>
-            <ul>
-                <li><strong>Robustness &amp; security hardening.</strong> Malformed or malicious media files can no longer hang or crash the tab on load — the MP4/WebM parsers now clamp sample counts and element sizes to the actual file bytes instead of trusting declared values. Also fixed a scrubbing bug where loading new files mid-scrub could leak memory or briefly show the previous file's frames, and a rare case where switching the active clip mid-playback could leave everything running ~2% fast or slow.</li>
-            </ul>
-            <h3>v3.10.31</h3>
-            <ul>
-                <li><strong>Videos now loop and play in sync lock.</strong> With two or more videos loaded, playback loops all of them together over the shortest clip's duration (previously each video restarted on its own clock and drifted apart every loop), and a continuous drift lock holds every video on the active one's clock — within half a frame — in both Stack and Grid mode. Frame-accurate loop enforcement now also runs in Grid mode.</li>
-                <li><strong>Difference mode never blends mismatched frames.</strong> While playing, the difference composite only updates when both videos are on the same frame — a transient one-frame offset now briefly holds the last matched diff instead of flashing false motion ghosting.</li>
-            </ul>
-            <h3>v3.10.30</h3>
-            <ul>
-                <li><strong>Bug fix: HDR videos (PQ/HLG) darkened dramatically while scrubbing on Chrome.</strong> HDR content now falls back to native scrubbing — Chrome tone-maps HDR video for display in a way the smooth-scrub overlay can't reproduce.</li>
-            </ul>
-            <h3>v3.10.29</h3>
-            <ul>
-                <li><strong>Internal.</strong> Code organization: the Opus audio-sync engine and timecode formatters moved into their own modules. No user-facing changes.</li>
-            </ul>
-            <h3>v3.10.28</h3>
-            <ul>
-                <li><strong>Smooth scrubbing, phase 2.</strong> Revisited positions now paint instantly from a decoded-frame cache (back-and-forth A/B scrubbing, backward jumps), and the smooth-scrub overlay works in Grid mode (all slots paint during a drag) and on waveform/spectrogram panel drags. Scrub frames are also color-matched to Chrome's video rendering on macOS (previously the image dimmed slightly while scrubbing), and frame timing now honors MP4 edit lists so the scrubbed frame matches the player exactly.</li>
-            </ul>
-            <h3>v3.10.27</h3>
-            <ul>
-                <li><strong>Smooth timeline scrubbing on Chrome (experimental).</strong> Stack-mode drags now decode frames directly via WebCodecs and paint them live, so videos with sparse keyframes (AI-generated clips, web downloads) scrub with Safari-like responsiveness. Falls back to the previous behavior in Grid mode and for non-MP4/unsupported codecs.</li>
-            </ul>
-            <h3>v3.10.26</h3>
-            <ul>
-                <li><strong>Bug fix: a transcode error message ("Source file unavailable") vanished after 1 ms instead of displaying for 4 seconds.</strong></li>
-            </ul>
-            <h3>v3.10.25</h3>
-            <ul>
-                <li><strong>Internal hardening.</strong> Regression tests now lock in the recent Opus audio-sync timing fixes; no user-facing changes.</li>
-            </ul>
-            <h3>v3.10.24</h3>
-            <ul>
-                <li><strong>Tighter A/V sync at loop wraps (Opus videos).</strong> Audio restarts now compensate for their brief anti-click gap instead of playing ~15 ms behind the video afterward, the gap only lasts as long as the previous fade actually needs, and quick pause→play no longer risks a momentary crossfade artifact.</li>
-            </ul>
-            <h3>v3.10.23</h3>
-            <ul>
-                <li><strong>Bug fixes: audio glitches when pausing, muting, or changing speed right at a loop wrap (Opus videos).</strong> A restart's brief crossfade-avoidance gap could let a click through if playback was stopped in that instant, undo a mute, or skew A/V sync after a speed change.</li>
-            </ul>
-            <h3>v3.10.22</h3>
-            <ul>
-                <li><strong>Audio panel robustness.</strong> Hardened the waveform/spectrogram panel layout so the two displays can't mis-size or overlap if a redraw races the panel layout on load, and sanitized saved panel dimensions against bad values.</li>
-            </ul>
-            <h3>v3.10.21</h3>
-            <ul>
-                <li><strong>Spectrogram coloring overhaul.</strong> Now uses a true Inferno colormap and auto-scales contrast to each clip (a 70&nbsp;dB window below the loudest point) instead of a fixed scale — quiet clips are far more legible.</li>
-            </ul>
-            <h3>v3.10.20</h3>
-            <ul>
-                <li><strong>Spectrogram now defaults to the Inferno palette.</strong> Cycle palettes from the W panel's palette toggle; your choice is remembered.</li>
-                <li><strong>Refined the active-audio info-bar accent</strong> — the colored top line is now thinner (1px) and sits inside the rounded corners.</li>
-            </ul>
-            <h3>v3.10.19</h3>
-            <ul>
-                <li><strong>Bug fix: Grid mode sizes stacked clips by equal area.</strong> Two landscape clips with different aspect ratios stacked vertically now get the same on-screen area (the wider one rendered wider-and-shorter) instead of being forced to the same width. Also fixes an intermittent case where two landscapes didn't stack vertically.</li>
-            </ul>
-            <h3>v3.10.18</h3>
-            <ul>
-                <li><strong>Bug fix: eliminated duplicate playback handlers.</strong> Loop enforcement now runs a single frame-callback chain per video instead of accumulating one per pause/play cycle, and transcoded files (Dolby/DTS) no longer attach a second set of play/pause/seek handlers — removing loop-wrap stutter and double audio triggers.</li>
-                <li><strong>Bug fix: audio reliability when switching clips quickly.</strong> A slow audio decode from a previous clip can no longer overwrite the newly loaded one, and the Restart (R) key now keeps Opus audio in sync instead of dropping or desyncing it.</li>
-            </ul>
-            <h3>v3.10.17</h3>
-            <ul>
-                <li><strong>Bug fix: loop playback no longer audibly overshoots the out-point.</strong> The wrap is now scheduled for the exact out-point time when the last in-region frame presents, instead of waiting for a frame past the boundary (up to a full frame of audio late).</li>
-            </ul>
-            <h3>v3.10.16</h3>
-            <ul>
-                <li><strong>Bug fix: residual audio crackling at loop wrap points (Chrome and Safari).</strong></li>
-            </ul>
-            <h3>v3.10.15</h3>
-            <ul>
-                <li><strong>Bug fix: audio crackling at loop wrap points (Opus videos).</strong></li>
-            </ul>
-            <h3>v3.10.14</h3>
-            <ul>
-                <li><strong>Bug fixes related to looping and audio decoding (Dolby/DTS-HD MA).</strong></li>
-            </ul>
-            <h3>v3.10.13</h3>
-            <ul>
-                <li><strong>Bug fixes related to looping.</strong></li>
-            </ul>
-            <h3>v3.10.12</h3>
-            <ul>
-                <li><strong>Frame gallery (<kbd>Shift+G</kbd>)</strong> — grab the current frame from the active slot and pin it to a gallery strip above the transport controls. Use <kbd>{</kbd> / <kbd>}</kbd> (Shift+[ / Shift+]) to step through captured frames — all videos seek to that timecode. Click a thumbnail to seek; × to remove it. Gallery clears automatically when new media is loaded.</li>
-            </ul>
-            <h3>v3.10.11</h3>
-            <ul>
-                <li><strong>EBU R128 audio metrics</strong> — Integrated LUFS, LRA, and True Peak are now displayed in the info bar for every asset that carries audio — video and audio-only alike.</li>
-                <li><strong>LUFS envelope (<kbd>E</kbd>)</strong> — press E while the waveform panel is open to cycle through Waveform only / Waveform + LUFS / LUFS only. Short-term loudness is drawn as a stepped chart on a fixed −36 to 0 LUFS scale, with reference lines at −14 (streaming), −16 (podcast), and −23 (broadcast).</li>
-                <li><strong>Info bar redesign</strong> — fields reordered for clarity (Label · Resolution · AR · FPS · Duration · LUFS · LRA · TP · Zoom), Zoom right-aligned, stopwatch icon on duration, and a <em>--fps</em> placeholder while frame rate is being detected.</li>
-            </ul>
-            <h3>v3.10.6</h3>
-            <ul>
-                <li><strong>Image rotation (⌥← / ⌥→ on Mac, Alt+← / Alt+→ on Windows)</strong> — rotate any asset 90° CW or CCW. Works in both Stack and Grid; the zoom loupe follows the rotation.</li>
-                <li><strong>Resizable audio panel</strong> — drag the top edge of the waveform / spectrogram panel to make it taller or shorter.</li>
-                <li><strong>Frame step wraps</strong> — stepping past the last frame with <kbd>,</kbd> / <kbd>.</kbd> now wraps around to the beginning.</li>
-                <li><strong>Bug fixes and visual polish</strong></li>
-            </ul>
-            <h3>v3.10.2</h3>
-            <ul>
-                <li><strong>Hidden slot restore in Grid mode</strong> — ghost pills now appear in the header when a slot is hidden, so you can click to bring it back. Previously the pill was missing and there was no way to restore without reloading.</li>
-            </ul>
-            <h3>v3.10</h3>
-            <ul>
-                <li><strong>Hide slots in Grid mode</strong> — click any slot label to hide that slot and give more space to the others. A ghost pill appears in the header to restore it. <kbd>⇧1</kbd> / <kbd>⇧2</kbd> / <kbd>⇧3</kbd> toggles slots from the keyboard.</li>
-                <li><strong>Info bar redesign</strong> — slot colors dim when inactive and light up for the active asset, making it immediately clear which slot has focus.</li>
-                <li><strong>Darker UI</strong> — reduced background brightness throughout for better contrast against media content.</li>
-            </ul>
-            <h3>v3.9.1</h3>
-            <ul>
-                <li><strong>Timecode</strong> — click the timecode display or press <kbd>⇧C</kbd> to choose a format (SMPTE, frames, seconds, F+N), <kbd>C</kbd> to copy.</li>
-                <li><strong>Asset metadata redesign</strong> — Simplified naming. Ref/A/B slots now feature colored badges (green / amber / magenta) for faster recognition.</li>
-                <li><strong>Bug fixes</strong> — layout, magnifier, and transcoding audio.</li>
-            </ul>
-            <h3>v3.8.6</h3>
-            <ul>
-                <li><strong>Automatic audio transcoding</strong> — files with unsupported audio codecs (EAC-3, AC-3, etc.) are automatically transcoded to AAC in-browser using ffmpeg.wasm.</li>
-            </ul>
-            <h3>v3.8.2</h3>
-            <ul>
-                <li><strong>Video duration &amp; frame rate in Stack header</strong> — the center info strip now shows duration and fps for video assets, alongside zoom, resolution, and aspect ratio</li>
-                <li><strong>Equal visual weight in Grid view</strong> — both assets now render at equal screen area regardless of resolution, so a higher-resolution image no longer appears larger than a lower-resolution one at the same effective scale</li>
-            </ul>
-            <h3>v3.8</h3>
-            <ul>
-                <li><strong>Fit / Balance zoom (&#92;)</strong> — new Stack mode toggle in the header. <em>Fit</em> scales each asset to fill the viewport independently. <em>Balance</em> scales all assets to the same rendered screen area — consistent visual weight regardless of resolution or orientation, without overflow.</li>
-                <li><strong>Stack mode header info strip</strong> — slot name, zoom %, resolution, aspect ratio, and filename are now displayed in the center of the header while in Stack mode, replacing the traveling info bar that moved with the image.</li>
-                <li><strong>Mini-map navigator</strong> — a floating thumbnail in the lower-right corner appears when an asset overflows the viewport in Stack mode. Shows asset outlines and a white viewport indicator; click or drag to pan.</li>
-            </ul>
-            <h3>v3.7.7</h3>
-            <ul>
-                <li><strong>No-video mode (N)</strong> — hides video picture and shows per-slot waveform + spectrogram for audio-focused review; supports scrub, time cursor, and loop regions</li>
-                <li><strong>Black &amp; white toggle (B)</strong> — desaturates all video and image assets for luminance-focused review</li>
-            </ul>
-            <h3>v3.7.6</h3>
-            <ul>
-                <li>Improved scrubbing — smoother frame updates and audio preview while dragging</li>
+                <li>More consistent audio volume when scrubbing forward or backward.</li>
+                <li>New Starfield, Solar, Nebula and Glacier appearances.</li>
+                <li>Optional usage sharing to help improve WarpDiff. Off until you agree.</li>
             </ul>
         </div>
     </div>

@@ -4,9 +4,19 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.17.8
+**Current version:** 3.18.12
 
 ---
+
+WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+
+## Appearance and optional usage sharing
+
+Choose **Original, Starfield, Solar, Nebula, or Glacier** from **Appearance and privacy** in the header. Starfield spreads a slower Ad Astra animation across a wide landing background, selected here instead of with the hidden X toggle. Solar bodies move in the same direction at different speeds along fixed orbital planes. Nebula adds slowly orbiting stars, faint spiral arms and a soft galaxy hub. The choice stays in this browser; landing decorations never change media, scopes, or slot colors. All appearances are available without sharing usage.
+
+The panel puts usage sharing first and appearances below it. Provider details are expandable. Loading files without answering keeps sharing off and quietly retires the invitation; the choice remains in settings.
+
+GoatCounter reporting is **strictly opt-in**. Account collection settings have been verified. The adapter sends engaged visits, ready reviews of 1–4 items, comparison-tool use, scrub-frequency bands, one broad window-size group per ready review and fixed failure/fallback categories to WarpDiff’s GoatCounter account. Events include app release, media type and item count; files, filenames, contents and raw errors are never sent. GoatCounter receives IP addresses and browser headers, and retains browser/OS and country counts in a private dashboard configured for automatic deletion after 365 days. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. Exact dimensions, monitor resolution and resize history are not sent. Operator: Jay Riddle; privacy contact: [warpdiff@gmail.com](mailto:warpdiff@gmail.com). The local test continues to send only to its loopback recorder. Consent is tied to the accepted sharing scope, independently of app updates; changed scopes require a new Yes. A remembered No stays off across scope changes and sends no analytics requests. Saved consent starts counting only after an accepted manual file load; an explicit Yes can also start the visit. Host-loaded viewers stay excluded. A failed withdrawal save attempts to remove the old permission and explains any remaining storage limitation. Mixed disclosure/collector updates keep reporting disabled while the app remains usable. See the [implementation, local preview, and verification record](docs/appearance-usage-2026-09-29/README.md).
 
 ## Why
 
@@ -40,7 +50,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 
 **View modes**
 - **Stack** — flip between assets with arrow keys, same position/zoom
-- **Grid** — two files auto-arrange side-by-side or vertically; three use Inline or Offset; four use a balanced 2×2 Inline grid
+- **Grid** — two files auto-arrange side-by-side or vertically; three use Inline or Offset; four use a balanced 2×2 Inline grid. Hiding slots preserves the remaining assets' order and labels.
 - Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid
 - Mixed orientations use equal-area layout so each asset has the same visual weight
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
@@ -55,6 +65,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
+- Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
 - Adjacent **Playback: Sync/Solo** and **Range: Sync/Full** selectors keep the two playback policies together before the timecode
@@ -148,7 +159,7 @@ npm run test:ownership       # structural + pure-logic guards (no browser)
 
 ## Status
 
-Actively maintained. Releases follow semantic-ish versioning with a "What's New" entry on each release. See commit history for the detailed changelog.
+Actively maintained. Each release has a brief "What's New" summary. See the [archived release notes](docs/release-notes-archive.md) and commit history for details.
 
 ## Bugs & Feature Requests
 

@@ -54,9 +54,32 @@ test('source format clears on reload and ignores a stale decode completion', asy
 
 test('source format updates after real AC-3 to AAC transcoding', async ({page}) => {
   test.setTimeout(120_000);
-  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures', 'ac3_video.mp4'));
-  await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('Dolby Digital');
-  await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('AAC · Stereo · 48 kHz', {timeout:90_000});
+  await page.evaluate(() => {
+    const texts: string[] = [];
+    // Retain each published label before loading: fast conversion can replace
+    // Dolby Digital before a driver-side polling assertion ever observes it.
+    const observer = new MutationObserver(records => {
+      for (const record of records) {
+        if (!(record.target instanceof Element) || !record.target.matches('.asset-audio-format')) continue;
+        for (const node of record.addedNodes) texts.push(node.textContent || '');
+      }
+    });
+    observer.observe(document.getElementById('layerEditA')!, {childList:true, subtree:true});
+    (window as any).__sourceAudioFormatHistory = {texts, observer};
+  });
+  try {
+    await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures', 'ac3_video.mp4'));
+    await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('AAC · Stereo · 48 kHz', {timeout:90_000});
+    const history = await page.evaluate(() => (window as any).__sourceAudioFormatHistory.texts as string[]);
+    await test.info().attach('source-format-history', {body:JSON.stringify(history), contentType:'application/json'});
+    expect(history).toEqual(expect.arrayContaining(['Dolby Digital', 'AAC · Stereo · 48 kHz']));
+    expect(history.indexOf('Dolby Digital')).toBeLessThan(history.indexOf('AAC · Stereo · 48 kHz'));
+  } finally {
+    await page.evaluate(() => {
+      (window as any).__sourceAudioFormatHistory.observer.disconnect();
+      delete (window as any).__sourceAudioFormatHistory;
+    });
+  }
 });
 
 test('source labels remain hoverable beside metrics in a narrow two-video Grid', async ({page}) => {

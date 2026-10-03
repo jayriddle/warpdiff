@@ -49,6 +49,9 @@ function _connectMonitoredAudio(source, destination, channels, slot) {
 function setAudioListening(change) {
     _audioListening = WarpScrubAudio.monitor.settings({..._audioListening, ...change});
     _applyAudioListening();
+    if (change.mode && _audioMonitorSlots.get(currentAudioSource || assetOrder[currentAssetIndex])?.ready) {
+        _usage.feature('listening-' + _audioListening.mode);
+    }
 }
 
 function _applyAudioListening() {

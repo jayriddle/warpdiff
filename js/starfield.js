@@ -1,10 +1,17 @@
-// Starfield drop-zone border animation
+// Starfield landing-atmosphere animation
 // Uses OffscreenCanvas + Web Worker so animation continues during main-thread work.
 // Falls back to main-thread canvas for browsers without OffscreenCanvas support.
 (function initStarfield() {
     const canvas = document.getElementById('dropzoneStarfield');
     if (!canvas) return;
     const landing = document.getElementById('landingCta');
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    let setRunning = () => {};
+    function syncVisibility() {
+        const visible = document.body.dataset.appearance === 'starfield' && !document.hidden && !reducedMotion.matches &&
+            !landing.classList.contains('hidden');
+        setRunning(visible);
+    }
 
     // Shared drawing code (runs in worker or main thread)
     const DRAW_CODE = `
@@ -34,11 +41,11 @@
         }
         const STAR_COUNT = 300;
         const RADIUS = 16;
-        const SPEED_MIN = 0.0005;
-        const SPEED_MAX = 0.003;
+        const SPEED_MIN = 0.0005 * 2 / 3;
+        const SPEED_MAX = 0.002;
         let speedMult = 1, speedTarget = 1;
         let stars = [], w = 0, h = 0, dpr = 1, running = false;
-        let ctx, vignette;
+        let ctx, vignette, frameId = null;
 
         function spawnStar(fromCenter) {
             return {
@@ -99,7 +106,7 @@
             ctx.fillStyle = vignette;
             ctx.fillRect(0, 0, w, h);
             ctx.restore();
-            requestAnimationFrame(draw);
+            frameId = requestAnimationFrame(draw);
         }
     `;
 
@@ -129,13 +136,17 @@
                     if (!running) { running = true; draw(); }
                 } else if (msg.type === 'stop') {
                     running = false;
+                    if (frameId !== null) cancelAnimationFrame(frameId);
+                    frameId = null;
                 } else if (msg.type === 'speed') {
                     speedTarget = msg.value;
                 }
             };
         `;
         const blob = new Blob([workerCode], { type: 'application/javascript' });
-        worker = new Worker(URL.createObjectURL(blob));
+        const workerUrl = URL.createObjectURL(blob);
+        worker = new Worker(workerUrl);
+        URL.revokeObjectURL(workerUrl);
         const offscreen = canvas.transferControlToOffscreen();
         const rect = canvas.parentElement.getBoundingClientRect();
         worker.postMessage({
@@ -144,30 +155,32 @@
             dpr: window.devicePixelRatio || 1
         }, [offscreen]);
 
-        window.addEventListener('resize', () => {
+        let workerSize = [rect.width, rect.height, window.devicePixelRatio || 1].join(':');
+        function resizeWorker() {
             const r = canvas.parentElement.getBoundingClientRect();
-            worker.postMessage({ type: 'resize', w: r.width, h: r.height, dpr: window.devicePixelRatio || 1 });
-        });
+            if (!r.width || !r.height) return; // Resizing during a comparison must not erase the hidden canvas.
+            const dpr = window.devicePixelRatio || 1;
+            const size = [r.width, r.height, dpr].join(':');
+            if (size === workerSize) return;
+            workerSize = size;
+            worker.postMessage({ type: 'resize', w: r.width, h: r.height, dpr });
+        }
+        window.addEventListener('resize', resizeWorker);
 
         window._starfieldSetSpeed = function(mult) {
             worker.postMessage({ type: 'speed', value: mult });
         };
-        window._starfieldSetVisible = function(vis) {
+        setRunning = vis => {
+            if (vis) resizeWorker();
             worker.postMessage({ type: vis ? 'start' : 'stop' });
         };
-
-        const obs = new MutationObserver(() => {
-            worker.postMessage({ type: landing.classList.contains('hidden') ? 'stop' : 'start' });
-        });
-        obs.observe(landing, { attributes: true, attributeFilter: ['class'] });
-        if (!landing.classList.contains('hidden')) worker.postMessage({ type: 'start' });
 
     } else {
         // --- Fallback: main-thread rendering ---
         const ctx = canvas.getContext('2d');
         let w, h, vignette, stars = [], animId = null;
         let speedMult = 1, speedTarget = 1, running = false;
-        const STAR_COUNT = 300, RADIUS = 16, SPEED_MIN = 0.0005, SPEED_MAX = 0.003;
+        const STAR_COUNT = 300, RADIUS = 16, SPEED_MIN = 0.0005 * 2 / 3, SPEED_MAX = 0.002;
 
         // Inline the helpers for fallback (same logic as DRAW_CODE)
         function spawnStar(fromCenter) {
@@ -213,15 +226,18 @@
             animId=requestAnimationFrame(draw);
         }
         function start() { if(running)return; resize(); if(!stars.length)initStars(); running=true; draw(); }
-        function stop() { running=false; }
+        function stop() { running=false; if (animId !== null) cancelAnimationFrame(animId); animId=null; }
 
         window._starfieldSetSpeed = function(mult) { speedTarget = mult; };
-        window._starfieldSetVisible = function(vis) { if(vis) start(); else stop(); };
-        const obs = new MutationObserver(() => {
-            if(landing.classList.contains('hidden')) stop(); else start();
-        });
-        obs.observe(landing, { attributes: true, attributeFilter: ['class'] });
+        setRunning = vis => { if(vis) start(); else stop(); };
         window.addEventListener('resize', () => { if(running) resize(); });
-        if (!landing.classList.contains('hidden')) start();
+
     }
+    // One owner combines appearance, page/landing visibility and reduced motion.
+    const visibilityObserver = new MutationObserver(syncVisibility);
+    visibilityObserver.observe(landing, { attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('warpdiff-appearance-change', syncVisibility);
+    document.addEventListener('visibilitychange', syncVisibility);
+    reducedMotion.addEventListener('change', syncVisibility);
+    syncVisibility();
 })();

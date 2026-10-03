@@ -30,6 +30,62 @@ const SRC = [HTML, ...JS_FILES.map(f => readFileSync(new URL('js/' + f, ROOT), '
 let pass = 0, fail = 0;
 function check(name, cond) { if (cond) { pass++; } else { fail++; console.error('  ✗ ' + name); } }
 
+// Appearance and analytics each have one owner and one app readiness hook.
+{
+  const appearance = readFileSync(new URL('js/appearance.js', ROOT), 'utf8');
+  const usage = readFileSync(new URL('js/usage.js', ROOT), 'utf8');
+  check('usage: document pins the exact collector bytes', HTML.includes(
+    'src="js/usage.js" integrity="sha256-' + createHash('sha256').update(usage).digest('base64') + '"'));
+  const contract = HTML.match(/const _USAGE_DOCUMENT_CONTRACT = '([^']+)'/)?.[1];
+  check('usage: collector matches the document disclosure contract', !!contract && usage.includes("_USAGE_DOCUMENT_CONTRACT !== '" + contract + "'"));
+  check('appearance: only the appearance owner assigns the selected theme',
+    (SRC.match(/document\.body\.dataset\.appearance\s*=(?!=)/g) || []).length === 1 &&
+    appearance.includes('document.body.dataset.appearance = name'));
+  check('starfield: the appearance replaces the hidden X action',
+    !HTML.includes("id: 'toggleStarfield'") &&
+    readFileSync(new URL('js/starfield.js', ROOT), 'utf8').includes("dataset.appearance === 'starfield'") &&
+    appearance.includes("localStorage.removeItem('starfieldOn')"));
+  check('nebula: one setup owns a cancellable, visibility-gated frame chain',
+    SRC.split('_setupNebulaGalaxy();').length === 2 &&
+    appearance.includes("dataset.appearance === 'nebula' && !document.hidden") &&
+    appearance.includes("!landing.classList.contains('hidden')") &&
+    appearance.includes('visible && !reduced.matches') &&
+    appearance.includes('if (frame === null) frame = requestAnimationFrame(tick)') &&
+    appearance.includes('cancelAnimationFrame(frame)'));
+  check('usage: hosted destination is pinned and the consent adapter is the only collector',
+    usage.includes("const _USAGE_ENDPOINT = 'https://warpdiff.goatcounter.com/count';") &&
+    usage.includes("const _USAGE_HOST = 'jayriddle.github.io';") &&
+    !HTML.includes('gc.zgo.at/count.js') && !HTML.includes('data-goatcounter='));
+  check('usage: comparison accounting has one application readiness hook and clear invalidation',
+    HTML.split('_usage.comparisonReady(').length === 2 &&
+    HTML.includes('_usage.resetComparison();') &&
+    usage.includes('generation !== epoch || seenEpoch === epoch'));
+  check('usage: every send checks consent and never sends cookies or the referrer',
+    usage.includes("consent === 'yes'") && usage.includes('if (!allowed()') &&
+    usage.includes("credentials: 'omit', referrerPolicy: 'no-referrer'"));
+  check('usage: startup and cross-tab changes share one consent-version validator',
+    usage.split('restoreConsent();').length === 3 &&
+    usage.includes('saved.version === _USAGE_CONSENT_VERSION && dated') &&
+    usage.includes("saved === 'no' || saved?.choice === 'no'") &&
+    usage.includes('version: _USAGE_CONSENT_VERSION, decidedAt: new Date().toISOString()') &&
+    !usage.includes('APP_VERSION,'));
+  check('usage: embedded viewers and non-local test URLs cannot activate reporting',
+    usage.includes('window.top === window.self') && usage.includes('const testMode = local &&'));
+  check('usage: counting endpoint is never service-worker cached',
+    !readFileSync(new URL('sw.js', ROOT), 'utf8').includes('__goatcounter_test__'));
+  check('usage: readiness requires all slots and a counted, nonfailed load',
+    usage.includes('load.readySlots.size < load.count') && usage.includes('load.failed ||') &&
+    HTML.split('_usage.slotState(slot, kind);').length === 2);
+  check('usage: scrub accounting has one finalization hook, excluding cancellation and loop selection',
+    HTML.split('_usage.scrub(surface);').length === 2 &&
+    HTML.includes('e && _scrubDragMoved && !_draggingLoopMarker && _regionSelectStart === null'));
+  check('usage: diagnostic outcomes retain their load ticket and consent invalidation drops contexts',
+    usage.includes('context !== load || context.epoch !== epoch') &&
+    usage.includes('load = null; review = null;') &&
+    usage.includes("window.addEventListener('offline', abortPending)") &&
+    readFileSync(new URL('js/audio-analysis.js', ROOT), 'utf8').includes("_usage.outcome(job.usageTicket, 'analysis-failed')"));
+}
+
 check('managed review: native profile is explicit and shares the action policy',
   HTML.includes('capabilities.managedReview === true')
   && HTML.includes('_managedReviewActive() && action.managed === false')
@@ -900,6 +956,69 @@ function extractFn(name, src = SRC) {
         clear.indexOf('_scrubGestureGeneration++') < clear.indexOf('_cancelActiveScrubForClear()'));
 }
 
+// Native Safari drag scheduling: real shipped owner with a deliberately slow
+// decoder. These hostile schedules are separate from native engine testing.
+{
+  const queue = extractFn('_queueNativeScrubSeek');
+  const cancel = extractFn('_cancelNativeScrubSeeks');
+  check('one-owner[native-scrub]: one queue owner serves both timeline and graph drags',
+    countOf(SRC, 'function _queueNativeScrubSeek(') === 1 &&
+    extractFn('scrubToPosition').includes('_queueNativeScrubSeek(video, t)') &&
+    extractFn('canvasScrubToPosition').includes('_queueNativeScrubSeek(media, t)'));
+  check('native-scrub: completion, clear and hidden gesture cleanup retire queued work',
+    extractFn('endScrubDrag').includes('_cancelNativeScrubSeeks()') &&
+    extractFn('_cancelScrubForMediaClear').includes('_cancelNativeScrubSeeks()') &&
+    HTML.includes('if (!document.hidden) return;\n                // A suspended page'));
+  check('page-restore: restored geometry also refreshes the video surfaces',
+    extractFn('_onPageRestore').includes('_forceVideoRepaint()'));
+  const frames = new Map();
+  let frameId = 0;
+  const context = {
+    _IS_WEBKIT_MEDIA: true, hasAudios: false, isDragging: true,
+    document: { hidden: false },
+    requestAnimationFrame: callback => { frames.set(++frameId, callback); return frameId; },
+    cancelAnimationFrame: id => frames.delete(id),
+  };
+  runInNewContext(`const _nativeScrubSeeks = new Map(); ${queue}\n${cancel}`, context);
+  const video = () => {
+    let time = 0;
+    const listeners = new Set();
+    return {
+      seeking: false, targets: [], listeners,
+      get currentTime() { return time; },
+      set currentTime(target) { time = target; this.targets.push(target); this.seeking = true; },
+      addEventListener: (_, callback) => listeners.add(callback),
+      removeEventListener: (_, callback) => listeners.delete(callback),
+      finish() { this.seeking = false; for (const callback of [...listeners]) callback(); },
+    };
+  };
+  const drain = () => { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback()); };
+  const a = video(), b = video();
+  context._queueNativeScrubSeek(a, 0);
+  context._queueNativeScrubSeek(a, 1);
+  context._queueNativeScrubSeek(a, 2);
+  context._queueNativeScrubSeek(a, 3);
+  context._queueNativeScrubSeek(b, 4);
+  check('native-scrub: no-op first target cannot deadlock the next seek', a.targets[0] === 1);
+  check('native-scrub: slow seek is not replaced and videos have independent owners',
+    a.targets.join() === '1' && b.targets.join() === '4');
+  a.finish();
+  context._queueNativeScrubSeek(a, 5);
+  check('native-scrub: completion reserves a paint frame before another seek', a.targets.join() === '1');
+  drain();
+  check('native-scrub: only newest queued target is decoded', a.targets.join() === '1,5');
+  a.finish();
+  context._queueNativeScrubSeek(a, 6);
+  const staleCompletion = [...b.listeners][0];
+  context._cancelNativeScrubSeeks();
+  drain(); staleCompletion(); drain();
+  check('native-scrub: cancellation removes listeners, paint work and stale callbacks',
+    a.targets.join() === '1,5' && a.listeners.size === 0 && b.listeners.size === 0 && frames.size === 0);
+  context._IS_WEBKIT_MEDIA = false;
+  check('native-scrub: other browser policies remain outside this queue',
+    context._queueNativeScrubSeek(a, 7) === false && a.targets.join() === '1,5');
+}
+
 // (M) Seamless mid-playback Stack switch (v3.11.9): a display:none <video>
 //     stops being PRESENTED — unhiding it flashes the stale frame from when it
 //     was last visible (backward jump on near-identical clips) and stalls while
@@ -1570,6 +1689,29 @@ function extractFn(name, src = SRC) {
         && extractFn('drawAudioSlotCanvas').includes('_audioTimelineStarts[slot]'));
 }
 
+// Safari preview output has one comparison-scoped owner. Both preview engines
+// use it; transport, clear and hidden-page handling must not create another sink.
+{
+  const sink = extractFn('_setScrubPreviewOutput');
+  check('one-owner[scrub-output]: only one owner allocates the Safari stream sink',
+    countOf(SRC, 'function _setScrubPreviewOutput(') === 1 &&
+    countOf(SRC, 'createMediaStreamDestination()') === 1 && sink.includes('createMediaStreamDestination()'));
+  check('scrub-output: Continuous and snippets share the destination owner',
+    extractFn('_playContinuousScrub').includes("destination:_setScrubPreviewOutput('play', ctx)") &&
+    extractFn('playScrubSnippet').includes("gain.connect(_setScrubPreviewOutput('play', ctx))"));
+  check('scrub-output: clear releases the player, tracks and stream destination',
+    extractFn('clearAllMedia').includes("_setScrubPreviewOutput('clear')") &&
+    sink.includes('output.audio.srcObject = null') && sink.includes('output.audio.remove()') &&
+    sink.includes('track.stop()') && sink.includes('output.destination.disconnect()'));
+  check('scrub-output: delayed pause and rejected play are generation fenced',
+    sink.includes('output.generation !== generation') && sink.includes('output.ctx.state === \'closed\'') &&
+    sink.includes('if (document.hidden) pause()'));
+  check('scrub-output: trusted gesture primes both input surfaces; stop pauses output',
+    countOf(SRC, '_primeScrubAudioContext();') === 2 &&
+    extractFn('_primeScrubAudioContext').includes("_setScrubPreviewOutput('play', ctx)") &&
+    extractFn('stopScrubSnippet').includes("_setScrubPreviewOutput('pause')"));
+}
+
 // Scrub preview level follows the same saved master volume as normal playback.
 // The scrub path uses Web Audio directly, so this explicit mapping is the one
 // owner that prevents it bypassing HTMLMediaElement.volume at unity gain.
@@ -1879,6 +2021,49 @@ function extractFn(name, src = SRC) {
 
 // Native output routing and Opus switching share one envelope owner.
 {
+  check('one-owner[media-volume]: initial load and master control share one volume writer',
+    (SRC.match(/\b\w+\.volume\s*=(?!=)/g) || []).length === 1 &&
+    extractFn('setVolume').includes('_setMediaVolume(v, volume)'));
+  const prepareNative = extractFn('_prepareNativeAudio');
+  check('safari-native-output: only ordinary mono/stereo video bypasses the Web Audio source',
+    prepareNative.includes("_IS_WEBKIT_MEDIA && _nativeVideoVolumeWritable && media.tagName === 'VIDEO'") &&
+    prepareNative.includes('[1, 2].includes(channels)') &&
+    prepareNative.includes('!_opusSyncSlots[media.dataset.slot] && !_slowPlayback.enabled'));
+  check('safari-native-output: clear cancels native fades and hiding settles the selected output',
+    extractFn('_clearNativeAudioRoutes').includes('_nativeDirectOutputs.clear()') &&
+    SRC.includes('_setDirectNativeAudioMuted(media, state.target === 0, false)'));
+  const timers = new Map(); let nextTimer = 0, now = 0;
+  const directOutputs = new Map();
+  const context = { _nativeDirectOutputs: directOutputs, _nativeAudioRoutes: new Map(),
+    _AUDIO_SWITCH_FADE: .015, document: {hidden:false}, performance: {now:()=>now},
+    setTimeout: callback => { timers.set(++nextTimer,callback);return nextTimer; },
+    clearTimeout: id => timers.delete(id),
+  };
+  runInNewContext(`${extractFn('_setMediaVolume')}\n${extractFn('_setDirectNativeAudioMuted')}\n${extractFn('_clearNativeAudioRoutes')}`, context);
+  const media = {volume:1, muted:false, paused:false};
+  const state = {level:1,target:1,timer:null}; directOutputs.set(media,state);
+  context._setMediaVolume(media,.25);
+  check('safari-native-output: selected source follows master volume', media.volume === .25);
+  context._setDirectNativeAudioMuted(media,true,false);
+  context._setMediaVolume(media,.6);
+  check('safari-native-output: master changes keep inactive audio silent without mute toggles',
+    media.volume === 0 && !media.muted);
+  context._setDirectNativeAudioMuted(media,false,false);
+  check('safari-native-output: selection restores the remembered master volume', media.volume === .6);
+  context._setDirectNativeAudioMuted(media,true,true);
+  const tick = () => { const callbacks=[...timers.values()];timers.clear();callbacks.forEach(callback=>callback()); };
+  now=8;tick();const midpoint=state.level;
+  context._setDirectNativeAudioMuted(media,false,true);
+  check('safari-native-output: rapid fade reversal begins at the current level',
+    midpoint > 0 && midpoint < 1 && state.level === midpoint && timers.size === 1);
+  now=24;tick();
+  check('safari-native-output: reversed fade reaches the correct source and master level',
+    state.level === 1 && media.volume === .6 && state.timer === null);
+  context._setDirectNativeAudioMuted(media,true,true);
+  const stale = [...timers.values()][0];
+  context._clearNativeAudioRoutes();const retiredVolume=media.volume;now=50;stale();
+  check('safari-native-output: clear prevents a delayed fade from touching retired media',
+    timers.size === 0 && directOutputs.size === 0 && media.volume === retiredVolume);
   check('one-owner[dialogue-listening]: comparison setting has one writer and resets through it',
         countOf(SRC, '_audioListening =') === 2
         && extractFn('setAudioListening').includes('WarpScrubAudio.monitor.settings(')

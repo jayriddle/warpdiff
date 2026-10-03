@@ -259,6 +259,7 @@ function _setWipeMode(enabled, announce = true) {
         if (_diffMode) _setDiffMode(false, false);
         if (_tileCheckMode) _setTileCheckMode(false, false);
         _wipeMode = true;
+        _usage.feature('wipe');
         document.body.classList.add('wipe-mode');
         _setWipeScopeSide(0, false);
         _activateWipePair(false);

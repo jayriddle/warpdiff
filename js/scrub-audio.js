@@ -20,13 +20,88 @@ let _continuousScrubCursor = null;
 let _continuousScrubClick = false;
 const _scrubMotionSamples = [];
 let _scrubContinuousNotice = false;
+let _continuousUsageTicket = null;
+let _scrubPreviewOutput = null;
+
+// Safari can render Web Audio PCM while its direct speaker destination stays
+// silent, even in a fresh context. Keep DSP and its clock in Web Audio, but
+// deliver preview PCM through the native media output that remains audible.
+// One comparison-scoped sink serves Continuous and the snippet fallback.
+function _setScrubPreviewOutput(mode, ctx = audioContext) {
+    let output = _scrubPreviewOutput;
+    if (output && (mode === 'clear' || output.ctx !== ctx || output.ctx.state === 'closed')) {
+        output.generation++;
+        if (output.timer) clearTimeout(output.timer);
+        output.ctx.removeEventListener('statechange', output.onStateChange);
+        output.audio.pause();
+        output.audio.srcObject = null;
+        output.audio.remove();
+        output.destination.stream.getTracks().forEach(track => track.stop());
+        output.destination.disconnect();
+        _scrubPreviewOutput = output = null;
+    }
+    if (mode === 'clear' || !_IS_WEBKIT_MEDIA || !ctx || ctx.state === 'closed') return ctx?.destination;
+    if (!output) {
+        // Only a gesture may create/start a sink. Background decode prepares
+        // the processor without allocating a media output or starting sound.
+        if (mode !== 'play') return ctx.destination;
+        try {
+            const destination = ctx.createMediaStreamDestination();
+            const audio = document.createElement('audio');
+            audio.hidden = true;
+            audio.dataset.scrubPreviewOutput = '';
+            audio.srcObject = destination.stream;
+            document.body.appendChild(audio);
+            output = {ctx, destination, audio, generation:0, timer:0, requested:false, warned:false, onStateChange:null};
+            output.onStateChange = () => {
+                if (ctx.state === 'closed' && _scrubPreviewOutput === output) _setScrubPreviewOutput('clear', ctx);
+            };
+            ctx.addEventListener('statechange', output.onStateChange);
+            _scrubPreviewOutput = output;
+        } catch (_) {
+            return ctx.destination;
+        }
+    }
+    if (mode === 'play') {
+        if (output.timer) clearTimeout(output.timer);
+        output.timer = 0;
+        if (!output.requested || output.audio.paused) {
+            output.requested = true;
+            const generation = ++output.generation;
+            output.audio.play().catch(() => {
+                if (_scrubPreviewOutput !== output || output.generation !== generation || !output.requested) return;
+                output.requested = false;
+                if (!output.warned) {
+                    output.warned = true;
+                    showLoadToast('Scrub audio could not start. Try dragging again.', true, 5000);
+                }
+            });
+        }
+    } else if (mode === 'pause' && (output.requested || !output.audio.paused)) {
+        output.requested = false;
+        const generation = ++output.generation;
+        if (output.timer) clearTimeout(output.timer);
+        const pause = () => {
+            if (_scrubPreviewOutput !== output || output.generation !== generation || output.requested) return;
+            output.timer = 0;
+            output.audio.pause();
+        };
+        // Preserve the outgoing grain/processor fade, except on tab hiding.
+        if (document.hidden) pause();
+        else output.timer = setTimeout(pause, (Math.max(WarpScrubAudio.tuning.fade, _SCRUB_FADE) + .01) * 1000);
+    }
+    return output.destination;
+}
 const _continuousScrubEngine = WarpScrubAudio.create({
     workletUrl:'js/scrub-worklet.js',
     matchSourceLevel:true,
     maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES,
-    onError:error => _noticeScrubFallback(error.includes('memory budget')
-        ? 'This clip exceeds the Continuous preview memory limit — using short previews.'
-        : 'Continuous scrub unavailable for this file — using short previews.')
+    onError:error => {
+        _usage.outcome(_continuousUsageTicket, 'continuous-fallback');
+        _noticeScrubFallback(error.includes('memory budget')
+            ? 'This clip exceeds the Continuous preview memory limit — using short previews.'
+            : 'Continuous scrub unavailable for this file — using short previews.');
+    }
 });
 
 function _noticeScrubFallback(message) {
@@ -36,6 +111,7 @@ function _noticeScrubFallback(message) {
 }
 
 function _resetContinuousScrub() {
+    _continuousUsageTicket = null;
     const retired = _continuousScrubEngine.reset();
     _continuousScrubCursor = null;
     _continuousScrubClick = false;
@@ -50,7 +126,11 @@ function _prepareContinuousScrub() {
         _noticeScrubFallback(_videoScrubStatus[slot].message);
     }
     _continuousScrubEngine.setMonitorMix(_audioMonitorPlanForSlot(slot));
-    return buf ? _continuousScrubEngine.load(getAudioContext(), buf, _audioMonitorLayoutForBuffer(slot, buf)) : Promise.resolve(false);
+    if (!buf) return Promise.resolve(false);
+    if (_continuousScrubEngine.state.requestedBuffer !== buf) {
+        _continuousUsageTicket = _usage.startOperation('continuous');
+    }
+    return _continuousScrubEngine.load(getAudioContext(), buf, _audioMonitorLayoutForBuffer(slot, buf));
 }
 function _playContinuousScrub(time) {
     const slot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -78,7 +158,7 @@ function _playContinuousScrub(time) {
     // A single video follows the last confirmed picture. Grid and audio-only
     // retain WarpDiff's shared pointer clock, avoiding competing decoder owners.
     const followsPicture = !_scrubAudioUsesPointerClock();
-    const node = engine.update({offset, tempo, direction, continuous,
+    const node = engine.update({offset, tempo, direction, continuous, destination:_setScrubPreviewOutput('play', ctx),
         limitOffset:followsPicture ? offset : null, level:_scrubOutputGain(_prefs.load('volume', 100))});
     if (!node) return false;
     _stopScrubAudioNodes(); // retire any warm-up/click snippet
@@ -209,7 +289,7 @@ function playScrubSnippet(time) {
     }
 
     const gain = ctx.createGain();
-    gain.connect(ctx.destination);
+    gain.connect(_setScrubPreviewOutput('play', ctx));
     // Fade in
     gain.gain.setValueAtTime(0, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(outputLevel, ctx.currentTime + fadeLen);
@@ -254,6 +334,7 @@ function _scrubAudioTick() {
         _stopScrubAudioNodes();
         _continuousScrubEngine.stop();
         _continuousScrubCursor = null;
+        _setScrubPreviewOutput('pause');
         return;
     }
     const recent = performance.now() - _scrubAudioMotionAt < _SCRUB_AUDIO_IDLE_MS;
@@ -261,6 +342,7 @@ function _scrubAudioTick() {
         _stopScrubAudioNodes();
         _continuousScrubEngine.stop();
         _continuousScrubCursor = null;
+        _setScrubPreviewOutput('pause');
         return;
     }
     if (!_playContinuousScrub(_scrubAudioTargetT)) playScrubSnippet(_scrubAudioTargetT);
@@ -292,7 +374,11 @@ function _feedScrubAudio(time) {
 // enforce user-gesture activation for Web Audio.
 function _primeScrubAudioContext() {
     const ctx = getAudioContext();
-    if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    // Safari can report an OS/tab audio interruption separately from ordinary
+    // suspension. Native video output no longer wakes this independent preview
+    // context; the next scrub gesture must resume either inactive state.
+    if (ctx && ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {});
+    _setScrubPreviewOutput('play', ctx);
     if (_slowPlayback.enabled) _slowPlayback.forScrub().then(() => _prepareContinuousScrub());
     else _prepareContinuousScrub();
 }
@@ -324,4 +410,5 @@ function stopScrubSnippet() {
     _continuousScrubEngine.stop();
     _continuousScrubCursor = null;
     _stopScrubAudioNodes();
+    _setScrubPreviewOutput('pause');
 }

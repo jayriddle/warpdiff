@@ -17,6 +17,7 @@ exclude:
   - docs/
   - tests/
   - node_modules/
+  - scripts/
   - package.json
   - package-lock.json
   - playwright.config.ts

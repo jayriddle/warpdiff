@@ -289,6 +289,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // Opus sync still retains its original full-quality playback buffer.
     // decodeAudioData returns a real AudioBuffer; the WebCodecs path
     // returns a fake object — normalize it first via createBuffer + copyToChannel.
+    const previewTicket = _usage.startOperation('preview');
     try {
         let buf;
         if (audioBuffer instanceof AudioBuffer) {
@@ -304,8 +305,10 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
             : await _prepareVideoScrubBuffer(slot, buf, gen);
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         _videoAudioBuffers[slot] = ready;
+        if (ready && _videoScrubStatus[slot]?.limited) _usage.outcome(previewTicket, 'preview-reduced');
     } catch (error) {
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        _usage.outcome(previewTicket, 'preview-unavailable');
         delete _videoAudioBuffers[slot];
         _videoScrubStatus[slot] = {unavailable:true, message:String(error && error.message || 'Audio preview unavailable for this clip.')};
     }
