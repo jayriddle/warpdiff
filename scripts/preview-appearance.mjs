@@ -5,7 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(fileURLToPath(new URL('../', import.meta.url))); 
+const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const port = Number(process.env.WARPDIFF_PREVIEW_PORT || 8081);
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
     '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
