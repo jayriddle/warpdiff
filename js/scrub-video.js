@@ -11,11 +11,14 @@
 // unpainted. Forward scrubs inside the same GOP continue feeding without a reset;
 // backward scrubs or GOP changes reset() the decoder (which per spec discards all
 // pending output and returns it to "unconfigured") and reconfigure from the new
-// keyframe.
+// keyframe. Retargeting compares the requested presentation time with emitted
+// frames, not queued decode work: retreating to an as-yet undecoded target can
+// keep its current run.
 //
 // Memory: the session retains the full file bytes (sample chunks are subarray
-// views into them). Decoded frames close immediately after paint/caching; the
-// revisit cache holds display-capped ImageBitmaps under a budget sized to the
+// views into them). Decoded frames close after paint/caching; the revisit cache
+// holds display-capped ImageBitmaps, or compact software I420 VideoFrames, under
+// an estimated pixel-byte budget sized to the
 // file's longest GOP (96 MB floor, 192 MB ceiling) — see the cache block for
 // why holding a whole GOP is what makes BACKWARD scrubbing usable.
 //
@@ -47,13 +50,20 @@ function _createScrubVideoSession(bytes) {
     const frameDur = nSamples > 1
         ? (byPts[nSamples - 1].pts - byPts[0].pts) / (nSamples - 1) : 1 / 30;
 
-    const config = { codec: info.codec, optimizeForLatency: true };
+    // High 4:4:4 Predictive AVC commonly takes Chrome's software decode path,
+    // even when the actual pixels are 4:2:0. Low-delay decoding disables frame
+    // threading there and made this sparse-GOP clip fall behind every drag.
+    // Request software throughput for that profile only; other codecs keep
+    // their existing latency preference and hardware selection.
+    const softwareAvc = /^avc1\.f4/i.test(info.codec);
+    const config = { codec: info.codec, optimizeForLatency: !softwareAvc };
+    if (softwareAvc) config.hardwareAcceleration = 'prefer-software';
     if (info.codedWidth)  config.codedWidth  = info.codedWidth;
     if (info.codedHeight) config.codedHeight = info.codedHeight;
     if (info.description) config.description = info.description;
 
     // ── Decoded-frame cache ──────────────────────────────────────────────
-    // Every frame the decoder emits is cached as a display-capped ImageBitmap
+    // Frames are normally cached as display-capped ImageBitmaps
     // so revisiting a position (backward jumps, back-and-forth A/B scrubbing)
     // paints instantly with no re-decode. Bitmaps are capped at 1280px wide
     // (scrub preview quality; a 4K frame would be ~33 MB raw), evicting the
@@ -100,55 +110,73 @@ function _createScrubVideoSession(bytes) {
     // the ceiling). Frames farther than this from the current target would be
     // evicted by cacheEvictFor the moment they land — see cacheStore's gate.
     const maxCacheFrames = Math.max(8, Math.floor(CACHE_BUDGET / cacheFrameBytes));
-    const cache = new Map();          // decode idx → { bm: ImageBitmap, pts }
+    const cache = new Map();          // decode idx → { bm: ImageBitmap | VideoFrame | null, pts, bytes }
     let cacheBytes = 0;
     let cacheHits = 0;
     // decode idx from an output frame's µs timestamp
     const idxByTs = new Map(samples.map((s, i) => [Math.round(s.pts * 1e6), i]));
 
-    function cacheEvictFor(centerPts) {
-        while (cacheBytes + cacheFrameBytes > CACHE_BUDGET && cache.size) {
+    function cacheRemove(idx) {
+        const entry = cache.get(idx);
+        if (!entry) return;
+        cache.delete(idx);
+        cacheBytes -= entry.bytes;
+        if (entry.bm) entry.bm.close();
+    }
+
+    function cacheEvictFor(centerPts, incomingBytes) {
+        while (cacheBytes + incomingBytes > CACHE_BUDGET && cache.size) {
             let worstKey = -1, worstDist = -1;
             for (const [k, v] of cache) {
                 const d = Math.abs(v.pts - centerPts);
                 if (d > worstDist) { worstDist = d; worstKey = k; }
             }
-            const evicted = cache.get(worstKey);
-            cache.delete(worstKey);
-            cacheBytes -= cacheFrameBytes;
-            evicted.bm.close();
+            cacheRemove(worstKey);
         }
     }
 
     function cacheStore(frame) {
         const idx = idxByTs.get(frame.timestamp);
-        if (idx === undefined || cache.has(idx) || dead) { return; }
-        // Distance gate: don't clone + createImageBitmap a frame the eviction
-        // policy would discard immediately. A backward jump re-decodes the whole
-        // GOP from its keyframe; without this gate every one of those frames
-        // (dozens per mousemove on sparse-keyframe files) pays a clone + async
-        // bitmap resize only to be evicted as "farthest from target" — pure
-        // churn that starves the drag's main thread (reverse-scrub stutter).
-        if (targetPts >= 0 &&
-            Math.abs(frame.timestamp / 1e6 - targetPts) > maxCacheFrames * frameDur) { return; }
+        if (idx === undefined || cache.has(idx) || dead) return;
+        const pts = samples[idx].pts;
+        // Software AVC output can retain compact, full-resolution YUV frames.
+        // Opaque/GPU frames and resized previews retain the bitmap path, so a
+        // cache does not pin a hardware decoder's surface pool.
+        if (softwareAvc && cacheScale === 1 && frame.format === 'I420') {
+            try {
+                const frameBytes = frame.allocationSize({ rect: {
+                    x: 0, y: 0, width: frame.codedWidth, height: frame.codedHeight
+                } });
+                if (frameBytes > 0 && frameBytes <= CACHE_BUDGET) {
+                    const planarFrames = Math.floor(CACHE_BUDGET / frameBytes);
+                    if (targetPts >= 0 && Math.abs(pts - targetPts) > planarFrames * frameDur) return;
+                    const clone = frame.clone();
+                    cacheEvictFor(pts, frameBytes);
+                    cache.set(idx, { bm: clone, pts, bytes: frameBytes });
+                    cacheBytes += frameBytes;
+                    return;
+                }
+            } catch (_) { /* retain the bitmap fallback */ }
+        }
+        if (targetPts >= 0 && Math.abs(pts - targetPts) > maxCacheFrames * frameDur) return;
         let clone;
         try { clone = frame.clone(); } catch (_) { return; }
-        cacheEvictFor(frame.timestamp / 1e6);
-        // Reserve the budget synchronously, BEFORE the async createImageBitmap.
-        // A whole GOP decodes in one burst — output() fires for dozens of frames
-        // before any bitmap resolves — so counting bytes only on resolve let the
-        // eviction check pass every frame against a stale cacheBytes and land N
-        // bitmaps at once (~2× budget peak). Reserving now makes each burst
-        // frame's cacheEvictFor see the ones already in flight. Refunded on any
-        // path that doesn't end up storing a live bitmap.
-        cacheBytes += cacheFrameBytes;
+        cacheEvictFor(pts, cacheFrameBytes);
+        // A reservation is an evictable entry, even before its bitmap resolves.
+        // An evicted/cleared promise cannot refill the cache or refund twice.
+        const entry = { bm: null, pts, bytes: cacheFrameBytes };
+        cache.set(idx, entry);
+        cacheBytes += entry.bytes;
         createImageBitmap(clone, { resizeWidth: cacheW, resizeHeight: cacheH })
             .then(bm => {
                 clone.close();
-                if (dead || cache.has(idx)) { bm.close(); cacheBytes -= cacheFrameBytes; return; }
-                cache.set(idx, { bm: bm, pts: samples[idx].pts });
+                if (dead || cache.get(idx) !== entry) { bm.close(); return; }
+                entry.bm = bm;
             })
-            .catch(() => { cacheBytes -= cacheFrameBytes; try { clone.close(); } catch (_) {} });
+            .catch(() => {
+                if (cache.get(idx) === entry) cacheRemove(idx);
+                try { clone.close(); } catch (_) {}
+            });
     }
 
     let canvas = null, ctx2d = null;
@@ -156,6 +184,8 @@ function _createScrubVideoSession(bytes) {
     let suspended = false;  // decoder closed (playback owns the hardware pipeline);
                             // bytes/samples/cache retained, decoder recreated on next request
     let curKey = -1;        // decode index of the GOP keyframe the decoder is primed from
+    let lastOutputPts = -1; // emitted presentation-time high-water mark for this run
+    let eofFlushed = false; // flush only at file end; no further delta chunks can follow
     let nextFeed = -1;      // next decode index to feed (-1 = no active run)
     let targetIdx = -1;     // decode index of the current target sample
     let targetPts = -1;     // seconds
@@ -204,7 +234,9 @@ function _createScrubVideoSession(bytes) {
         const f = pendingFrame;
         pendingFrame = null;
         if (!f) return;
-        if (!dead && ctx2d) {
+        const pts = f.timestamp / 1e6;
+        if (!dead && ctx2d && !runIsPrefetch &&
+            pts > paintFloor && pts <= targetPts + frameDur * 0.5) {
             ctx2d.drawImage(f, 0, 0, canvas.width, canvas.height);
             lastPaintedPts = f.timestamp / 1e6;
             framesPainted++;
@@ -239,6 +271,7 @@ function _createScrubVideoSession(bytes) {
                     return;
                 }
             }
+            lastOutputPts = Math.max(lastOutputPts, frame.timestamp / 1e6);
             cacheStore(frame);
             const ptsS = frame.timestamp / 1e6;
             // runIsPrefetch: a speculative run's frames are the PAST relative to
@@ -306,6 +339,8 @@ function _createScrubVideoSession(bytes) {
         runIsPrefetch = true;
         prefetchedKey = gopKey;
         curKey = gopKey;
+        lastOutputPts = -1;
+        eofFlushed = false;
         nextFeed = gopKey;
         targetIdx = gopEndFor(gopKey);
         targetPts = samples[targetIdx].pts;
@@ -322,7 +357,7 @@ function _createScrubVideoSession(bytes) {
         if (key <= 0) return;                    // nothing before this one
         const prevKey = keyBefore(key - 1);
         if (prevKey === prefetchedKey) return;   // already fetched this one
-        if (cache.has(gopEndFor(prevKey))) return; // already warm
+        if (cache.get(gopEndFor(prevKey))?.bm) return; // already warm
         startPrefetch(prevKey);
     }
 
@@ -348,6 +383,13 @@ function _createScrubVideoSession(bytes) {
             feedOne(nextFeed++);
         }
         if (nextFeed <= stop) decoder.addEventListener('dequeue', pump, { once: true });
+        // Threaded/reordered decoders can retain their final frames. At EOF
+        // there are no more chunks to release them, and no forward continuation
+        // to preserve. Reset/suspend may abort this promise; that is harmless.
+        if (nextFeed === nSamples && !eofFlushed) {
+            eofFlushed = true;
+            decoder.flush().catch(() => {});
+        }
     }
 
     return {
@@ -360,7 +402,7 @@ function _createScrubVideoSession(bytes) {
         get lastPaintedPts() { return lastPaintedPts; },
         get dead() { return dead; },
         get suspended() { return suspended; },
-        get cacheStats() { return { frames: cache.size, bytes: cacheBytes, hits: cacheHits }; },
+        get cacheStats() { return { frames: Array.from(cache.values()).filter(entry => entry.bm).length, bytes: cacheBytes, hits: cacheHits }; },
         get frameColorSpace() { return _lastFrameColorSpace; },
 
         setPaintListener(listener) {
@@ -429,7 +471,7 @@ function _createScrubVideoSession(bytes) {
             // run's painting (its outputs keep caching but stop painting) by
             // moving the target/floor to the served frame.
             const hit = cache.get(idx);
-            if (hit && ctx2d) {
+            if (hit && hit.bm && ctx2d) {
                 ctx2d.drawImage(hit.bm, 0, 0, canvas.width, canvas.height);
                 cacheHits++;
                 framesPainted++;
@@ -443,11 +485,12 @@ function _createScrubVideoSession(bytes) {
                 maybePrefetchBackward(idx, key);
                 return;
             }
-            if (nextFeed >= 0 && key === curKey && idx + REORDER_MARGIN >= nextFeed) {
+            if (nextFeed >= 0 && key === curKey && pts >= lastOutputPts) {
                 // Same GOP, at/ahead of decode progress — retarget and keep the
                 // run. This covers forward extension AND backward wobbles whose
                 // frame hasn't been decoded yet (target 10s, decode at 5s, wobble
                 // to 9.9s) — no reset needed, the run just stops sooner.
+                const retreating = pts < targetPts;
                 targetPts = pts;
                 targetIdx = idx;
                 // A real target claims the run: resume painting. (The user
@@ -457,7 +500,9 @@ function _createScrubVideoSession(bytes) {
                 // Discrete seek forward within the GOP: lift the paint floor to
                 // the target so the intervening frames decode (needed to release
                 // the target) but don't paint — no fast-forward flash on a click.
-                else if (direct) paintFloor = pts - frameDur;
+                // A retreat ahead of emitted output also needs its own floor;
+                // keeping the former, later target would suppress this one.
+                else if (direct || retreating) paintFloor = pts - frameDur;
                 pump();
                 return;
             }
@@ -485,6 +530,8 @@ function _createScrubVideoSession(bytes) {
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             targetPts = pts;
             curKey = key;
+            lastOutputPts = -1;
+            eofFlushed = false;
             nextFeed = key;
             targetIdx = idx;
             pump();
@@ -502,6 +549,8 @@ function _createScrubVideoSession(bytes) {
             if (dead || suspended) return;
             suspended = true;
             curKey = -1;
+            lastOutputPts = -1;
+            eofFlushed = false;
             nextFeed = -1;
             targetIdx = -1;
             targetPts = -1;
@@ -520,9 +569,7 @@ function _createScrubVideoSession(bytes) {
             dead = true;
             if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
-            for (const v of cache.values()) v.bm.close();
-            cache.clear();
-            cacheBytes = 0;
+            for (const idx of cache.keys()) cacheRemove(idx);
             try { decoder.close(); } catch (_) {}
             canvas = null;
             ctx2d = null;

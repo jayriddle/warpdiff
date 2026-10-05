@@ -19,6 +19,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { runInNewContext } from 'node:vm';
+import { runScrubVideoChecks } from './scrub-video-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -1492,9 +1493,13 @@ function extractFn(name, src = SRC) {
 
   // R2: scrub cache reserves budget synchronously before the async bitmap create.
   const cacheStore = extractFn('cacheStore');
-  check('sweep[R2]: scrub cache reserves cacheBytes before createImageBitmap, refunds on bail',
-        cacheStore.indexOf('cacheBytes += cacheFrameBytes') < cacheStore.indexOf('createImageBitmap(clone') &&
-        countOf(cacheStore, 'cacheBytes -= cacheFrameBytes') === 2);
+  check('sweep[R2]: scrub cache reserves an evictable entry before bitmap work and retires it through one owner',
+        cacheStore.indexOf('cache.set(idx, entry)') < cacheStore.indexOf('createImageBitmap(clone') &&
+        cacheStore.indexOf('cacheBytes += entry.bytes') < cacheStore.indexOf('createImageBitmap(clone') &&
+        cacheStore.includes('cache.get(idx) !== entry') &&
+        cacheStore.includes('if (cache.get(idx) === entry) cacheRemove(idx)') &&
+        countOf(SRC, 'function cacheRemove(') === 1 &&
+        extractFn('cacheRemove').includes('cacheBytes -= entry.bytes'));
 
   // R3: AudioDecoder is closed on the synchronous configure-throw path.
   const dwad = extractFn('_decodeWithAudioDecoder');
@@ -2253,5 +2258,6 @@ function extractFn(name, src = SRC) {
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────
+await runScrubVideoChecks(check);
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

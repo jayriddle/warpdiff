@@ -716,7 +716,9 @@ test.describe('Page Load & Initial State', () => {
     if (showNotes) {
       // Dismissing missed news records the actual app version and won't repeat.
       await page.locator('#changelogPopup .quick-start-close').click();
-      expect(await page.evaluate(() => localStorage.getItem('lastSeenVersion'))).toBe('3.18.13');
+      const currentVersion = await page.locator('#appVersion').textContent();
+      expect(await page.evaluate(() => localStorage.getItem('lastSeenVersion')))
+        .toBe(currentVersion!.match(/^v(\d+\.\d+\.\d+)/)![1]);
       await page.reload();
       await expect(page.locator('#changelogPopup')).not.toBeVisible();
     }

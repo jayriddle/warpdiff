@@ -2,6 +2,8 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  // Node ownership/logic harnesses run separately with test:ownership.
+  testMatch: '**/*.spec.ts',
   globalSetup: './tests/global-setup.ts',
   timeout: 60_000,  // Increased for slower load/animation timing in current build
   retries: process.env.CI ? 2 : 1,  // Allow 1 retry locally for flaky timing

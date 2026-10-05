@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.18.13
+**Current version:** 3.18.14
 
 ---
 
@@ -31,6 +31,8 @@ Single-video and synced playback keep the timeline and waveform playheads moving
 See the [playhead implementation and before/after measurements](docs/playhead-motion-2026-09-15/README.md).
 
 After scrubbing, Play and Restart (`R`) restore the selected playback scope and loop range. Restart also suspends the idle scrub decoder while retaining cached frames for the next drag. See the [restart verification record](docs/restart-playback-2026-09-15.md).
+
+Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long keyframe gaps can still delay an uncached seek. See the [scrubbing investigation](docs/playback-lag-investigation-2026-10-05.md).
 
 Waveform, spectrogram, and loudness analysis run in the background while files prepare, keeping playback and controls responsive with the same original-audio calculations. See the [playback investigation and verification record](docs/video-stutter-2026-09-15.md).
 

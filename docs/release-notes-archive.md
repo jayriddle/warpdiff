@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.18.14 (release prepared October 5, 2026)
+
+- Chrome scrubbing preserves useful decode progress when a request retreats behind queued work, suppresses superseded pending paints, and releases buffered final frames at EOF.
+- High 4:4:4 H.264 requests software throughput and can retain compact full-resolution I420 frames within the existing estimated cache budget. Other codecs, opaque frames and resized previews keep the bitmap route. Cache reservations now retire safely on eviction, clear and late completion.
+- Very long keyframe gaps can still delay a cold seek. The current What’s New summary and consent scope remain unchanged. See the [investigation and verification](playback-lag-investigation-2026-10-05.md).
+
 ## v3.18.13 (release prepared October 3, 2026)
 
 - No separate What’s New announcement for this analytics maintenance update. The last important summary remains 3.18.12, shown only to users who missed it. Daily activity stays in the usage summary and brief expandable privacy Details.
