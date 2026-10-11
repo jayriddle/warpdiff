@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-10",
+  "verifiedAtUTC": "2026-10-11T04:39:51.516Z",
+  "url": "https://jayriddle.github.io/warpdiff/",
+  "sourceCommit": "4620317a1da797d302bb342ba2e29cb1e56d424c",
+  "runtimeTextFiles": [
+    {
+      "path": "index.html",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "sw.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "manifest.json",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/appearance.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-analysis-worker.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-analysis.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-decode.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-monitor.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-routing.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/audio-viz.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/hotkeys.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/info-bar.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/managed-review.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/mp4-demux.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/opus-sync.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/playback-audio-core.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/scopes.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/scrub-audio-core.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/scrub-audio.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/scrub-video.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/scrub-worklet.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/signalsmith-worklet.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/slow-playback.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/starfield.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/tile-check.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/timecode.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/transport.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/usage.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "path": "js/wipe.js",
+      "status": 200,
+      "matches": true
+    }
+  ],
+  "versionMetadata": {
+    "sha": "4620317a1da797d302bb342ba2e29cb1e56d424c"
+  },
+  "versionMetadataMatches": true,
+  "pass": true
+}
