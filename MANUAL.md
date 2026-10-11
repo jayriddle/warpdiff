@@ -53,7 +53,7 @@ The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.
 
 **Audio timing warning:** If a video's container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. WarpDiff does not shift native playback; the warning applies to decoded-audio views and tools using a fallback timeline. Videos whose containers explicitly report a start at 0 do not trigger it.
 
-**Unsupported video audio:** WarpDiff can transcode the soundtrack to AAC in the browser. The transcode panel also offers a copied FFmpeg command for a macOS or Linux terminal. With FFmpeg installed, run that command from the folder containing the original file, then reload the `_aac` output. Filenames are quoted literally, including spaces, apostrophes and shell characters.
+**Unsupported video audio:** WarpDiff can transcode the soundtrack to AAC in the browser. The transcode panel also offers a copied FFmpeg command for a macOS or Linux terminal. With FFmpeg installed, run that command from the folder containing the original file, then reload the `_aac` output. Filenames are quoted literally, including spaces, apostrophes and shell characters. Files without an extension keep their full name and gain `_aac.mp4` in both conversion paths. If Copy reports blocked clipboard access, allow it and try again; unavailable clipboard access is also reported.
 
 **Reset:** Click the **Reset** button (visible after loading) to clear all files and start over.
 

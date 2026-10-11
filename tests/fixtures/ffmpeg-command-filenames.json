@@ -18,5 +18,10 @@
   { "label": "shell operators", "input": "clip;&|<>#.mp4", "output": "clip;&|<>#_aac.mp4" },
   { "label": "leading tilde", "input": "~clip.mp4", "output": "~clip_aac.mp4" },
   { "label": "protocol-like prefix", "input": "file:clip.mp4", "output": "file:clip_aac.mp4" },
-  { "label": "multiple periods", "input": "clip.v2.final.mov", "output": "clip.v2.final_aac.mov" }
+  { "label": "multiple periods", "input": "clip.v2.final.mov", "output": "clip.v2.final_aac.mov" },
+  { "label": "no extension", "input": "review", "output": "review_aac.mp4" },
+  { "label": "short name without extension", "input": "a", "output": "a_aac.mp4" },
+  { "label": "trailing period", "input": "clip.", "output": "clip._aac.mp4" },
+  { "label": "hidden name without extension", "input": ".review", "output": ".review_aac.mp4" },
+  { "label": "hidden name with extension", "input": ".review.mp4", "output": ".review_aac.mp4" }
 ]

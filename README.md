@@ -75,7 +75,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Unsupported video audio can be transcoded in the browser or with a copied FFmpeg command for macOS/Linux terminals. Run copied commands from the folder containing the original file.
+- Unsupported video audio can be transcoded in the browser or with a copied FFmpeg command for macOS/Linux terminals. Run copied commands from the folder containing the original file. Extensionless filenames stay intact, with `_aac.mp4` added to the output name.
 - Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)

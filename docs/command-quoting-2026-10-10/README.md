@@ -1,5 +1,7 @@
 # Phase 1: copied FFmpeg command quoting — October 10, 2026
 
+This records the initial implementation at `f7ee15e`. The [October 11 follow-up review](../command-quoting-review-2026-10-11/README.md) records additional filename and copy-error fixes, expanded verification and remaining limitations.
+
 Status: local feature branch `codex/safe-ffmpeg-command`, based on master `75eb81f701de89628d432148c46dac87b18f0d98`. This work is for Jay's review; it is not merged, pushed or published. The app/cache version stays at 3.19.0 until a release is agreed.
 
 ## Agreed scope and approach

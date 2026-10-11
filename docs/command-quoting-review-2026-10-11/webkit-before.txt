@@ -1,0 +1,59 @@
+(node:19796) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:19798) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19798) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19798) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/9] [webkit] › tests/ffmpeg-command.spec.ts:48:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[2/9] [webkit] › tests/ffmpeg-command.spec.ts:72:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[3/9] [webkit] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports refused clipboard access without claiming success
+[4/9] [webkit] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports missing clipboard access without claiming success
+[5/9] [webkit] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[6/9] [webkit] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard resolve after clear leaves the retired command silent
+[7/9] [webkit] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard reject after clear leaves the retired command silent
+[8/9] [webkit] › tests/ffmpeg-command.spec.ts:160:5 › real browser FFmpeg retains a hidden extensionless basename when reloading AAC
+  1) [webkit] › tests/ffmpeg-command.spec.ts:160:5 › real browser FFmpeg retains a hidden extensionless basename when reloading AAC
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: ".review_aac.mp4"
+    Received: ".review"
+
+    Call Log:
+    - Timeout 150000ms exceeded while waiting on the predicate
+
+      168 |   await page.locator('#multiFileInput').setInputFiles({ name: '.review', mimeType: 'video/mp4',
+      169 |     buffer: fs.readFileSync(path.join(__dirname, 'fixtures/ac3_video.mp4')) });
+    > 170 |   await expect.poll(() => page.evaluate(() => (window as any).eval('mediaData.editA && mediaData.editA.name')),
+          |   ^
+      171 |     { timeout: 150_000 }).toBe('.review_aac.mp4');
+      172 |   await expect.poll(() => page.evaluate(() => (window as any).eval('!!_videoAudioBuffers.editA')),
+      173 |     { timeout: 30_000 }).toBe(true);
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:170:3
+
+    Error Context: ../../../../tmp/warpdiff-command-review-webkit-results/ffmpeg-command-real-browse-787be-basename-when-reloading-AAC-webkit/error-context.md
+
+
+(node:20556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:20556) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:20556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[9/9] [webkit] › tests/ffmpeg-command.spec.ts:188:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+  1 failed
+    [webkit] › tests/ffmpeg-command.spec.ts:160:5 › real browser FFmpeg retains a hidden extensionless basename when reloading AAC
+  8 passed (2.6m)

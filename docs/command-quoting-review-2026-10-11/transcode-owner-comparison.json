@@ -1,0 +1,8 @@
+{
+  "previousRevision": "f7ee15e7b1d516fc7be40534a9d9277c2848b501",
+  "owner": "_transcodeSlotRun",
+  "extraction": "function keyword through balanced closing brace, excluding the async prefix",
+  "previousSHA256": "71ed4d9d7345b2ec897906e42ae3b4c50535be634a78c54dcb17f22e419da299",
+  "currentSHA256": "f4763e0a9a4069d020717cd40f8673c15dd6a2ae5cea6b7df84333290074fbe5",
+  "namingChangeOnly": true
+}

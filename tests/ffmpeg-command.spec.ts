@@ -7,10 +7,16 @@ import * as path from 'node:path';
 const cases: { label: string; input: string; output: string }[] = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'fixtures/ffmpeg-command-filenames.json'), 'utf8'));
 
-// FFmpeg receives the complete argv after a real POSIX shell parses the shipped
+const shells = [
+  { name: 'sh', executable: '/bin/sh', options: ['-c'] },
+  { name: 'bash', executable: '/bin/bash', options: ['--noprofile', '--norc', '-c'] },
+  { name: 'zsh', executable: '/bin/zsh', options: ['-f', '-c'] },
+].filter(shell => fs.existsSync(shell.executable));
+
+// FFmpeg receives the complete argv after a real shell parses the shipped
 // command. The stub prints NUL-delimited arguments; it never opens media files.
-function shellArguments(command: string): string[] {
-  const result = spawnSync('/bin/sh', ['-c',
+function shellArguments(command: string, shell: typeof shells[number]): string[] {
+  const result = spawnSync(shell.executable, [...shell.options,
     "ffmpeg() { printf '%s\\0' \"$@\"; }\n" + command], { timeout: 5000 });
   expect(result.error).toBeUndefined();
   expect(result.status, result.stderr.toString()).toBe(0);
@@ -34,6 +40,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => {
     const w = window as any;
     w.transcodeCalls = [];
+    w.realTranscodeSlot = w._transcodeSlot;
     w._transcodeSlot = (slot: string) => w.transcodeCalls.push(slot);
   });
 });
@@ -52,10 +59,12 @@ test('copied FFmpeg commands preserve adversarial filenames through a POSIX shel
     });
   }, cases);
   for (let i = 0; i < cases.length; i++) {
-    await test.step(cases[i].label, async () => {
-      expect(commands[i].filename).toBe(cases[i].input);
-      expect(shellArguments(commands[i].cmd)).toEqual(expectedArguments(cases[i].input, cases[i].output));
-    });
+    expect(commands[i].filename).toBe(cases[i].input);
+    for (const shell of shells) {
+      await test.step(`${shell.name}: ${cases[i].label}`, async () => {
+        expect(shellArguments(commands[i].cmd, shell)).toEqual(expectedArguments(cases[i].input, cases[i].output));
+      });
+    }
   }
   expect(await page.evaluate(() => (window as any).transcodeCalls)).toEqual(cases.map(() => 'original'));
 });
@@ -84,9 +93,110 @@ test('FFmpeg panel copies the displayed macOS/Linux command verbatim', async ({ 
   expect(await page.evaluate(() => (window as any).transcodeCalls)).toEqual(['original']);
 });
 
+for (const failure of ['refused', 'missing', 'synchronous'] as const) {
+  test(`FFmpeg panel reports ${failure} clipboard access without claiming success`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/red.png'));
+    await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    await page.evaluate(mode => {
+      const w = window as any;
+      Object.defineProperty(navigator, 'clipboard', { configurable: true,
+        value: mode === 'missing' ? undefined : { writeText: () => {
+          const error = new DOMException('Clipboard denied', 'NotAllowedError');
+          if (mode === 'synchronous') throw error;
+          return Promise.reject(error);
+        } } });
+      w._registerFfmpegCommand('original', 'review.mp4', 'ec-3');
+      w.toggleFfmpegPanel();
+    }, failure);
+    const button = page.locator('#ffmpegPanel .fp-copy-btn');
+    await button.click();
+    await expect(page.locator('#toast')).toContainText('Could not copy');
+    await expect(page.locator('#toast')).toBeVisible();
+    await expect(button).toHaveText('Copy');
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { writeText: async () => {} } }));
+    await button.click();
+    await expect(button).toHaveText('Copied!');
+    expect(errors).toEqual([]);
+  });
+}
+
+for (const outcome of ['resolve', 'reject'] as const) {
+  test(`a late clipboard ${outcome} after clear leaves the retired command silent`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.evaluate(() => {
+      const w = window as any;
+      Object.defineProperty(navigator, 'clipboard', { configurable: true,
+        value: { writeText: () => new Promise<void>((resolve, reject) => {
+          w.finishCopy = resolve;
+          w.failCopy = () => reject(new DOMException('Clipboard denied', 'NotAllowedError'));
+        }) } });
+      w._registerFfmpegCommand('original', 'review.mp4', 'ec-3');
+      w.toggleFfmpegPanel();
+      w.retiredCopyButton = document.querySelector('#ffmpegPanel .fp-copy-btn');
+    });
+    await page.locator('#ffmpegPanel .fp-copy-btn').click();
+    const state = await page.evaluate(async result => {
+      const w = window as any;
+      w.clearAllMedia();
+      const toast = document.getElementById('toast')!;
+      const before = { text: toast.textContent, className: toast.className };
+      if (result === 'resolve') w.finishCopy();
+      else w.failCopy();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return { before, after: { text: toast.textContent, className: toast.className },
+        retiredText: w.retiredCopyButton.textContent, copied: w.retiredCopyButton.classList.contains('copied') };
+    }, outcome);
+    expect(state.after).toEqual(state.before);
+    expect(state.retiredText).toBe('Copy');
+    expect(state.copied).toBe(false);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('real browser FFmpeg retains a hidden extensionless basename when reloading AAC', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.evaluate(() => {
+    const w = window as any;
+    w._transcodeSlot = w.realTranscodeSlot;
+  });
+  await page.locator('#multiFileInput').setInputFiles({ name: '.review', mimeType: 'video/mp4',
+    buffer: fs.readFileSync(path.join(__dirname, 'fixtures/ac3_video.mp4')) });
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  // Some browser/OS combinations decode AC-3 natively. Invoke the conversion
+  // owner explicitly so this naming test does not depend on codec support.
+  // An automatic conversion already in flight keeps its existing registration.
+  await page.evaluate(() => {
+    const w = window as any;
+    if (w.eval('mediaData.editA.name') === '.review') w._registerFfmpegCommand('editA', '.review', 'ac-3');
+  });
+  await expect.poll(() => page.evaluate(() => (window as any).eval('mediaData.editA && mediaData.editA.name')),
+    { timeout: 150_000 }).toBe('.review_aac.mp4');
+  await expect.poll(() => page.evaluate(() => (window as any).eval('!!_videoAudioBuffers.editA')),
+    { timeout: 30_000 }).toBe(true);
+  const decoded = await page.evaluate(() => {
+    const buffer = (window as any).eval('_videoAudioBuffers.editA');
+    let peak = 0;
+    for (const sample of buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(sample));
+    return { duration: buffer.duration, peak, channels: buffer.numberOfChannels,
+      format: (window as any).eval('mediaData.editA.audioFormat') };
+  });
+  expect(decoded.duration).toBeGreaterThan(0.8);
+  expect(decoded.peak).toBeGreaterThan(0.01);
+  expect(decoded.channels).toBe(2);
+  expect(decoded.format.fields).toMatchObject({ audioCodec: 'AAC', channels: 'Stereo', sampleRate: '48 kHz' });
+  expect(errors).toEqual([]);
+});
+
 test('real terminal FFmpeg converts literal filenames including a leading hyphen', async ({ page }) => {
   test.skip(process.platform === 'win32', 'Copied commands target macOS/Linux POSIX shells.');
-  const selected = cases.filter(item => ['leading hyphen', 'apostrophe', 'command substitution', 'newline'].includes(item.label));
+  const selected = cases.filter(item => ['leading hyphen', 'apostrophe', 'command substitution', 'newline',
+    'protocol-like prefix', 'no extension', 'short name without extension', 'hidden name without extension'].includes(item.label));
   const commands = await page.evaluate(items => {
     const w = window as any;
     return items.map(item => {

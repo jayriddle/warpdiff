@@ -1,0 +1,115 @@
+(node:19459) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 6 tests using 1 worker
+
+(node:19508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19508) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/6] [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+  1) [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+        "latest": "rotate(180deg)",
+    -   "preserved": "rotate(90deg)",
+    +   "preserved": "",
+      }
+
+      3686 |       return { preserved, latest: video.style.transform };
+      3687 |     });
+    > 3688 |     expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
+           |                       ^
+      3689 |   });
+      3690 | });
+      3691 |
+        at /Users/jay/Documents/warpdiff/tests/warpdiff.spec.ts:3688:23
+
+    Error Context: ../../../../tmp/warpdiff-command-review-baseline-results/baseline-Safari-native-scr-a40c5-nd-a-newer-layout-transform-chromium/error-context.md
+
+
+(node:19589) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19589) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19589) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/6] [chromium] › tests/warpdiff.spec.ts:4221:5 › desktop embedded transport keeps playback, seeking, volume and source controls reachable
+(node:19611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19611) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/6] [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+[4/6] [chromium] › tests/warpdiff.spec.ts:4221:5 › desktop embedded transport keeps playback, seeking, volume and source controls reachable
+(node:19684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19684) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[5/6] [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+  2) [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "latest": "rotate(180deg)",
+    +   "latest": "",
+        "preserved": "rotate(90deg)",
+      }
+
+      3686 |       return { preserved, latest: video.style.transform };
+      3687 |     });
+    > 3688 |     expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
+           |                       ^
+      3689 |   });
+      3690 | });
+      3691 |
+        at /Users/jay/Documents/warpdiff/tests/warpdiff.spec.ts:3688:23
+
+    Error Context: ../../../../tmp/warpdiff-command-review-baseline-results/baseline-Safari-native-scr-a40c5-nd-a-newer-layout-transform-chromium-repeat2/error-context.md
+
+
+(node:19701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19701) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[6/6] [chromium] › tests/warpdiff.spec.ts:4221:5 › desktop embedded transport keeps playback, seeking, volume and source controls reachable
+  2 failed
+    [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+    [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+  4 passed (7.0s)

@@ -6491,13 +6491,22 @@
             return "'" + value.replace(/'/g, "'\\''") + "'";
         }
 
+        function _ffmpegFilenameParts(filename) {
+            const suffix = filename.match(/(\.[^.]+)$/);
+            // A leading dot alone is a hidden basename, not an extension.
+            // Only remove an extension that is actually present in the name.
+            if (suffix && suffix.index > 0) {
+                return { base: filename.slice(0, suffix.index), ext: suffix[1] };
+            }
+            return { base: filename, ext: '.mp4' };
+        }
+
         // Called from the MP4 demuxer when it identifies an unsupported primary track codec.
         // `codec` is one of the _UNSUPPORTED_CODEC_LABELS keys.
         function _registerFfmpegCommand(slot, filename, codec) {
             if (_ffmpegCommands[slot]) return; // already registered
             const codecLabel = _UNSUPPORTED_CODEC_LABELS[codec] || 'Unsupported audio codec';
-            const ext  = (filename.match(/(\.[^.]+)$/) || ['', '.mp4'])[1];
-            const base = filename.slice(0, filename.length - ext.length);
+            const { base, ext } = _ffmpegFilenameParts(filename);
             // File.name is a basename. ./ also keeps leading hyphens and
             // protocol-like names local file paths when FFmpeg reads the argv.
             const cmd  = 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i ' + _quotePosixShellArg('./' + filename) + ' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart ' + _quotePosixShellArg('./' + base + '_aac' + ext);
@@ -6592,16 +6601,27 @@
             body.appendChild(wasmNote);
         }
 
-        function _copyFfmpegCmd(btn, slot) {
+        async function _copyFfmpegCmd(btn, slot) {
             const info = _ffmpegCommands[slot];
             if (!info) return;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(info.cmd).then(() => {
-                    btn.textContent = 'Copied!';
-                    btn.classList.add('copied');
-                    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-                });
+            try {
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                    showToast('Could not copy — clipboard access is unavailable in this browser.', 4000);
+                    return;
+                }
+                await navigator.clipboard.writeText(info.cmd);
+            } catch (_) {
+                if (_ffmpegCommandIsCurrent(slot, info) && btn.isConnected) {
+                    showToast('Could not copy — allow clipboard access and try again.', 4000);
+                }
+                return;
             }
+            // Clear, source replacement or a panel refresh can retire this button
+            // while the browser waits for clipboard permission.
+            if (!_ffmpegCommandIsCurrent(slot, info) || !btn.isConnected) return;
+            btn.textContent = 'Copied!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
         }
 
         // Human-readable ETA: '< 1s', '~8s', '~2m 14s'
@@ -6926,8 +6946,7 @@
             const srcFile = audioFileBuffers[slot];
             if (!(srcFile instanceof File)) { showToast('Source file unavailable — reload and retry', 4000); return; }
 
-            const ext        = (info.filename.match(/(\.[^.]+)$/) || ['', '.mp4'])[1];
-            const base       = info.filename.slice(0, info.filename.length - ext.length);
+            const { base, ext } = _ffmpegFilenameParts(info.filename);
             const inputName  = 'input' + ext;
             const outputName = 'output_aac' + ext;
             const newFilename = base + '_aac' + ext;
@@ -14331,7 +14350,7 @@
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
-            <p><strong>Unsupported video audio:</strong> WarpDiff can transcode the soundtrack to AAC in the browser. The transcode panel also offers a copied FFmpeg command for a macOS or Linux terminal. With FFmpeg installed, run that command from the folder containing the original file, then reload the <strong>_aac</strong> output file. Filenames are quoted literally, including spaces, apostrophes and shell characters.</p>
+            <p><strong>Unsupported video audio:</strong> WarpDiff can transcode the soundtrack to AAC in the browser. The transcode panel also offers a copied FFmpeg command for a macOS or Linux terminal. With FFmpeg installed, run that command from the folder containing the original file, then reload the <strong>_aac</strong> output file. Filenames are quoted literally, including spaces, apostrophes and shell characters. Files without an extension keep their full name and gain <strong>_aac.mp4</strong> in both conversion paths. If Copy reports blocked clipboard access, allow it and try again; unavailable clipboard access is also reported.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>

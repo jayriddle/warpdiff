@@ -1,0 +1,27 @@
+(node:19454) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 11 tests using 1 worker
+
+(node:19456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:19456) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:19456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/11] [chromium] › tests/ffmpeg-command.spec.ts:48:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[2/11] [chromium] › tests/ffmpeg-command.spec.ts:72:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[3/11] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports refused clipboard access without claiming success
+[4/11] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports missing clipboard access without claiming success
+[5/11] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[6/11] [chromium] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard resolve after clear leaves the retired command silent
+[7/11] [chromium] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard reject after clear leaves the retired command silent
+[8/11] [chromium] › tests/ffmpeg-command.spec.ts:160:5 › real browser FFmpeg retains a hidden extensionless basename when reloading AAC
+[9/11] [chromium] › tests/ffmpeg-command.spec.ts:188:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+[10/11] [chromium] › tests/warpdiff.spec.ts:3673:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+[11/11] [chromium] › tests/warpdiff.spec.ts:4221:5 › desktop embedded transport keeps playback, seeking, volume and source controls reachable
+  11 passed (5.4s)

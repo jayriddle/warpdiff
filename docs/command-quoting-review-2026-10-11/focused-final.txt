@@ -1,0 +1,25 @@
+(node:20713) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 9 tests using 1 worker
+
+(node:20715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:20715) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:20715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/9] [chromium] › tests/ffmpeg-command.spec.ts:48:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[2/9] [chromium] › tests/ffmpeg-command.spec.ts:72:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[3/9] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports refused clipboard access without claiming success
+[4/9] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports missing clipboard access without claiming success
+[5/9] [chromium] › tests/ffmpeg-command.spec.ts:97:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[6/9] [chromium] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard resolve after clear leaves the retired command silent
+[7/9] [chromium] › tests/ffmpeg-command.spec.ts:127:7 › a late clipboard reject after clear leaves the retired command silent
+[8/9] [chromium] › tests/ffmpeg-command.spec.ts:160:5 › real browser FFmpeg retains a hidden extensionless basename when reloading AAC
+[9/9] [chromium] › tests/ffmpeg-command.spec.ts:196:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+  9 passed (4.5s)

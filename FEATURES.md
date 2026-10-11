@@ -64,7 +64,7 @@ Press `Shift+G` to grab the current frame from the active slot and pin it to a g
 
 ## Sync and Solo video playback
 
-For unsupported video audio, the transcode panel offers in-browser AAC conversion and a copied FFmpeg command for macOS/Linux terminals. Copied commands preserve filenames literally, including spaces, apostrophes and shell characters. Run them from the folder containing the original file, with FFmpeg installed, then reload the `_aac` output.
+For unsupported video audio, the transcode panel offers in-browser AAC conversion and a copied FFmpeg command for macOS/Linux terminals. Copied commands preserve filenames literally, including spaces, apostrophes and shell characters. Run them from the folder containing the original file, with FFmpeg installed, then reload the `_aac` output. Files without an extension keep their full name and gain `_aac.mp4` in both conversion paths. Copy reports unavailable or blocked clipboard access.
 
 Playback controls wrap when a desktop window or embedded pane has limited width, keeping seeking, volume and audio-source selection reachable.
 
