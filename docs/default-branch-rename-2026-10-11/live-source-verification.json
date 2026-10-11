@@ -1,0 +1,250 @@
+{
+  "observedAt": "2026-10-11T18:05:38.570Z",
+  "url": "https://jayriddle.github.io/warpdiff/",
+  "sourceCommit": "75eb81f701de89628d432148c46dac87b18f0d98",
+  "runtime": [
+    {
+      "path": "index.html",
+      "status": 200,
+      "bytes": 784205,
+      "expectedHash": "515830d363bba2aef9bc078fc5d618b7e4f2d31ba66e129fcfb6cbf7d5f37323",
+      "actualHash": "515830d363bba2aef9bc078fc5d618b7e4f2d31ba66e129fcfb6cbf7d5f37323",
+      "matches": true
+    },
+    {
+      "path": "sw.js",
+      "status": 200,
+      "bytes": 2043,
+      "expectedHash": "9b4f4f790a0498f1b57deea636892f4546aca4e66bf88fa9a6149e5c9c5675bd",
+      "actualHash": "9b4f4f790a0498f1b57deea636892f4546aca4e66bf88fa9a6149e5c9c5675bd",
+      "matches": true
+    },
+    {
+      "path": "manifest.json",
+      "status": 200,
+      "bytes": 391,
+      "expectedHash": "c34585f3f840d928d56d87cf6a3a58e2252e34c041012cd7a815e8932cbd74a5",
+      "actualHash": "c34585f3f840d928d56d87cf6a3a58e2252e34c041012cd7a815e8932cbd74a5",
+      "matches": true
+    },
+    {
+      "path": "js/appearance.js",
+      "status": 200,
+      "bytes": 9686,
+      "expectedHash": "04a739615e18e64d85392a6998e9a74a3366b34e25db8964a97fe31da2fb8ec5",
+      "actualHash": "04a739615e18e64d85392a6998e9a74a3366b34e25db8964a97fe31da2fb8ec5",
+      "matches": true
+    },
+    {
+      "path": "js/audio-analysis-worker.js",
+      "status": 200,
+      "bytes": 1778,
+      "expectedHash": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+      "actualHash": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+      "matches": true
+    },
+    {
+      "path": "js/audio-analysis.js",
+      "status": 200,
+      "bytes": 4827,
+      "expectedHash": "f1d135af8f6faac6d2fd0f8f543070f725d5f99bb838971c985c167a8b29cd3b",
+      "actualHash": "f1d135af8f6faac6d2fd0f8f543070f725d5f99bb838971c985c167a8b29cd3b",
+      "matches": true
+    },
+    {
+      "path": "js/audio-decode.js",
+      "status": 200,
+      "bytes": 32668,
+      "expectedHash": "19777627a2a50a00422c51ee3c16ead6f9103ad65c7fc59e6d8d4ca737dc0a32",
+      "actualHash": "19777627a2a50a00422c51ee3c16ead6f9103ad65c7fc59e6d8d4ca737dc0a32",
+      "matches": true
+    },
+    {
+      "path": "js/audio-monitor.js",
+      "status": 200,
+      "bytes": 7000,
+      "expectedHash": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+      "actualHash": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+      "matches": true
+    },
+    {
+      "path": "js/audio-routing.js",
+      "status": 200,
+      "bytes": 7931,
+      "expectedHash": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+      "actualHash": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+      "matches": true
+    },
+    {
+      "path": "js/audio-viz.js",
+      "status": 200,
+      "bytes": 29659,
+      "expectedHash": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+      "actualHash": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+      "matches": true
+    },
+    {
+      "path": "js/hotkeys.js",
+      "status": 200,
+      "bytes": 22426,
+      "expectedHash": "bce7c0d22ef3a2e270d6c350cddd8f3d706e3cef08e54d05dbcbfb4be10137ad",
+      "actualHash": "bce7c0d22ef3a2e270d6c350cddd8f3d706e3cef08e54d05dbcbfb4be10137ad",
+      "matches": true
+    },
+    {
+      "path": "js/info-bar.js",
+      "status": 200,
+      "bytes": 44062,
+      "expectedHash": "c83fead76fce1a7dc06a4043f57a445fb9c2b41e8942484d118c13fc1e13c24c",
+      "actualHash": "c83fead76fce1a7dc06a4043f57a445fb9c2b41e8942484d118c13fc1e13c24c",
+      "matches": true
+    },
+    {
+      "path": "js/managed-review.js",
+      "status": 200,
+      "bytes": 957,
+      "expectedHash": "1150245afc806346a5befa32c9f7d2acb02c82466e6593ec6839d3fbfc4b3f87",
+      "actualHash": "1150245afc806346a5befa32c9f7d2acb02c82466e6593ec6839d3fbfc4b3f87",
+      "matches": true
+    },
+    {
+      "path": "js/mp4-demux.js",
+      "status": 200,
+      "bytes": 44244,
+      "expectedHash": "12841e7d9de5d524435da7383744f26ea3ac69475be64525baca0afde44e1741",
+      "actualHash": "12841e7d9de5d524435da7383744f26ea3ac69475be64525baca0afde44e1741",
+      "matches": true
+    },
+    {
+      "path": "js/opus-sync.js",
+      "status": 200,
+      "bytes": 11598,
+      "expectedHash": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "actualHash": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "matches": true
+    },
+    {
+      "path": "js/playback-audio-core.js",
+      "status": 200,
+      "bytes": 7894,
+      "expectedHash": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6",
+      "actualHash": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6",
+      "matches": true
+    },
+    {
+      "path": "js/scopes.js",
+      "status": 200,
+      "bytes": 15457,
+      "expectedHash": "5f9336f62ce5b34229ca42ae1f4ae46bcf6bbd07ff3d29cf936f576de74988d0",
+      "actualHash": "5f9336f62ce5b34229ca42ae1f4ae46bcf6bbd07ff3d29cf936f576de74988d0",
+      "matches": true
+    },
+    {
+      "path": "js/scrub-audio-core.js",
+      "status": 200,
+      "bytes": 29827,
+      "expectedHash": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+      "actualHash": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+      "matches": true
+    },
+    {
+      "path": "js/scrub-audio.js",
+      "status": 200,
+      "bytes": 19752,
+      "expectedHash": "10ca4e28959470852fcf5ce882fa5f6c3b764dde330bbad7fab4cecfe8e267da",
+      "actualHash": "10ca4e28959470852fcf5ce882fa5f6c3b764dde330bbad7fab4cecfe8e267da",
+      "matches": true
+    },
+    {
+      "path": "js/scrub-video.js",
+      "status": 200,
+      "bytes": 31072,
+      "expectedHash": "79998e363d3cf10d2514f7b1067673e351c480bc2b7c6fdd83c7703cf08154ad",
+      "actualHash": "79998e363d3cf10d2514f7b1067673e351c480bc2b7c6fdd83c7703cf08154ad",
+      "matches": true
+    },
+    {
+      "path": "js/scrub-worklet.js",
+      "status": 200,
+      "bytes": 24018,
+      "expectedHash": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+      "actualHash": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+      "matches": true
+    },
+    {
+      "path": "js/signalsmith-worklet.js",
+      "status": 200,
+      "bytes": 115549,
+      "expectedHash": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08",
+      "actualHash": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08",
+      "matches": true
+    },
+    {
+      "path": "js/slow-playback.js",
+      "status": 200,
+      "bytes": 8235,
+      "expectedHash": "51f87dbc117c4300e1a3c7f98689337a59ce425ca94ea17d3d6d2bf1d45e84e3",
+      "actualHash": "51f87dbc117c4300e1a3c7f98689337a59ce425ca94ea17d3d6d2bf1d45e84e3",
+      "matches": true
+    },
+    {
+      "path": "js/starfield.js",
+      "status": 200,
+      "bytes": 12061,
+      "expectedHash": "daadf89dc5f3a0919698b90f4f079a1896aff6a6ee08dc85a97e843748f18cb3",
+      "actualHash": "daadf89dc5f3a0919698b90f4f079a1896aff6a6ee08dc85a97e843748f18cb3",
+      "matches": true
+    },
+    {
+      "path": "js/tile-check.js",
+      "status": 200,
+      "bytes": 11312,
+      "expectedHash": "8e2369b9ffeae78fda8908e8ec0ac7279da53d6393eb4d6d0132da0108101764",
+      "actualHash": "8e2369b9ffeae78fda8908e8ec0ac7279da53d6393eb4d6d0132da0108101764",
+      "matches": true
+    },
+    {
+      "path": "js/timecode.js",
+      "status": 200,
+      "bytes": 4357,
+      "expectedHash": "e3fc970f7721623dbe204b1697d1caa3dbf00ae0c9a398d30bf8db47d9608975",
+      "actualHash": "e3fc970f7721623dbe204b1697d1caa3dbf00ae0c9a398d30bf8db47d9608975",
+      "matches": true
+    },
+    {
+      "path": "js/transport.js",
+      "status": 200,
+      "bytes": 71924,
+      "expectedHash": "0ae854a3941350a2989ba510788dab82a90460473709bc23095cfee06bfde67c",
+      "actualHash": "0ae854a3941350a2989ba510788dab82a90460473709bc23095cfee06bfde67c",
+      "matches": true
+    },
+    {
+      "path": "js/usage.js",
+      "status": 200,
+      "bytes": 21083,
+      "expectedHash": "4e78a9a1c66a0390ae0147ba232645f04b05ceec6fa29c1bfe7a4265f2e68752",
+      "actualHash": "4e78a9a1c66a0390ae0147ba232645f04b05ceec6fa29c1bfe7a4265f2e68752",
+      "matches": true
+    },
+    {
+      "path": "js/wipe.js",
+      "status": 200,
+      "bytes": 16157,
+      "expectedHash": "83a75c1a000a9aecefa89d2cae0d4f0007ebae8347d0952861f689d8ad96b2ae",
+      "actualHash": "83a75c1a000a9aecefa89d2cae0d4f0007ebae8347d0952861f689d8ad96b2ae",
+      "matches": true
+    }
+  ],
+  "version": {
+    "observedAt": "2026-10-11T18:06:44.068Z",
+    "status": 200,
+    "body": {
+      "sha": "75eb81f701de89628d432148c46dac87b18f0d98"
+    },
+    "sourceAppVersion": "3.19.0",
+    "matches": true
+  },
+  "allRuntimeMatches": true,
+  "verificationNote": "The first checker incorrectly expected commit/version properties. This endpoint intentionally returns sha only. The 29 runtime checks passed on the first run. This corrected check validates sha; APP_VERSION comes from the exact index.html source hash."
+}

@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-10-11T18:05:36.346Z",
+  "response": {
+    "total_count": 2,
+    "branch_policies": [
+      {
+        "id": 62709580,
+        "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3k2MjcwOTU4MA==",
+        "name": "main",
+        "type": "branch"
+      },
+      {
+        "id": 43471836,
+        "node_id": "MDE2OkdhdGVCcmFuY2hQb2xpY3k0MzQ3MTgzNg==",
+        "name": "master",
+        "type": "branch"
+      }
+    ]
+  }
+}
