@@ -1,0 +1,22 @@
+[
+  { "label": "command substitution", "input": "clip-$(printf EXPANDED).mp4", "output": "clip-$(printf EXPANDED)_aac.mp4" },
+  { "label": "ordinary filename", "input": "clip.mp4", "output": "clip_aac.mp4" },
+  { "label": "spaces", "input": "My review clip.mp4", "output": "My review clip_aac.mp4" },
+  { "label": "apostrophe", "input": "Jay's clip.mp4", "output": "Jay's clip_aac.mp4" },
+  { "label": "double quotes", "input": "clip\"review\".mp4", "output": "clip\"review\"_aac.mp4" },
+  { "label": "environment variable", "input": "clip $HOME.mp4", "output": "clip $HOME_aac.mp4" },
+  { "label": "backticks", "input": "clip-`printf EXPANDED`.mp4", "output": "clip-`printf EXPANDED`_aac.mp4" },
+  { "label": "double quote escape attempt", "input": "clip\"; printf EXPANDED; : \".mp4", "output": "clip\"; printf EXPANDED; : \"_aac.mp4" },
+  { "label": "single quote escape attempt", "input": "clip'; printf EXPANDED; : '.mp4", "output": "clip'; printf EXPANDED; : '_aac.mp4" },
+  { "label": "backslash", "input": "clip\\take.mp4", "output": "clip\\take_aac.mp4" },
+  { "label": "newline", "input": "line\nbreak.mp4", "output": "line\nbreak_aac.mp4" },
+  { "label": "carriage return", "input": "carriage\rreturn.mp4", "output": "carriage\rreturn_aac.mp4" },
+  { "label": "leading hyphen", "input": "-y.mp4", "output": "-y_aac.mp4" },
+  { "label": "double leading hyphen", "input": "--help.mp4", "output": "--help_aac.mp4" },
+  { "label": "Unicode", "input": "révision 🎬.mp4", "output": "révision 🎬_aac.mp4" },
+  { "label": "wildcards and brackets", "input": "clip [AB]*?.mp4", "output": "clip [AB]*?_aac.mp4" },
+  { "label": "shell operators", "input": "clip;&|<>#.mp4", "output": "clip;&|<>#_aac.mp4" },
+  { "label": "leading tilde", "input": "~clip.mp4", "output": "~clip_aac.mp4" },
+  { "label": "protocol-like prefix", "input": "file:clip.mp4", "output": "file:clip_aac.mp4" },
+  { "label": "multiple periods", "input": "clip.v2.final.mov", "output": "clip.v2.final_aac.mov" }
+]

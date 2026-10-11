@@ -6485,6 +6485,12 @@
         // (we know there IS audio, the codec is just undecodable in-browser).
         // _onAllDecodeFailed → js/audio-decode.js
 
+        function _quotePosixShellArg(value) {
+            // Single quotes keep substitutions/operators literal. An apostrophe
+            // closes the quoted span, escapes itself, then reopens the span.
+            return "'" + value.replace(/'/g, "'\\''") + "'";
+        }
+
         // Called from the MP4 demuxer when it identifies an unsupported primary track codec.
         // `codec` is one of the _UNSUPPORTED_CODEC_LABELS keys.
         function _registerFfmpegCommand(slot, filename, codec) {
@@ -6492,7 +6498,9 @@
             const codecLabel = _UNSUPPORTED_CODEC_LABELS[codec] || 'Unsupported audio codec';
             const ext  = (filename.match(/(\.[^.]+)$/) || ['', '.mp4'])[1];
             const base = filename.slice(0, filename.length - ext.length);
-            const cmd  = 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i "' + filename + '" -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart "' + base + '_aac' + ext + '"';
+            // File.name is a basename. ./ also keeps leading hyphens and
+            // protocol-like names local file paths when FFmpeg reads the argv.
+            const cmd  = 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i ' + _quotePosixShellArg('./' + filename) + ' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart ' + _quotePosixShellArg('./' + base + '_aac' + ext);
             _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd, loadEpoch: _ffmpegLoadEpoch };
             if (!_ffmpegTranscodeAvailable()) {
                 _ffmpegTranscoding[slot] = { phase: 'unavailable', error: _FFMPEG_UNAVAILABLE };
@@ -6537,6 +6545,8 @@
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'fp-copy-btn';
                 copyBtn.textContent = 'Copy';
+                copyBtn.title = 'Copy command for a macOS or Linux terminal';
+                copyBtn.setAttribute('aria-label', copyBtn.title);
                 copyBtn.addEventListener('click', () => _copyFfmpegCmd(copyBtn, slot));
                 row.appendChild(cmdEl);
                 row.appendChild(copyBtn);
@@ -6570,9 +6580,10 @@
 
             const note = document.createElement('div');
             note.className = 'fp-note';
-            note.textContent = !_ffmpegTranscodeAvailable()
-                ? _FFMPEG_UNAVAILABLE
-                : 'Run the command in a terminal, then reload the transcoded file. Or use "Transcode in browser" — no install required.';
+            note.textContent = 'Copied commands are for macOS or Linux terminals. Run the command from the folder containing the original file, then reload the transcoded file. '
+                + (!_ffmpegTranscodeAvailable()
+                    ? _FFMPEG_UNAVAILABLE
+                    : 'Or use "Transcode in browser" — no install required.');
             body.appendChild(note);
 
             const wasmNote = document.createElement('div');
@@ -14320,6 +14331,7 @@
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>Unsupported video audio:</strong> WarpDiff can transcode the soundtrack to AAC in the browser. The transcode panel also offers a copied FFmpeg command for a macOS or Linux terminal. With FFmpeg installed, run that command from the folder containing the original file, then reload the <strong>_aac</strong> output file. Filenames are quoted literally, including spaces, apostrophes and shell characters.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>

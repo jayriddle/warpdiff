@@ -1,0 +1,75 @@
+(node:9706) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:9708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:9708) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:9708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/3] [chromium] › tests/ffmpeg-command.spec.ts:40:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[2/3] [chromium] › tests/ffmpeg-command.spec.ts:62:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+  1) [chromium] › tests/ffmpeg-command.spec.ts:62:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for locator('#ffmpegPanel').locator('.fp-copy-btn')
+        - locator resolved to <button class="fp-copy-btn" title="Copy command for a macOS or Linux terminal" aria-label="Copy command for a macOS or Linux terminal">Copy</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="quickStartBackdrop" class="quick-start-backdrop show"></div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="quickStartBackdrop" class="quick-start-backdrop show"></div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        116 × waiting for element to be visible, enabled and stable
+            - element is visible, enabled and stable
+            - scrolling into view if needed
+            - done scrolling
+            - <div id="quickStartBackdrop" class="quick-start-backdrop show"></div> intercepts pointer events
+          - retrying click action
+            - waiting 500ms
+
+
+      78 |   const registered = await page.evaluate(() => (window as any).eval('_ffmpegCommands.original.cmd'));
+      79 |   expect(displayed).toBe(registered);
+    > 80 |   await panel.locator('.fp-copy-btn').click();
+         |                                       ^
+      81 |   await expect(panel.locator('.fp-copy-btn')).toHaveText('Copied!');
+      82 |   expect(await page.evaluate(() => (window as any).copiedCommands)).toEqual([registered]);
+      83 |   expect(await page.evaluate(() => (window as any).transcodeCalls)).toEqual(['original']);
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:80:39
+
+    Error Context: test-results/ffmpeg-command-FFmpeg-pane-3820a-acOS-Linux-command-verbatim-chromium/error-context.md
+
+
+(node:9815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:9815) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:9815) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/3] [chromium] › tests/ffmpeg-command.spec.ts:86:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+  1 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:62:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+  2 passed (1.0m)
