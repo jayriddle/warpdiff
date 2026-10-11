@@ -4,11 +4,17 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.18.14
+**Current version:** 3.19.0
 
 ---
 
 WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+
+## Customize the info bar
+
+Open **Customize info bar** (the sliders icon in the header) to choose visible information, arrange elements in **Left aligned** and **Right aligned** sections with drag handles, and adjust their color, text size and bold styling. Presets keep Zoom at the far right; drag any field or spacer within or between sections to suit your layout. Mouse, touch and keyboard movement are supported. Start with **Default**, **Minimal**, **Visual Focus**, **Audio Essentials**, or **All Available**. Audio information can be hidden together or selected field by field. Add adjustable **spacers** to group related fields.
+
+Image, video and audio profiles are saved separately in this browser and apply to both Stack and Grid. Narrow bars compress spacers and keep right-edge fields first, then put remaining selected fields in **More** (shown as **⋯** in compact Grid bars). Customized Stack information moves to its own header row when space is tight. Reset profile restores the original display. See the [workflow](MANUAL.md#info-bar) and [review and verification record](docs/info-bar-review-2026-10-10/README.md).
 
 ## Appearance and optional usage sharing
 
@@ -126,7 +132,7 @@ Files auto-sort oldest → newest by timestamp. Four-item reviews use media-awar
 
 ### Architecture
 
-- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, image wipe, transport, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
+- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, image wipe, transport, the info bar editor, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
 - **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release (enforced by the ownership test harness, which also checks every `js/*.js` is in the service-worker precache).
 - **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
 - **Two test layers** — a Playwright suite (real headless Chromium) covering transport, difference and wipe modes, pan/zoom, hotkey reassignment, layouts, and audio visualization; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, documentation/build/version hygiene, and pure-function logic without a browser.

@@ -1,0 +1,698 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --workers=2
+(node:7928) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 11 tests using 1 worker
+
+(node:7929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7929) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:7929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars (5.5s)
+(node:7942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7942) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:7942) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   2 [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars (retry #1) (5.2s)
+(node:7962) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7962) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:7962) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   3 [chromium] › tests/info-bar.spec.ts:53:5 › field order and typography apply to Stack and Grid without changing playback (5.2s)
+(node:7971) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7971) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:7971) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   4 [chromium] › tests/info-bar.spec.ts:53:5 › field order and typography apply to Stack and Grid without changing playback (retry #1) (5.3s)
+(node:7990) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7990) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:7990) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   5 [chromium] › tests/info-bar.spec.ts:80:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (5.2s)
+(node:8009) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8009) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8009) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   6 [chromium] › tests/info-bar.spec.ts:80:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (retry #1) (5.2s)
+(node:8022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8022) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8022) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   7 [chromium] › tests/info-bar.spec.ts:104:5 › media profiles persist independently through reload and new comparisons (5.5s)
+(node:8035) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8035) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8035) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   8 [chromium] › tests/info-bar.spec.ts:104:5 › media profiles persist independently through reload and new comparisons (retry #1) (5.4s)
+(node:8056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8056) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   9 [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles (5.2s)
+(node:8070) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8070) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8070) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  10 [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles (retry #1) (5.3s)
+(node:8087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8087) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8087) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:148:5 › narrow bars show only selected overflow fields and clearing removes stale details (446ms)
+  ✘  12 [chromium] › tests/info-bar.spec.ts:173:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (5.2s)
+(node:8099) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8099) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8099) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  13 [chromium] › tests/info-bar.spec.ts:173:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (retry #1) (5.2s)
+(node:8118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8118) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8118) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  14 [chromium] › tests/info-bar.spec.ts:188:5 › all metadata can be hidden and four-slot identity controls remain usable (5.3s)
+(node:8126) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8126) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8126) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  15 [chromium] › tests/info-bar.spec.ts:188:5 › all metadata can be hidden and four-slot identity controls remain usable (retry #1) (5.3s)
+(node:8140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8140) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8140) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  16 [chromium] › tests/info-bar.spec.ts:200:5 › another tab updates the active profile and failed storage is explained (5.2s)
+(node:8153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8153) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8153) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  17 [chromium] › tests/info-bar.spec.ts:200:5 › another tab updates the active profile and failed storage is explained (retry #1) (5.3s)
+(node:8167) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8167) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8167) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  18 [chromium] › tests/info-bar.spec.ts:219:5 › managed hosts close the editor and retain their standard review chrome (5.2s)
+(node:8183) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8183) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8183) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  19 [chromium] › tests/info-bar.spec.ts:219:5 › managed hosts close the editor and retain their standard review chrome (retry #1) (5.2s)
+(node:8196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8196) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  20 [chromium] › tests/info-bar.spec.ts:230:5 › image wipe uses its pair chooser and restores custom metadata on exit (5.2s)
+(node:8207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8207) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8207) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  21 [chromium] › tests/info-bar.spec.ts:230:5 › image wipe uses its pair chooser and restores custom metadata on exit (retry #1) (5.2s)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:33:3
+
+    Error Context: test-results/info-bar-default-stays-unc-a6c9f--restores-the-original-bars-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:33:3
+
+    Error Context: test-results/info-bar-default-stays-unc-a6c9f--restores-the-original-bars-chromium-retry1/error-context.md
+
+  2) [chromium] › tests/info-bar.spec.ts:53:5 › field order and typography apply to Stack and Grid without changing playback
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:54:3
+
+    Error Context: test-results/info-bar-field-order-and-t-24929-d-without-changing-playback-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:54:3
+
+    Error Context: test-results/info-bar-field-order-and-t-24929-d-without-changing-playback-chromium-retry1/error-context.md
+
+  3) [chromium] › tests/info-bar.spec.ts:80:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:81:3
+
+    Error Context: test-results/info-bar-spacers-are-repea-7d71e-e-around-unavailable-fields-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:81:3
+
+    Error Context: test-results/info-bar-spacers-are-repea-7d71e-e-around-unavailable-fields-chromium-retry1/error-context.md
+
+  4) [chromium] › tests/info-bar.spec.ts:104:5 › media profiles persist independently through reload and new comparisons
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:115:3
+
+    Error Context: test-results/info-bar-media-profiles-pe-73e7b--reload-and-new-comparisons-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:115:3
+
+    Error Context: test-results/info-bar-media-profiles-pe-73e7b--reload-and-new-comparisons-chromium-retry1/error-context.md
+
+  5) [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:125:3
+
+    Error Context: test-results/info-bar-late-source-and-l-ebee1-dden-fields-and-user-styles-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:125:3
+
+    Error Context: test-results/info-bar-late-source-and-l-ebee1-dden-fields-and-user-styles-chromium-retry1/error-context.md
+
+  6) [chromium] › tests/info-bar.spec.ts:173:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:174:3
+
+    Error Context: test-results/info-bar-editor-keyboard-c-24882-d-and-Escape-restores-focus-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 2
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:174:3
+
+    Error Context: test-results/info-bar-editor-keyboard-c-24882-d-and-Escape-restores-focus-chromium-retry1/error-context.md
+
+  7) [chromium] › tests/info-bar.spec.ts:188:5 › all metadata can be hidden and four-slot identity controls remain usable
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-layer.hidden-slot')
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-layer.hidden-slot')
+        9 × locator resolved to 0 elements
+          - unexpected value "0"
+
+
+      195 |   await expect(page.locator('.info-items .info-item, .info-items .info-gap')).toHaveCount(0);
+      196 |   await expect(page.locator('.info-more:visible')).toHaveCount(0);
+    > 197 |   await page.locator('.asset-info-bar .asset-name').first().click();
+          |                                                          ^
+      198 |   await expect(page.locator('.hidden-slot-pill')).toHaveCount(1);
+      199 | });
+      200 |
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:197:58
+
+    Error Context: test-results/info-bar-all-metadata-can--2319e-tity-controls-remain-usable-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-layer.hidden-slot')
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-layer.hidden-slot')
+        9 × locator resolved to 0 elements
+          - unexpected value "0"
+
+
+      195 |   await expect(page.locator('.info-items .info-item, .info-items .info-gap')).toHaveCount(0);
+      196 |   await expect(page.locator('.info-more:visible')).toHaveCount(0);
+    > 197 |   await page.locator('.asset-info-bar .asset-name').first().click();
+          |                                                          ^
+      198 |   await expect(page.locator('.hidden-slot-pill')).toHaveCount(1);
+      199 | });
+      200 |
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:197:58
+
+    Error Context: test-results/info-bar-all-metadata-can--2319e-tity-controls-remain-usable-chromium-retry1/error-context.md
+
+  8) [chromium] › tests/info-bar.spec.ts:200:5 › another tab updates the active profile and failed storage is explained
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:201:3
+
+    Error Context: test-results/info-bar-another-tab-updat-4c662-failed-storage-is-explained-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 1
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar .asset-name:not(:empty)')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:201:3
+
+    Error Context: test-results/info-bar-another-tab-updat-4c662-failed-storage-is-explained-chromium-retry1/error-context.md
+
+  9) [chromium] › tests/info-bar.spec.ts:219:5 › managed hosts close the editor and retain their standard review chrome
+
+    Error: expect(locator).toHaveClass(expected) failed
+
+    Locator: locator('#comparisonView')
+    Expected pattern: /active/
+    Received string:  "comparison-view"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveClass" with timeout 5000ms
+      - waiting for locator('#comparisonView')
+        9 × locator resolved to <div id="comparisonView" class="comparison-view">…</div>
+          - unexpected value "comparison-view"
+
+
+      222 |   await page.evaluate(() => window.postMessage({type:'WARPDIFF_LOAD',requestId:'info-managed',taskId:'info-managed',capabilities:{managedReview:true},signedItems:[
+      223 |     {signedUrl:'/tests/fixtures/landscape_a.mp4',name:'host.mp4',contentType:'video/mp4',lastModified:0}
+    > 224 |   ]},location.origin));
+          |                        ^
+      225 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+      226 |   await expect(page.locator('#infoEditorDialog')).not.toBeVisible();
+      227 |   await expect(page.locator('#infoEditorButton')).not.toBeVisible();
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:224:49
+
+    Error Context: test-results/info-bar-managed-hosts-clo-8eeb7-heir-standard-review-chrome-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveClass(expected) failed
+
+    Locator: locator('#comparisonView')
+    Expected pattern: /active/
+    Received string:  "comparison-view"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveClass" with timeout 5000ms
+      - waiting for locator('#comparisonView')
+        9 × locator resolved to <div id="comparisonView" class="comparison-view">…</div>
+          - unexpected value "comparison-view"
+
+
+      222 |   await page.evaluate(() => window.postMessage({type:'WARPDIFF_LOAD',requestId:'info-managed',taskId:'info-managed',capabilities:{managedReview:true},signedItems:[
+      223 |     {signedUrl:'/tests/fixtures/landscape_a.mp4',name:'host.mp4',contentType:'video/mp4',lastModified:0}
+    > 224 |   ]},location.origin));
+          |                        ^
+      225 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+      226 |   await expect(page.locator('#infoEditorDialog')).not.toBeVisible();
+      227 |   await expect(page.locator('#infoEditorButton')).not.toBeVisible();
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:224:49
+
+    Error Context: test-results/info-bar-managed-hosts-clo-8eeb7-heir-standard-review-chrome-chromium-retry1/error-context.md
+
+  10) [chromium] › tests/info-bar.spec.ts:230:5 › image wipe uses its pair chooser and restores custom metadata on exit
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 3
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar .asset-name:not(:empty)')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:231:3
+
+    Error Context: test-results/info-bar-image-wipe-uses-i-ce79f-res-custom-metadata-on-exit-chromium/error-context.md
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('.asset-info-bar')
+    Expected: 3
+    Received: 4
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('.asset-info-bar')
+        9 × locator resolved to 4 elements
+          - unexpected value "4"
+
+
+       9 |     ? { name, mimeType:'image/png', buffer:png } : path.join(fixtures, name)));
+      10 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    > 11 |   await expect(page.locator('.asset-info-bar .asset-name:not(:empty)')).toHaveCount(files.length);
+         |                                                 ^
+      12 | }
+      13 | async function open(page: Page, type?: string) {
+      14 |   await page.locator('#infoEditorButton').click();
+        at load (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:11:49)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:231:3
+
+    Error Context: test-results/info-bar-image-wipe-uses-i-ce79f-res-custom-metadata-on-exit-chromium-retry1/error-context.md
+
+  10 failed
+    [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars
+    [chromium] › tests/info-bar.spec.ts:53:5 › field order and typography apply to Stack and Grid without changing playback
+    [chromium] › tests/info-bar.spec.ts:80:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields
+    [chromium] › tests/info-bar.spec.ts:104:5 › media profiles persist independently through reload and new comparisons
+    [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles
+    [chromium] › tests/info-bar.spec.ts:173:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+    [chromium] › tests/info-bar.spec.ts:188:5 › all metadata can be hidden and four-slot identity controls remain usable
+    [chromium] › tests/info-bar.spec.ts:200:5 › another tab updates the active profile and failed storage is explained
+    [chromium] › tests/info-bar.spec.ts:219:5 › managed hosts close the editor and retain their standard review chrome
+    [chromium] › tests/info-bar.spec.ts:230:5 › image wipe uses its pair chooser and restores custom metadata on exit
+  1 passed (2.0m)

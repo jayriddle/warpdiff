@@ -1,0 +1,243 @@
+{
+  "date": "2026-10-09",
+  "browser": "Playwright Chromium",
+  "kind": "read-only release-readiness review",
+  "result": "confirmed clipping defect",
+  "cases": [
+    {
+      "width": 320,
+      "height": 736,
+      "file": "portrait.mp4",
+      "bars": [
+        {
+          "barWidth": 115,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 124.046875,
+          "buttonRight": 172.046875,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 115,
+          "barRight": 277,
+          "moreShown": true,
+          "buttonLeft": 244.625,
+          "buttonRight": 292.625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 115,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 125.9375,
+          "buttonRight": 173.9375,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 115,
+          "barRight": 277,
+          "moreShown": true,
+          "buttonLeft": 245.15625,
+          "buttonRight": 293.15625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": false
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 400,
+      "file": "portrait.mp4",
+      "bars": [
+        {
+          "barWidth": 21,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 218.046875,
+          "buttonRight": 266.046875,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 21,
+          "barRight": 183,
+          "moreShown": true,
+          "buttonLeft": 244.625,
+          "buttonRight": 292.625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 21,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 219.9375,
+          "buttonRight": 267.9375,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 21,
+          "barRight": 183,
+          "moreShown": true,
+          "buttonLeft": 245.15625,
+          "buttonRight": 293.15625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        }
+      ]
+    },
+    {
+      "width": 736,
+      "height": 400,
+      "file": "portrait.mp4",
+      "bars": [
+        {
+          "barWidth": 58,
+          "barRight": 366,
+          "moreShown": true,
+          "buttonLeft": 389.046875,
+          "buttonRight": 437.046875,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 58,
+          "barRight": 428,
+          "moreShown": true,
+          "buttonLeft": 452.625,
+          "buttonRight": 500.625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 58,
+          "barRight": 366,
+          "moreShown": true,
+          "buttonLeft": 390.9375,
+          "buttonRight": 438.9375,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        },
+        {
+          "barWidth": 58,
+          "barRight": 428,
+          "moreShown": true,
+          "buttonLeft": 453.15625,
+          "buttonRight": 501.15625,
+          "buttonWidth": 48,
+          "fullyWithinBar": false,
+          "fullyClipped": true
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "file": "portrait.mp4",
+      "bars": [
+        {
+          "barWidth": 159,
+          "barRight": 638,
+          "moreShown": true,
+          "buttonLeft": 582,
+          "buttonRight": 630,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 159,
+          "barRight": 801,
+          "moreShown": true,
+          "buttonLeft": 745,
+          "buttonRight": 793,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 159,
+          "barRight": 638,
+          "moreShown": true,
+          "buttonLeft": 582,
+          "buttonRight": 630,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 159,
+          "barRight": 801,
+          "moreShown": true,
+          "buttonLeft": 745,
+          "buttonRight": 793,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 736,
+      "file": "tall.png",
+      "bars": [
+        {
+          "barWidth": 141,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 102,
+          "buttonRight": 150,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 141,
+          "barRight": 303,
+          "moreShown": true,
+          "buttonLeft": 247.09375,
+          "buttonRight": 295.09375,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 141,
+          "barRight": 158,
+          "moreShown": true,
+          "buttonLeft": 102.40625,
+          "buttonRight": 150.40625,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        },
+        {
+          "barWidth": 141,
+          "barRight": 303,
+          "moreShown": true,
+          "buttonLeft": 247.625,
+          "buttonRight": 295.625,
+          "buttonWidth": 48,
+          "fullyWithinBar": true,
+          "fullyClipped": false
+        }
+      ]
+    }
+  ]
+}

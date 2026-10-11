@@ -1,0 +1,341 @@
+{
+  "date": "2026-10-09",
+  "browser": "Playwright Chromium",
+  "cases": [
+    {
+      "name": "desktop",
+      "viewport": [
+        1280,
+        820
+      ],
+      "dialog": {
+        "x": 310,
+        "y": 16,
+        "width": 660,
+        "height": 788
+      },
+      "documentWidth": 1280,
+      "dialogWidth": 658,
+      "contentWidth": 658,
+      "profile": {
+        "preset": "custom",
+        "elements": [
+          {
+            "kind": "field",
+            "id": "resolution",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "aspect",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-1",
+            "visible": true,
+            "width": 32
+          },
+          {
+            "kind": "field",
+            "id": "fps",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "duration",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-2",
+            "visible": true,
+            "width": 24
+          },
+          {
+            "kind": "field",
+            "id": "zoom",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "audioCodec",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "channels",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "sampleRate",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lufs",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lra",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "tp",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "filename",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "fileSize",
+            "visible": false
+          }
+        ],
+        "styles": {
+          "resolution": {
+            "size": 14,
+            "color": "#8fc9e8",
+            "bold": true
+          }
+        }
+      },
+      "stack": {
+        "width": 472.078125,
+        "moreShown": false,
+        "moreWithinBar": true
+      },
+      "idleRefreshes": 1
+    },
+    {
+      "name": "narrow",
+      "viewport": [
+        320,
+        736
+      ],
+      "dialog": {
+        "x": 16,
+        "y": 16,
+        "width": 288,
+        "height": 704
+      },
+      "documentWidth": 320,
+      "dialogWidth": 286,
+      "contentWidth": 286,
+      "profile": {
+        "preset": "custom",
+        "elements": [
+          {
+            "kind": "field",
+            "id": "resolution",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "aspect",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-1",
+            "visible": true,
+            "width": 32
+          },
+          {
+            "kind": "field",
+            "id": "fps",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "duration",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-2",
+            "visible": true,
+            "width": 24
+          },
+          {
+            "kind": "field",
+            "id": "zoom",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "audioCodec",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "channels",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "sampleRate",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lufs",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lra",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "tp",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "filename",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "fileSize",
+            "visible": false
+          }
+        ],
+        "styles": {
+          "resolution": {
+            "size": 14,
+            "color": "#8fc9e8",
+            "bold": true
+          }
+        }
+      },
+      "stack": {
+        "width": 304,
+        "moreShown": false,
+        "moreWithinBar": true
+      },
+      "idleRefreshes": 2
+    },
+    {
+      "name": "tablet",
+      "viewport": [
+        736,
+        820
+      ],
+      "dialog": {
+        "x": 38,
+        "y": 16,
+        "width": 660,
+        "height": 788
+      },
+      "documentWidth": 736,
+      "dialogWidth": 658,
+      "contentWidth": 658,
+      "profile": {
+        "preset": "custom",
+        "elements": [
+          {
+            "kind": "field",
+            "id": "resolution",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "aspect",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-1",
+            "visible": true,
+            "width": 32
+          },
+          {
+            "kind": "field",
+            "id": "fps",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "duration",
+            "visible": true
+          },
+          {
+            "kind": "spacer",
+            "id": "gap-2",
+            "visible": true,
+            "width": 24
+          },
+          {
+            "kind": "field",
+            "id": "zoom",
+            "visible": true
+          },
+          {
+            "kind": "field",
+            "id": "audioCodec",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "channels",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "sampleRate",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lufs",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "lra",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "tp",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "filename",
+            "visible": false
+          },
+          {
+            "kind": "field",
+            "id": "fileSize",
+            "visible": false
+          }
+        ],
+        "styles": {
+          "resolution": {
+            "size": 14,
+            "color": "#8fc9e8",
+            "bold": true
+          }
+        }
+      },
+      "stack": {
+        "width": 696,
+        "moreShown": false,
+        "moreWithinBar": true
+      },
+      "idleRefreshes": 1
+    }
+  ],
+  "errors": [],
+  "passed": true
+}

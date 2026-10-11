@@ -1313,6 +1313,107 @@
         }
         .asset-info-bar .asset-zoom:empty { display: none; }
 
+        /* Shared configurable metadata presentation → js/info-bar.js */
+        #infoEditorButton { flex: 0 0 auto; padding: 4px 6px; }
+        #infoEditorButton svg { width: 18px; height: 18px; }
+        .asset-info-bar.info-custom { gap: 4px; padding-inline: 8px; }
+        .asset-info-bar.info-custom > :not(.asset-name):not(.info-items):not(.info-more),
+        #stackInfoStrip.info-custom > :not(.sih-name):not(.info-items):not(.info-more) { display: none !important; }
+        #stackInfoStrip.info-custom { padding-right: 0; gap: 4px; }
+        .info-items { display: flex; flex: 1 1 0; min-width: 0; min-height: 18px; align-items: center; line-height: 1.25; }
+        .info-section { display: flex; min-width: 0; align-items: center; }
+        .info-section-left { flex: 1 1 0; }
+        .info-section-right { flex: 0 0 auto; margin-inline-start: 8px; justify-content: flex-end; }
+        .info-section-right:empty { display: none; }
+        .info-items:has(.info-more:not([hidden])) .info-section-right,
+        .info-section-left:empty ~ .info-section-right { margin-inline-start: 0; }
+        .info-item { flex: 0 0 auto; margin-inline-start: 8px; white-space: nowrap; font-size: 12px; color: #bcbcbc; pointer-events: auto; }
+        .info-item:first-child, .info-gap + .info-item { margin-inline-start: 0; }
+        .info-gap { flex: 0 0 auto; height: 1px; }
+        .info-field-resolution { color: #a5a5a5; }
+        .info-field-aspect, .info-field-fps { color: #929292; }
+        .info-field-duration { color: #dedede; }
+        .info-field-filename { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+        .info-field-lufs, .info-field-lra, .info-field-tp { padding: 1px 5px; background: #0005; border-radius: 3px; font-size: 11px; }
+        .info-field-lufs { color: #4ade80; }
+        .info-field-lra { color: #38b8ff; }
+        .info-field-tp { color: #c840ff; }
+        .info-level-alert { color: #ff8888; font-weight: 700; margin-left: 3px; }
+        .info-more { flex: 0 0 48px; width: 48px; margin-inline: 4px; padding: 1px 3px; border: 1px solid #ffffff25; border-radius: 4px; font: inherit; font-size: 11px; line-height: 14px; background: #242424; color: #ddd; pointer-events: auto; cursor: pointer; }
+        body.grid-mode .asset-info-bar.info-custom.info-compact { padding-inline: 4px; }
+        .info-compact .info-more { flex-basis: 28px; width: 28px; margin-inline: 2px; font-size: 16px; }
+        .info-items [hidden], .info-more[hidden], #infoOverflowPanel[hidden], #infoEditorDialog [hidden] { display: none !important; }
+        #infoOverflowPanel { position: fixed; z-index: 2200; width: min(360px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; padding: 12px; border: 1px solid #555; border-radius: 8px; background: #1c1c1e; color: #ddd; box-shadow: 0 8px 28px #0008; font-size: 12px; }
+        .info-overflow-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .info-overflow-heading button { padding: 3px 8px; border: 1px solid #555; background: #282828; color: #eee; border-radius: 4px; cursor: pointer; }
+        .info-overflow-row { display: flex; align-items: start; gap: 12px; padding: 4px 0; }
+        .info-overflow-row > span:first-child { width: 105px; flex: 0 0 auto; color: #aaa; }
+        .info-overflow-row .info-item { margin: 0; min-width: 0; flex: 1; white-space: normal; overflow-wrap: anywhere; max-width: none; }
+        #infoEditorDialog { width: min(800px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; margin: auto; padding: 0; border: 1px solid #49494e; border-radius: 12px; background: #1c1c1e; color: #ddd; font-size: 13px; }
+        #infoEditorDialog::backdrop { background: #0009; }
+        .info-editor-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid #38383f; background: #1c1c1e; }
+        .info-editor-heading h2 { margin: 0; font-size: 15px; }
+        .info-editor-body { padding: 16px 18px; }
+        #infoEditorDialog button, #infoEditorDialog select { font: inherit; color: #eee; background: #29292c; border: 1px solid #48484f; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
+        #infoEditorDialog button:disabled { opacity: .4; cursor: default; }
+        .info-editor-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+        .info-editor-control { display: grid; gap: 5px; color: #aaa; font-size: 12px; }
+        .info-editor-audio { display: flex; align-items: center; gap: 6px; min-height: 30px; }
+        .info-editor-hint { margin-top: 12px; color: #aaa; font-size: 12px; line-height: 1.5; }
+        #infoEditorPreviewLabel { margin: 16px 0 6px; color: #aaa; font-size: 12px; }
+        #infoEditorPreview { display: flex; gap: 4px; align-items: center; width: 100%; box-sizing: border-box; padding: 7px 8px; background: #29292c; border-radius: 5px; }
+        .info-editor-columns { display: grid; grid-template-columns: minmax(0, 1fr) 170px; gap: 16px; margin-top: 15px; }
+        .info-editor-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #aaa; }
+        #infoEditorElements { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; padding: 0; margin: 6px 0 0; }
+        .info-editor-section { margin-top: 12px; }
+        .info-editor-section h3 { color: #b7c4d3; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+        .info-editor-section ol { padding: 0; list-style: none; min-height: 32px; }
+        .info-editor-empty { padding: 10px 4px; font-size: 12px; color: #92929a; border: 1px dashed #48484f; border-radius: 5px; }
+        .info-editor-row { position: relative; display: flex; gap: 4px; align-items: center; border-bottom: 1px solid #38383f; padding: 3px 0; }
+        .info-editor-row.selected { background: #343b42; border-radius: 4px; }
+        .info-editor-toggle { display: flex; align-items: center; justify-content: center; min-width: 24px; }
+        .info-editor-row input { margin: 0; }
+        #infoEditorDialog .info-editor-select { flex: 1; min-width: 0; border: 0; padding: 4px; background: transparent; text-align: left; }
+        #infoEditorDialog .disabled-field .info-editor-select { color: #92929a; }
+        #infoEditorDialog .info-editor-drag { flex: 0 0 24px; padding: 3px 2px; border: 0; background: transparent; color: #8e9fb3; font-size: 18px; line-height: 18px; cursor: grab; touch-action: none; }
+        #infoEditorDialog .info-editor-drag:active { cursor: grabbing; }
+        .info-dragging { opacity: .45; }
+        .info-drop-before::before, .info-drop-after::after { content: ''; position: absolute; left: 0; right: 0; height: 2px; background: #9dbce1; pointer-events: none; }
+        .info-drop-before::before { top: -1px; }
+        .info-drop-after::after { bottom: -1px; }
+        .info-drop-section { outline: 2px dashed #9dbce1; outline-offset: 2px; }
+        .info-editor-inspector { border-left: 1px solid #38383f; padding-left: 15px; }
+        #infoEditorSelected { margin: 2px 0 12px; font-size: 13px; overflow-wrap: anywhere; }
+        .info-editor-align { margin-bottom: 12px; }
+        #infoEditorTextStyle, #infoEditorSpacerStyle { display: grid; gap: 12px; }
+        .info-editor-color { display: flex; align-items: center; gap: 7px; }
+        #infoEditorColor { width: 34px; height: 30px; padding: 2px; border: 1px solid #555; background: #282828; border-radius: 4px; }
+        #infoEditorSpacerWidth { width: 100%; }
+        .info-editor-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+        #infoEditorStatus { flex: 1; font-size: 12px; color: #aaa; }
+        #infoEditorStatus[role="alert"] { color: #f5b477; }
+        #infoEditorDialog input[type="checkbox"], #infoEditorSpacerWidth { accent-color: #b5c8de; }
+        #infoEditorButton:focus-visible, #infoEditorDialog :focus-visible, #infoOverflowPanel :focus-visible, .info-more:focus-visible { outline: 2px solid #b5c8de; outline-offset: 2px; }
+        @media (max-width: 1100px) {
+            .header:has(#stackInfoStrip.info-custom) { flex-wrap: wrap; gap: 6px; }
+            .header:has(#stackInfoStrip.info-custom) #headerRight { max-width: 100%; overflow-x: auto; }
+            #stackInfoStrip.info-custom { order: 4; flex: 1 0 100%; }
+        }
+        @media (max-width: 680px) { #infoEditorElements { display: block; } }
+        @media (max-width: 480px) {
+            .info-editor-body { padding: 12px; }
+            .info-editor-heading { padding: 12px; }
+            .info-editor-columns { grid-template-columns: minmax(0, 1fr); }
+            .info-editor-inspector { grid-row: 1; border-left: 0; padding: 0 0 12px; border-bottom: 1px solid #38383f; }
+            #infoEditorTextStyle { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+            #infoEditorDialog select { max-width: 100%; }
+        }
+        @media (pointer: coarse) {
+            #infoEditorDialog button, #infoEditorDialog select { min-height: 44px; }
+            #infoEditorDialog .info-editor-drag { flex-basis: 32px; min-height: 44px; }
+            .info-editor-toggle { min-width: 35px; min-height: 44px; }
+        }
+
         /* ── Mode groups: tight icon + sub-option pairing ── */
         .mode-group {
             display: inline-flex;
@@ -3424,6 +3525,7 @@
         #usageDetails { background: none; border: 0; color: var(--appearance-accent); text-decoration: underline; cursor: pointer; font: inherit; }
         #usageInvitation .usage-actions { justify-content: flex-end; }
         body:has(#appearancePanel:not([hidden])) #usageInvitation { visibility: hidden; }
+        body.managed-review #infoEditorButton,
         body.managed-review #appearanceButton, body.managed-review #appearancePanel,
         body.managed-review #usageInvitation, body.managed-review .landing-atmosphere { display: none; }
         @media (max-width: 700px) { #appearanceLabel { display: none; } }
@@ -3509,6 +3611,7 @@
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
             </div><!-- /headerRight -->
+            <button id="infoEditorButton" type="button" class="analysis-btn" aria-label="Customize info bar" title="Customize info bar" aria-expanded="false" aria-controls="infoEditorDialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M9 3v6M15 9v6M8 15v6"/></svg></button>
             <button id="appearanceButton" type="button" aria-label="Appearance and privacy" title="Appearance and privacy" aria-expanded="false" aria-controls="appearancePanel">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
                 <span id="appearanceLabel">Original</span><span aria-hidden="true">⌄</span>
@@ -3747,6 +3850,41 @@
         </div>
     </div>
 
+    <dialog id="infoEditorDialog" aria-labelledby="infoEditorTitle">
+        <div class="info-editor-heading"><h2 id="infoEditorTitle">Customize info bar</h2><button type="button" id="infoEditorClose" aria-label="Close info bar editor">✕</button></div>
+        <div class="info-editor-body">
+            <div class="info-editor-toolbar">
+                <label class="info-editor-control">Media<select id="infoEditorType"><option value="image">Images</option><option value="video">Video</option><option value="audio">Audio</option></select></label>
+                <label class="info-editor-control">Preset<select id="infoEditorPreset"><option value="default">Default</option><option value="minimal">Minimal</option><option value="visual">Visual Focus</option><option value="audio">Audio Essentials</option><option value="all">All Available</option><option value="custom" disabled>Custom</option></select></label>
+                <label class="info-editor-audio"><input type="checkbox" id="infoEditorAudio">Audio information</label>
+            </div>
+            <p class="info-editor-hint" id="infoEditorDragHint">Drag handles to order elements or move them between sections. Arrow keys move a focused handle. Select an element to change its section or style. Keep Zoom last in the right section to place it at the far edge.</p>
+            <p id="infoEditorPreviewLabel">Preview</p>
+            <div id="infoEditorPreview" aria-label="Info bar preview"></div>
+            <div class="info-editor-columns">
+                <div><div class="info-editor-list-heading"><span>Drag to arrange</span><button type="button" id="infoEditorAddSpacer">+ Spacer</button></div><div id="infoEditorElements"></div></div>
+                <div class="info-editor-inspector">
+                    <h3 id="infoEditorSelected"></h3>
+                    <label class="info-editor-control info-editor-align">Section<select id="infoEditorAlign"><option value="left">Left aligned</option><option value="right">Right aligned</option></select></label>
+                    <div id="infoEditorTextStyle">
+                        <label class="info-editor-control">Text size<select id="infoEditorSize"><option value="default">Default</option><option value="11">Small</option><option value="12">Standard</option><option value="14">Large</option></select></label>
+                        <label class="info-editor-control">Text color<span class="info-editor-color"><input type="color" id="infoEditorColor" aria-label="Selected field text color"><button type="button" id="infoEditorDefaultColor">Default</button></span></label>
+                        <label><input type="checkbox" id="infoEditorBold"> Bold</label>
+                    </div>
+                    <div id="infoEditorSpacerStyle" hidden>
+                        <label class="info-editor-control">Width <output id="infoEditorSpacerValue">24 px</output><input type="range" id="infoEditorSpacerWidth" aria-label="Spacer width" min="12" max="48" step="4" value="24"></label>
+                        <button type="button" id="infoEditorRemoveSpacer">Remove spacer</button>
+                    </div>
+                </div>
+            </div>
+            <div class="info-editor-footer"><span id="infoEditorStatus" role="status" aria-live="polite"></span><button type="button" id="infoEditorReset">Reset profile</button></div>
+        </div>
+    </dialog>
+    <aside id="infoOverflowPanel" role="dialog" aria-label="Additional selected information" hidden>
+        <div class="info-overflow-heading"><span>Additional information</span><button type="button" id="infoOverflowClose" aria-label="Close additional information">✕</button></div>
+        <div id="infoOverflowValues"></div>
+    </aside>
+
     <script>
         // Bind this document's disclosure to its exact collector. If loading or
         // integrity validation fails, the rest of WarpDiff keeps working quietly.
@@ -3764,6 +3902,7 @@
     </script>
     <script src="js/usage.js" integrity="sha256-TnipocZqA5CuAUe6IyZF8EsFzuxvopwb/npCZfLmh1I="></script>
     <script src="js/appearance.js"></script>
+    <script src="js/info-bar.js"></script>
     <script src="js/audio-viz.js"></script>
     <script src="js/audio-analysis.js"></script>
     <script src="js/scopes.js"></script>
@@ -3784,10 +3923,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.18.14';
+        const APP_VERSION = '3.19.0';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.18.12';
+        const _CHANGELOG_VERSION = '3.19.0';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3921,7 +4060,8 @@
                 [_SVG_GRID, 'Stack / Grid toggle <kbd>G</kbd>'],
                 [_SVG_TILE_CHECK, 'Seamless tile check <kbd>Y</kbd>'],
                 [_SVG_WAVEFORM, 'Audio waveform + spectrogram <kbd>W</kbd>'],
-                [_SVG_SCOPES, 'Video scopes <kbd>V</kbd>']
+                [_SVG_SCOPES, 'Video scopes <kbd>V</kbd>'],
+                [document.querySelector('#infoEditorButton svg').outerHTML, 'Customize info bar']
             ].map(function(r) {
                 return '<tr><td style="width:28px;text-align:center;">' + _icon(r[0]) + '</td><td>' + r[1] + '</td></tr>';
             }).join('');
@@ -8124,7 +8264,7 @@
         function setFilename(infoBar, name) {
             if (!name) return;
             // Filename is hidden from the bar; store it on the bar itself for native tooltip
-            infoBar.title = name;
+            infoBar.title = infoBar.classList.contains('info-custom') ? '' : name;
         }
 
 
@@ -8470,6 +8610,7 @@
                 infoBar = document.createElement('div');
                 infoBar.className = 'asset-info-bar';
             }
+            _infoBarRestoreSurface(infoBar);
             infoBar.innerHTML = template;
             const nameEl = infoBar.querySelector('.asset-name');
             nameEl.textContent = slotLabel(slot);
@@ -8477,6 +8618,7 @@
             nameEl.title = `Hide ${slotLabel(slot)}`;
             nameEl.onclick = (e) => { e.stopPropagation(); toggleSlotVisibility(slot); };
             if (mediaData[slot] && mediaData[slot].name) setFilename(infoBar, mediaData[slot].name);
+            _queueInfoBarRefresh(); // configurable display owner → js/info-bar.js
             return infoBar;
         }
 
@@ -8789,6 +8931,7 @@
                 const effective = _opusSyncDuration[slot] || media.duration;
                 durEl.innerHTML = _STOPWATCH_SVG + _formatTcForCopy(effective, fps);
             }
+            _queueInfoBarRefresh();
         }
 
         function updateAssetInfoBar(slot, data) {
@@ -10450,7 +10593,7 @@
             const nameRect   = nameEl.getBoundingClientRect();
             const zoomEl     = strip.querySelector('.sih-zoom');
             const stripRect  = strip.getBoundingClientRect();
-            const rightEdge  = (zoomEl && zoomEl.style.display !== 'none')
+            const rightEdge  = (!strip.classList.contains('info-custom') && zoomEl && zoomEl.style.display !== 'none')
                                    ? zoomEl.getBoundingClientRect().right
                                    : stripRect.right;
             // When name pill is hidden (single asset), anchor to strip left edge
@@ -10466,6 +10609,7 @@
         }
 
         function _updateStackInfoStrip() {
+            _queueInfoBarRefresh(); // shared configurable Stack / Grid metadata → js/info-bar.js
             const strip = document.getElementById('stackInfoStrip');
             if (!strip) return;
 
@@ -10513,7 +10657,8 @@
             const duration = effDur > 0 ? _formatTcForCopy(effDur, mediaFps) : '';
 
             // Slot-color class on strip root (drives CSS-colored name pill)
-            strip.className = slot ? 'sih-slot-' + slot : '';
+            const customInfo = strip.classList.contains('info-custom');
+            strip.className = (slot ? 'sih-slot-' + slot : '') + (customInfo ? ' info-custom' : '');
             const wipePair = _wipeMode ? _wipePair() : null;
             strip.classList.toggle('sih-wipe', !!wipePair);
 
@@ -10617,6 +10762,7 @@
 
         // ── Stack info strip custom tooltip ───────────────────────────────────────
         function _sihTipShow(e) {
+            if (e.currentTarget.classList.contains('info-custom')) return;
             const tt = document.getElementById('sihTooltip');
             if (!tt || !tt.innerHTML.trim()) return;
             tt.style.display = 'block';
@@ -10945,6 +11091,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia() {
+            _clearInfoBarViews(); // retire comparison presentation, retain preferences
             _usage.resetComparison(); // invalidate pending usage readiness → js/usage.js
             _resolveVideoProgressTime(null);
             _loadingProgressToken = null;
@@ -11409,11 +11556,12 @@
                 if (!cw || !ch) { anySkipped = true; return; }
 
                 const ibH = (isGridMode && infoBar) ? (infoBar.offsetHeight || 28) : 0;
+                const ibMinW = isGridMode ? _infoBarGridMinWidth(infoBar) : 0;
                 const availH = ch - ibH;
                 const fitW = Math.min(cw, Math.floor(availH * nw / nh));
                 const fitH = Math.min(availH, Math.floor(cw * nh / nw));
 
-                data[slot] = { nw, nh, origW, origH, cw, ch, ibH, availH, fitW, fitH,
+                data[slot] = { nw, nh, origW, origH, cw, ch, ibH, ibMinW, availH, fitW, fitH,
                                layer, mediaContainer, media, videoWrapper, infoBar };
             });
             return { data, anySkipped };
@@ -11503,7 +11651,7 @@
                     if (m.nw >= m.nh) _hasLandscape = true; else _hasPortrait = true;
                     if (!isEqualLayout && m.nw < m.nh) widthConstrained = true;
                     gridLayout[slot] = { nw: m.nw, nh: m.nh, cw: m.cw, ch: m.ch,
-                                         ibH: m.ibH, fitW: m.fitW, fitH: m.fitH };
+                                         ibH: m.ibH, ibMinW: m.ibMinW, fitW: m.fitW, fitH: m.fitH };
                     // inline-rows: images share width = cell width (height clamp handles overflow).
                     // Using fitW here would let a portrait asset's tiny cell-height-constrained
                     // fitW drag all other images down to the same small width.
@@ -11687,16 +11835,16 @@
                         if (dA && dB) {
                             const rowA = dA.ibH + dA.rh;
                             const rowB = dB.ibH + dB.rh;
-                            const maxRwAB = Math.max(dA.rw, dB.rw);
+                            const maxRwAB = Math.max(dA.rw, dB.rw, dA.ibMinW, dB.ibMinW);
                             if (ac) {
                                 ac.style.gridTemplateRows    = `${rowA}px ${rowB}px`;
-                                if (dRef) ac.style.gridTemplateColumns = `${dRef.rw + 4}px ${maxRwAB + 4}px`;
+                                if (dRef) ac.style.gridTemplateColumns = `${Math.max(dRef.rw,dRef.ibMinW) + 4}px ${maxRwAB + 4}px`;
                                 ac.style.justifyContent = 'center';
                                 ac.style.alignContent   = 'center';
                             }
                             dA.ch = rowA; dA.cw = maxRwAB + 4;
                             dB.ch = rowB; dB.cw = maxRwAB + 4;
-                            if (dRef) { dRef.ch = rowA + rowB + 4; dRef.cw = dRef.rw + 4; }
+                            if (dRef) { dRef.ch = rowA + rowB + 4; dRef.cw = Math.max(dRef.rw,dRef.ibMinW) + 4; }
                         }
 
                         // Positioning: Ref centered vertically in its span; A/B flush to top of
@@ -11803,7 +11951,7 @@
                             const container = document.querySelector('.asset-container');
                             if (container && !anySkipped && loadedSlots.length === getLoadedSlotCount()) {
                                 container.style.gridTemplateColumns = loadedSlots.map(s =>
-                                    Math.round(gridLayout[s].rw) + 'px'
+                                    Math.max(Math.round(gridLayout[s].rw),gridLayout[s].ibMinW) + 'px'
                                 ).join(' ');
                                 // Recompute cell widths after grid column change
                                 loadedSlots.forEach(s => {
@@ -11821,12 +11969,13 @@
                             + (loadedSlots.length - 1) * gap;
                         // Where the group should start (in container coordinates)
                         const groupStartX = Math.round((totalContainerW - totalGroupW) / 2);
+                        const captionExpanded = loadedSlots.some(s => gridLayout[s].cw > gridLayout[s].rw + 1 && gridLayout[s].ibMinW > gridLayout[s].rw);
                         // Walk through cells and compute each image's tx within its cell
                         let cellLeftEdge = 0;
                         let imgX = groupStartX;
                         loadedSlots.forEach(s => {
                             const d = gridLayout[s];
-                            d._tx = imgX - cellLeftEdge;
+                            d._tx = captionExpanded ? Math.round((d.cw-d.rw)/2) : imgX - cellLeftEdge;
                             // Vertically position: info bar at top, then center remaining
                             // space with upward bias (1/3 above, 2/3 below)
                             const remainH = d.ch - d.ibH - d.rh;
@@ -11964,7 +12113,7 @@
                             const cell = cellFor(s);
                             const rw = Math.sqrt(area * ratios[s]);
                             const rh = Math.sqrt(area / ratios[s]);
-                            colWidths[cell.col] = Math.max(colWidths[cell.col], rw);
+                            colWidths[cell.col] = Math.max(colWidths[cell.col], rw, m.ibMinW);
                             rowHeights[cell.row] = Math.max(rowHeights[cell.row], m.ibH + rh);
                         });
                         return {
@@ -12024,7 +12173,7 @@
                         const m = measured.data[slot];
                         const cell = cellFor(slot);
                         const size = rendered[slot];
-                        colWidths[cell.col] = Math.max(colWidths[cell.col], size.rw);
+                        colWidths[cell.col] = Math.max(colWidths[cell.col], size.rw, m.ibMinW);
                         rowHeights[cell.row] = Math.max(rowHeights[cell.row], m.ibH + size.rh);
                     });
 
@@ -12117,7 +12266,7 @@
                         const rw = Math.round(Math.sqrt(targetArea * r));
                         const rh = Math.round(Math.sqrt(targetArea / r));
                         perSlot[s] = { rw, rh };
-                        if (m.layer) m.layer.style.width = rw + 'px';
+                        if (m.layer) m.layer.style.width = Math.max(rw,m.ibMinW) + 'px';
                     });
                     loadedSlots.forEach(s => {
                         const m = measured.data[s];
@@ -12319,6 +12468,20 @@
                 const firstM = measured.data[loadedSlots[0]];
                 if (firstM) firstM.layer.style.marginTop = topPad + 'px';
             }
+
+            // A portrait picture can be narrower than its identity/overflow controls.
+            // Read final cells/wrappers together, then widen only the custom caption
+            // within its own cell. Media size, bar height and playback stay unchanged.
+            const infoBounds = slots.map(slot => {
+                const m = measured.data[slot];
+                if (!m?.ibMinW || m.infoBar?.parentElement !== m.videoWrapper) return null;
+                const pictureW = parseFloat(m.videoWrapper.style.width), pictureX = parseFloat(m.videoWrapper.style.left);
+                const cellW = m.layer.clientWidth;
+                const width = Math.min(cellW,Math.max(pictureW,m.ibMinW));
+                const left = Math.max(-pictureX,Math.min((pictureW-width)/2,cellW-pictureX-width));
+                return {bar:m.infoBar,width,left};
+            }).filter(Boolean);
+            infoBounds.forEach(({bar,width,left}) => {bar.style.width = width+'px';bar.style.left = left+'px';});
 
             // If any loaded slot had a zero-dimension container (layout not yet committed),
             // retry after the next paint so those slots get positioned correctly.
@@ -13695,6 +13858,7 @@
             _setupControlsResizeRelayout(); // keep video off the audio-viz panel
             _setupAudioListeningControl();
             _setupAppearance(); // appearance + usage preference owners → js/appearance.js, js/usage.js
+            _setupInfoBarEditor(); // preferences + metadata presentation → js/info-bar.js
 
             // Restore persisted preferences to UI
             const savedVol = _prefs.load('volume', 100);
@@ -13841,6 +14005,7 @@
 
         // Expose read-only test API for Playwright (avoids brittle eval of let-scoped vars)
         window.__testAPI = {
+            get infoBarProfiles() { return _infoBarProfiles ? structuredClone(_infoBarProfiles) : null; },
             get zoomLevel() { return zoomLevel; },
             get fitZoom() { return fitZoom; },
             get currentAssetIndex() { return currentAssetIndex; },
@@ -14346,10 +14511,13 @@
                 <li>Spectrogram scale (linear/log) and color palette</li>
                 <li>Tile Check preview type and heatmap visibility</li>
                 <li>Timecode display/copy format and custom hotkeys</li>
+                <li>Separate image, video and audio info bar profiles</li>
             </ul>
 
             <h2>Info Bar</h2>
-            <p>Each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
+            <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
+            <p>Open <strong>Customize info bar</strong> (the sliders icon in the header) and choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in <strong>Left aligned</strong> and <strong>Right aligned</strong> sections: drag their <strong>⠿ handles</strong> to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.</p>
+            <p>Add <strong>spacers</strong> after the selected row in the same section to group related items. Move them between sections, hide or remove them, and set their width from 12–48 pixels. Empty edge groups and adjacent gaps collapse within each section. Narrow bars compress gaps, preserve right-edge fields first, then put remaining selected fields into <strong>More</strong> (<strong>⋯</strong> in compact Grid bars). Portrait bars can extend within their own cells to keep controls reachable; customized Stack information moves to its own header row when space is tight. Hidden fields stay excluded even after audio analysis arrives. Multiple source tracks are numbered within each selected field. A red ! retains the above −9 LUFS warning with custom colors. Slot controls, the image wipe pair chooser and managed host display retain their existing behavior. Escape closes More or the editor and returns focus.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>
             <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60). Video durations are shown as <code>M:SS:FF</code> (frames at the detected rate); audio durations use <code>M:SS.cc</code> (decimal centiseconds) since audio has no inherent frame rate.</p>
             <p>In split modes, the info bar of the asset whose audio is currently playing is highlighted.</p>
@@ -14394,6 +14562,9 @@
             </ul>
             <h3>Header Icons</h3>
             <table style="margin: 4px 0 8px; border-spacing: 0 6px;" id="helpIconTable"></table>
+
+            <h3>Info bar</h3>
+            <p>Use Customize info bar (the sliders icon) to choose information, arrange Left and Right sections, style fields, and add spacers. Start with a preset, then keep only the audio and visual details you need; keep Zoom in the right section to place it at the far edge. Image, video and audio choices are saved separately and apply to Stack and Grid.</p>
 
             <h3>Zoom Loupe</h3>
             <ul>
@@ -14477,9 +14648,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li>More consistent audio volume when scrubbing forward or backward.</li>
-                <li>New Starfield, Solar, Nebula and Glacier appearances.</li>
-                <li>Optional usage sharing to help improve WarpDiff. Off until you agree.</li>
+                <li>Customize the info bar: choose, order and style the details you want, including audio information.</li>
+                <li>Start with a preset, arrange Left and Right sections, and add spacers to group related items. Keep Zoom at the far right; your choices stay in this browser for Stack and Grid.</li>
             </ul>
         </div>
     </div>

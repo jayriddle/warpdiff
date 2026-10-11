@@ -1,0 +1,96 @@
+
+Running 3 tests using 1 worker
+
+(node:3175) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3175) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [webkit] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (846ms)
+(node:3206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 [webkit] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer (5.6s)
+(node:3224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [webkit] › tests/info-bar.spec.ts:396:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts (5.5s)
+
+
+  1) [webkit] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      186 |   for (let i=0;i<45;i++) {
+      187 |     await page.keyboard.press('Tab');
+    > 188 |     expect(await page.evaluate(() => document.getElementById('infoEditorDialog')!.contains(document.activeElement))).toBe(true);
+          |                                                                                                                      ^
+      189 |   }
+      190 |   await page.keyboard.press('Escape');
+      191 |   await expect(page.locator('#infoEditorButton')).toBeFocused();
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:188:118
+
+    Error Context: docs/info-bar-review-2026-10-10/browser-test-artifacts/info-bar-editor-keyboard-c-24882-d-and-Escape-restores-focus-webkit/error-context.md
+
+  2) [webkit] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('#infoEditorButton')
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for locator('#infoEditorButton')
+        9 × locator resolved to <button type="button" class="analysis-btn" id="infoEditorButton" aria-expanded="false" title="Customize info bar" aria-label="Customize info bar" aria-controls="infoEditorDialog">…</button>
+          - unexpected value "inactive"
+
+
+      258 |   await expect(page.locator('#infoEditorDialog #infoOverflowPanel')).toBeVisible();
+      259 |   await page.keyboard.press('Escape'); await expect(more).toBeFocused();
+    > 260 |   await page.keyboard.press('Escape'); await expect(page.locator('#infoEditorButton')).toBeFocused();
+          |                                                                                        ^
+      261 | });
+      262 |
+      263 | test('large text keeps every four-video picture below its own bar', async ({ page }) => {
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:260:88
+
+    Error Context: docs/info-bar-review-2026-10-10/browser-test-artifacts/info-bar-drag-ordering-wor-e9dec--inside-the-modal-top-layer-webkit/error-context.md
+
+  3) [webkit] › tests/info-bar.spec.ts:396:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('#infoEditorButton')
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for locator('#infoEditorButton')
+        9 × locator resolved to <button type="button" class="analysis-btn" id="infoEditorButton" aria-expanded="false" title="Customize info bar" aria-label="Customize info bar" aria-controls="infoEditorDialog">…</button>
+          - unexpected value "inactive"
+
+
+      410 |   await expect(page.locator('[data-info-section="left"] [data-element-id="aspect"]')).toHaveCount(1);
+      411 |   expect(await page.evaluate(()=>(window as any).__testAPI.isGridMode)).toBe(true);
+    > 412 |   await page.keyboard.press('Escape');await expect(page.locator('#infoEditorButton')).toBeFocused();
+          |                                                                                       ^
+      413 | });
+      414 |
+      415 | test('touch handles move between sections and cancel without saving a partial drag', async ({ page, context }) => {
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:412:87
+
+    Error Context: docs/info-bar-review-2026-10-10/browser-test-artifacts/info-bar-drag-handles-repl-50932-moves-without-app-shortcuts-webkit/error-context.md
+
+  3 failed
+    [webkit] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+    [webkit] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer
+    [webkit] › tests/info-bar.spec.ts:396:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts

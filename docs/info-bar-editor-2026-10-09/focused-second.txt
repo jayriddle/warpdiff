@@ -1,0 +1,79 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --workers=2 --retries=0
+(node:8313) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 11 tests using 1 worker
+
+(node:8314) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8314) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8314) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars (704ms)
+  ✓   2 [chromium] › tests/info-bar.spec.ts:53:5 › field order and typography apply to Stack and Grid without changing playback (295ms)
+  ✓   3 [chromium] › tests/info-bar.spec.ts:80:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (337ms)
+  ✓   4 [chromium] › tests/info-bar.spec.ts:104:5 › media profiles persist independently through reload and new comparisons (474ms)
+  ✘   5 [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles (339ms)
+(node:8332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8332) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8332) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 [chromium] › tests/info-bar.spec.ts:148:5 › narrow bars show only selected overflow fields and clearing removes stale details (423ms)
+  ✓   7 [chromium] › tests/info-bar.spec.ts:173:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (252ms)
+  ✓   8 [chromium] › tests/info-bar.spec.ts:189:5 › all metadata can be hidden and four-slot identity controls remain usable (251ms)
+  ✓   9 [chromium] › tests/info-bar.spec.ts:201:5 › another tab updates the active profile and failed storage is explained (362ms)
+  ✘  10 [chromium] › tests/info-bar.spec.ts:220:5 › managed hosts close the editor and retain their standard review chrome (5.2s)
+(node:8348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8348) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:8348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:231:5 › image wipe uses its pair chooser and restores custom metadata on exit (419ms)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles
+
+    Error: page.evaluate: TypeError: Cannot set properties of null (setting 'textContent')
+        at eval (eval at evaluate (:290:30), <anonymous>:10:63)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:290:30), <anonymous>:10:63)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:132:14
+
+    Error Context: test-results/info-bar-late-source-and-l-ebee1-dden-fields-and-user-styles-chromium/error-context.md
+
+  2) [chromium] › tests/info-bar.spec.ts:220:5 › managed hosts close the editor and retain their standard review chrome
+
+    Error: expect(locator).toHaveClass(expected) failed
+
+    Locator: locator('#comparisonView')
+    Expected pattern: /active/
+    Received string:  "comparison-view"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toHaveClass" with timeout 5000ms
+      - waiting for locator('#comparisonView')
+        9 × locator resolved to <div id="comparisonView" class="comparison-view">…</div>
+          - unexpected value "comparison-view"
+
+
+      223 |     {signedUrl:'/tests/fixtures/landscape_a.mp4',name:'host.mp4',contentType:'video/mp4',lastModified:0}
+      224 |   ]},location.origin));
+    > 225 |   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+          |                                                 ^
+      226 |   await expect(page.locator('#infoEditorDialog')).not.toBeVisible();
+      227 |   await expect(page.locator('#infoEditorButton')).not.toBeVisible();
+      228 |   await expect(page.locator('.info-custom')).toHaveCount(0);
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:225:49
+
+    Error Context: test-results/info-bar-managed-hosts-clo-8eeb7-heir-standard-review-chrome-chromium/error-context.md
+
+  2 failed
+    [chromium] › tests/info-bar.spec.ts:124:5 › late source and loudness publication retain hidden fields and user styles
+    [chromium] › tests/info-bar.spec.ts:220:5 › managed hosts close the editor and retain their standard review chrome
+  9 passed (11.4s)

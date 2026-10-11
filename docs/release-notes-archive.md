@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.0 (release prepared October 10, 2026)
+
+- Adds Customize info bar with separate saved image, video and audio profiles, five presets, Left/Right aligned sections with Zoom at the far right, drag handles with mouse/touch drop markers and keyboard movement, individual metadata visibility, and color, text size and bold styling shared by Stack and Grid.
+- Adds repeatable adjustable spacers in either section, automatic empty-group collapse, gap compression and selected-field More overflow (compact ⋯). Audio codec/layout/rate can be chosen independently, including numbered multi-track source metadata. Compact portrait Grid cells retain reachable slot and overflow controls.
+- Keeps the original display as Default, preserves slot controls, wipe's pair chooser and managed host chrome, and fences presentation from media/analysis ownership. See the [review and verification record](info-bar-review-2026-10-10/README.md), including touch scrolling and WebKit focus corrections.
+
 ## v3.18.14 (release prepared October 5, 2026)
 
 - Chrome scrubbing preserves useful decode progress when a request retreats behind queued work, suppresses superseded pending paints, and releases buffered final frames at EOF.

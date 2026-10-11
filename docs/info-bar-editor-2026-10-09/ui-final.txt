@@ -1,0 +1,1 @@
+{"passed":true,"cases":[{"name":"desktop","idleRefreshes":1},{"name":"narrow","idleRefreshes":2},{"name":"tablet","idleRefreshes":1}],"errors":[]}

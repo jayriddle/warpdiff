@@ -1,0 +1,38 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts -g touch dragging scrolls --workers=1 --retries=0
+(node:2677) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:2678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2678) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:2678) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/info-bar.spec.ts:444:5 › touch dragging scrolls to an offscreen section and retires scrolling after release or cancel (5.6s)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:444:5 › touch dragging scrolls to an offscreen section and retires scrolling after release or cancel
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 476
+    Received:   392
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      457 |   for(let step=1;step<=8;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:source.x,y:source.y+(edge.y-source.y)*step/8,id:1}]});
+      458 |   // A held finger must keep scrolling: pointermove-only scrolling stalls after one step.
+    > 459 |   await expect.poll(()=>dialog.evaluate(element=>element.scrollTop)).toBeGreaterThan(before+100);
+          |   ^
+      460 |   await expect.poll(()=>page.locator('[data-element-id="zoom"]').evaluate(row=>{
+      461 |     const rect=row.getBoundingClientRect(), bounds=document.getElementById('infoEditorDialog')!.getBoundingClientRect();
+      462 |     return rect.top>=bounds.top+40 && rect.bottom<=bounds.bottom-40;
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:459:3
+
+    Error Context: test-results/info-bar-touch-dragging-sc-14c6c-ing-after-release-or-cancel-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/info-bar.spec.ts:444:5 › touch dragging scrolls to an offscreen section and retires scrolling after release or cancel

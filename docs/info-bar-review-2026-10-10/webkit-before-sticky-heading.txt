@@ -1,0 +1,29 @@
+
+Running 20 tests using 1 worker
+
+(node:4481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4481) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [webkit] › tests/info-bar.spec.ts:36:5 › default stays unchanged; presets keep their name and Reset restores the original bars (973ms)
+  ✓   2 [webkit] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback (899ms)
+  ✓   3 [webkit] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (794ms)
+  ✓   4 [webkit] › tests/info-bar.spec.ts:109:5 › media profiles persist independently through reload and new comparisons (707ms)
+  ✓   5 [webkit] › tests/info-bar.spec.ts:129:5 › late source and loudness publication retain hidden fields and user styles (1.1s)
+  ✓   6 [webkit] › tests/info-bar.spec.ts:159:5 › narrow bars show only selected overflow fields and clearing removes stale details (962ms)
+  ✓   7 [webkit] › tests/info-bar.spec.ts:184:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (825ms)
+  ✓   8 [webkit] › tests/info-bar.spec.ts:207:5 › all metadata can be hidden and four-slot identity controls remain usable (555ms)
+  ✓   9 [webkit] › tests/info-bar.spec.ts:219:5 › another tab updates the active profile and failed storage is explained (689ms)
+  ✓  10 [webkit] › tests/info-bar.spec.ts:240:5 › managed hosts close the editor and retain their standard review chrome (380ms)
+  ✓  11 [webkit] › tests/info-bar.spec.ts:251:5 › image wipe uses its pair chooser and restores custom metadata on exit (553ms)
+  ✓  12 [webkit] › tests/info-bar.spec.ts:263:5 › drag ordering works and preview More stays inside the modal top layer (448ms)
+  ✓  13 [webkit] › tests/info-bar.spec.ts:276:5 › large text keeps every four-video picture below its own bar (729ms)
+  ✓  14 [webkit] › tests/info-bar.spec.ts:288:5 › narrow and tablet Stack headers retain a reachable More button after resizing (1.2s)
+  ✓  15 [webkit] › tests/info-bar.spec.ts:306:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid (1.1s)
+  ✓  16 [webkit] › tests/info-bar.spec.ts:339:5 › each section orders its fields and spacers independently and supports drag transfers (757ms)
+  ✓  17 [webkit] › tests/info-bar.spec.ts:365:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes (16.2s)
+  ✓  18 [webkit] › tests/info-bar.spec.ts:392:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right (352ms)
+  ✓  19 [webkit] › tests/info-bar.spec.ts:409:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts (297ms)
+  ✓  20 [webkit] › tests/info-bar.spec.ts:498:5 › three portrait Inline and Offset bars keep selected controls inside the viewport (16.4s)
+
+  20 passed (46.7s)

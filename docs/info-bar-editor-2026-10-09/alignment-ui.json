@@ -1,0 +1,952 @@
+{
+  "date": "2026-10-09",
+  "browser": "Playwright Chromium",
+  "cases": [
+    {
+      "name": "portrait-four-narrow",
+      "width": 320,
+      "height": 736,
+      "file": "portrait.mp4",
+      "count": 4,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 15.5,
+            "right": 157.5,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 142,
+            "height": 26
+          },
+          "cell": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 112.5,
+            "bottom": 343.5,
+            "width": 143,
+            "height": 231
+          },
+          "zoom": "21%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 153.5
+        },
+        {
+          "bounds": {
+            "left": 161.5,
+            "right": 304.5,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 112.5,
+            "bottom": 343.5,
+            "width": 144,
+            "height": 231
+          },
+          "zoom": "21%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 300.5
+        },
+        {
+          "bounds": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 345.5,
+            "bottom": 371.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 345.5,
+            "bottom": 576.5,
+            "width": 143,
+            "height": 231
+          },
+          "zoom": "21%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 153.5
+        },
+        {
+          "bounds": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 345.5,
+            "bottom": 371.5,
+            "width": 144,
+            "height": 26
+          },
+          "cell": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 345.5,
+            "bottom": 576.5,
+            "width": 144,
+            "height": 231
+          },
+          "zoom": "21%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 301.5
+        }
+      ],
+      "idleRefreshes": 1,
+      "pass": true
+    },
+    {
+      "name": "portrait-four-short",
+      "width": 320,
+      "height": 400,
+      "file": "portrait.mp4",
+      "count": 4,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 15.5,
+            "right": 157.5,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 142,
+            "height": 26
+          },
+          "cell": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 112.5,
+            "bottom": 175.5,
+            "width": 143,
+            "height": 63
+          },
+          "zoom": "4%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 153.5
+        },
+        {
+          "bounds": {
+            "left": 161.5,
+            "right": 304.5,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 112.5,
+            "bottom": 175.5,
+            "width": 144,
+            "height": 63
+          },
+          "zoom": "4%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 300.5
+        },
+        {
+          "bounds": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 177.5,
+            "bottom": 203.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 14.5,
+            "right": 157.5,
+            "top": 177.5,
+            "bottom": 240.5,
+            "width": 143,
+            "height": 63
+          },
+          "zoom": "4%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 153.5
+        },
+        {
+          "bounds": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 177.5,
+            "bottom": 203.5,
+            "width": 144,
+            "height": 26
+          },
+          "cell": {
+            "left": 161.5,
+            "right": 305.5,
+            "top": 177.5,
+            "bottom": 240.5,
+            "width": 144,
+            "height": 63
+          },
+          "zoom": "4%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 301.5
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "portrait-four-tablet-short",
+      "width": 736,
+      "height": 400,
+      "file": "portrait.mp4",
+      "count": 4,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 223.5,
+            "right": 365.5,
+            "top": 48.5,
+            "bottom": 74.5,
+            "width": 142,
+            "height": 26
+          },
+          "cell": {
+            "left": 222.5,
+            "right": 365.5,
+            "top": 48.5,
+            "bottom": 178.5,
+            "width": 143,
+            "height": 130
+          },
+          "zoom": "11%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 361.5
+        },
+        {
+          "bounds": {
+            "left": 369.5,
+            "right": 512.5,
+            "top": 48.5,
+            "bottom": 74.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 369.5,
+            "right": 513.5,
+            "top": 48.5,
+            "bottom": 178.5,
+            "width": 144,
+            "height": 130
+          },
+          "zoom": "11%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 508.5
+        },
+        {
+          "bounds": {
+            "left": 222.5,
+            "right": 365.5,
+            "top": 180.5,
+            "bottom": 206.5,
+            "width": 143,
+            "height": 26
+          },
+          "cell": {
+            "left": 222.5,
+            "right": 365.5,
+            "top": 180.5,
+            "bottom": 310.5,
+            "width": 143,
+            "height": 130
+          },
+          "zoom": "11%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 361.5
+        },
+        {
+          "bounds": {
+            "left": 369.5,
+            "right": 513.5,
+            "top": 180.5,
+            "bottom": 206.5,
+            "width": 144,
+            "height": 26
+          },
+          "cell": {
+            "left": 369.5,
+            "right": 513.5,
+            "top": 180.5,
+            "bottom": 310.5,
+            "width": 144,
+            "height": 130
+          },
+          "zoom": "11%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 509.5
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "portrait-three-inline",
+      "width": 320,
+      "height": 400,
+      "file": "portrait.mp4",
+      "count": 3,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 9,
+            "right": 107,
+            "top": 113,
+            "bottom": 139,
+            "width": 98,
+            "height": 26
+          },
+          "cell": {
+            "left": 9,
+            "right": 107,
+            "top": 110,
+            "bottom": 293,
+            "width": 98,
+            "height": 183
+          },
+          "zoom": "16%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        },
+        {
+          "bounds": {
+            "left": 111,
+            "right": 209,
+            "top": 113,
+            "bottom": 139,
+            "width": 98,
+            "height": 26
+          },
+          "cell": {
+            "left": 111,
+            "right": 209,
+            "top": 110,
+            "bottom": 293,
+            "width": 98,
+            "height": 183
+          },
+          "zoom": "16%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 205
+        },
+        {
+          "bounds": {
+            "left": 213,
+            "right": 311,
+            "top": 113,
+            "bottom": 139,
+            "width": 98,
+            "height": 26
+          },
+          "cell": {
+            "left": 213,
+            "right": 311,
+            "top": 110,
+            "bottom": 293,
+            "width": 98,
+            "height": 183
+          },
+          "zoom": "16%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 307
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "portrait-three-offset",
+      "width": 320,
+      "height": 400,
+      "file": "portrait.mp4",
+      "count": 3,
+      "layout": "offset",
+      "bars": [
+        {
+          "bounds": {
+            "left": 52,
+            "right": 166,
+            "top": 144.5,
+            "bottom": 170.5,
+            "width": 114,
+            "height": 26
+          },
+          "cell": {
+            "left": 48,
+            "right": 166,
+            "top": 110.5,
+            "bottom": 292.5,
+            "width": 118,
+            "height": 182
+          },
+          "zoom": "6%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 162
+        },
+        {
+          "bounds": {
+            "left": 166,
+            "right": 268,
+            "top": 110.5,
+            "bottom": 136.5,
+            "width": 102,
+            "height": 26
+          },
+          "cell": {
+            "left": 166,
+            "right": 272,
+            "top": 110.5,
+            "bottom": 199.5,
+            "width": 106,
+            "height": 89
+          },
+          "zoom": "6%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 264
+        },
+        {
+          "bounds": {
+            "left": 166,
+            "right": 267,
+            "top": 203.5,
+            "bottom": 229.5,
+            "width": 101,
+            "height": 26
+          },
+          "cell": {
+            "left": 166,
+            "right": 272,
+            "top": 203.5,
+            "bottom": 292.5,
+            "width": 106,
+            "height": 89
+          },
+          "zoom": "6%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 263
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "portrait-two-short",
+      "width": 320,
+      "height": 400,
+      "file": "portrait.mp4",
+      "count": 2,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 51,
+            "right": 158,
+            "top": 76,
+            "bottom": 102,
+            "width": 107,
+            "height": 26
+          },
+          "cell": {
+            "left": 51,
+            "right": 158,
+            "top": 76,
+            "bottom": 293,
+            "width": 107,
+            "height": 217
+          },
+          "zoom": "20%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 154
+        },
+        {
+          "bounds": {
+            "left": 162,
+            "right": 269,
+            "top": 76,
+            "bottom": 102,
+            "width": 107,
+            "height": 26
+          },
+          "cell": {
+            "left": 162,
+            "right": 269,
+            "top": 76,
+            "bottom": 293,
+            "width": 107,
+            "height": 217
+          },
+          "zoom": "20%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 265
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "image-four-narrow",
+      "width": 320,
+      "height": 736,
+      "file": "tall.png",
+      "count": 4,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 14,
+            "right": 158,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 144,
+            "height": 26
+          },
+          "cell": {
+            "left": 12,
+            "right": 158,
+            "top": 112.5,
+            "bottom": 421.5,
+            "width": 146,
+            "height": 309
+          },
+          "zoom": "94%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 154
+        },
+        {
+          "bounds": {
+            "left": 162,
+            "right": 308,
+            "top": 112.5,
+            "bottom": 138.5,
+            "width": 146,
+            "height": 26
+          },
+          "cell": {
+            "left": 162,
+            "right": 308,
+            "top": 112.5,
+            "bottom": 421.5,
+            "width": 146,
+            "height": 309
+          },
+          "zoom": "94%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 304
+        },
+        {
+          "bounds": {
+            "left": 12,
+            "right": 158,
+            "top": 423.5,
+            "bottom": 449.5,
+            "width": 146,
+            "height": 26
+          },
+          "cell": {
+            "left": 12,
+            "right": 158,
+            "top": 423.5,
+            "bottom": 732.5,
+            "width": 146,
+            "height": 309
+          },
+          "zoom": "94%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 154
+        },
+        {
+          "bounds": {
+            "left": 162,
+            "right": 308,
+            "top": 423.5,
+            "bottom": 449.5,
+            "width": 146,
+            "height": 26
+          },
+          "cell": {
+            "left": 162,
+            "right": 308,
+            "top": 423.5,
+            "bottom": 732.5,
+            "width": 146,
+            "height": 309
+          },
+          "zoom": "94%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 304
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "image-three-short",
+      "width": 320,
+      "height": 400,
+      "file": "tall.png",
+      "count": 3,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 7.5,
+            "right": 106.5,
+            "top": 132,
+            "bottom": 158,
+            "width": 99,
+            "height": 26
+          },
+          "cell": {
+            "left": 7.5,
+            "right": 106.5,
+            "top": 110,
+            "bottom": 399,
+            "width": 99,
+            "height": 289
+          },
+          "zoom": "66%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        },
+        {
+          "bounds": {
+            "left": 110.5,
+            "right": 209.5,
+            "top": 132,
+            "bottom": 158,
+            "width": 99,
+            "height": 26
+          },
+          "cell": {
+            "left": 110.5,
+            "right": 209.5,
+            "top": 110,
+            "bottom": 399,
+            "width": 99,
+            "height": 289
+          },
+          "zoom": "66%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 205.5
+        },
+        {
+          "bounds": {
+            "left": 213.5,
+            "right": 312.5,
+            "top": 132,
+            "bottom": 158,
+            "width": 99,
+            "height": 26
+          },
+          "cell": {
+            "left": 213.5,
+            "right": 312.5,
+            "top": 110,
+            "bottom": 399,
+            "width": 99,
+            "height": 289
+          },
+          "zoom": "66%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 308.5
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "audio-four-narrow",
+      "width": 320,
+      "height": 736,
+      "file": "stereo.wav",
+      "count": 4,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 2,
+            "right": 320,
+            "top": 214,
+            "bottom": 240,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 214,
+            "bottom": 295,
+            "width": 318,
+            "height": 81
+          },
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        },
+        {
+          "bounds": {
+            "left": 2,
+            "right": 320,
+            "top": 297,
+            "bottom": 323,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 297,
+            "bottom": 378,
+            "width": 318,
+            "height": 81
+          },
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        },
+        {
+          "bounds": {
+            "left": 2,
+            "right": 320,
+            "top": 380,
+            "bottom": 406,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 380,
+            "bottom": 461,
+            "width": 318,
+            "height": 81
+          },
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        },
+        {
+          "bounds": {
+            "left": 2,
+            "right": 320,
+            "top": 463,
+            "bottom": 489,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 463,
+            "bottom": 544,
+            "width": 318,
+            "height": 81
+          },
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": null
+        }
+      ],
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "editor-desktop",
+      "width": 1280,
+      "height": 820,
+      "file": "landscape_a.mp4",
+      "count": 2,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 341,
+            "right": 940,
+            "top": 46,
+            "bottom": 72,
+            "width": 599,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 1279,
+            "top": 46,
+            "bottom": 409,
+            "width": 1278,
+            "height": 363
+          },
+          "zoom": "62%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 932
+        },
+        {
+          "bounds": {
+            "left": 341,
+            "right": 940,
+            "top": 411,
+            "bottom": 437,
+            "width": 599,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 1279,
+            "top": 411,
+            "bottom": 774,
+            "width": 1278,
+            "height": 363
+          },
+          "zoom": "62%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 932
+        }
+      ],
+      "dialog": {
+        "width": 798,
+        "contentWidth": 798,
+        "x": 240,
+        "y": 16
+      },
+      "idleRefreshes": 0,
+      "pass": true
+    },
+    {
+      "name": "editor-touch-narrow",
+      "width": 320,
+      "height": 736,
+      "file": "landscape_a.mp4",
+      "count": 2,
+      "layout": "inline",
+      "bars": [
+        {
+          "bounds": {
+            "left": 1,
+            "right": 319,
+            "top": 125,
+            "bottom": 151,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 125,
+            "bottom": 331,
+            "width": 318,
+            "height": 206
+          },
+          "zoom": "33%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 311
+        },
+        {
+          "bounds": {
+            "left": 1,
+            "right": 319,
+            "top": 333,
+            "bottom": 359,
+            "width": 318,
+            "height": 26
+          },
+          "cell": {
+            "left": 1,
+            "right": 319,
+            "top": 333,
+            "bottom": 539,
+            "width": 318,
+            "height": 206
+          },
+          "zoom": "33%",
+          "controlsWithinBar": true,
+          "barWithinCell": true,
+          "barWithinViewport": true,
+          "rightEdge": 311
+        }
+      ],
+      "dialog": {
+        "width": 286,
+        "contentWidth": 286,
+        "x": 16,
+        "y": 16
+      },
+      "idleRefreshes": 0,
+      "pass": true
+    }
+  ],
+  "errors": []
+}

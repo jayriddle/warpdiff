@@ -442,7 +442,7 @@ The following settings are saved to your browser and persist across sessions and
 
 ## Info Bar
 
-Each asset displays an info bar (Grid mode) or a header strip (Stack mode) showing:
+By default, each asset displays an info bar (Grid mode) or a header strip (Stack mode) showing:
 - **Slot label** — colored pill (green = GT/Ref, amber = A, magenta = B); hidden when only one file is loaded
 - **FPS** — frame rate, shown dimmed until detected; snaps to nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60)
 - **Duration** — video/audio length with a stopwatch icon; `—` for images
@@ -453,6 +453,20 @@ Each asset displays an info bar (Grid mode) or a header strip (Stack mode) showi
 - For audio files: sample rate, channels, bit depth/codec, file size
 
 Field order and color hierarchy are consistent between Grid info bars and the Stack header strip.
+
+Open **Customize info bar** using the sliders icon in the header. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
+
+Choose **Default** to keep the original display, **Minimal** for zoom (images) or duration (video/audio), **Visual Focus** for picture and timing fields, **Audio Essentials** for loudness and source audio information, or **All Available**. Editing a preset changes its label to **Custom**. **Reset profile** restores the selected media type's Default without changing the other profiles.
+
+Use the checkbox beside each field to show or hide it. **Audio information** switches all audio fields together; its mixed state means only some are enabled. Video codec, channel layout and sample rate can be selected independently. Multiple tracks are numbered within each selected source field, without inferring which track the browser plays. Filename and file size are available as optional fields. Values that are unavailable are omitted until ready; analysis and late metadata updates preserve your visibility, order and styles.
+
+Arrange elements in **Left aligned** and **Right aligned** sections. Drag an element's **⠿ handle** to reorder it or move it between sections; a line marks its drop position, and empty sections also accept a drop. Handles support mouse and touch. Hold a touch or pen drag near the editor's top or bottom edge to scroll to offscreen rows; the heading and close button stay visible. To use the keyboard, focus a handle and press **↑ / ↓** to reorder or **← / →** to change section. You can also select an element and change **Section**. Presets put **Zoom** on the right; keep it last in that section to anchor it at the far right of the bar. Other fields can use either section. Earlier custom profiles retain their existing order on the left until you move items.
+
+Select a field's name to set **Small**, **Standard**, or **Large** text, choose a color, or enable **Bold**. Default text size and Default color restore that field's inherited styling. The loudness warning above −9 LUFS retains a red **!** even with a custom text color.
+
+Click **+ Spacer** to insert a gap after the selected row in the same section. Spacers can be repeated, moved between sections, hidden or removed; choose a width from **12–48 pixels**. Leading/trailing gaps disappear within each section, and consecutive gaps or gaps across unavailable groups collapse to the largest width. Narrow bars first compress gaps to 12 pixels, preserve fields from the far right, then use the remaining room for the left section. Remaining selected available fields appear in **More**, shown as **⋯** in compact Grid bars. Extremely narrow portrait pictures allow the bar to extend within its own cell so the slot controls and overflow stay reachable. Customized Stack information moves to its own header row when space is tight. Escape closes More and returns focus to its button; Escape from the editor returns focus to Customize info bar.
+
+Slot labels keep their existing identity and hide/restore controls. Image wipe keeps its pair chooser, and managed host reviews keep their standard display. Profiles change presentation only; playback, listening and original audio analysis continue to use their existing settings.
 
 Video timecode displays as SS:FF or M:SS:FF. Audio timecode displays as S.cc or M:SS.cc (centiseconds). Press **T** to cycle timecode formats; press **C** to copy; **Shift+C** to open the format chooser.
 

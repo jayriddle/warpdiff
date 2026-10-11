@@ -1,0 +1,77 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --retries=0 --workers=4
+(node:43744) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 18 tests using 1 worker
+
+(node:43745) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43745) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43745) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/info-bar.spec.ts:36:5 › default stays unchanged; presets keep their name and Reset restores the original bars (522ms)
+  ✓   2 [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback (448ms)
+  ✓   3 [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (440ms)
+  ✓   4 [chromium] › tests/info-bar.spec.ts:109:5 › media profiles persist independently through reload and new comparisons (515ms)
+  ✓   5 [chromium] › tests/info-bar.spec.ts:129:5 › late source and loudness publication retain hidden fields and user styles (345ms)
+  ✓   6 [chromium] › tests/info-bar.spec.ts:153:5 › narrow bars show only selected overflow fields and clearing removes stale details (402ms)
+  ✘   7 [chromium] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (307ms)
+(node:43763) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43763) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43763) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 [chromium] › tests/info-bar.spec.ts:194:5 › all metadata can be hidden and four-slot identity controls remain usable (294ms)
+  ✓   9 [chromium] › tests/info-bar.spec.ts:206:5 › another tab updates the active profile and failed storage is explained (503ms)
+  ✓  10 [chromium] › tests/info-bar.spec.ts:227:5 › managed hosts close the editor and retain their standard review chrome (277ms)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:238:5 › image wipe uses its pair chooser and restores custom metadata on exit (425ms)
+  ✓  12 [chromium] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer (276ms)
+  ✓  13 [chromium] › tests/info-bar.spec.ts:263:5 › large text keeps every four-video picture below its own bar (336ms)
+  ✓  14 [chromium] › tests/info-bar.spec.ts:275:5 › narrow and tablet Stack headers retain a reachable More button after resizing (1.2s)
+  ✘  15 [chromium] › tests/info-bar.spec.ts:293:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid (527ms)
+(node:43786) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43786) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43786) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  16 [chromium] › tests/info-bar.spec.ts:323:5 › each section orders its fields and spacers independently and supports drag transfers (503ms)
+  ✓  17 [chromium] › tests/info-bar.spec.ts:349:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes (15.6s)
+  ✓  18 [chromium] › tests/info-bar.spec.ts:376:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right (256ms)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      186 |   for (let i=0;i<45;i++) {
+      187 |     await page.keyboard.press('Tab');
+    > 188 |     expect(await page.evaluate(() => document.getElementById('infoEditorDialog')!.contains(document.activeElement))).toBe(true);
+          |                                                                                                                      ^
+      189 |   }
+      190 |   await page.keyboard.press('Escape');
+      191 |   await expect(page.locator('#infoEditorButton')).toBeFocused();
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:188:118
+
+    Error Context: test-results/info-bar-editor-keyboard-c-24882-d-and-Escape-restores-focus-chromium/error-context.md
+
+  2) [chromium] › tests/info-bar.spec.ts:293:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid
+
+    Error: locator.evaluate: TypeError: Cannot read properties of null (reading 'getBoundingClientRect')
+        at eval (eval at evaluate (:290:30), <anonymous>:1:95)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:290:30), <anonymous>:1:95)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at Object.generator (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:311:34)
+
+    Error Context: test-results/info-bar-left-and-right-se-e7f94-ve-reload-in-Stack-and-Grid-chromium/error-context.md
+
+  2 failed
+    [chromium] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+    [chromium] › tests/info-bar.spec.ts:293:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid
+  16 passed (25.8s)

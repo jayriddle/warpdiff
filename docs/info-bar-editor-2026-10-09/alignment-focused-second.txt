@@ -1,0 +1,100 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --retries=0 --workers=4
+(node:42450) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[WebServer] (node:42451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] npm notice run warpdiff@1.0.0 npx
+[WebServer] npm notice run 'serve' -l 8080 --no-clipboard .
+[WebServer] (node:42475) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 18 tests using 1 worker
+
+(node:42476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42476) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:42476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/info-bar.spec.ts:32:5 › default stays unchanged; presets keep their name and Reset restores the original bars (566ms)
+  ✓   2 [chromium] › tests/info-bar.spec.ts:54:5 › field order and typography apply to Stack and Grid without changing playback (452ms)
+  ✓   3 [chromium] › tests/info-bar.spec.ts:81:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (392ms)
+  ✓   4 [chromium] › tests/info-bar.spec.ts:105:5 › media profiles persist independently through reload and new comparisons (486ms)
+  ✓   5 [chromium] › tests/info-bar.spec.ts:125:5 › late source and loudness publication retain hidden fields and user styles (441ms)
+  ✓   6 [chromium] › tests/info-bar.spec.ts:149:5 › narrow bars show only selected overflow fields and clearing removes stale details (417ms)
+  ✓   7 [chromium] › tests/info-bar.spec.ts:174:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (360ms)
+  ✓   8 [chromium] › tests/info-bar.spec.ts:190:5 › all metadata can be hidden and four-slot identity controls remain usable (297ms)
+  ✓   9 [chromium] › tests/info-bar.spec.ts:202:5 › another tab updates the active profile and failed storage is explained (413ms)
+  ✓  10 [chromium] › tests/info-bar.spec.ts:223:5 › managed hosts close the editor and retain their standard review chrome (288ms)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:234:5 › image wipe uses its pair chooser and restores custom metadata on exit (440ms)
+  ✓  12 [chromium] › tests/info-bar.spec.ts:246:5 › drag ordering works and preview More stays inside the modal top layer (252ms)
+  ✓  13 [chromium] › tests/info-bar.spec.ts:259:5 › large text keeps every four-video picture below its own bar (322ms)
+  ✓  14 [chromium] › tests/info-bar.spec.ts:271:5 › narrow and tablet Stack headers retain a reachable More button after resizing (1.2s)
+  ✓  15 [chromium] › tests/info-bar.spec.ts:289:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid (515ms)
+  ✘  16 [chromium] › tests/info-bar.spec.ts:319:5 › each section orders its fields and spacers independently and supports drag transfers (5.4s)
+(node:42503) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42503) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:42503) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  17 [chromium] › tests/info-bar.spec.ts:345:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes (20.3s)
+(node:42519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42519) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:42519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  18 [chromium] › tests/info-bar.spec.ts:372:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right (285ms)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:319:5 › each section orders its fields and spacers independently and supports drag transfers
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-info-section="right"] [data-element-id="duration"]')
+    Expected: 1
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 5000ms
+      - waiting for locator('[data-info-section="right"] [data-element-id="duration"]')
+        9 × locator resolved to 0 elements
+          - unexpected value "0"
+
+
+      334 |   await expect(page.locator('#infoEditorPreview .info-gap')).toHaveCount(0);
+      335 |   await page.locator('[data-element-id="duration"]').dragTo(page.locator('[data-element-id="fps"]'));
+    > 336 |   await expect(page.locator('[data-info-section="right"] [data-element-id="duration"]')).toHaveCount(1);
+          |                                                                                          ^
+      337 |   await expect(page.locator('[data-info-section="left"] [data-element-id="duration"]')).toHaveCount(0);
+      338 |   // A section can also accept a drag when it has no rows.
+      339 |   await page.locator('#infoEditorType').selectOption('image');
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:336:90
+
+    Error Context: test-results/info-bar-each-section-orde-2fa0f-and-supports-drag-transfers-chromium/error-context.md
+
+  2) [chromium] › tests/info-bar.spec.ts:345:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      349 |   for (const [width,height] of [[320,736],[320,400],[736,400],[1280,720]]) {
+      350 |     await page.setViewportSize({width,height});
+    > 351 |     await expect.poll(() => page.locator('.asset-info-bar.info-custom').evaluateAll(bars => bars.length === 4 && bars.every(bar => {
+          |     ^
+      352 |       const bounds = bar.getBoundingClientRect(), cell = bar.closest('.asset-layer')!.getBoundingClientRect();
+      353 |       const picture = bar.parentElement!.getBoundingClientRect();
+      354 |       const controls = [bar.querySelector('.asset-name'),bar.querySelector('.info-more'),bar.querySelector('.info-field-zoom')] as HTMLElement[];
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:351:5
+
+    Error Context: test-results/info-bar-portrait-Grid-cel-10ed8-gh-narrow-and-short-resizes-chromium/error-context.md
+
+  2 failed
+    [chromium] › tests/info-bar.spec.ts:319:5 › each section orders its fields and spacers independently and supports drag transfers
+    [chromium] › tests/info-bar.spec.ts:345:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes
+  16 passed (36.1s)

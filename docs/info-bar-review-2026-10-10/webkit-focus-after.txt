@@ -1,0 +1,12 @@
+
+Running 3 tests using 1 worker
+
+(node:3282) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3282) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [webkit] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (940ms)
+  ✓  2 [webkit] › tests/info-bar.spec.ts:257:5 › drag ordering works and preview More stays inside the modal top layer (410ms)
+  ✓  3 [webkit] › tests/info-bar.spec.ts:403:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts (297ms)
+
+  3 passed (2.3s)

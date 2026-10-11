@@ -16,9 +16,9 @@ function _videoAudioDecodeIsCurrent(slot, gen) {
 }
 
 function _videoAudioFormatInfo(tracks) {
-    if (tracks === undefined) return {text:'Reading audio…', detail:'Reading source audio format…'};
-    if (!Array.isArray(tracks)) return {text:'Audio: Unknown', detail:'Source audio format could not be read from this container.'};
-    if (!tracks.length) return {text:'No audio track', detail:'This container has no audio track.'};
+    if (tracks === undefined) return {text:'Reading audio…', detail:'Reading source audio format…', fields:Object.freeze({audioCodec:'Reading audio…'})};
+    if (!Array.isArray(tracks)) return {text:'Audio: Unknown', detail:'Source audio format could not be read from this container.', fields:Object.freeze({audioCodec:'Audio: Unknown'})};
+    if (!tracks.length) return {text:'No audio track', detail:'This container has no audio track.', fields:Object.freeze({audioCodec:'No audio track'})};
     const names = {fLaC:'FLAC', Opus:'Opus', aac:'AAC', mp3:'MP3', mp4a:'MPEG-4 audio',
         'ac-3':'Dolby Digital', 'ec-3':'Dolby Digital Plus', dtsc:'DTS', dtse:'DTS Express',
         dtsh:'DTS-HD', dtsl:'DTS-HD Lossless', mlpa:'Dolby TrueHD', alac:'ALAC',
@@ -33,11 +33,20 @@ function _videoAudioFormatInfo(tracks) {
             ? track.channelLayout : channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : channels ? channels + ' ch' : '';
         const rate = Number.isFinite(track.sampleRate) && track.sampleRate > 0 && track.sampleRate <= 1048575
             ? (track.sampleRate / 1000).toLocaleString('en-US', {maximumFractionDigits:3}) + ' kHz' : '';
-        return [codec, layout, rate].filter(Boolean).join(' · ');
+        return {text:[codec, layout, rate].filter(Boolean).join(' · '), audioCodec:codec, channels:layout, sampleRate:rate};
     });
-    return {text:formats.length === 1 ? formats[0] : formats.length + ' audio tracks',
-        detail:formats.length === 1 ? 'Source audio: ' + formats[0]
-            : formats.map((format, index) => 'Audio track ' + (index + 1) + ': ' + format).join('\n') + '\nPlayback track is selected by the browser.'};
+    const fields = {}, fieldDetails = {};
+    const labels = {audioCodec:'Audio codec', channels:'Channels / layout', sampleRate:'Sample rate'};
+    for (const id of Object.keys(labels)) {
+        fields[id] = formats.length === 1 ? formats[0][id]
+            : formats.map((format,index) => (index+1)+': '+(format[id] || 'Unknown')).join(' / ');
+        fieldDetails[id] = formats.length === 1 ? labels[id]+': '+fields[id]
+            : formats.map((format,index) => 'Audio track '+(index+1)+' — '+labels[id]+': '+(format[id] || 'Unknown')).join('\n')+'\nPlayback track is selected by the browser.';
+    }
+    return {text:formats.length === 1 ? formats[0].text : formats.length + ' audio tracks',
+        fields:Object.freeze(fields), fieldDetails:Object.freeze(fieldDetails),
+        detail:formats.length === 1 ? 'Source audio: ' + formats[0].text
+            : formats.map((format, index) => 'Audio track ' + (index + 1) + ': ' + format.text).join('\n') + '\nPlayback track is selected by the browser.'};
 }
 
 // One writer; shares the decode generation fence. Store small display strings,

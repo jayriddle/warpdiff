@@ -2245,6 +2245,12 @@ function extractFn(name, src = SRC) {
     multi.channelLayout === null && multi.audioTracks.length === 2 &&
     text(multi.audioTracks) === '2 audio tracks' &&
     context._videoAudioFormatInfo(multi.audioTracks).detail.includes('Audio track 2: AAC · Stereo · 44.1 kHz'));
+  const separate = context._videoAudioFormatInfo(multi.audioTracks);
+  check('source-format: configurable multi-track fields retain each track independently',
+    separate.fields.channels === '1: 5.1 / 2: Stereo' && separate.fields.sampleRate === '1: 48 kHz / 2: 44.1 kHz' &&
+    separate.fields.audioCodec === '1: AAC / 2: AAC' &&
+    separate.fieldDetails.channels.includes('Playback track is selected by the browser.') &&
+    !separate.fieldDetails.channels.includes('kHz') && !separate.fieldDetails.channels.includes('AAC'));
   check('source-format: unknown layout is a count, not a guessed surround arrangement',
     text([{codec:'fLaC', channels:8, sampleRate:96000}]) === 'FLAC · 8 ch · 96 kHz');
   check('source-format: malformed container and absent metadata stay unknown',
@@ -2255,6 +2261,98 @@ function extractFn(name, src = SRC) {
     extractFn('_setVideoAudioFormat').includes('_videoAudioDecodeIsCurrent(slot, gen)') &&
     !extractFn('_videoAudioFormatInfo').includes('audioBuffer') &&
     !extractFn('_videoAudioFormatInfo').includes('getAudioContext'));
+}
+
+// Configurable info is a presentation layer with bounded, validated preferences.
+{
+  const info = readFileSync(new URL('js/info-bar.js', ROOT), 'utf8');
+  const context = {};
+  runInNewContext(info,context);
+  const preset = context._infoBarPreset, normalize = context._infoBarNormalize, layout = context._infoBarLayout;
+  for (const type of ['image','video','audio']) for (const name of ['default','minimal','visual','audio','all']) {
+    const raw = JSON.parse(JSON.stringify(preset(type,name)));
+    check('info-bar: '+type+' '+name+' survives JSON storage and normalization', normalize(type,raw).preset === name);
+  }
+  const forged = preset('video'); forged.elements.find(field => field.id === 'lufs').visible = false;
+  check('info-bar: forged Default cannot reintroduce an intentionally hidden field', normalize('video',forged).preset === 'custom');
+  const movedDefault = preset('image');movedDefault.elements.find(item => item.id === 'zoom').align = 'left';
+  check('info-bar: changing a Default field section creates Custom',normalize('image',movedDefault).preset === 'custom');
+  const legacyPreset = JSON.parse(JSON.stringify(preset('video','visual')));
+  legacyPreset.elements.forEach(item => delete item.align);
+  const migratedPreset = normalize('video',legacyPreset);
+  check('info-bar: earlier named presets migrate right-hand Zoom without losing their label',
+    migratedPreset.preset === 'visual' && migratedPreset.elements.find(item => item.id === 'zoom').align === 'right');
+  legacyPreset.preset = 'custom';legacyPreset.elements.reverse();
+  const migratedCustom = normalize('video',legacyPreset);
+  check('info-bar: earlier custom profiles retain their single-list order on the left',
+    migratedCustom.elements.every(item => item.align === 'left') && migratedCustom.elements.map(item => item.id).join(',') === legacyPreset.elements.map(item => item.id).join(','));
+  const invalid = normalize('image',{preset:'custom',elements:[
+    {kind:'field',id:'resolution',visible:true}, {kind:'field',id:'resolution',visible:true},
+    {kind:'field',id:'lufs',visible:true}, {kind:'field',id:'<img onerror=alert(1)>',visible:true},
+    {kind:'spacer',id:'gap-1',width:999,visible:true}, {kind:'spacer',id:'gap-2',width:NaN,visible:true},
+    {kind:'spacer',id:'gap-3',width:-5,visible:true}
+  ],styles:{resolution:{size:999,color:'url(injected)',bold:'true'}}});
+  check('info-bar: invalid and duplicate fields are excluded and omitted valid fields stay hidden',
+    invalid.elements.filter(item => item.kind === 'field').length === 5 &&
+    invalid.elements.filter(item => item.id === 'resolution').length === 1 &&
+    !invalid.elements.some(item => item.id === 'lufs') &&
+    invalid.elements.find(item => item.id === 'filename').visible === false);
+  check('info-bar: style values and gap widths cannot inject CSS or unbounded layout',
+    invalid.styles.resolution.size === null && invalid.styles.resolution.color === null && invalid.styles.resolution.bold === false &&
+    invalid.elements.filter(item => item.kind === 'spacer').map(item => item.width).join(',') === '48,24,12');
+  const bounded = normalize('video',{elements:Array.from({length:50},(_,index)=>({kind:'spacer',id:'gap-'+(index+1),width:24,visible:true}))});
+  check('info-bar: malformed stored profiles cannot create more than 24 spacers',bounded.elements.filter(item=>item.kind==='spacer').length === 24);
+  const sections = normalize('image',{preset:'custom',elements:[
+    {kind:'field',id:'resolution',visible:true,align:'float:evil'},
+    {kind:'spacer',id:'gap-1',visible:true,width:24,align:'right'},
+    {kind:'field',id:'aspect',visible:true,align:'right'},
+    {kind:'spacer',id:'gap-2',visible:true,width:32,align:'right'},
+    {kind:'field',id:'zoom',visible:true,align:'right'}
+  ]});
+  check('info-bar: alignment is restricted to Left or Right for fields and spacers',
+    sections.elements.find(item => item.id === 'resolution').align === 'left' && sections.elements.find(item => item.id === 'gap-2').align === 'right');
+  check('info-bar: spacer collapse is independent across the two sections',
+    layout(sections,{resolution:{text:'1920×1080'},aspect:{text:'16:9'},zoom:{text:'50%'}}).map(item => item.id).join(',') === 'resolution,aspect,gap-2,zoom');
+  const grouped = {elements:[
+    {kind:'spacer',id:'gap-1',visible:true,width:24}, {kind:'field',id:'resolution',visible:true},
+    {kind:'spacer',id:'gap-2',visible:true,width:32}, {kind:'field',id:'channels',visible:false},
+    {kind:'spacer',id:'gap-3',visible:true,width:48}, {kind:'field',id:'lufs',visible:true},
+    {kind:'field',id:'zoom',visible:true}, {kind:'spacer',id:'gap-4',visible:true,width:24}
+  ],styles:{}};
+  const before = JSON.stringify(grouped), values = {resolution:{text:'1920×1080'},zoom:{text:'50%'}};
+  check('info-bar: leading/trailing and unavailable-group gaps collapse to the largest width',
+    layout(grouped,values).map(item=>item.id).join(',') === 'resolution,gap-3,zoom');
+  values.lufs = {text:'-14 LUFS'};
+  check('info-bar: late metadata appears at its chosen position without changing preferences',
+    layout(grouped,values).map(item=>item.id).join(',') === 'resolution,gap-3,lufs,zoom' && before === JSON.stringify(grouped));
+  const reordered = normalize('image',preset('image','visual'));
+  reordered.styles.aspect = {size:14,color:'#89abcd',bold:true};
+  context._infoEditorReorder(reordered,'aspect','zoom','right',false);
+  check('info-bar: drag transfer preserves field styling/visibility and the target section order',
+    reordered.elements.find(item=>item.id==='aspect').visible && reordered.styles.aspect.size === 14 && reordered.styles.aspect.color === '#89abcd' && reordered.styles.aspect.bold &&
+    reordered.elements.filter(item=>item.kind==='field'&&item.align==='right').map(item=>item.id).join(',') === 'aspect,zoom');
+  check('one-owner[info-bar]: touch cancellation cannot retire a native mouse drag',
+    info.includes("list.addEventListener('pointercancel',event => {if (_infoEditorPointer?.pointerId === event.pointerId) _infoEditorFinishDrag(false);") &&
+    extractFn('_infoEditorFinishDrag').includes('_infoEditorPointer = null') &&
+    extractFn('_infoEditorFinishDrag').includes('_infoEditorReorder(profile,id,drop.target,drop.align,drop.after)'));
+  check('one-owner[info-bar]: exactly one preference writer validates each change',
+    countOf(SRC,"_prefs.save('infoBarProfiles'") === 1 &&
+    extractFn('_commitInfoBarProfile').includes('_infoBarNormalize(type,profile)') &&
+    extractFn('_commitInfoBarProfile').includes("_prefs.save('infoBarProfiles'"));
+  check('one-owner[info-bar]: captured drag scrolling is coalesced and retired with the gesture',
+    extractFn('_infoEditorTrackPointerDrag').includes('_infoEditorScrollRaf === null') &&
+    extractFn('_infoEditorFinishDrag').includes('cancelAnimationFrame(_infoEditorScrollRaf)') &&
+    extractFn('_infoEditorFinishDrag').includes('_infoEditorScrollRaf = null'));
+  check('one-owner[info-bar]: metadata publishes only to the coalesced presentation owner',
+    countOf(HTML,'_setupInfoBarEditor();') === 1 &&
+    extractFn('_updateStackInfoStrip').includes('_queueInfoBarRefresh();') &&
+    extractFn('_queueInfoBarRefresh').includes('_infoBarRefreshRaf !== null') &&
+    extractFn('_clearInfoBarViews').includes('cancelAnimationFrame(_infoBarRefreshRaf)') &&
+    extractFn('clearAllMedia').includes('_clearInfoBarViews();'));
+  check('info-bar: field/overflow content uses safe text and never owns playback or PCM',
+    !info.includes('innerHTML') && !info.includes('.currentTime =') && !info.includes('.playbackRate =') &&
+    !info.includes('audioBuffer') && extractFn('_infoBarValueSource').includes('format.fields[field.id]') &&
+    extractFn('_renderInfoBarOverflow').includes('record.overflow.includes(entry.id)'));
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────

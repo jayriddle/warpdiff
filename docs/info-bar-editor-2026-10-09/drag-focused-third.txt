@@ -1,0 +1,34 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --retries=0 --workers=4
+(node:44020) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 20 tests using 1 worker
+
+(node:44027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44027) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:44027) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/info-bar.spec.ts:36:5 › default stays unchanged; presets keep their name and Reset restores the original bars (508ms)
+  ✓   2 [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback (391ms)
+  ✓   3 [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (449ms)
+  ✓   4 [chromium] › tests/info-bar.spec.ts:109:5 › media profiles persist independently through reload and new comparisons (515ms)
+  ✓   5 [chromium] › tests/info-bar.spec.ts:129:5 › late source and loudness publication retain hidden fields and user styles (434ms)
+  ✓   6 [chromium] › tests/info-bar.spec.ts:153:5 › narrow bars show only selected overflow fields and clearing removes stale details (423ms)
+  ✓   7 [chromium] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (353ms)
+  ✓   8 [chromium] › tests/info-bar.spec.ts:194:5 › all metadata can be hidden and four-slot identity controls remain usable (281ms)
+  ✓   9 [chromium] › tests/info-bar.spec.ts:206:5 › another tab updates the active profile and failed storage is explained (389ms)
+  ✓  10 [chromium] › tests/info-bar.spec.ts:227:5 › managed hosts close the editor and retain their standard review chrome (274ms)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:238:5 › image wipe uses its pair chooser and restores custom metadata on exit (429ms)
+  ✓  12 [chromium] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer (272ms)
+  ✓  13 [chromium] › tests/info-bar.spec.ts:263:5 › large text keeps every four-video picture below its own bar (334ms)
+  ✓  14 [chromium] › tests/info-bar.spec.ts:275:5 › narrow and tablet Stack headers retain a reachable More button after resizing (1.2s)
+  ✓  15 [chromium] › tests/info-bar.spec.ts:293:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid (515ms)
+  ✓  16 [chromium] › tests/info-bar.spec.ts:326:5 › each section orders its fields and spacers independently and supports drag transfers (476ms)
+  ✓  17 [chromium] › tests/info-bar.spec.ts:352:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes (15.5s)
+  ✓  18 [chromium] › tests/info-bar.spec.ts:379:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right (240ms)
+  ✓  19 [chromium] › tests/info-bar.spec.ts:396:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts (211ms)
+  ✓  20 [chromium] › tests/info-bar.spec.ts:412:5 › touch handles move between sections and cancel without saving a partial drag (628ms)
+
+  20 passed (24.9s)

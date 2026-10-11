@@ -1,0 +1,11 @@
+{"name":"portrait-four-narrow","pass":true,"idleRefreshes":0}
+{"name":"portrait-four-short","pass":true,"idleRefreshes":0}
+{"name":"portrait-four-tablet-short","pass":true,"idleRefreshes":0}
+{"name":"portrait-three-inline","pass":false,"idleRefreshes":0}
+{"name":"portrait-three-offset","pass":true,"idleRefreshes":0}
+{"name":"portrait-two-short","pass":true,"idleRefreshes":0}
+{"name":"image-four-narrow","pass":true,"idleRefreshes":0}
+{"name":"image-three-short","pass":false,"idleRefreshes":0}
+{"name":"audio-four-narrow","pass":true,"idleRefreshes":0}
+{"name":"editor-desktop","pass":true,"idleRefreshes":0}
+{"name":"editor-touch-narrow","pass":true,"idleRefreshes":0}

@@ -1,0 +1,16 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts -g touch dragging scrolls|touch handles --workers=1 --retries=0
+(node:2737) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:2738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2738) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:2738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/info-bar.spec.ts:415:5 › touch handles move between sections and cancel without saving a partial drag (787ms)
+  ✓  2 [chromium] › tests/info-bar.spec.ts:444:5 › touch dragging scrolls to an offscreen section and retires scrolling after release or cancel (1.4s)
+
+  2 passed (3.1s)

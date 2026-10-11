@@ -1,0 +1,142 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/info-bar.spec.ts --retries=0 --workers=4
+(node:43890) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 20 tests using 1 worker
+
+(node:43891) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43891) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43891) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/info-bar.spec.ts:36:5 › default stays unchanged; presets keep their name and Reset restores the original bars (518ms)
+  ✘   2 [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback (451ms)
+(node:43911) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43911) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43911) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   3 [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields (417ms)
+(node:43919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43919) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43919) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 [chromium] › tests/info-bar.spec.ts:109:5 › media profiles persist independently through reload and new comparisons (568ms)
+  ✓   5 [chromium] › tests/info-bar.spec.ts:129:5 › late source and loudness publication retain hidden fields and user styles (435ms)
+  ✓   6 [chromium] › tests/info-bar.spec.ts:153:5 › narrow bars show only selected overflow fields and clearing removes stale details (404ms)
+  ✓   7 [chromium] › tests/info-bar.spec.ts:178:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus (357ms)
+  ✓   8 [chromium] › tests/info-bar.spec.ts:194:5 › all metadata can be hidden and four-slot identity controls remain usable (276ms)
+  ✓   9 [chromium] › tests/info-bar.spec.ts:206:5 › another tab updates the active profile and failed storage is explained (451ms)
+  ✓  10 [chromium] › tests/info-bar.spec.ts:227:5 › managed hosts close the editor and retain their standard review chrome (266ms)
+  ✓  11 [chromium] › tests/info-bar.spec.ts:238:5 › image wipe uses its pair chooser and restores custom metadata on exit (320ms)
+  ✘  12 [chromium] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer (244ms)
+(node:43937) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43937) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43937) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 [chromium] › tests/info-bar.spec.ts:263:5 › large text keeps every four-video picture below its own bar (339ms)
+  ✓  14 [chromium] › tests/info-bar.spec.ts:275:5 › narrow and tablet Stack headers retain a reachable More button after resizing (1.3s)
+  ✓  15 [chromium] › tests/info-bar.spec.ts:293:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid (523ms)
+  ✘  16 [chromium] › tests/info-bar.spec.ts:326:5 › each section orders its fields and spacers independently and supports drag transfers (355ms)
+(node:43949) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43949) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:43949) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  17 [chromium] › tests/info-bar.spec.ts:352:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes (15.7s)
+  ✓  18 [chromium] › tests/info-bar.spec.ts:379:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right (259ms)
+  ✓  19 [chromium] › tests/info-bar.spec.ts:396:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts (208ms)
+  ✓  20 [chromium] › tests/info-bar.spec.ts:412:5 › touch handles move between sections and cancel without saving a partial drag (630ms)
+
+
+  1) [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 2
+    Received:   3
+
+      74 |   await expect(bars.first().locator('.info-field-duration')).toHaveCSS('color','rgb(68, 170, 255)');
+      75 |   const gridOrder = await bars.first().locator('.info-items [data-info-kind="field"]').evaluateAll(items => items.map(item => (item as HTMLElement).dataset.infoId));
+    > 76 |   expect(gridOrder.indexOf('duration')).toBeLessThan(gridOrder.indexOf('fps'));
+         |                                         ^
+      77 |   await page.keyboard.press('s');
+      78 |   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);
+      79 |   await expect(page.locator('#stackInfoStrip .info-field-duration')).toHaveCSS('color','rgb(68, 170, 255)');
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:76:41
+
+    Error Context: test-results/info-bar-field-order-and-t-24929-d-without-changing-playback-chromium/error-context.md
+
+  2) [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        "resolution",
+    -   "gap-2",
+        "gap-1",
+    +   "gap-2",
+      ]
+
+       99 |   await expect(page.locator('#infoEditorPreview .info-gap')).toHaveCount(1);
+      100 |   await dragBefore(page,'gap-2','gap-1');
+    > 101 |   expect((await profile(page,'image')).elements.slice(0,3).map((item: any) => item.id)).toEqual(['resolution','gap-2','gap-1']);
+          |                                                                                         ^
+      102 |   await page.locator('[data-info-select="gap-2"]').click();
+      103 |   await page.locator('#infoEditorRemoveSpacer').click();
+      104 |   await expect(page.locator('#infoEditorElements [data-element-id^="gap-"]')).toHaveCount(1);
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:101:89
+
+    Error Context: test-results/info-bar-spacers-are-repea-7d71e-e-around-unavailable-fields-chromium/error-context.md
+
+  3) [chromium] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer
+
+    Error: page.evaluate: TypeError: Cannot read properties of null (reading 'profiles')
+        at eval (eval at evaluate (:290:30), <anonymous>:1:62)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at evaluate (:290:30), <anonymous>:1:62)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at profile (/Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:23:15)
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:253:17
+
+    Error Context: test-results/info-bar-drag-ordering-wor-e9dec--inside-the-modal-top-layer-chromium/error-context.md
+
+  4) [chromium] › tests/info-bar.spec.ts:326:5 › each section orders its fields and spacers independently and supports drag transfers
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Array [
+        "fps",
+    -   "zoom",
+        "gap-1",
+    +   "zoom",
+      ]
+
+      337 |   await dragBefore(page,'zoom','gap-1');
+      338 |   const rightOrder = await page.locator('[data-info-section="right"] [data-element-id]').evaluateAll(rows => rows.map(row => (row as HTMLElement).dataset.elementId));
+    > 339 |   expect(rightOrder).toEqual(['fps','zoom','gap-1']);
+          |                      ^
+      340 |   expect((await profile(page,'video')).elements.find((item: any) => item.id === 'duration')).toEqual(durationBefore);
+      341 |   await expect(page.locator('#infoEditorPreview .info-gap')).toHaveCount(0);
+      342 |   await dragBefore(page,'duration','fps');
+        at /Users/jay/Documents/warpdiff/tests/info-bar.spec.ts:339:22
+
+    Error Context: test-results/info-bar-each-section-orde-2fa0f-and-supports-drag-transfers-chromium/error-context.md
+
+  4 failed
+    [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback
+    [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields
+    [chromium] › tests/info-bar.spec.ts:250:5 › drag ordering works and preview More stays inside the modal top layer
+    [chromium] › tests/info-bar.spec.ts:326:5 › each section orders its fields and spacers independently and supports drag transfers
+  16 passed (28.2s)
