@@ -178,7 +178,9 @@ Found a bug or have an idea? [Open an issue](https://github.com/jayriddle/warpdi
 
 ## License
 
-Not currently licensed for redistribution or derivative use. Reach out if you're interested in using or building on this.
+WarpDiff's original application code is not currently licensed for redistribution or derivative use. Reach out if you're interested in using or building on this.
+
+The application's `UNLICENSED` package metadata reflects this policy; it is not a public-domain dedication. Third-party components retain their respective licenses and notices.
 
 ## Contact
 
