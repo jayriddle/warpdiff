@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.0
+**Current version:** 3.19.1
 
 ---
 
@@ -75,7 +75,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Unsupported video audio can be transcoded in the browser or with a copied FFmpeg command for macOS/Linux terminals. Run copied commands from the folder containing the original file. Extensionless filenames stay intact, with `_aac.mp4` added to the output name.
+- Unsupported video audio uses a safe external FFmpeg command and reload workflow. WarpDiff does not bundle or run FFmpeg. Install it separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
 - Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
@@ -181,6 +181,8 @@ Found a bug or have an idea? [Open an issue](https://github.com/jayriddle/warpdi
 WarpDiff's original application code is not currently licensed for redistribution or derivative use. Reach out if you're interested in using or building on this.
 
 The application's `UNLICENSED` package metadata reflects this policy; it is not a public-domain dedication. Third-party components retain their respective licenses and notices.
+
+This release does not distribute an FFmpeg browser engine or wrapper. External FFmpeg installations retain their own terms. Removing the current bundle does not remove older bundles from repository history or earlier deployments; historical remediation is tracked separately.
 
 ## Contact
 

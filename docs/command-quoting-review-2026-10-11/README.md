@@ -1,5 +1,10 @@
 # Command-quoting review — October 11, 2026
 
+Historical checkpoint: the [external-preparation interim release](../external-preparation-2026-10-11/README.md)
+adds terminal-control hardening and removes browser conversion. This record's
+noninteractive shell checks do not establish safety for raw control characters
+pasted into an interactive terminal; the current command owner rejects them.
+
 This reviews the initial implementation at `f7ee15e7b1d516fc7be40534a9d9277c2848b501` on local branch `codex/safe-ffmpeg-command`. Jay requested review and fixes before host-load handling, with no merge or publication. Master and remote master were verified at `75eb81f701de89628d432148c46dac87b18f0d98`; the feature branch has no remote head. App/cache version remains 3.19.0.
 
 ## Findings and decisions

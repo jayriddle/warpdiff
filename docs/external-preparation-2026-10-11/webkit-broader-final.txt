@@ -1,0 +1,95 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --config=/tmp/warpdiff-external-20261011/playwright.webkit.config.cjs
+(node:91826) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 33 tests using 1 worker
+
+(node:91828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91828) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91828) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid (881ms)
+  ✘   2 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid (1.0m)
+(node:91943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91943) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51_aac.mp4 in Stack and Grid (844ms)
+  ✓   4 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid (743ms)
+  ✓   5 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: landscape_a.mp4 in Stack and Grid (707ms)
+  ✓   6 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: vorbis_a.webm in Stack and Grid (438ms)
+  ✓   7 [webkit] › tests/audio-format.spec.ts:47:5 › source format clears on reload and ignores a stale decode completion (936ms)
+  ✓   8 [webkit] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded (728ms)
+  ✘   9 [webkit] › tests/audio-format.spec.ts:85:5 › source labels remain hoverable beside metrics in a narrow two-video Grid (1.0m)
+(node:92069) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:92069) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:92069) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  10 [webkit] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine (639ms)
+  ✓  11 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false (241ms)
+  ✓  12 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true (230ms)
+  ✓  13 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null (227ms)
+  ✓  14 [webkit] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus (192ms)
+  ✓  15 [webkit] › tests/external-preparation.spec.ts:99:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC (793ms)
+  ✓  16 [webkit] › tests/external-preparation.spec.ts:136:5 › service worker installs without FFmpeg and retires only owned legacy caches (103ms)
+  ✓  17 [webkit] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (395ms)
+  ✓  18 [webkit] › tests/ffmpeg-command.spec.ts:68:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (218ms)
+  ✓  19 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0000 cannot enter a copied command (178ms)
+  ✓  20 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0003 cannot enter a copied command (184ms)
+  ✓  21 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0009 cannot enter a copied command (178ms)
+  ✓  22 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000a cannot enter a copied command (177ms)
+  ✓  23 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000d cannot enter a copied command (180ms)
+  ✓  24 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0015 cannot enter a copied command (186ms)
+  ✓  25 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+001b cannot enter a copied command (181ms)
+  ✓  26 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+007f cannot enter a copied command (189ms)
+  ✓  27 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+009b cannot enter a copied command (191ms)
+  ✓  28 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports refused clipboard access without claiming success (254ms)
+  ✓  29 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports missing clipboard access without claiming success (254ms)
+  ✓  30 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports synchronous clipboard access without claiming success (254ms)
+  ✓  31 [webkit] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard resolve after clear leaves the retired command silent (207ms)
+  ✓  32 [webkit] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard reject after clear leaves the retired command silent (211ms)
+  ✓  33 [webkit] › tests/ffmpeg-command.spec.ts:171:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (612ms)
+
+
+  1) [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.waitForFunction: Test timeout of 60000ms exceeded.
+
+      28 |     if (await page.locator('#ffmpegPanel').isVisible()) await page.locator('#ffmpegPanelClose').click();
+      29 |     if (file === 'dialogue_71.mp4') {
+    > 30 |       await page.waitForFunction(() => (window as any).eval('_videoAudioBuffers.editA?.numberOfChannels === 3'));
+         |                  ^
+      31 |       if (await page.locator('#ffmpegPanel').isVisible()) await page.locator('#ffmpegPanelClose').click();
+      32 |       await page.locator('#audioListeningLabel').click();
+      33 |       await page.getByRole('button', {name:'Center Only', exact:true}).click();
+        at /Users/jay/Documents/warpdiff/tests/audio-format.spec.ts:30:18
+
+    Error Context: ../../../../tmp/warpdiff-external-20261011/webkit-artifacts/audio-format-source-audio--ad466-ue-71-mp4-in-Stack-and-Grid-webkit/error-context.md
+
+  2) [webkit] › tests/audio-format.spec.ts:85:5 › source labels remain hoverable beside metrics in a narrow two-video Grid
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.waitForFunction: Test timeout of 60000ms exceeded.
+
+      86 |   await page.setViewportSize({width:1024, height:768});
+      87 |   await page.locator('#multiFileInput').setInputFiles(['dialogue_51.mp4','dialogue_71.mp4'].map(file => path.join(__dirname,'fixtures',file)));
+    > 88 |   await page.waitForFunction(() => (window as any).eval("assetOrder.filter(s=>mediaData[s]).every(s=>!!_videoAudioBuffers[s] && parseFloat(getComputedStyle(getLayer(s)).opacity)>.99)"));
+         |              ^
+      89 |   await expect.poll(async () => page.locator('.asset-audio-format').evaluateAll(nodes => {
+      90 |     const visible = nodes.filter(node => node.textContent?.includes('FLAC'));
+      91 |     return visible.length === 2 && visible.every(node => {
+        at /Users/jay/Documents/warpdiff/tests/audio-format.spec.ts:88:14
+
+    Error Context: ../../../../tmp/warpdiff-external-20261011/webkit-artifacts/audio-format-source-labels-66f02--in-a-narrow-two-video-Grid-webkit/error-context.md
+
+  2 failed
+    [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid
+    [webkit] › tests/audio-format.spec.ts:85:5 › source labels remain hoverable beside metrics in a narrow two-video Grid
+  31 passed (2.2m)

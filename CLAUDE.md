@@ -23,10 +23,9 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 - `js/transport.js` — playback/transport: Sync/Solo scope ownership (`_playbackScope`, `getTransportSlots`), `playAllMedia`/`pauseAllMedia`/`restartAllVideos`, `stepFrame`, `syncVideos`/`syncMedia`, frame-accurate loop enforcement (`_startLoopRvfc` + `_loopWrapTimer`), the multi-video sync-lock cluster (`_getLoopBounds`/`_applyNativeLoopPolicy`/`_driftLockTick`), and video/audio handler binding (`setupVideoHandlers`/`setupAudioHandlers`/`_setupFpsDetection`). **Stateful** (shares globals). Holds the single-owner targets for the ownership guards.
 - `js/scrub-audio.js` — WarpDiff scrub adapter and snippet fallback; standard Continuous preview consumes `WarpScrubAudio` from the pinned `js/scrub-audio-core.js` / `js/scrub-worklet.js`. Canonical source and update procedure: `docs/shared-scrub-audio.md`. One selected stream, read-only diagnostic state, original analysis PCM preserved.
 - `js/starfield.js` — landing-page background animation.
-- `ffmpeg/` — ffmpeg.wasm bundle (`ffmpeg-core.{js,wasm,worker.js}` + `ffmpeg.min.js`, ~24 MB). Loaded lazily, single-threaded (no `crossOriginIsolated` / `SharedArrayBuffer`).
 - `tests/` — `warpdiff.spec.ts` (Playwright) + `ownership.test.mjs` (dependency-free Node harness; see Testing) + a set of hand-run investigation harnesses (not CI — they need headed browsers and realistic media). Real Chrome: `investigate-pause-hop.mjs` (play/pause drift + convergence), `investigate-step-sync.mjs` (frame stepping and long-run drift across a 24/25/29.97/30 fps matrix), and `investigate-transport-sync.mjs` (playback rate 0.25×–2×, scrubbing forward/backward, mid-playback asset switching, zoomed switching — run it at 1080p and 4K), and `investigate-scrub-reverse.mjs` (forward-vs-backward scrub cadence). Real **Safari** via `safaridriver` W3C HTTP (Playwright cannot drive shipping Safari): `investigate-safari.mjs` (geometry / RVFC deltas / cadence / hitch attribution), `-successive.mjs` (per-cycle drift+bad-steps, `MODE=` policy arms), `-startup.mjs` (offset formation), `-switch.mjs` (Stack A/B switch arms), `-loop.mjs` and `-baseline.mjs` (no-WarpDiff controls), plus `safari-loop-check.html` — a standalone page the user opens directly, which removes the automation and HTTP-Range confounds that made three earlier cross-context conclusions wrong. The investigation harnesses are run by hand, not by CI — they need headed Chrome and realistic media (see `docs/pause-hop-investigation-2026-07.md`; the repo fixtures are far too small to reproduce decode-timing bugs). `tests/global-setup.ts` auto-generates the gitignored MP4/WebM/WAV/MP3 fixtures via `tests/fixtures/generate.sh` on first run (requires `ffmpeg` on PATH). The H.264 MP4 fixtures need a proprietary-codec Chrome; the VP9+Vorbis WebM fixtures exist so the 2026-07 regression suites (scrub-drag recovery, pause snap, switch repaint, **loop in/out, multi-video sync-lock, spectrogram render**) also run on open-codec Chromium builds — Vorbis deliberately, since Opus slots take the Web Audio path where `.muted` is always true and the muted-flag tests would be vacuous. Three WebM clips: `vorbis_a`/`vorbis_b` are 3 s (equal length) and `vorbis_long` is 4 s — the sync-lock tests that assert `[0, shortest]` bounds and shortest-clip wrap need an unequal pair, so they load `vorbis_a` + `vorbis_long` (the open-codec analogue of the `landscape_a` 3 s / `landscape_b` 4 s pair).
 
-**When extracting more code into `js/`** (candidates: layout-geometry pure math, waveform/spectrogram panel drawing → `js/audio-viz.js`, ffmpeg transcode orchestration): keep the function definitions in the module, leave the call sites + a `// name → js/file.js` pointer comment in `index.html`, add a `<script src>` tag *before* the inline script, **and add the file to `sw.js` ASSETS** (guarded by the ownership harness). The harness reads concatenated sources, so its guards keep resolving moved functions without edits.
+**When extracting more code into `js/`** (candidates: layout-geometry pure math, waveform/spectrogram panel drawing → `js/audio-viz.js`, external preparation panel): keep the function definitions in the module, leave the call sites + a `// name → js/file.js` pointer comment in `index.html`, add a `<script src>` tag *before* the inline script, **and add the file to `sw.js` ASSETS** (guarded by the ownership harness). The harness reads concatenated sources, so its guards keep resolving moved functions without edits.
 
 ## Key Technical Patterns
 
@@ -74,45 +73,29 @@ Loop-region wrapping (custom in/out points *and* the multi-video sync loop) is e
 - `setLoopPoint` clamps `media.currentTime` to `_getEffectiveDuration(media)` before storing, so loop markers don't overflow the timeline for files where `video.duration` is inflated past actual content (e.g. Opus / DTS with audio-extension metadata).
 - A `'ended'` handler wraps to in-point when a managed loop region is active — the RVFC out-point check fires on `mediaTime >= outP`, but the last frame's `mediaTime` is typically one frame *short* of duration, so an out-point at a video's effective end never trips the check and that video ends instead. The handler restarts everyone at in-point; with unequal durations the shortest video's `ended` drags the rest back (sync loop).
 
-### Audio decode pipeline (three-tier)
+### Audio decode pipeline
 1. **`decodeAudioData()`** — native browser decode. Race against a timeout: 1 s if WebCodecs is available (fast fallback), 30 s otherwise.
 2. **WebCodecs `AudioDecoder`** — for codecs `decodeAudioData` doesn't handle (notably Opus in Safari, and Opus in Chrome where decode is "successful" but timing is wrong). Demuxer (`_demuxMP4Audio` / `_demuxWebMAudio`) extracts packets manually.
-3. **ffmpeg.wasm transcode** — last resort for unsupported codecs (AC-3 / EAC-3 / DTS family / TrueHD).
+3. **External preparation** — unsupported video soundtracks receive a copied command and reload instructions.
 
 The fallback routing is **`_onAllDecodeFailed(slot, audioConfirmed)`**:
-- If `audioConfirmed=true` (WebCodecs already extracted packets but couldn't decode them — e.g. DTS-HD MA muxed with `mp4a` fourcc, malformed AAC, HE-AAC marked as LC), always attempt transcode.
-- If `audioConfirmed=false` and the byte scanner didn't find a known unsupported-codec signature (`ac-3` / `ec-3` / `dtsc` / `dtse` / `dtsh` / `dtsl` / `mlpa`) inside MP4 box atoms, *and* the file is a video, treat as "no audio track" and skip transcode. (Without this distinction, files with confirmed-but-undecodable audio get silently dropped.)
-- Otherwise call `_registerFfmpegCommand` which queues the slot for transcode and pops the ffmpeg panel.
+- If `audioConfirmed=true` (WebCodecs already extracted packets but couldn't decode them — e.g. DTS-HD MA muxed with `mp4a` fourcc, malformed AAC, HE-AAC marked as LC), always offer external preparation.
+- If `audioConfirmed=false` and the byte scanner didn't find a known unsupported-codec signature (`ac-3` / `ec-3` / `dtsc` / `dtse` / `dtsh` / `dtsl` / `mlpa`) inside MP4 box atoms, *and* the file is a video, treat as "no audio track" and skip external preparation. (Without this distinction, files with confirmed-but-undecodable audio get silently dropped.)
+- Otherwise call `_registerFfmpegCommand` which registers a safe external command and opens the preparation panel.
 
 ### MP4 audio demuxer (`_demuxMP4Audio`)
 - Walks `moov → trak → mdia → mdhd / hdlr / minf / stbl → stsd / stsz / stco / co64 / stsc / stts` and `trak → edts → elst`.
 - **Per-track scoping is mandatory** for `mdhd.timescale`. Store in `_lastMdhdTimescale` during `parseMdhd` and only promote to the demuxer-wide `timescale` inside `parseHdlr` when `handler_type === 'soun'`. A previous version used a single global `timescale` that got overwritten by every track visited — so a data/subtitle track at timescale=1000 silently clobbered the audio track's 48000, making elst priming offsets (16512 / 48000 = 344 ms) look like 16.5-second skips. Same scoping for `_lastElstMediaTime` and `_lastElstSegDuration` (these reset at each `parseTkhd`).
 - Returned `extracted` shape: `{ chunks: [{timestamp, data}], sampleRate, channels, codec, description, preSkip, maxSamples, timelineStart }`. `preSkip` and `maxSamples` are applied post-decode to trim encoder priming and edit-list-truncated tails. `timelineStart` is the sum of leading empty edit-list entries (`media_time === -1`) in movie timescale units; decoded scrub audio and Chromium's Opus replacement subtract it when mapping video time to buffer time. `_demuxMP4Audio(data, true)` is the metadata-only path used before `decodeAudioData`: it walks only track timing boxes and does not build/copy audio packets.
 
-### ffmpeg.wasm transcode
-- Host packaging is explicit: a `WARPDIFF_LOAD` envelope may set
-  `capabilities.ffmpegTranscode=false` when that host omits the local bundle. Iframe topology alone
-  never disables FFmpeg; standalone and generic iframe deployments keep the normal lazy loader.
-- Every command is tagged with the monotonic `_ffmpegLoadEpoch`. Clear/reload invalidates command
-  identity, queued work, progress, delayed toast paints, and completion cleanup; async preparation
-  must re-check identity immediately before `ff.run()` so obsolete work cannot start or touch a new load.
-- Loaded once (~24 MB), single-threaded (the bundled build is built with `--disable-pthreads`). Each `ff.run()` invocation exits the wasm instance, so `_ffmpegLoaded` and `_ffmpegInstance` are reset after every run and the next slot in `_ffmpegQueue` triggers a fresh load.
-- `_ffmpegQueue` is sorted by `assetOrder` on each push so Ref → A → B order is preserved regardless of which decode fails first.
-- Standard transcode command (use as a template for unsupported-codec → AAC):
-  ```
-  ffmpeg -ignore_editlist 0 -fflags +bitexact -i input.mp4 \
-         -map 0:v:0 -map 0:a:0 \
-         -c:v copy \
-         -c:a aac -ac 2 -ar 48000 -b:a 192k \
-         -shortest -movflags +faststart \
-         output_aac.mp4
-  ```
-  Critical flags:
-  - **`-ignore_editlist 0`** — *apply* the input edit list. DTS-HD MA and similar codecs carry an elst that trims ~344 ms of encoder priming silence; ignoring it (`-ignore_editlist 1`) leaves the priming in the decoded PCM and the output AAC plays late by that amount.
-  - **`-ac 2`** — explicit stereo downmix. AAC 5.1 playback in browsers is spotty; stereo is rock-solid.
-  - **`-shortest`** — caps output duration to the shortest stream (= video). Otherwise audio overhang produces A/V duration mismatch in the muxed output.
-  - **`-movflags +faststart`** — moov atom at the front for streaming.
-- `ff.setLogger` captures all output (`fferr`, `ffout`, `info`) regardless of type; on completion the captured stderr is dumped to console as `[ffmpeg] <slot> stderr: …`. Diagnostic surface for transcode-related questions.
+### External audio preparation
+- WarpDiff ships no FFmpeg wrapper, engine, sources or browser conversion path. Native decoding and WebCodecs remain available.
+- `_registerFfmpegCommand` opens the external-preparation panel; `_setFfmpegPanelOpen` owns opening/closing and focus restoration. Commands are listed in `assetOrder`.
+- `_ffmpegLoadEpoch` and command identity fence asynchronous clipboard results. Clear/reload closes the panel and retires its entries. No converter queue, progress, worker or automatic file replacement remains.
+- POSIX commands quote literal basenames, prefix paths with `./`, and refuse C0/C1/DEL terminal controls. Extensionless names stay intact and gain `_aac.mp4`.
+- The existing MP4/MOV command applies edit lists, copies the first video stream, converts the first audio stream to stereo AAC at 48 kHz / 192 kbps, uses `-shortest`, and moves metadata forward with `+faststart`. It is a compatibility copy, not original multichannel analysis. Other containers/video codecs may require a different external command.
+- Users install FFmpeg independently and load the prepared output with their other comparison files through the existing Load/drop workflow. Managed hosts prepare and reload through their own channel; legacy `capabilities.ffmpegTranscode` cannot enable browser conversion and is always false locally.
+- Service-worker activation retires the old app caches and the exact legacy `warpdiff-ffmpeg` cache. Historical Git bundles and prior distributions require separate remediation.
 
 ### Opus / Chrome Web Audio sync replacement
 Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. For affected slots we mute `<video>` audio and play the decoded `AudioBuffer` via Web Audio.

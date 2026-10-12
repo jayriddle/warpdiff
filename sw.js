@@ -1,5 +1,5 @@
 // Keep in sync with APP_VERSION in index.html
-const CACHE_NAME = 'warpdiff-v3.19.0';
+const CACHE_NAME = 'warpdiff-v3.19.1';
 const ASSETS = ['./', 'index.html', 'js/appearance.js', 'js/info-bar.js', 'js/usage.js', 'js/audio-viz.js', 'js/audio-analysis.js', 'js/audio-analysis-worker.js', 'js/scopes.js', 'js/hotkeys.js',
   'js/managed-review.js', 'js/mp4-demux.js', 'js/scrub-video.js', 'js/timecode.js', 'js/wipe.js', 'js/tile-check.js', 'js/audio-routing.js', 'js/audio-monitor.js', 'js/scrub-audio.js', 'js/scrub-audio-core.js', 'js/scrub-worklet.js', 'js/opus-sync.js', 'js/audio-decode.js', 'js/transport.js', 'js/starfield.js', 'version.json', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'manifest.json'];
 ASSETS.push('js/playback-audio-core.js', 'js/slow-playback.js', 'js/signalsmith-worklet.js');
@@ -13,7 +13,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys().then(keys =>
-            Promise.all(keys.filter(k => k.startsWith('warpdiff-v') && k !== CACHE_NAME).map(k => caches.delete(k)))
+            Promise.all(keys.filter(k => (k.startsWith('warpdiff-v') && k !== CACHE_NAME) || k === 'warpdiff-ffmpeg').map(k => caches.delete(k)))
         )
     );
     self.clients.claim();

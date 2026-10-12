@@ -1,6 +1,6 @@
 // Audio decode pipeline — extracted from index.html.
-// Three-tier decode (decodeAudioData → WebCodecs AudioDecoder → ffmpeg transcode via
-// _onAllDecodeFailed routing) plus finalize/viz wiring. STATEFUL: these functions read
+// Native/WebCodecs decode with external preparation through _onAllDecodeFailed,
+// plus finalize/viz wiring. STATEFUL: these functions read
 // and write app globals (mediaData, _opusSync*, waveformData, audioMetrics, the two
 // decode-generation counters, …) and call helpers that remain in index.html — they
 // resolve via the shared global scope of classic <script>s (same as js/hotkeys.js).
@@ -150,7 +150,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     if (_isChrome && isOpus) _opusSyncPending[slot] = true;
 
     // Byte-scan for unsupported codec signatures — used as a tiebreaker when
-    // both decodeAudioData and AudioDecoder fail. Only triggers transcode on
+    // both decodeAudioData and AudioDecoder fail. Only offers external preparation on
     // combined failure, so false positives on multi-track files are harmless.
     const _byteCodecKeys = Object.keys(_UNSUPPORTED_CODEC_LABELS);
     const _byteCodecBytes = {
@@ -213,8 +213,7 @@ function _onAllDecodeFailed(slot, audioConfirmed, gen) {
     // audio packets, decode failure means there's actually no audio track.
     // If audioConfirmed is true (WebCodecs got packets but couldn't decode
     // them — e.g. AAC with malformed AudioSpecificConfig, weird HE-AAC
-    // variant, or corrupt frames), fall through to transcode — ffmpeg
-    // routinely handles streams that WebCodecs rejects.
+    // variant, or corrupt frames), offer external preparation.
     if (mediaData[slot] && mediaData[slot].type === 'video' && codec === 'unknown' && !audioConfirmed) {
         _markSlotNoAudio(slot);
         return;
@@ -280,17 +279,6 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     await _prepareAudioMonitorSlot(slot, audioBuffer, channelLayout, () => _videoAudioDecodeIsCurrent(slot, gen));
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
 
-    // If this slot just finished a transcode, advance toast to 'done' now
-    if (_ffmpegTranscoding[slot] && _ffmpegTranscoding[slot].phase === 'computing') {
-        const doneState = { phase: 'done', loadEpoch: _ffmpegLoadEpoch };
-        _ffmpegTranscoding[slot] = doneState;
-        _updateTranscodeDOM(slot); _updateTranscodeToast(slot);
-        setTimeout(() => {
-            if (doneState.loadEpoch === _ffmpegLoadEpoch && _ffmpegTranscoding[slot] === doneState) {
-                delete _ffmpegTranscoding[slot];
-            }
-        }, 3000);
-    }
     delete audioFileBuffers[slot];
 
     // Original multichannel analysis is complete. Store a separate full-rate
@@ -386,7 +374,7 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
     if (!extracted || extracted.chunks.length === 0) {
         console.warn('No audio packets extracted for', slot);
         // For video files with no unsupported codec detected, empty chunks means
-        // no audio track — not a codec problem. Avoid triggering ffmpeg.
+        // no audio track — not a codec problem. Avoid offering unnecessary external preparation.
         if (mediaData[slot] && mediaData[slot].type === 'video' && !_byteScannedCodec[slot]) {
             if (_videoAudioDecodeIsCurrent(slot, gen)) _markSlotNoAudio(slot);
         } else {
@@ -400,13 +388,13 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         'rate=' + extracted.sampleRate + ', ch=' + extracted.channels +
         ', codec=' + extracted.codec + ', container=' + (isMP4 ? 'mp4' : 'webm'));
 
-    // If the demuxer found an unsupported primary codec, register for transcode
+    // If the demuxer found an unsupported primary codec, offer external preparation
     // and bail — don't pass it to AudioDecoder which will just error.
     // extracted.codec is the raw stsd box type (e.g. 'ec-3', 'ac-3', 'dtsc')
     // which maps directly to _UNSUPPORTED_CODEC_LABELS keys.
     const _demuxedCodec = extracted.codec || '';
     if (_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(_demuxedCodec)) {
-        console.warn('[webcodecs] ' + slot + ': primary codec ' + _demuxedCodec + ' is unsupported — registering for transcode');
+        console.warn('[webcodecs] ' + slot + ': primary codec ' + _demuxedCodec + ' is unsupported — offering external preparation');
         const filename = mediaData[slot] && mediaData[slot].name;
         if (filename && _videoAudioDecodeIsCurrent(slot, gen)) _registerFfmpegCommand(slot, filename, _demuxedCodec);
         _webcodecsFinished(slot, gen);

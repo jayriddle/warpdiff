@@ -25,7 +25,7 @@ const sentinels = [
   path.join(fixturesDir, 'dialogue_51_opus.mp4'),
   path.join(fixturesDir, 'dialogue_71_opus.mp4'),
   path.join(fixturesDir, 'dialogue_51_aac.mp4'),
-  // Browser-incompatible AC-3 soundtrack: exercises the real ffmpeg.wasm fallback.
+  // AC-3 soundtrack: exercises external preparation and explicit browser reload.
   path.join(fixturesDir, 'ac3_video.mp4'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');

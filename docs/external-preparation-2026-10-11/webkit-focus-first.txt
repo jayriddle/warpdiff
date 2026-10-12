@@ -1,0 +1,79 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --config=/tmp/warpdiff-external-20261011/playwright.webkit.config.cjs
+(node:91459) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 25 tests using 1 worker
+
+(node:91460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91460) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [webkit] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine (5.6s)
+(node:91482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91482) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false (359ms)
+  ✓   3 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true (237ms)
+  ✓   4 [webkit] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null (227ms)
+  ✓   5 [webkit] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus (194ms)
+  ✓   6 [webkit] › tests/external-preparation.spec.ts:99:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC (784ms)
+  ✓   7 [webkit] › tests/external-preparation.spec.ts:136:5 › service worker installs without FFmpeg and retires only owned legacy caches (106ms)
+  ✓   8 [webkit] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (407ms)
+  ✓   9 [webkit] › tests/ffmpeg-command.spec.ts:68:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (207ms)
+  ✓  10 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0000 cannot enter a copied command (178ms)
+  ✓  11 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0003 cannot enter a copied command (186ms)
+  ✓  12 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0009 cannot enter a copied command (180ms)
+  ✓  13 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000a cannot enter a copied command (177ms)
+  ✓  14 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000d cannot enter a copied command (182ms)
+  ✓  15 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0015 cannot enter a copied command (188ms)
+  ✓  16 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+001b cannot enter a copied command (185ms)
+  ✓  17 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+007f cannot enter a copied command (182ms)
+  ✓  18 [webkit] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+009b cannot enter a copied command (182ms)
+  ✓  19 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports refused clipboard access without claiming success (255ms)
+  ✓  20 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports missing clipboard access without claiming success (250ms)
+  ✓  21 [webkit] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports synchronous clipboard access without claiming success (259ms)
+  ✓  22 [webkit] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard resolve after clear leaves the retired command silent (222ms)
+  ✓  23 [webkit] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard reject after clear leaves the retired command silent (205ms)
+  ✓  24 [webkit] › tests/ffmpeg-command.spec.ts:171:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (615ms)
+(node:91692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91692) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [webkit-reload] › tests/audio-format.spec.ts:58:5 › source format changes only when the externally prepared AC-3 copy is loaded (1.1s)
+
+
+  1) [webkit] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('#externalAudioBtn')
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for locator('#externalAudioBtn')
+        9 × locator resolved to <button type="button" id="externalAudioBtn" class="analysis-btn warn" onclick="toggleFfmpegPanel()" title="Prepare unsupported audio externally">Prepare audio</button>
+          - unexpected value "inactive"
+
+
+      43 |   await page.locator('#ffmpegBackdrop').click({position:{x:4, y:4}});
+      44 |   await expect(panel).toBeHidden();
+    > 45 |   await expect(page.locator('#externalAudioBtn')).toBeFocused();
+         |                                                   ^
+      46 |   await page.locator('#externalAudioBtn').click();
+      47 |   await page.evaluate(() => (window as any).clearAllMedia());
+      48 |   await expect(panel).toBeHidden();
+        at /Users/jay/Documents/warpdiff/tests/external-preparation.spec.ts:45:51
+
+    Error Context: ../../../../tmp/warpdiff-external-20261011/webkit-artifacts/external-preparation-unsup-6a680-n-and-never-loads-an-engine-webkit/error-context.md
+
+  1 failed
+    [webkit] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+  24 passed (14.5s)

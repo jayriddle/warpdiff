@@ -1,9 +1,11 @@
 # Local work and release readiness — October 11, 2026
 
-This is the inventory snapshot preceding the FFmpeg distribution investigation.
-The [later FFmpeg work and review](../ffmpeg-distribution-2026-10-11/README.md)
-supersede its current-candidate assessment. The original branch heads, pending
-state and measurements below are retained as historical evidence.
+This inventory precedes the FFmpeg distribution investigation. The
+[external-preparation interim release](../external-preparation-2026-10-11/README.md)
+supersedes its current-candidate assessment. The LGPL experiment remains on
+`codex/ffmpeg-distribution`; its files are not part of this interim release.
+The original branch heads, pending state and measurements below are retained
+as historical evidence.
 
 Jay asked what locally committed work is safe to push to `main`, alongside a request to preserve the license discussion and Codex's assessment. This record is an assessment, not authorization to merge, push or publish. The [license discussion and assessment](../license-metadata-2026-10-11/README.md) now explicitly distinguish Jay's stated lack of approval, Codex's belief that ISC was a generated default introduced without his acknowledgment and consent, and the limits of the available evidence.
 

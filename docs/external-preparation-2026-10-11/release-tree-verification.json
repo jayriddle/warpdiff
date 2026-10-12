@@ -1,0 +1,60 @@
+{
+  "capturedAtUTC": "2026-10-12T01:20:43.432229+00:00",
+  "branch": "codex/external-media-preparation",
+  "branchBase": "be12fd1b8de85df8aed89f2bb0f5a76fac9ea599",
+  "originMainSnapshot": "75eb81f701de89628d432148c46dac87b18f0d98",
+  "preservedLgplBranch": "codex/ffmpeg-distribution",
+  "preservedLgplCommit": "dca2736d0972bd4f1834468a1fcb0a353f460a57",
+  "lgplCandidateIsAncestor": false,
+  "removedAssets": [
+    {
+      "path": "ffmpeg/ffmpeg-core.js",
+      "previousBytes": 86313,
+      "present": false
+    },
+    {
+      "path": "ffmpeg/ffmpeg-core.wasm",
+      "previousBytes": 24383038,
+      "present": false
+    },
+    {
+      "path": "ffmpeg/ffmpeg-core.worker.js",
+      "previousBytes": 211,
+      "present": false
+    },
+    {
+      "path": "ffmpeg/ffmpeg.min.js",
+      "previousBytes": 22471,
+      "present": false
+    }
+  ],
+  "removedAssetBytes": 24492033,
+  "trackedFfmpegPaths": [],
+  "packageLicense": "UNLICENSED",
+  "packagePrivate": true,
+  "historicalObjectsRemoved": false,
+  "pushed": false,
+  "published": false,
+  "runtimeAndTestSha256": {
+    "index.html": "5fb0f55ef662392f9d5e81723df79824cfcddd91aa14bea1b484be84d69db609",
+    "sw.js": "ad26ae076e38a0644d91927a583e7fffbad914df0523f1ab42151c85fe311d37",
+    "js/audio-decode.js": "7d0e33ae13b088ee895fedce4d4ccb98e9e3c557a7cf66fc487df6fd1ce5e8c8",
+    "js/transport.js": "2fe79b27cd50c95ad442fb008131eb0ed7e741361cf4e604465de91e4eb778af",
+    "tests/ffmpeg-command.spec.ts": "0caeab207021c287f94e8979f3a170ec78864832326a7343307c848f87dda75c",
+    "tests/external-preparation.spec.ts": "c8ab0efb6f8f6b6037a191fb2a00a69b12dcf7e74c802cfc57be4cb433711877",
+    "tests/audio-format.spec.ts": "b91818415c68205b0de10a01e019d26989b5b6cd9f24213dca4298a47d3b74e6",
+    "tests/ownership.test.mjs": "cfef6e25864fdcfe31301d48e2f0a96911b801b3d0fa04026340f39d7a3ff1e5",
+    "tests/warpdiff.spec.ts": "c542905e3f74dc29a61f3fb7cb5f631bb0e09702d94168c700663ea5d60d4400"
+  },
+  "unchangedFromBase": [
+    "package.json",
+    "package-lock.json",
+    "js/scrub-audio-core.js",
+    "js/scrub-worklet.js",
+    "js/playback-audio-core.js",
+    "js/signalsmith-worklet.js",
+    "js/audio-viz.js"
+  ],
+  "indexBytes": 758008,
+  "previousIndexBytes": 786495
+}

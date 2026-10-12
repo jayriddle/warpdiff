@@ -2,6 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.1 (interim release prepared October 11, 2026; unpublished)
+
+- Removes the browser FFmpeg wrapper, engine, loader, conversion queue and automatic source replacement. Native decoding and WebCodecs remain available.
+- Unsupported video soundtracks receive a safe external command, separate-installation information and a reload workflow. The compatibility command makes stereo AAC; keep the original for multichannel or original-source measurements. Managed hosts retain ownership of reloading their media.
+- Rejects terminal control characters in copied commands, reports clipboard failures accurately, and retires stale command UI on clear/reload. The service worker removes the exact old FFmpeg cache during activation; older Git bundles and prior distributions remain a separate remediation task.
+- WarpDiff's original reuse restrictions and UNLICENSED/private package metadata remain in place. This release does not grant new private-modification or redistribution permissions. See the [work and verification record](external-preparation-2026-10-11/README.md).
+
 ## v3.19.0 (release prepared October 10, 2026)
 
 - Adds Customize info bar with separate saved image, video and audio profiles, five presets, Left/Right aligned sections with Zoom at the far right, drag handles with mouse/touch drop markers and keyboard movement, individual metadata visibility, and color, text size and bold styling shared by Stack and Grid.

@@ -1134,12 +1134,9 @@ function _scheduleNativeScrubAudio(video) {
 
 function setupVideoHandlers(video, slot) {
     // Idempotency guard: loadedmetadata can fire more than once on the
-    // same element — notably _applyTranscodedFile reassigns video.src and
-    // calls video.load(), re-firing it. Without this guard a second full
-    // set of play/pause/ended/seeked listeners (and a second fps-detection
-    // RVFC chain) would attach, so every transcoded file (AC-3/EAC-3/DTS/
-    // TrueHD) ran doubled handlers. The flag lives on the element, so it
-    // dies when the element is replaced on the next load.
+    // same element, including source changes followed by video.load().
+    // The guard prevents duplicate event handlers and fps-detection chains;
+    // it dies when the element is replaced on the next load.
     if (video._handlersBound) return;
     video._handlersBound = true;
     _prepareNativeAudio(video);
