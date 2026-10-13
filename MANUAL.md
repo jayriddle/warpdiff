@@ -252,7 +252,7 @@ Boosted mixes reserve headroom using peaks measured from the original source, an
 
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
 
-Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
+Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. They play at original pitch with the same audible duration at every selected playback speed; the source tail can shorten a preview near its end. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
 
 ---
 
@@ -503,7 +503,7 @@ Hosts may request `capabilities.managedReview` for assigned comparisons. This hi
 
 ## Scrub audio
 
-Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
+Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Short previews also retain original pitch, independent of your selected normal playback speed. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
 
 Scrub volume follows your selected listening mix more closely in both directions, including backward speech that previously stayed quieter. Compensation restores level lost during stretching while retaining quiet/loud differences and stereo balance. Strong peaks and the correction limit can still leave some passages quieter. Restoring volume does not remove the sound changes caused by stretching. Master volume and Listen adjustments work as before; this does not normalize source clips or change normal playback or analysis.
 

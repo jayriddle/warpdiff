@@ -62,4 +62,19 @@ Safari acoustic cause. At 1×, both paths retain the original pitch.
 The recommendation is to keep brief previews at original pitch as well.
 The passing release RMS/cadence checks do not rule out pitch or spectral
 artifacts. No application or pinned audio-component changes were made in
-response to this report, and Safari listening acceptance remains open.
+response to this report during the initial investigation.
+
+## Local pitch fix — October 13, 2026
+
+Jay authorized the next local fix with “Keep going.” Brief previews now use
+original pitch independent of selected normal playback speed. The [fix and
+verification record](../safari-scrub-pitch-2026-10-13/fix.md) contains the passing
+25-check Chromium, 31-check WebKit and 525-check ownership runs, the expected
+pre-fix regression failure and resolved test-driver failure, and measurements
+from the exact prepared AAC file. No push, merge or publication occurred.
+
+Safari listening acceptance remains open. Refresh the local page, load the
+prepared AAC file, press J twice for 0.5×, and scrub both directions with several
+starts/stops. Check whether the intermittent lower starting tone is gone.
+Press K twice to return to 1× and repeat. The unpublished candidate remains
+v3.19.1; an older open page must reload to use the changed adapter.

@@ -13949,7 +13949,7 @@
             </table>
 
             <h2>Scrub Audio</h2>
-            <p><strong>Continuous</strong> is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Click for a short preview, and hold still to fade out. There is no mode selector.</p>
+            <p><strong>Continuous</strong> is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Short previews also retain original pitch, independent of your selected normal playback speed. Click for a short preview, and hold still to fade out. There is no mode selector.</p>
             <p>Scrub volume follows the selected source mix more closely in both directions, including backward speech that previously stayed quieter. Bounded compensation restores level lost during time stretching while retaining quiet/loud differences and stereo balance. Strong peaks and the correction limit can still leave some passages quieter. Normal playback and original analysis are unchanged.</p>
             <p>Video listening copies use full-rate decoded audio, with surround dialogue folded into a separate stereo mix. Original waveform, spectrogram, and loudness inputs remain intact in both views. A single video follows its displayed frame; multi-video Grid uses the shared pointer timeline. Volume, mute, and intentional audio-start silence still apply.</p>
             <p>Verified surround previews also retain a separate mono center for listening adjustments. This uses 50% more preview PCM within the same memory budgets, so long surround clips can reach the filtered short-preview fallback sooner. Dialogue Focus changes channel balance; Continuous can still soften articulation.</p>
@@ -14035,7 +14035,7 @@
                 <li><kbd>Space</kbd> play/pause, <kbd>,</kbd> <kbd>.</kbd> frame step</li>
                 <li><kbd>⇧S</kbd> toggles synchronized playback or the selected video by itself</li>
                 <li>Per-source audio switching (S or GT / A / B) with individual mute</li>
-                <li>Drag for continuous, pitch-preserving audio; click for a short preview. Original analysis stays intact.</li>
+                <li>Drag for continuous, pitch-preserving audio; click for a short preview at original pitch. Playback speed does not change preview pitch. Original analysis stays intact.</li>
             </ul>
 
             <h3>Grid Mode</h3>

@@ -119,7 +119,7 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 ## Scrub audio
 
-Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
+Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Short previews retain original pitch, independent of selected normal playback speed. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
 
 Source-relative volume compensation reduces level loss during stretching in both directions, including backward speech that previously stayed quieter. One smooth, bounded gain serves both ears, retaining stereo balance and quiet/loud differences; strong peaks limit the boost. It follows the selected Listen mix rather than normalizing clips to a fixed loudness. The finite correction limit and peak headroom can still leave some passages quieter, and stretching can still change the sound. Normal playback and original analysis remain unchanged.
 

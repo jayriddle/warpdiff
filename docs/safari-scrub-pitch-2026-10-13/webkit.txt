@@ -1,0 +1,69 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --config=playwright.webkit.config.ts --workers=1 --retries=0 --reporter=line,json
+(node:89667) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 31 tests using 1 worker
+
+(node:89668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:89668) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:89668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/31] [webkit-workflow] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+[2/31] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false
+[3/31] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true
+[4/31] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null
+[5/31] [webkit-workflow] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus
+[6/31] [webkit-workflow] › tests/external-preparation.spec.ts:99:5 › native codec limits retain original surround metadata and give a preparation route
+[7/31] [webkit-workflow] › tests/external-preparation.spec.ts:117:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC
+[8/31] [webkit-workflow] › tests/external-preparation.spec.ts:154:5 › service worker installs without FFmpeg and retires only owned legacy caches
+[9/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[10/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[11/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command
+[12/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command
+[13/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command
+[14/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command
+[15/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+[16/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command
+[17/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command
+[18/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command
+[19/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command
+[20/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success
+[21/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success
+[22/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[23/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent
+[24/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent
+[25/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+[26/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+[27/31] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+(node:90001) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:90001) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:90001) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[28/31] [webkit-reload] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded
+(node:90034) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:90034) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:90034) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[29/31] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:7:5 › brief preview PCM retains source pitch and level at every selected playback speed
+[30/31] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+[31/31] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:67:41 › fallback previews retain pitch policy in both drag directions without changing playback speed
+  31 passed (24.1s)

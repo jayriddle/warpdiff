@@ -1,0 +1,47 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/scrub-pitch.spec.ts --project=chromium --workers=1 --retries=0 --grep brief preview PCM
+(node:88194) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:88195) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88195) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:88195) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/scrub-pitch.spec.ts:7:5 › brief preview PCM retains source pitch and level at every selected playback speed (402ms)
+
+
+  1) [chromium] › tests/scrub-pitch.spec.ts:7:5 › brief preview PCM retains source pitch and level at every selected playback speed
+
+    Error: 0.25× channel 0 pitch
+
+    expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 440
+    Received: 109.99408867058946
+
+    Expected precision:    0
+    Expected difference: < 0.5
+    Received difference:   330.00591132941054
+
+      57 |     for(const [channel,frequency] of [[0,440],[1,660]]) {
+      58 |       const measured=row.channels[channel];
+    > 59 |       expect(measured.frequency,`${row.selectedRate}× channel ${channel} pitch`).toBeCloseTo(frequency,0);
+         |                                                                                  ^
+      60 |       expect(measured.rms).toBeGreaterThan(.068);
+      61 |       expect(measured.rms).toBeLessThan(.073);
+      62 |       expect(measured.tailPeak).toBeLessThan(.00001);
+        at /Users/jay/Documents/warpdiff/tests/scrub-pitch.spec.ts:59:82
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #2: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/scrub-pitch-brief-preview--5cc70-ery-selected-playback-speed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/scrub-pitch-brief-preview--5cc70-ery-selected-playback-speed-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/scrub-pitch.spec.ts:7:5 › brief preview PCM retains source pitch and level at every selected playback speed

@@ -11,9 +11,10 @@ native media-codec coverage. Bundled Linux Chromium did not provide AAC in the
 earlier foundations experiment; installing Chrome avoids that known codec gap.
 The job runs the ownership harness and the entire interim Chromium suite.
 
-The macOS 15 job checks copied commands, external preparation, and explicit
-AAC reload in Playwright WebKit. It does not certify installed Safari or native
-7.1 FLAC decoding. The two broader native-surround WebKit failures recorded in
+The macOS 15 job checks copied commands, external preparation, explicit
+AAC reload and original-pitch brief previews in Playwright WebKit. It does not
+certify installed Safari or native 7.1 FLAC decoding. The two broader
+native-surround WebKit failures recorded in
 [the original interim verification](external-preparation-2026-10-11/README.md)
 remain a separate capability limit, with their assertions retained.
 

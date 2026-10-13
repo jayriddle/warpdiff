@@ -6,6 +6,9 @@ Jay heard an occasional lower tone in installed Safari with
 did not happen at normal 1× speed. Chrome seemed correct to Jay; the exact
 matching Chrome rate and the timing of the Safari sound are not established.
 
+This record captures the original diagnosis before the adapter change. Jay
+subsequently authorized the fix; see the [local fix and verification](fix.md).
+
 ## Finding
 
 There is a confirmed pitch inconsistency between the brief snippet and
@@ -81,7 +84,7 @@ user-selected non-1× rate, output device and whether the lower tone lasted only
 at the beginning or throughout motion remain unknown. Installed Safari
 acceptance stays open; no publication was performed.
 
-## Recommended next change
+## Recommended next change at diagnosis
 
 Make click, warm-up and fallback snippets audition at original pitch too,
 using a 1× source rate while retaining their 90 ms output duration and existing

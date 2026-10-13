@@ -3,6 +3,14 @@
 Status: local candidate under review. No push, merge, publication or remote
 protection activation is authorized or performed in this slice.
 
+October 13 follow-up: the human Safari check exposed a brief-preview pitch
+mismatch. The [local fix and verification](../safari-scrub-pitch-2026-10-13/fix.md)
+supersedes the unchanged-runtime assumption for that adapter. The complete
+gate below describes the earlier revision; the affected Chromium suites,
+expanded WebKit profile and ownership checks have passed for the local fix.
+Installed Safari listening acceptance and exact-revision release checks remain
+pending before publication.
+
 ## Agreed release scope
 
 Jay selected option **1**, the small interim release removing browser FFmpeg
