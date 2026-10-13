@@ -1,0 +1,142 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/ffmpeg-command.spec.ts --grep short soundtrack --workers=1 --retries=0 --reporter=line
+(node:61450) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:61451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:61451) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:61451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/2] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+  1) [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 34
+    + Received  +  0
+
+    @@ -11,40 +11,6 @@
+        "SHA256:831fde33c04a81fc8902a62977726c5fd03d8988af2f2d0bbe7b7070eaad0ac1",
+        "SHA256:4726ca2ad961ac156ec93a435e51f14f74d0dd4a151b4d1dda346ee415f42f99",
+        "SHA256:6378f7d9e637ad2da44eee02a2cbcfc327e54065c45204f2dd6b2c5027135278",
+        "SHA256:47495889a706c153fd55ffa5e1ccc4d33f4e57f086d110d68db41dab1909ef1c",
+        "SHA256:2144d4877e383e5db6e8da09595f5d5972a660bb4ff8eb08532d6c6240ba8d66",
+    -   "SHA256:9de721ff308f684408a3e8d7220694e8dd776e6ccdbb27492f56981347625f2f",
+    -   "SHA256:2d093c95c4c018b221280747be00404cda53addf5cad43d8846c0a3aee61eecd",
+    -   "SHA256:b4030337175a2bc906103c7c31d327a0e4a5871148356ca4c70702066f2cb8e5",
+    -   "SHA256:1aa3d04d147d0f60bef9f32f7e1143485a709ea403d15eb88ccc6c4b5d95b3b9",
+    -   "SHA256:97558b63d97dbf70fd7101773d17ede3ea258320855bc88d39b8f50909b82f34",
+    -   "SHA256:3fc2703336d5ca547ff7ffdc94bbcd5d2fc88995cfeba32bf43f006d1dd69611",
+    -   "SHA256:1aebeeb99f144c62158e0cddb97f24c55bd9b1a5e538b8cdcfceabebd7034a9c",
+    -   "SHA256:47088d76db161571bb1525c6eaff52850b0919a746a80c0a20d80c7df828ad26",
+    -   "SHA256:5ae9096f3e1802641cf475cdcb19b22fc790b9eb91411d394c3602a2db971594",
+    -   "SHA256:ff4487499c60fd33f3510e35f5b1ba862e39f6e461de07d96e43613d8973f93a",
+    -   "SHA256:51e7905661c251d766a007501b55ba84576d9a47564b587c22a1c4f334f9d68b",
+    -   "SHA256:9f9c20521f9db366983decf671e1d9c8a3d87a033cfbab68b1d0d952e83db726",
+    -   "SHA256:1fad524f3d9b4d7e83e4dcaa59e1ea27b349ab9460e93bfc18dbe5944feb19d3",
+    -   "SHA256:f76884d689ba3d5edf9f71d207bc4980c465f2a6135a8dbe93d69a0929fc6062",
+    -   "SHA256:66d3f449ca092346700d6f848beb58a6cce18ba6d96484dec9cac8ca8abdd36a",
+    -   "SHA256:6823bc67eb0c19b4152c0b2e5171c7062c54d25d13f41b3d9b2e3903ab13fab4",
+    -   "SHA256:790a46ab3125a53667c3f0eef3d153476a512507417c09ebf79767e5e08a411a",
+    -   "SHA256:da7d3ee6ea02c584aa07e58874e675a731bdd48d8b2ce51cff17f6ee4a806b4d",
+    -   "SHA256:3825f1683f36c077122f813667f8c42b382c3d46a5a690209db4a77be9202e9e",
+    -   "SHA256:732ae6d9f8e31de869c678e6270e0d6562d1f7bb5d4fc974c8599882f43c3e5a",
+    -   "SHA256:85d3516aa6e4d288e0c2b62be39c95ebc208a37e5a28c08473076a8fbb597667",
+    -   "SHA256:f4017479243125964f211a100f4062278a8d12b7e1a94d52f320319355544376",
+    -   "SHA256:3726a834aad5de320298f6fdefe264b441791caff8b8ad85add1f91066797746",
+    -   "SHA256:408b6f9867cba9a6e0a656d911fa653358eba3ee3f5e3489e986a35e3761e339",
+    -   "SHA256:e2ade234380c1a30aff5a61fafff339198a305994a71cac5036ec46db2de7192",
+    -   "SHA256:f9dcdb624bc47cbbebd78795e29e6453f04a209b470ce1bdafd9b0396ac34a22",
+    -   "SHA256:332a40285354cf89a4717787bd9dfb2fe3b50375a923f6adbdad1b9bbe4cd0ea",
+    -   "SHA256:0085298055705a0d476110f1fe81d39cb9e13e3b96613c9cc47a9639cb96e831",
+    -   "SHA256:e72ead5d13b70a5cff0962dd35adcfdc746ebd59b0cc4410298b6e80e148dd40",
+    -   "SHA256:16b0c6ecfe5e9fae25b5aa26bdabcb0f25973d7f3e851e1cd8097c4e9d48cd87",
+    -   "SHA256:0506a8be0fe91212457ec16cbf25c58c48f390346c0c9e412711521c029b6cec",
+    -   "SHA256:bce24c45612398278c858ac2e234b621454672f7bd8b28398a86936fd4efcd59",
+    -   "SHA256:31a2f2ef831657d50f3e0170d7083c430ef149e86d340c4b4996130322e8675f",
+    -   "SHA256:9da101ce350d3d3aefe3a908e810bb6488602757d4f44ead12b112862c024f18",
+      ]
+
+      245 |       }) });
+      246 |       expect(digest()).toBe(originalHash);
+    > 247 |       expect(outputPackets).toEqual(originalPackets);
+          |                             ^
+      248 |       expect(Number(video.duration)).toBeCloseTo(2, 2);
+      249 |       expect(audio).toMatchObject({codec_name: 'aac', channels: 2, sample_rate: '48000'});
+      250 |       // The padded tail is silent, while the retained soundtrack remains audible.
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:247:29
+
+    Error Context: test-results/ffmpeg-command-a-short-sou-fb98c-s-every-copied-video-packet-chromium/error-context.md
+
+
+(node:61510) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:61510) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:61510) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/2] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+  2) [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 22
+    + Received  +  0
+
+    @@ -23,28 +23,6 @@
+        "SHA256:47088d76db161571bb1525c6eaff52850b0919a746a80c0a20d80c7df828ad26",
+        "SHA256:5ae9096f3e1802641cf475cdcb19b22fc790b9eb91411d394c3602a2db971594",
+        "SHA256:ff4487499c60fd33f3510e35f5b1ba862e39f6e461de07d96e43613d8973f93a",
+        "SHA256:51e7905661c251d766a007501b55ba84576d9a47564b587c22a1c4f334f9d68b",
+        "SHA256:9f9c20521f9db366983decf671e1d9c8a3d87a033cfbab68b1d0d952e83db726",
+    -   "SHA256:1fad524f3d9b4d7e83e4dcaa59e1ea27b349ab9460e93bfc18dbe5944feb19d3",
+    -   "SHA256:f76884d689ba3d5edf9f71d207bc4980c465f2a6135a8dbe93d69a0929fc6062",
+    -   "SHA256:66d3f449ca092346700d6f848beb58a6cce18ba6d96484dec9cac8ca8abdd36a",
+    -   "SHA256:6823bc67eb0c19b4152c0b2e5171c7062c54d25d13f41b3d9b2e3903ab13fab4",
+    -   "SHA256:790a46ab3125a53667c3f0eef3d153476a512507417c09ebf79767e5e08a411a",
+    -   "SHA256:da7d3ee6ea02c584aa07e58874e675a731bdd48d8b2ce51cff17f6ee4a806b4d",
+    -   "SHA256:3825f1683f36c077122f813667f8c42b382c3d46a5a690209db4a77be9202e9e",
+    -   "SHA256:732ae6d9f8e31de869c678e6270e0d6562d1f7bb5d4fc974c8599882f43c3e5a",
+    -   "SHA256:85d3516aa6e4d288e0c2b62be39c95ebc208a37e5a28c08473076a8fbb597667",
+    -   "SHA256:f4017479243125964f211a100f4062278a8d12b7e1a94d52f320319355544376",
+    -   "SHA256:3726a834aad5de320298f6fdefe264b441791caff8b8ad85add1f91066797746",
+    -   "SHA256:408b6f9867cba9a6e0a656d911fa653358eba3ee3f5e3489e986a35e3761e339",
+    -   "SHA256:e2ade234380c1a30aff5a61fafff339198a305994a71cac5036ec46db2de7192",
+    -   "SHA256:f9dcdb624bc47cbbebd78795e29e6453f04a209b470ce1bdafd9b0396ac34a22",
+    -   "SHA256:332a40285354cf89a4717787bd9dfb2fe3b50375a923f6adbdad1b9bbe4cd0ea",
+    -   "SHA256:0085298055705a0d476110f1fe81d39cb9e13e3b96613c9cc47a9639cb96e831",
+    -   "SHA256:e72ead5d13b70a5cff0962dd35adcfdc746ebd59b0cc4410298b6e80e148dd40",
+    -   "SHA256:16b0c6ecfe5e9fae25b5aa26bdabcb0f25973d7f3e851e1cd8097c4e9d48cd87",
+    -   "SHA256:0506a8be0fe91212457ec16cbf25c58c48f390346c0c9e412711521c029b6cec",
+    -   "SHA256:bce24c45612398278c858ac2e234b621454672f7bd8b28398a86936fd4efcd59",
+    -   "SHA256:31a2f2ef831657d50f3e0170d7083c430ef149e86d340c4b4996130322e8675f",
+    -   "SHA256:9da101ce350d3d3aefe3a908e810bb6488602757d4f44ead12b112862c024f18",
+      ]
+
+      245 |       }) });
+      246 |       expect(digest()).toBe(originalHash);
+    > 247 |       expect(outputPackets).toEqual(originalPackets);
+          |                             ^
+      248 |       expect(Number(video.duration)).toBeCloseTo(2, 2);
+      249 |       expect(audio).toMatchObject({codec_name: 'aac', channels: 2, sample_rate: '48000'});
+      250 |       // The padded tail is silent, while the retained soundtrack remains audible.
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:247:29
+
+    Error Context: test-results/ffmpeg-command-a-short-sou-acd12-s-every-copied-video-packet-chromium/error-context.md
+
+
+  2 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+    [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet

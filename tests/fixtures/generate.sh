@@ -77,9 +77,9 @@ ffmpeg -hide_banner -loglevel error -y \
     -map 0:v:0 -map 1:a:0 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k \
     -movflags +faststart "$OUT/side_lr.mp4"
 
-# Browser-incompatible soundtrack with browser-compatible H.264 picture. A manual load must route
-# through the bundled ffmpeg.wasm core, copy the picture, convert AC-3 to AAC, reload, and decode
-# audible PCM. Kept tiny because the real-WASM Playwright case compiles a ~23 MiB core.
+# Browser-incompatible soundtrack with browser-compatible H.264 picture.
+# External-preparation tests copy the command, invoke separately installed
+# native FFmpeg, then explicitly reload and decode audible stereo AAC.
 ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "color=c=blue:size=128x72:rate=12:duration=1" \
     -f lavfi -i "sine=frequency=440:sample_rate=48000:duration=1" \

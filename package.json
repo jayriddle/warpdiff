@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "npx playwright test",
-    "test:ownership": "node tests/ownership.test.mjs"
+    "test:ownership": "node tests/ownership.test.mjs",
+    "test:fixtures": "bash tests/fixtures/generate.sh",
+    "test:ci": "playwright test --project=chromium --workers=1 --retries=0",
+    "test:webkit": "playwright test --config=playwright.webkit.config.ts"
   },
   "repository": {
     "type": "git",

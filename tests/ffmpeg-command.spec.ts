@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const cases: { label: string; input: string; output: string }[] = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'fixtures/ffmpeg-command-filenames.json'), 'utf8'));
@@ -28,7 +29,7 @@ function shellArguments(command: string, shell: typeof shells[number]): string[]
 function expectedArguments(input: string, output: string): string[] {
   return ['-ignore_editlist', '0', '-fflags', '+bitexact', '-i', './' + input,
     '-map', '0:v:0', '-map', '0:a:0', '-c:v', 'copy', '-c:a', 'aac', '-ac', '2',
-    '-ar', '48000', '-b:a', '192k', '-shortest', '-movflags', '+faststart', './' + output];
+    '-ar', '48000', '-b:a', '192k', '-af', 'apad', '-shortest', '-movflags', '+faststart', './' + output];
 }
 
 test.use({ serviceWorkers: 'block' });
@@ -204,3 +205,62 @@ test('real terminal FFmpeg converts literal filenames including a leading hyphen
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+for (const audioStart of [0, 0.5]) {
+  test(`a short soundtrack starting at ${audioStart}s retains every copied video packet`, async ({ page }) => {
+    test.skip(process.platform === 'win32', 'Copied commands target POSIX terminals.');
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'warpdiff-short-soundtrack-'));
+    const filename = 'short-soundtrack.mp4';
+    const input = path.join(directory, filename);
+    const output = path.join(directory, 'short-soundtrack_aac.mp4');
+    const run = (executable: string, args: string[]) => {
+      const result = spawnSync(executable, args, { cwd: directory, timeout: 20_000 });
+      expect(result.error).toBeUndefined();
+      expect(result.status, result.stderr.toString()).toBe(0);
+      return result.stdout;
+    };
+    const packets = (file: string): string[] => JSON.parse(run('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0', '-show_packets', '-show_data_hash', 'sha256',
+      '-show_entries', 'packet=data_hash', '-of', 'json', file]).toString()).packets
+      .map((packet: {data_hash: string}) => packet.data_hash);
+    const digest = () => createHash('sha256').update(fs.readFileSync(input)).digest('hex');
+    try {
+      run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i',
+        'testsrc2=s=128x72:r=24:d=2', '-itsoffset', String(audioStart), '-f', 'lavfi', '-i',
+        'sine=frequency=1000:sample_rate=48000:duration=0.7', '-map', '0:v:0', '-map', '1:a:0',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'ac3', '-movflags', '+faststart', input]);
+      const originalHash = digest();
+      const originalPackets = packets(input);
+      expect(originalPackets).toHaveLength(48);
+      await page.evaluate(name => (window as any)._registerFfmpegCommand('original', name, 'ac-3'), filename);
+      const command = await page.evaluate(() => (window as any).eval('_ffmpegCommands.original.cmd'));
+      run('/bin/sh', ['-c', command]);
+      const outputPackets = packets(output);
+      const streams = JSON.parse(run('ffprobe', ['-v', 'error', '-show_streams', '-of', 'json', output]).toString()).streams;
+      const video = streams.find((stream: any) => stream.codec_type === 'video');
+      const audio = streams.find((stream: any) => stream.codec_type === 'audio');
+      await test.info().attach('short-soundtrack-result', { contentType: 'application/json', body: JSON.stringify({
+        audioStart, command, originalPackets: originalPackets.length, copiedPackets: outputPackets.length,
+        videoDuration: video.duration, originalUnchanged: digest() === originalHash,
+      }) });
+      expect(digest()).toBe(originalHash);
+      expect(outputPackets).toEqual(originalPackets);
+      expect(Number(video.duration)).toBeCloseTo(2, 2);
+      expect(audio).toMatchObject({codec_name: 'aac', channels: 2, sample_rate: '48000'});
+      // The padded tail is silent, while the retained soundtrack remains audible.
+      const pcm = run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', output,
+        '-vn', '-f', 'f32le', '-ac', '2', '-ar', '48000', 'pipe:1']);
+      let peak = 0, tailPeak = 0;
+      for (let byte = 0; byte + 4 <= pcm.length; byte += 4) {
+        const sample = Math.abs(pcm.readFloatLE(byte));
+        peak = Math.max(peak, sample);
+        if (byte / (4 * 2 * 48000) > 1.1) tailPeak = Math.max(tailPeak, sample);
+      }
+      expect(pcm.length / (4 * 2 * 48000)).toBeGreaterThan(1.9 - audioStart);
+      expect(peak).toBeGreaterThan(0.01);
+      expect(tailPeak).toBeLessThan(0.001);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+}

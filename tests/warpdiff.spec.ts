@@ -1645,14 +1645,24 @@ test.describe('Solo video playback', () => {
     await page.keyboard.press('Space');
     await page.waitForTimeout(300);
 
-    await page.evaluate(() => (window as any).selectAudioSource('editB'));
+    // Read both clocks in the transfer's task. The old source stops here;
+    // comparing it with the target after 250 ms measures elapsed playback.
+    const handoff = await page.evaluate(() => {
+      (window as any).selectAudioSource('editB');
+      return Array.from(document.querySelectorAll('.asset-layer video'))
+        .map(video => (video as HTMLVideoElement).currentTime);
+    });
+    expect(Math.abs(handoff[0] - handoff[1])).toBeLessThan(0.05);
     await page.waitForTimeout(250);
     expect(await getVar(page, '_soloPlaybackSlot')).toBe('editB');
     await expect(page.locator('#playbackScopeBtn')).toHaveText('Solo: B');
     let videoStates = await states(page);
     expect(videoStates[0].paused).toBe(true);
     expect(videoStates[1].paused).toBe(false);
-    expect(Math.abs(videoStates[0].t - videoStates[1].t)).toBeLessThan(0.3);
+    expect(videoStates[1].t).toBeGreaterThan(handoff[1]);
+    await test.info().attach('solo-handoff-clocks', {contentType: 'application/json', body: JSON.stringify({
+      handoff, handoffDeltaSeconds: handoff[1] - handoff[0], laterStates: videoStates,
+    })});
 
     await page.keyboard.press('Shift+s');
     await page.waitForTimeout(250);

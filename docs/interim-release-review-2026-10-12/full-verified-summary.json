@@ -1,0 +1,197 @@
+{
+  "stats": {
+    "startTime": "2026-10-13T03:41:11.579Z",
+    "duration": 764661.5430000001,
+    "expected": 415,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "outcomes": [
+    {
+      "title": "shows warning toast for timestamp collision",
+      "status": "skipped"
+    }
+  ],
+  "maximumPreviewInputGapMs": 62.5,
+  "handoff": [
+    {
+      "handoff": [
+        0.325079,
+        0.325079
+      ],
+      "handoffDeltaSeconds": 0,
+      "laterStates": [
+        {
+          "t": 0.325079,
+          "paused": true,
+          "rate": 1
+        },
+        {
+          "t": 0.653594,
+          "paused": false,
+          "rate": 1
+        }
+      ]
+    }
+  ],
+  "previewSweeps": [
+    {
+      "title": "Continuous reaches the native stream when the direct destination is silent",
+      "sweeps": [
+        {
+          "peak": 0.07916861830301396,
+          "maximumInputGap": 49.099999994039536,
+          "samples": 16
+        },
+        {
+          "peak": 0.07640822578256261,
+          "maximumInputGap": 55.29999999701977,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "snippet fallback reaches the native stream when the direct destination is silent",
+      "sweeps": [
+        {
+          "peak": 0.06314187429938088,
+          "maximumInputGap": 50.20000000298023,
+          "samples": 16
+        },
+        {
+          "peak": 0.06397952834426215,
+          "maximumInputGap": 62.5,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "FLAC 51 preserves center listening through the Safari stream output",
+      "sweeps": [
+        {
+          "peak": 0.06114170784346568,
+          "maximumInputGap": 51.5,
+          "samples": 16
+        },
+        {
+          "peak": 0.05482259231287756,
+          "maximumInputGap": 52,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "Opus 51 preserves center listening through the Safari stream output",
+      "sweeps": [
+        {
+          "peak": 0.06763305214468625,
+          "maximumInputGap": 51.5,
+          "samples": 16
+        },
+        {
+          "peak": 0.052129362820388804,
+          "maximumInputGap": 54.8999999910593,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "FLAC 71 preserves center listening through the Safari stream output",
+      "sweeps": [
+        {
+          "peak": 0.06982393713954405,
+          "maximumInputGap": 48.29999999701977,
+          "samples": 16
+        },
+        {
+          "peak": 0.05535211157022803,
+          "maximumInputGap": 52.70000000298023,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "Opus 71 preserves center listening through the Safari stream output",
+      "sweeps": [
+        {
+          "peak": 0.059539814261401654,
+          "maximumInputGap": 56.400000005960464,
+          "samples": 16
+        },
+        {
+          "peak": 0.055587473159747165,
+          "maximumInputGap": 49.099999994039536,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one output",
+      "sweeps": [
+        {
+          "peak": 0.07930525615174515,
+          "maximumInputGap": 54.19999998807907,
+          "samples": 16
+        },
+        {
+          "peak": 0.06889232260485796,
+          "maximumInputGap": 55.900000005960464,
+          "samples": 16
+        },
+        {
+          "peak": 0.018107455820274326,
+          "maximumInputGap": 56.29999999701977,
+          "samples": 16
+        },
+        {
+          "peak": 0,
+          "maximumInputGap": 56.1000000089407,
+          "samples": 16
+        },
+        {
+          "peak": 0.07484213433622953,
+          "maximumInputGap": 56.400000005960464,
+          "samples": 16
+        },
+        {
+          "peak": 0.07738931010148653,
+          "maximumInputGap": 56.80000001192093,
+          "samples": 16
+        },
+        {
+          "peak": 0.07115948217902833,
+          "maximumInputGap": 56.5,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "clear during a drag ends the stream and replacement creates a fresh sink",
+      "sweeps": [
+        {
+          "peak": 0.08095013189573513,
+          "maximumInputGap": 49.30000001192093,
+          "samples": 16
+        },
+        {
+          "peak": 0.08065761128213018,
+          "maximumInputGap": 51.29999999701977,
+          "samples": 16
+        }
+      ]
+    },
+    {
+      "title": "loop-marker adjustment does not start a preview output",
+      "sweeps": []
+    },
+    {
+      "title": "tab hiding settles a released fade and a stale play rejection cannot affect replacement",
+      "sweeps": []
+    },
+    {
+      "title": "ordinary Chromium keeps its direct preview output",
+      "sweeps": []
+    }
+  ]
+}

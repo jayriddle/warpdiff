@@ -4,6 +4,11 @@ Status: local review candidate on `codex/external-media-preparation`. Nothing ha
 been merged, pushed or published. The current public app and old repository
 history have not been changed by this work.
 
+October 12 follow-up: Jay reaffirmed the small interim scope. The
+[narrow release review](../interim-release-review-2026-10-12/README.md) records
+the short-soundtrack command fix, release safeguards adapted to this branch,
+and fresh verification. The original results and failures below are preserved.
+
 ## Decision and scope
 
 Jay chose: “a small interim release that removes browser FFmpeg conversion and

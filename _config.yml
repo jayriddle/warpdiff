@@ -22,4 +22,5 @@ exclude:
   - package.json
   - package-lock.json
   - playwright.config.ts
+  - playwright.webkit.config.ts
   - start.sh

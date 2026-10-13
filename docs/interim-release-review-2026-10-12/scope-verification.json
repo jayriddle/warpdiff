@@ -1,0 +1,120 @@
+{
+  "branch": "codex/interim-release-review",
+  "base": "c87479a7e04ad9791c5df0404430abfd41ec29bb",
+  "localMain": "75eb81f701de89628d432148c46dac87b18f0d98",
+  "preservedFoundations": "eabcb6e7fca49459880a3084f7fa81f121d9c0bb",
+  "runtimeVersion": "3.19.1",
+  "byteChecks": [
+    {
+      "file": "js/audio-viz.js",
+      "equalsMain": true,
+      "sha256": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d"
+    },
+    {
+      "file": "js/audio-analysis.js",
+      "equalsMain": true,
+      "sha256": "f1d135af8f6faac6d2fd0f8f543070f725d5f99bb838971c985c167a8b29cd3b"
+    },
+    {
+      "file": "js/audio-analysis-worker.js",
+      "equalsMain": true,
+      "sha256": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a"
+    },
+    {
+      "file": "js/scrub-audio-core.js",
+      "equalsMain": true,
+      "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1"
+    },
+    {
+      "file": "js/scrub-worklet.js",
+      "equalsMain": true,
+      "sha256": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6"
+    },
+    {
+      "file": "js/SCRUB_AUDIO_LOCK.json",
+      "equalsMain": true,
+      "sha256": "0bd9bc37f65815d443c35a9b253ce70109180c1e34c31399a8b0cd010174c4df"
+    },
+    {
+      "file": "js/playback-audio-core.js",
+      "equalsMain": true,
+      "sha256": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6"
+    },
+    {
+      "file": "js/signalsmith-worklet.js",
+      "equalsMain": true,
+      "sha256": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08"
+    },
+    {
+      "file": "js/PLAYBACK_AUDIO_LOCK.json",
+      "equalsMain": true,
+      "sha256": "fa0aa3f75b9c79023f2fb43c2291cf03341ca9377a611926cd7b70507fc6afb7"
+    },
+    {
+      "file": "js/opus-sync.js",
+      "equalsMain": true,
+      "sha256": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90"
+    },
+    {
+      "file": "js/audio-routing.js",
+      "equalsMain": true,
+      "sha256": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573"
+    },
+    {
+      "file": "js/audio-monitor.js",
+      "equalsMain": true,
+      "sha256": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf"
+    },
+    {
+      "file": "js/mp4-demux.js",
+      "equalsMain": true,
+      "sha256": "12841e7d9de5d524435da7383744f26ea3ac69475be64525baca0afde44e1741"
+    },
+    {
+      "file": "js/scrub-video.js",
+      "equalsMain": true,
+      "sha256": "79998e363d3cf10d2514f7b1067673e351c480bc2b7c6fdd83c7703cf08154ad"
+    },
+    {
+      "file": "js/managed-review.js",
+      "equalsMain": true,
+      "sha256": "1150245afc806346a5befa32c9f7d2acb02c82466e6593ec6839d3fbfc4b3f87"
+    }
+  ],
+  "absent": [
+    {
+      "file": "ffmpeg/ffmpeg.min.js",
+      "absent": true
+    },
+    {
+      "file": "ffmpeg/ffmpeg-core.js",
+      "absent": true
+    },
+    {
+      "file": "ffmpeg/ffmpeg-core.wasm",
+      "absent": true
+    },
+    {
+      "file": "ffmpeg/ffmpeg-core.worker.js",
+      "absent": true
+    },
+    {
+      "file": "js/host-media.js",
+      "absent": true
+    },
+    {
+      "file": "js/media-contract.js",
+      "absent": true
+    },
+    {
+      "file": "js/prepared-media.js",
+      "absent": true
+    },
+    {
+      "file": "scripts/prepare-media.mjs",
+      "absent": true
+    }
+  ],
+  "trackedFfmpegPaths": [],
+  "dependencyRecordsUnchanged": true
+}

@@ -1,0 +1,45 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/ffmpeg-command.spec.ts tests/external-preparation.spec.ts --workers=1 --retries=0 --reporter=line
+(node:61707) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 27 tests using 1 worker
+
+(node:61711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:61711) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:61711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/27] [chromium] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+[2/27] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false
+[3/27] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true
+[4/27] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null
+[5/27] [chromium] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus
+[6/27] [chromium] › tests/external-preparation.spec.ts:99:5 › native codec limits retain original surround metadata and give a preparation route
+[7/27] [chromium] › tests/external-preparation.spec.ts:117:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC
+[8/27] [chromium] › tests/external-preparation.spec.ts:154:5 › service worker installs without FFmpeg and retires only owned legacy caches
+[9/27] [chromium] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[10/27] [chromium] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[11/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command
+[12/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command
+[13/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command
+[14/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command
+[15/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+[16/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command
+[17/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command
+[18/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command
+[19/27] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command
+[20/27] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success
+[21/27] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success
+[22/27] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[23/27] [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent
+[24/27] [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent
+[25/27] [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+[26/27] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+[27/27] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+  27 passed (10.2s)

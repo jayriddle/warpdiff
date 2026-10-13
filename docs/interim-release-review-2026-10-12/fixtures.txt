@@ -1,0 +1,2 @@
+npm notice run warpdiff@1.0.0 test:fixtures
+npm notice run bash tests/fixtures/generate.sh

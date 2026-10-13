@@ -1,9 +1,17 @@
 import { test, expect, Page } from '@playwright/test';
 import path from 'path';
+import {moveHeldPointer} from './helpers/scrub-motion';
 
 // These are Chromium scheduling/PCM tests of the Safari policy, not speaker
 // listening tests. Native Safari audibility is recorded separately.
 test.use({ serviceWorkers: 'block' });
+test.afterEach(async({page},info)=>{
+  const sweeps=await page.evaluate(()=>(window as any).__previewSweeps || []).catch(()=>[]);
+  const evidence=info.status!==info.expectedStatus ? sweeps : sweeps.map((sweep:any)=>({
+    peak:sweep.peak, maximumInputGap:sweep.maximumInputGap, samples:sweep.trace.length,
+  }));
+  await info.attach('preview-motion-and-pcm',{body:Buffer.from(JSON.stringify(evidence,null,2)),contentType:'application/json'});
+});
 
 async function load(page: Page, safari = true, fallback = false, files = ['landscape_a.mp4', 'landscape_b.mp4']) {
   await page.route('**/*', route => {
@@ -58,13 +66,13 @@ async function meter(page: Page) {
 }
 
 async function sweep(page: Page, box: {x:number,y:number,width:number,height:number}, reverse = false) {
-  let peak = 0;
-  for (let i = 0; i < 16; i++) {
-    await page.mouse.move(box.x + box.width * (reverse ? .72 - i * .035 : .15 + i * .035), box.y + box.height / 2);
-    await page.waitForTimeout(45);
-    peak = Math.max(peak, await page.evaluate(() => (window as any).previewRms()));
-  }
-  return peak;
+  const points=Array.from({length:16},(_,i)=>({x:box.x+box.width*(reverse ? .72-i*.035 : .15+i*.035),y:box.y+box.height/2}));
+  const result=await moveHeldPointer(page,points,45,true);
+  await page.evaluate(result=>{
+    const app=window as any;(app.__previewSweeps ||= []).push(result);
+  },result);
+  expect(result.maximumInputGap,'continuous test input must stay inside the 130 ms idle window').toBeLessThan(130);
+  return result.peak;
 }
 
 for (const fallback of [false, true]) {
@@ -121,6 +129,7 @@ test('idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one ou
   const box = await start(page);
   await meter(page);
   const full = await sweep(page, box);
+  expect(full,'volume ratios require an audible full-volume reference').toBeGreaterThan(.01);
   await page.waitForTimeout(250);
   expect(await page.evaluate(() => (window as any).__testAPI.scrubPreviewOutput.audio.paused)).toBe(true);
   expect(await page.evaluate(() => (window as any).previewRms())).toBeLessThan(.001);
@@ -200,6 +209,7 @@ test('clear during a drag ends the stream and replacement creates a fresh sink',
   await page.mouse.up();
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures', 'landscape_a.mp4'));
   await expect(page.locator('#comparisonView.active')).toBeVisible();
+  await page.waitForFunction(() => !!(window as any).__testAPI.scrubAudioInfo('editA'));
   await page.waitForFunction(() => !!(window as any).__testAPI.continuousScrubState.node);
   await start(page);
   expect(await page.evaluate(() => {
