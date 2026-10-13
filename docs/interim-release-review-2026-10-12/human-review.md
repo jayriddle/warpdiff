@@ -35,3 +35,31 @@ Record browser/version, representative input format, output/headphones,
 observations and any failure with its approximate point in the workflow.
 Human observations are **pending**. Passing headless checks is not a substitute
 for this installed-Safari/listening review.
+
+## Listening observation — October 13, 2026
+
+Jay reports occasionally hearing a lower tone while scrubbing in Safari.
+Jay also reports that Chrome seems to work correctly. This is the user's
+workflow/listening assessment, not an independent certification of every
+Chrome feature or confirmation of the Safari issue's cause.
+Jay identifies the input as `ac3_video_aac.mp4` and
+believes it happened in both scrub directions. Jay subsequently confirms it
+did **not** happen at normal 1× speed. The exact other rate(s), output device
+and active Continuous/fallback path are not yet established. The Chrome
+comparison has not been confirmed at matching non-1× rates, so the report
+does not yet establish a Safari-specific cause.
+Safari listening acceptance remains open.
+
+The [focused pitch investigation](../safari-scrub-pitch-2026-10-13/README.md)
+measured a confirmed preview inconsistency with the exact prepared AAC file.
+At 0.5×, the shipped snippet function produces approximately 220 Hz from the
+440 Hz source; Continuous preview stays near 440 Hz in both directions. Normal
+warmed-up gestures begin with one snippet before Continuous starts roughly
+100 ms later. Chromium and WebKit both exhibit this mechanism; it is a strong
+explanation for the reported occasional sound, not proof of the installed
+Safari acoustic cause. At 1×, both paths retain the original pitch.
+
+The recommendation is to keep brief previews at original pitch as well.
+The passing release RMS/cadence checks do not rule out pitch or spectral
+artifacts. No application or pinned audio-component changes were made in
+response to this report, and Safari listening acceptance remains open.
