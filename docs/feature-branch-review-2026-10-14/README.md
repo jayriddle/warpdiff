@@ -38,6 +38,13 @@ its application owner. They do not remove the broader 7.1 FLAC assertions.
    ordinary commands, control-character rejection, unsupported formats, and
    managed hosts where the download link is the final control. The dialog has
    explicit modal semantics and a description.
+   A subsequent 390-pixel-wide visual check found that suppressing focus
+   scrolling could leave the reload button partially clipped. A new negative
+   regression at 390×480 failed on the original wrap ([log](
+   narrow-focus-before.txt)). Focus wrapping/restoration now reveals the
+   focused control, including after another entry grows the panel; reopening
+   resets the scroll to the heading. This additional correction supersedes
+   the first pushed review revision and its hosted run.
 2. **New entries could remove focus from download/reload controls.** Rendering
    preserved a focused slot's Copy button but destroyed and replaced the
    common download and Load prepared files controls without restoring focus.
@@ -122,6 +129,20 @@ names, assertions, failures and counts are preserved.
 - Final local command suite: **19 passed**, zero retries, **5.4 seconds**,
   including all real native conversions/probes and original/video-packet
   preservation ([log](commands-final.txt)).
+- After the narrow-window correction, local preparation and command suites:
+  **37 passed**, zero retries, **11.3 seconds** ([log](workflow-final.txt)).
+  The new check verifies full visibility after backward Tab wrapping, a panel
+  refresh that adds another command, and closing/reopening.
+- Latest local WebKit profile, including that additional regression:
+  **42 passed**, zero retries, **28.9 seconds** ([log](webkit-latest.txt)).
+  Ownership was rechecked after the correction: **525 passed, zero failed**.
+
+The first push (`122dc31cadabfe9bb92e675b1845c8718c22e254`) started [run
+38627199812](https://github.com/jayriddle/warpdiff/actions/runs/38627199812).
+Its WebKit job succeeded before the narrow-window correction was ready;
+Chromium was still running. The next feature-branch push supersedes that
+revision through the workflow's existing concurrency policy. Final verification
+must target the corrected revision, including the extra visibility regression.
 
 Hosted verification is pending. Results below will be
 updated only after completion; the old hosted pass does not certify the new

@@ -1,0 +1,45 @@
+
+Running 1 test using 1 worker
+
+(node:19049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19049) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/external-preparation.spec.ts:132:5 › a narrow preparation panel reveals focused controls after wrapping, refresh and reopen (5.3s)
+
+
+  1) [chromium] › tests/external-preparation.spec.ts:132:5 › a narrow preparation panel reveals focused controls after wrapping, refresh and reopen
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      148 |   await page.keyboard.press('Shift+Tab');
+      149 |   await expect(load).toBeFocused();
+    > 150 |   await insidePanel('.fp-load-btn');
+          |   ^
+      151 |   await page.evaluate(() => (window as any)._registerFfmpegCommand('editB', 'other.mp4', 'ec-3'));
+      152 |   await expect(load).toBeFocused();
+      153 |   await insidePanel('.fp-load-btn');
+        at /Users/jay/Documents/warpdiff/tests/external-preparation.spec.ts:150:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-narrow-before/external-preparation-a-nar-831bd-wrapping-refresh-and-reopen-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/warpdiff-oct14-narrow-before/external-preparation-a-nar-831bd-wrapping-refresh-and-reopen-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-narrow-before/external-preparation-a-nar-831bd-wrapping-refresh-and-reopen-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../tmp/warpdiff-oct14-narrow-before/external-preparation-a-nar-831bd-wrapping-refresh-and-reopen-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/external-preparation.spec.ts:132:5 › a narrow preparation panel reveals focused controls after wrapping, refresh and reopen

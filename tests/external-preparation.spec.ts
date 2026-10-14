@@ -129,6 +129,34 @@ for (const control of ['.fp-download', '.fp-load-btn']) {
   });
 }
 
+test('a narrow preparation panel reveals focused controls after wrapping, refresh and reopen', async ({page}) => {
+  await page.setViewportSize({width:390, height:480});
+  await page.goto('/');
+  await page.evaluate(() => {
+    (window as any)._registerFfmpegCommand('original', 'reference.mp4', 'ac-3');
+    (window as any)._registerFfmpegCommand('editA', 'review.mp4', 'ac-3');
+  });
+  const panel = page.locator('#ffmpegPanel');
+  const close = page.locator('#ffmpegPanelClose');
+  const load = panel.getByRole('button', {name:'Load prepared files', exact:true});
+  const insidePanel = async (selector:string) => expect.poll(() => panel.evaluate((panel, selector) => {
+    const bounds = panel.getBoundingClientRect();
+    const control = panel.querySelector(selector)!.getBoundingClientRect();
+    return control.top >= bounds.top && control.bottom <= bounds.bottom;
+  }, selector)).toBe(true);
+  await close.focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(load).toBeFocused();
+  await insidePanel('.fp-load-btn');
+  await page.evaluate(() => (window as any)._registerFfmpegCommand('editB', 'other.mp4', 'ec-3'));
+  await expect(load).toBeFocused();
+  await insidePanel('.fp-load-btn');
+  await page.keyboard.press('Escape');
+  await page.locator('#externalAudioBtn').click();
+  await expect(close).toBeFocused();
+  await insidePanel('#ffmpegPanelClose');
+});
+
 for (const filename of ['review.webm', 'review.mkv', 'review.avi', 'review.wav']) {
   test(`${filename} preparation does not offer an unusable MP4-specific command`, async ({page}) => {
     await page.goto('/');
