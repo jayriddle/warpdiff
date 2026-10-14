@@ -139,6 +139,80 @@ for lasting review. The artifact upload action succeeded but warned about its
 Node 20 declaration being forced onto Node 24; upgrading that action is separate
 maintenance and is not the cause of these test failures.
 
+## Corrected hosted revision
+
+Both test corrections were pushed to the same feature branch at
+`2e39d0a1b6b2de9d8f17866ccccc841459b96963`. Application code is byte-identical
+to the Safari-accepted runtime at `103f92b`. A remote read-back again confirmed
+main at `75eb81f701de89628d432148c46dac87b18f0d98`.
+
+The push started [run 38506626141](
+https://github.com/jayriddle/warpdiff/actions/runs/38506626141), attempt 1, for
+the corrected exact revision. WebKit again finished with 30 passes and one
+failure; its new moving-state assertions passed. Chromium finished with
+**421 passes, one failure and the existing skip**, 15.0 minutes. All four initial
+sample-rate/accounting/measurement failures passed after their corrections.
+The [second run metadata](second-run.json) retains both job conclusions.
+
+## Second WebKit result: direct entry is a valid path
+
+The [second hosted gesture samples](second-webkit-gesture-samples.json) show
+Continuous active at 0.5× forward/reverse and 1× forward/reverse, sampled 42–45 ms
+after motion. Selected and native playback rates agree. The 1× reverse gesture
+entered Continuous without any snippet, failing the test's assumption that
+every drag must start with a snippet. Native seeking can deliver the first audio
+position after motion has already begun; a prepared engine then enters
+Continuous directly. This is a valid app path, not lost preview audio.
+
+The test now requires snippets in forced fallback and checks the rate of every
+snippet emitted in either normal or fallback entry. It retains all active,
+direction, pitch, playback-speed, motion-window and cleanup limits. A separate
+direct-entry test models delayed native positions by withholding position
+delivery until the actual motion helper reports velocity. It explicitly
+requires zero snippets, active Continuous and the correct direction/speed.
+This replaces an invalid universal snippet-count assumption with coverage of
+both valid startup paths.
+
+The first local direct-entry fixture used a two-sample count as a proxy for
+motion; repeated stationary samples still produced a click snippet. The
+[failed fixture run](direct-entry-fixture-first.txt) retained its 3 passes and
+one failure. Using actual motion velocity corrected that fixture.
+The dedicated direct-entry case then passed all six speed/direction gestures
+in Chromium ([log](local-direct-entry.txt)). The expanded WebKit profile passed
+**32/32 locally**, 29.0 seconds, no retries ([log](local-webkit-entry.txt),
+[measurements](local-entry-regressions.json)). Ownership remained 525/525.
+Application source and all numerical pitch/mix limits are unchanged.
+
+The next feature push will start another exact-revision run. If the prior
+Chromium job has not finished, the configured concurrency policy will cancel
+that obsolete run; its partial result will not be presented as a complete pass.
+
+## Second Chromium result: rotation fixture ownership
+
+The remaining Chromium failure was `surface refresh preserves rotation and a
+newer layout transform`: expected the first 90° CSS rotation, but observed an
+empty transform; its later 180° result was correct. [Failure excerpt](
+second-chromium-failure.txt).
+
+The test wrote `video.style.transform` directly while the app's rotation state
+remained 0°. The loading helper waits for the active comparison, not completion
+of every pending layout. A later valid layout can therefore rebuild the style
+from the owned 0° state, which the repaint owner correctly respects. The
+fixture now calls `_rotateSlot` for both rotations and deliberately overlaps
+`applyZoom` with repaint. It retains exact 90° and 180° expectations, including
+the owned centering translation, and tests
+preservation with legitimate competing layout writes, without a fixed sleep
+or application change. The focused check passed locally ([log](local-rotation.txt)).
+The first owner-based local run kept the obsolete bare-rotation string
+expectation; it failed because the real transform correctly includes
+`translate(-50%, -50%)`. Its [failed log](local-rotation-first.txt) is retained.
+The corrected check asserts the complete exact transform rather than discarding
+centering or merely matching the angle.
+
+Both earlier full runs finished, so none of their full-suite evidence was
+canceled. The next revision combines the valid direct-entry test and owned
+rotation fixture before starting a fresh hosted gate.
+
 ## Remaining decisions
 
 Read both job conclusions and the tested SHA. Resolve any hosted failures and

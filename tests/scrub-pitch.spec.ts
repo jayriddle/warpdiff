@@ -68,7 +68,8 @@ test('brief preview PCM retains source pitch and level at every selected playbac
   }
 });
 
-for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entry'} previews retain pitch policy in both drag directions without changing playback speed`, async ({page},info) => {
+for(const mode of ['entry','direct','fallback']) test(`${mode==='fallback'?'fallback':mode==='direct'?'direct Continuous entry':'Continuous entry'} previews retain pitch policy in both drag directions without changing playback speed`, async ({page},info) => {
+  const fallback=mode==='fallback';
   // Physically silence the native WebKit preview player only in this test page.
   await page.addInitScript(() => {
     const play=HTMLMediaElement.prototype.play;
@@ -78,6 +79,11 @@ for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entr
     };
   });
   await page.goto('/');
+  if(mode==='direct')await page.evaluate(()=>(window as any).eval(`
+    // Model the hosted native seek completing only after motion starts.
+    const feed=_feedScrubAudio;
+    _feedScrubAudio=time=>{if(WarpScrubAudio.motionVelocity(_scrubMotionSamples))feed(time);};
+  `));
   if(fallback) await page.evaluate(() => (window as any).eval(`
     Object.getPrototypeOf(getAudioContext().audioWorklet).addModule=()=>Promise.reject(new Error('Test short-preview fallback'));
   `));
@@ -122,7 +128,11 @@ for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entr
       expect(sweep.maximumInputGap).toBeLessThan(130);
       expect(active.motionAge,'sample must be inside the actual motion window').toBeLessThan(130);
       expect(active.selectedRate).toBe(speed);expect(active.mediaRate).toBe(speed);
-      expect(active.grains.length).toBeGreaterThan(0);
+      // A ready processor may enter Continuous directly if native seeking
+      // delivers the first position after motion has begun. Forced fallback
+      // must emit grains; every grain emitted by either path must retain pitch.
+      if(fallback)expect(active.grains.length).toBeGreaterThan(0);
+      if(mode==='direct')expect(active.grains).toHaveLength(0);
       expect(active.grains.every((g:any)=>g.rate===1)).toBe(true);
       expect(active.continuous).toBe(!fallback);
       if(!fallback)expect(active.direction).toBe(direction);

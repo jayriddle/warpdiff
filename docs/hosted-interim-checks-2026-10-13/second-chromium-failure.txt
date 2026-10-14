@@ -1,0 +1,37 @@
+2026-10-14T03:45:50.7014868Z   1) [chromium] › tests/warpdiff.spec.ts:3440:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+2026-10-14T03:45:50.7016333Z
+2026-10-14T03:45:50.7017473Z     Error: expect(received).toEqual(expected) // deep equality
+2026-10-14T03:45:50.7018365Z
+2026-10-14T03:45:50.7018718Z     - Expected  - 1
+2026-10-14T03:45:50.7019822Z     + Received  + 1
+2026-10-14T03:45:50.7020733Z
+2026-10-14T03:45:50.7021068Z       Object {
+2026-10-14T03:45:50.7021821Z         "latest": "rotate(180deg)",
+2026-10-14T03:45:50.7022701Z     -   "preserved": "rotate(90deg)",
+2026-10-14T03:45:50.7023494Z     +   "preserved": "",
+2026-10-14T03:45:50.7024084Z       }
+2026-10-14T03:45:50.7024344Z
+2026-10-14T03:45:50.7024820Z       3453 |       return { preserved, latest: video.style.transform };
+2026-10-14T03:45:50.7025547Z       3454 |     });
+2026-10-14T03:45:50.7026443Z     > 3455 |     expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
+2026-10-14T03:45:50.7027449Z            |                       ^
+2026-10-14T03:45:50.7027926Z       3456 |   });
+2026-10-14T03:45:50.7028286Z       3457 | });
+2026-10-14T03:45:50.7028616Z       3458 |
+2026-10-14T03:45:50.7029465Z         at /home/runner/work/warpdiff/warpdiff/tests/warpdiff.spec.ts:3455:23
+2026-10-14T03:45:50.7030089Z
+2026-10-14T03:45:50.7030933Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-14T03:45:50.7032396Z     test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/test-failed-1.png
+2026-10-14T03:45:50.7034156Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-14T03:45:50.7035502Z
+2026-10-14T03:45:50.7036349Z     Error Context: test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/error-context.md
+2026-10-14T03:45:50.7037197Z
+2026-10-14T03:45:50.7037925Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-14T03:45:50.7039151Z     test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/trace.zip
+2026-10-14T03:45:50.7040282Z     Usage:
+2026-10-14T03:45:50.7040461Z
+2026-10-14T03:45:50.7041322Z         npx playwright show-trace test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/trace.zip
+2026-10-14T03:45:50.7042218Z
+2026-10-14T03:45:50.7042843Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-14T03:45:50.7043624Z
+2026-10-14T03:45:50.7043632Z

@@ -3442,17 +3442,24 @@ test.describe('Safari native scrub scheduling and restored surfaces', () => {
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
     const rotations = await page.evaluate(async () => {
       const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
-      video.style.transform = 'rotate(90deg)';
+      const app=window as any,slot=app.getMediaSlot(video);
+      // Keep rotation state and CSS consistent. A load/resize relayout may
+      // still run here and legitimately rebuild CSS from the owned state.
+      app._rotateSlot(slot,90);
       (window as any)._forceVideoRepaint();
       (window as any)._forceVideoRepaint();
+      app.applyZoom(); // deliberately overlap a layout write with repaint
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const preserved = video.style.transform;
       (window as any)._forceVideoRepaint();
-      video.style.transform = 'rotate(180deg)';
+      app._rotateSlot(slot,90);
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       return { preserved, latest: video.style.transform };
     });
-    expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
+    expect(rotations).toEqual({
+      preserved:'translate(-50%, -50%) rotate(90deg)',
+      latest:'translate(-50%, -50%) rotate(180deg)',
+    });
   });
 });
 

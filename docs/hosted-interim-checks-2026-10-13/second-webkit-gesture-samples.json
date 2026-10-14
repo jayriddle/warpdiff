@@ -1,0 +1,61 @@
+{
+  "run": 38506626141,
+  "sha": "2e39d0a1b6b2de9d8f17866ccccc841459b96963",
+  "checks": [
+    {
+      "speed": 0.5,
+      "direction": 1,
+      "maximumInputGap": 44,
+      "motionAge": 44,
+      "grains": [
+        {
+          "time": 0.6012197,
+          "rate": 1
+        }
+      ],
+      "continuous": true,
+      "selectedRate": 0.5,
+      "mediaRate": 0.5
+    },
+    {
+      "speed": 0.5,
+      "direction": -1,
+      "maximumInputGap": 47,
+      "motionAge": 43,
+      "grains": [
+        {
+          "time": 1.8123642,
+          "rate": 1
+        }
+      ],
+      "continuous": true,
+      "selectedRate": 0.5,
+      "mediaRate": 0.5
+    },
+    {
+      "speed": 1,
+      "direction": 1,
+      "maximumInputGap": 45,
+      "motionAge": 42,
+      "grains": [
+        {
+          "time": 0.6012197,
+          "rate": 1
+        }
+      ],
+      "continuous": true,
+      "selectedRate": 1,
+      "mediaRate": 1
+    },
+    {
+      "speed": 1,
+      "direction": -1,
+      "maximumInputGap": 45,
+      "motionAge": 45,
+      "grains": [],
+      "continuous": true,
+      "selectedRate": 1,
+      "mediaRate": 1
+    }
+  ]
+}
