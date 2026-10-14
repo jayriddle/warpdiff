@@ -1,0 +1,66 @@
+{
+  "recorded_at": "2026-10-11T21:28:30.821Z",
+  "baseline_commit": "e1ceab171cef487cad9fd50fa1f278c0ad2fe2b2",
+  "branch": "codex/safe-ffmpeg-command",
+  "node_version": "v26.4.0",
+  "npm_version": "12.0.2",
+  "npm_read_command": "npm pkg get license private --json",
+  "npm_metadata": {
+    "license": "UNLICENSED",
+    "private": true
+  },
+  "dependency_records_preserved": 90,
+  "third_party_isc_dependency_records_preserved": 6,
+  "changed_tracked_files": [
+    "README.md",
+    "package-lock.json",
+    "package.json"
+  ],
+  "checks": [
+    {
+      "name": "Application metadata changes only license and adds the npm publication guard",
+      "passed": true
+    },
+    {
+      "name": "Lockfile changes only the root application license",
+      "passed": true
+    },
+    {
+      "name": "Every dependency record, including its license, resolution and integrity, is preserved",
+      "passed": true
+    },
+    {
+      "name": "README changes only the license-policy paragraph and third-party clarification",
+      "passed": true
+    },
+    {
+      "name": "Only the three approved tracked files differ; runtime, tests and deployment files are unchanged",
+      "passed": true
+    },
+    {
+      "name": "Vendored components, notices and audio lock records are unchanged",
+      "passed": true
+    },
+    {
+      "name": "npm reads UNLICENSED and private true from the corrected application metadata",
+      "passed": true
+    },
+    {
+      "name": "Tracked diff passes whitespace validation",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "first_attempt": {
+    "passed": false,
+    "reason": "Verifier assumed npm default output was JSON; explicit --json fixes the read.",
+    "evidence": "verification-first.txt"
+  },
+  "ownership_result": {
+    "passed": 528,
+    "failed": 0,
+    "evidence": "ownership.txt"
+  },
+  "publication_attempted": false,
+  "browser_suite_rerun": false
+}

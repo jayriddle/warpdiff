@@ -1,0 +1,76 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/ffmpeg-command.spec.ts tests/external-preparation.spec.ts tests/scrub-pitch.spec.ts --workers=1 --retries=0
+(node:16059) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 40 tests using 1 worker
+
+(node:16067) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16067) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:16067) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine (489ms)
+  ✓   2 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false (187ms)
+  ✓   3 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true (178ms)
+  ✓   4 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null (182ms)
+  ✓   5 [chromium] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus (184ms)
+  ✓   6 [chromium] › tests/external-preparation.spec.ts:100:5 › preparation keyboard focus stays in the panel until it closes: "review.mp4" (181ms)
+  ✓   7 [chromium] › tests/external-preparation.spec.ts:100:5 › preparation keyboard focus stays in the panel until it closes: "clip\u001b.mp4" (175ms)
+  ✓   8 [chromium] › tests/external-preparation.spec.ts:100:5 › preparation keyboard focus stays in the panel until it closes: "review.webm" (181ms)
+  ✓   9 [chromium] › tests/external-preparation.spec.ts:118:7 › adding another preparation entry retains focus on .fp-download (159ms)
+  ✓  10 [chromium] › tests/external-preparation.spec.ts:118:7 › adding another preparation entry retains focus on .fp-load-btn (163ms)
+  ✓  11 [chromium] › tests/external-preparation.spec.ts:128:5 › review.webm preparation does not offer an unusable MP4-specific command (168ms)
+  ✓  12 [chromium] › tests/external-preparation.spec.ts:128:5 › review.mkv preparation does not offer an unusable MP4-specific command (164ms)
+  ✓  13 [chromium] › tests/external-preparation.spec.ts:128:5 › review.avi preparation does not offer an unusable MP4-specific command (162ms)
+  ✓  14 [chromium] › tests/external-preparation.spec.ts:128:5 › review.wav preparation does not offer an unusable MP4-specific command (164ms)
+  ✓  15 [chromium] › tests/external-preparation.spec.ts:140:5 › native codec limits retain original surround metadata and give a preparation route (2.2s)
+  ✓  16 [chromium] › tests/external-preparation.spec.ts:158:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC (677ms)
+  ✓  17 [chromium] › tests/external-preparation.spec.ts:195:5 › service worker installs without FFmpeg and retires only owned legacy caches (50ms)
+  ✓  18 [chromium] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (396ms)
+  ✓  19 [chromium] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (212ms)
+  ✓  20 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command (155ms)
+  ✓  21 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command (162ms)
+  ✓  22 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command (156ms)
+  ✓  23 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command (164ms)
+  ✘  24 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command (16.8m)
+(node:16202) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16202) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:16202) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  25 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command (208ms)
+  ✓  26 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command (185ms)
+  ✓  27 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command (197ms)
+  ✓  28 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command (186ms)
+  ✓  29 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success (252ms)
+  ✓  30 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success (261ms)
+  ✓  31 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success (240ms)
+  ✓  32 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent (207ms)
+  ✓  33 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent (189ms)
+  ✓  34 [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (866ms)
+  ✓  35 [chromium] › tests/ffmpeg-command.spec.ts:211:7 › a short soundtrack starting at 0s retains every copied video packet (354ms)
+  ✓  36 [chromium] › tests/ffmpeg-command.spec.ts:211:7 › a short soundtrack starting at 0.5s retains every copied video packet (339ms)
+  ✓  37 [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed (194ms)
+  ✓  38 [chromium] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.5s)
+  ✓  39 [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.4s)
+  ✓  40 [chromium] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed (4.3s)
+
+
+  1) [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+
+    Tearing down "context" exceeded the test timeout of 60000ms.
+
+    Error Context: test-results/ffmpeg-command-terminal-co-5b534-nnot-enter-a-copied-command-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/ffmpeg-command-terminal-co-5b534-nnot-enter-a-copied-command-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/ffmpeg-command-terminal-co-5b534-nnot-enter-a-copied-command-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+  39 passed (17.3m)

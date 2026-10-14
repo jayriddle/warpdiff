@@ -53,6 +53,8 @@ The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.
 
 **Audio timing warning:** If a video's container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. WarpDiff does not shift native playback; the warning applies to decoded-audio views and tools using a fallback timeline. Videos whose containers explicitly report a start at 0 do not trigger it.
 
+**Unsupported video audio:** Use the **Prepare audio externally** panel. WarpDiff does not include, download or run FFmpeg. Install it separately using [FFmpeg download information](https://ffmpeg.org/download.html), copy the macOS/Linux terminal command, and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including `.m4v`); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use **Load prepared files** in the panel, **Load (L)**, or drag and drop to load the `_aac` output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally; extensionless names stay intact and gain `_aac.mp4`. Rename files containing control characters before copying a command. Copy reports unavailable or blocked clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.
+
 **Reset:** Click the **Reset** button (visible after loading) to clear all files and start over.
 
 ---
@@ -250,7 +252,7 @@ Boosted mixes reserve headroom using peaks measured from the original source, an
 
 Video scrub preview preserves the soundtrack's channels and phase. Stereo side information—including opposite-polarity `L = −R` material—remains audible instead of being folded to mono and cancelled.
 
-Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. Their audible duration remains constant at every playback speed. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
+Successive 90 ms scrub grains are scheduled on a steady 50 ms clock and phase-aligned within a bounded ±8 ms neighbourhood before they overlap. They play at original pitch with the same audible duration at every selected playback speed; the source tail can shorten a preview near its end. During slow motion, the clock continues even while the video holds the same frame. Holding the pointer still or repeatedly dragging beyond a timeline edge fades the preview out after a short idle interval. This prevents event bursts and speed changes from opening gaps, while keeping steady centered tones—and similar voiced material—from thinning or dropping out.
 
 ---
 
@@ -501,7 +503,7 @@ Hosts may request `capabilities.managedReview` for assigned comparisons. This hi
 
 ## Scrub audio
 
-Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
+Drag a video or audio-only timeline for **Continuous** preview. Pitch stays steady as drag speed changes; backward drags play backward. Short previews also retain original pitch, independent of your selected normal playback speed. Click to audition a short preview, and hold still to fade the audio out. There is no mode selector.
 
 Scrub volume follows your selected listening mix more closely in both directions, including backward speech that previously stayed quieter. Compensation restores level lost during stretching while retaining quiet/loud differences and stereo balance. Strong peaks and the correction limit can still leave some passages quieter. Restoring volume does not remove the sound changes caused by stretching. Master volume and Listen adjustments work as before; this does not normalize source clips or change normal playback or analysis.
 

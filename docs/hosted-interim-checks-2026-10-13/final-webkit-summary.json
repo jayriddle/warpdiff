@@ -1,0 +1,17 @@
+{
+  "stats": {
+    "total": 32,
+    "expected": 32,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "ok": true
+  },
+  "duration": 81320.626,
+  "startTime": 1791950078842,
+  "projectNames": [
+    "webkit-workflow",
+    "webkit-reload",
+    "webkit-scrub-pitch"
+  ]
+}

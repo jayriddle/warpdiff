@@ -1,0 +1,69 @@
+{
+  "stats": {
+    "startTime": "2026-10-13T03:21:54.953Z",
+    "duration": 8666.988,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "clocks": [
+    {
+      "handoff": [
+        0.255683,
+        0.255664
+      ],
+      "handoffDeltaSeconds": -0.000018999999999991246,
+      "laterStates": [
+        {
+          "t": 0.255683,
+          "paused": true,
+          "rate": 1
+        },
+        {
+          "t": 0.528404,
+          "paused": false,
+          "rate": 1
+        }
+      ]
+    },
+    {
+      "handoff": [
+        0.264127,
+        0.264127
+      ],
+      "handoffDeltaSeconds": 0,
+      "laterStates": [
+        {
+          "t": 0.264127,
+          "paused": true,
+          "rate": 1
+        },
+        {
+          "t": 0.539767,
+          "paused": false,
+          "rate": 1
+        }
+      ]
+    },
+    {
+      "handoff": [
+        0.271074,
+        0.271048
+      ],
+      "handoffDeltaSeconds": -0.00002599999999997049,
+      "laterStates": [
+        {
+          "t": 0.271074,
+          "paused": true,
+          "rate": 1
+        },
+        {
+          "t": 0.555492,
+          "paused": false,
+          "rate": 1
+        }
+      ]
+    }
+  ]
+}

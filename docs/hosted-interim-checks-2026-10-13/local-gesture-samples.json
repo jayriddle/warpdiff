@@ -1,0 +1,412 @@
+{
+  "stats": {
+    "startTime": "2026-10-14T03:16:01.107Z",
+    "duration": 22976.279,
+    "expected": 31,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "tests": [
+    {
+      "title": "Continuous entry previews retain pitch policy in both drag directions without changing playback speed",
+      "checks": [
+        {
+          "speed": 0.5,
+          "direction": 1,
+          "maximumInputGap": 44,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 0.5,
+          "mediaRate": 0.5
+        },
+        {
+          "speed": 0.5,
+          "direction": -1,
+          "maximumInputGap": 45,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 1.8122483,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 0.5,
+          "mediaRate": 0.5
+        },
+        {
+          "speed": 1,
+          "direction": 1,
+          "maximumInputGap": 43,
+          "motionAge": 43,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 1,
+          "mediaRate": 1
+        },
+        {
+          "speed": 1,
+          "direction": -1,
+          "maximumInputGap": 44,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 1.8122483,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 1,
+          "mediaRate": 1
+        },
+        {
+          "speed": 2,
+          "direction": 1,
+          "maximumInputGap": 44,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 2,
+          "mediaRate": 2
+        },
+        {
+          "speed": 2,
+          "direction": -1,
+          "maximumInputGap": 42,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": true,
+          "selectedRate": 2,
+          "mediaRate": 2
+        }
+      ]
+    },
+    {
+      "title": "fallback previews retain pitch policy in both drag directions without changing playback speed",
+      "checks": [
+        {
+          "speed": 0.5,
+          "maximumInputGap": 42.00000000000023,
+          "motionAge": 44.99999999999977,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            },
+            {
+              "time": 0.8030257,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 1.1057925,
+              "rate": 1
+            },
+            {
+              "time": 1.2067147,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.4085592,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.711326,
+              "rate": 1
+            },
+            {
+              "time": 1.8122483,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 0.5,
+          "mediaRate": 0.5
+        },
+        {
+          "speed": 0.5,
+          "maximumInputGap": 42,
+          "motionAge": 43,
+          "grains": [
+            {
+              "time": 1.8122483,
+              "rate": 1
+            },
+            {
+              "time": 1.6104038,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.2067147,
+              "rate": 1
+            },
+            {
+              "time": 1.1057925,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 0.8030257,
+              "rate": 1
+            },
+            {
+              "time": 0.7021035,
+              "rate": 1
+            },
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 0.5,
+          "mediaRate": 0.5
+        },
+        {
+          "speed": 1,
+          "maximumInputGap": 42.000000000000455,
+          "motionAge": 43.999999999999545,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            },
+            {
+              "time": 0.8030257,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 1.0048702,
+              "rate": 1
+            },
+            {
+              "time": 1.2067147,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.4085592,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.711326,
+              "rate": 1
+            },
+            {
+              "time": 1.8122483,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 1,
+          "mediaRate": 1
+        },
+        {
+          "speed": 1,
+          "maximumInputGap": 43,
+          "motionAge": 44,
+          "grains": [
+            {
+              "time": 1.8122483,
+              "rate": 1
+            },
+            {
+              "time": 1.6104038,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.2067147,
+              "rate": 1
+            },
+            {
+              "time": 1.1057925,
+              "rate": 1
+            },
+            {
+              "time": 1.0048702,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 0.8030257,
+              "rate": 1
+            },
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 1,
+          "mediaRate": 1
+        },
+        {
+          "speed": 2,
+          "maximumInputGap": 42,
+          "motionAge": 45,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            },
+            {
+              "time": 0.8030257,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 1.1057925,
+              "rate": 1
+            },
+            {
+              "time": 1.2067147,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.4085592,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.711326,
+              "rate": 1
+            },
+            {
+              "time": 1.8122483,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 2,
+          "mediaRate": 2
+        },
+        {
+          "speed": 2,
+          "maximumInputGap": 44.999999999999545,
+          "motionAge": 43.00000000000091,
+          "grains": [
+            {
+              "time": 0.6011812,
+              "rate": 1
+            },
+            {
+              "time": 1.6104038,
+              "rate": 1
+            },
+            {
+              "time": 1.5094815,
+              "rate": 1
+            },
+            {
+              "time": 1.4085592,
+              "rate": 1
+            },
+            {
+              "time": 1.307637,
+              "rate": 1
+            },
+            {
+              "time": 1.1057925,
+              "rate": 1
+            },
+            {
+              "time": 1.0048702,
+              "rate": 1
+            },
+            {
+              "time": 0.903948,
+              "rate": 1
+            },
+            {
+              "time": 0.7021035,
+              "rate": 1
+            },
+            {
+              "time": 0.6011812,
+              "rate": 1
+            }
+          ],
+          "continuous": false,
+          "selectedRate": 2,
+          "mediaRate": 2
+        }
+      ]
+    }
+  ]
+}

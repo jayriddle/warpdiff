@@ -1,0 +1,55 @@
+{
+  "stats": {
+    "startTime": "2026-10-13T03:23:23.404Z",
+    "duration": 804472.746,
+    "expected": 414,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "outcomes": [
+    {
+      "title": "clear during a drag ends the stream and replacement creates a fresh sink",
+      "status": "unexpected",
+      "results": [
+        {
+          "status": "failed",
+          "duration": 15869,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0.01\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0.01\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n    at /Users/jay/Documents/warpdiff/tests/safari-preview-output.spec.ts:211:93",
+            "location": {
+              "file": "/Users/jay/Documents/warpdiff/tests/safari-preview-output.spec.ts",
+              "column": 93,
+              "line": 211
+            },
+            "snippet": "  209 |   })).toBe(true);\n  210 |   await meter(page);\n> 211 |   expect(await sweep(page, (await page.locator('#videoProgressContainer').boundingBox())!)).toBeGreaterThan(.01);\n      |                                                                                             ^\n  212 |   await page.mouse.up();\n  213 | });\n  214 |"
+          },
+          "attachments": [
+            {
+              "name": "screenshot",
+              "contentType": "image/png",
+              "path": "/tmp/warpdiff-interim-review-20261012/verified-results/safari-preview-output-clea-7aaed-cement-creates-a-fresh-sink-chromium/test-failed-1.png"
+            },
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/tmp/warpdiff-interim-review-20261012/verified-results/safari-preview-output-clea-7aaed-cement-creates-a-fresh-sink-chromium/error-context.md"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "shows warning toast for timestamp collision",
+      "status": "skipped",
+      "results": [
+        {
+          "status": "skipped",
+          "duration": 132,
+          "attachments": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "observedAt": "2026-10-11T18:03:57.437Z",
+  "response": {
+    "name": "main",
+    "commit": {
+      "sha": "75eb81f701de89628d432148c46dac87b18f0d98",
+      "node_id": "C_kwDORRCy7NoAKDc1ZWI4MWY3MDFkZTg5NjI4ZDQzMjE0OGM0NmRhYzg3YjE4ZjBkOTg",
+      "commit": {
+        "author": {
+          "name": "jayriddle",
+          "email": "59747358+jayriddle@users.noreply.github.com",
+          "date": "2026-10-11T04:41:59Z"
+        },
+        "committer": {
+          "name": "jayriddle",
+          "email": "59747358+jayriddle@users.noreply.github.com",
+          "date": "2026-10-11T04:41:59Z"
+        },
+        "message": "Record info bar review merge and publication receipts",
+        "tree": {
+          "sha": "356066868ac3e037921057cc002df51422066e70",
+          "url": "https://api.github.com/repos/jayriddle/warpdiff/git/trees/356066868ac3e037921057cc002df51422066e70"
+        },
+        "url": "https://api.github.com/repos/jayriddle/warpdiff/git/commits/75eb81f701de89628d432148c46dac87b18f0d98",
+        "comment_count": 0,
+        "verification": {
+          "verified": false,
+          "reason": "unsigned",
+          "signature": null,
+          "payload": null,
+          "verified_at": null
+        }
+      },
+      "url": "https://api.github.com/repos/jayriddle/warpdiff/commits/75eb81f701de89628d432148c46dac87b18f0d98",
+      "html_url": "https://github.com/jayriddle/warpdiff/commit/75eb81f701de89628d432148c46dac87b18f0d98",
+      "comments_url": "https://api.github.com/repos/jayriddle/warpdiff/commits/75eb81f701de89628d432148c46dac87b18f0d98/comments",
+      "author": {
+        "login": "jayriddle",
+        "id": 59747358,
+        "node_id": "MDQ6VXNlcjU5NzQ3MzU4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/59747358?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/jayriddle",
+        "html_url": "https://github.com/jayriddle",
+        "followers_url": "https://api.github.com/users/jayriddle/followers",
+        "following_url": "https://api.github.com/users/jayriddle/following{/other_user}",
+        "gists_url": "https://api.github.com/users/jayriddle/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/jayriddle/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/jayriddle/subscriptions",
+        "organizations_url": "https://api.github.com/users/jayriddle/orgs",
+        "repos_url": "https://api.github.com/users/jayriddle/repos",
+        "events_url": "https://api.github.com/users/jayriddle/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/jayriddle/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "committer": {
+        "login": "jayriddle",
+        "id": 59747358,
+        "node_id": "MDQ6VXNlcjU5NzQ3MzU4",
+        "avatar_url": "https://avatars.githubusercontent.com/u/59747358?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/jayriddle",
+        "html_url": "https://github.com/jayriddle",
+        "followers_url": "https://api.github.com/users/jayriddle/followers",
+        "following_url": "https://api.github.com/users/jayriddle/following{/other_user}",
+        "gists_url": "https://api.github.com/users/jayriddle/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/jayriddle/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/jayriddle/subscriptions",
+        "organizations_url": "https://api.github.com/users/jayriddle/orgs",
+        "repos_url": "https://api.github.com/users/jayriddle/repos",
+        "events_url": "https://api.github.com/users/jayriddle/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/jayriddle/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      },
+      "parents": [
+        {
+          "sha": "4620317a1da797d302bb342ba2e29cb1e56d424c",
+          "url": "https://api.github.com/repos/jayriddle/warpdiff/commits/4620317a1da797d302bb342ba2e29cb1e56d424c",
+          "html_url": "https://github.com/jayriddle/warpdiff/commit/4620317a1da797d302bb342ba2e29cb1e56d424c"
+        }
+      ]
+    },
+    "_links": {
+      "self": "https://api.github.com/repos/jayriddle/warpdiff/branches/main",
+      "html": "https://github.com/jayriddle/warpdiff/tree/main"
+    },
+    "protected": false,
+    "protection": {
+      "enabled": false,
+      "required_status_checks": {
+        "enforcement_level": "off",
+        "contexts": [],
+        "checks": []
+      }
+    },
+    "protection_url": "https://api.github.com/repos/jayriddle/warpdiff/branches/main/protection"
+  }
+}

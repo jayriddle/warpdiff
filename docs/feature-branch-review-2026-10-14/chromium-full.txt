@@ -1,0 +1,97 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --project=chromium --workers=1 --retries=0
+(node:17226) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 433 tests using 1 worker
+
+(node:17230) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17230) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:17230) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓    1 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 759x599 as narrow-short once per ready review (345ms)
+  ✓    2 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 759x600 as narrow-tall once per ready review (302ms)
+  ✓    3 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 760x599 as medium-short once per ready review (304ms)
+  ✓    4 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1199x600 as medium-tall once per ready review (292ms)
+  ✓    5 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1200x599 as wide-short once per ready review (296ms)
+  ✓    6 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1200x600 as wide-tall once per ready review (398ms)
+  ✓    7 [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 960x900 as medium-tall once per ready review (300ms)
+  ✓    8 [chromium] › tests/appearance-usage.spec.ts:52:5 › scope-3 Yes cannot collect working space; renewal does not replay its review (532ms)
+  ✓    9 [chromium] › tests/appearance-usage.spec.ts:70:5 › privacy remains reachable after loading media in a narrow window (439ms)
+  ✓   10 [chromium] › tests/appearance-usage.spec.ts:103:5 › themes persist independently of consent and never change media rendering (630ms)
+  ✓   11 [chromium] › tests/appearance-usage.spec.ts:125:5 › no request before consent, No persists, later Yes counts only new comparisons (638ms)
+  ✓   12 [chromium] › tests/appearance-usage.spec.ts:148:5 › new loads count once each; duplicate readiness and layout changes do not (291ms)
+  ✓   13 [chromium] › tests/appearance-usage.spec.ts:168:5 › single files count as reviews; failed sets and stale readiness do not (382ms)
+  ✓   14 [chromium] › tests/appearance-usage.spec.ts:182:5 › audio and video readiness produce type-specific comparison counts (1.2s)
+  ✓   15 [chromium] › tests/appearance-usage.spec.ts:193:5 › offline comparisons are dropped and not replayed on reconnect (276ms)
+  ✓   16 [chromium] › tests/appearance-usage.spec.ts:206:5 › blocked collector never blocks review or clearing (281ms)
+  ✓   17 [chromium] › tests/appearance-usage.spec.ts:219:5 › revoking in another tab stops reporting; clearing preferences withdraws consent (545ms)
+  ✓   18 [chromium] › tests/appearance-usage.spec.ts:236:5 › local test consent does not enable production or ordinary localhost reporting (364ms)
+  ✓   19 [chromium] › tests/appearance-usage.spec.ts:251:5 › embedded local tests do not collect usage even with a saved Yes (313ms)
+  ✓   20 [chromium] › tests/appearance-usage.spec.ts:264:5 › reduced motion is static; panel works at narrow widths and with keyboard (236ms)
+  ✓   21 [chromium] › tests/appearance-usage.spec.ts:281:5 › turning sharing off cancels an in-flight request without retrying (408ms)
+  ✓   22 [chromium] › tests/appearance-usage.spec.ts:304:5 › host negotiation aborts an in-flight standalone request and permanently retires reporting (331ms)
+  ✓   23 [chromium] › tests/appearance-usage.spec.ts:329:5 › corrupt consent fails closed and invalid appearance falls back to Original (273ms)
+  ✓   24 [chromium] › tests/appearance-usage.spec.ts:340:5 › Starfield is selected visibly, stops when hidden or reduced, and resumes (443ms)
+  ✓   25 [chromium] › tests/appearance-usage.spec.ts:374:5 › Solar planes stay fixed while bodies follow their ellipses at desktop and mobile sizes (271ms)
+  ✓   26 [chromium] › tests/appearance-usage.spec.ts:418:5 › legacy starfield migrates once and X no longer changes the appearance (356ms)
+  ✓   27 [chromium] › tests/appearance-usage.spec.ts:435:5 › Nebula moves only while visible and keeps a still galaxy with reduced motion (2.9s)
+  ✓   28 [chromium] › tests/appearance-usage.spec.ts:507:5 › consent records the accepted scope and time locally, and survives ordinary reloads (325ms)
+  ✓   29 [chromium] › tests/appearance-usage.spec.ts:523:5 › legacy, mismatched and incomplete Yes records cannot authorize reporting or replay (863ms)
+  ✓   30 [chromium] › tests/appearance-usage.spec.ts:549:5 › No remains off without renewed prompting across legacy and changed scopes (571ms)
+  ✓   31 [chromium] › tests/appearance-usage.spec.ts:564:5 › a mismatched consent scope from another tab pauses an already open reporting tab (372ms)
+  ✓   32 [chromium] › tests/appearance-usage.spec.ts:580:7 › consent scope changes between actual script revisions › scope upgrades and downgrades fail closed; fresh consent resumes at the new scope (630ms)
+  ✓   33 [chromium] › tests/appearance-usage.spec.ts:616:5 › feature adoption counts deliberate actions once per ready review, not restored layout (684ms)
+  ✓   34 [chromium] › tests/appearance-usage.spec.ts:647:5 › scrub counts completed drags, surfaces and threshold crossings, excluding click, loop and cancellation (2.0s)
+  ✓   35 [chromium] › tests/appearance-usage.spec.ts:685:5 › video timeline scrubbing and opening combined audio graphs have distinct counts (442ms)
+  ✓   36 [chromium] › tests/appearance-usage.spec.ts:702:5 › broken media counts one failed load without recording the filename or a ready review (241ms)
+  ✓   37 [chromium] › tests/appearance-usage.spec.ts:714:5 › blocked analysis worker counts a successful fallback; terminal analysis failure is separate (1.5s)
+  ✓   38 [chromium] › tests/appearance-usage.spec.ts:731:5 › pending diagnostic tickets cannot cross clear, consent withdrawal or offline boundaries (406ms)
+  ✓   39 [chromium] › tests/appearance-usage.spec.ts:750:5 › preview preparation reports reduced quality and unavailability as separate fixed outcomes (1.9s)
+  ✓   40 [chromium] › tests/appearance-usage.spec.ts:764:5 › unavailable Continuous processor uses short previews and reports one fallback per load (1.1s)
+  ✓   41 [chromium] › tests/appearance-usage.spec.ts:781:5 › readiness waits for every slot and cannot revive an incomplete pre-consent load (224ms)
+  ✓   42 [chromium] › tests/appearance-usage.spec.ts:795:5 › sharing appears first and the provider is accessible through expandable details (262ms)
+  ✓   43 [chromium] › tests/appearance-usage.spec.ts:816:5 › continuing without answering quietly retires the invitation without recording consent or reporting (442ms)
+  ✓   44 [chromium] › tests/appearance-usage.spec.ts:841:5 › quiet dismissal follows other tabs; clearing its local preference permits an invitation again (320ms)
+  ✓   45 [chromium] › tests/appearance-usage.spec.ts:855:5 › ignored scope review stays off across reloads without silently updating the old Yes (300ms)
+  ✓   46 [chromium] › tests/appearance-usage.spec.ts:873:5 › dismissal write failure still suppresses this page and never enables sharing (294ms)
+  ✓   47 [chromium] › tests/audio-analysis.spec.ts:6:5 › background analysis preserves every value and source channel while animation continues (1.9s)
+  ✓   48 [chromium] › tests/audio-analysis.spec.ts:57:7 › analysis clear cancels obsolete work and leaves the queue usable (163ms)
+  ✓   49 [chromium] › tests/audio-analysis.spec.ts:57:7 › analysis supersede cancels obsolete work and leaves the queue usable (163ms)
+  ✓   50 [chromium] › tests/audio-analysis.spec.ts:89:5 › blocked workers retain the original analysis compatibility path (155ms)
+  ✓   51 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid (256ms)
+  ✓   52 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid (1.6s)
+  ✓   53 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51_aac.mp4 in Stack and Grid (254ms)
+  ✓   54 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid (339ms)
+  ✓   55 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: landscape_a.mp4 in Stack and Grid (331ms)
+  ✓   56 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: vorbis_a.webm in Stack and Grid (255ms)
+  ✓   57 [chromium] › tests/audio-format.spec.ts:47:5 › source format clears on reload and ignores a stale decode completion (319ms)
+  ✓   58 [chromium] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded (264ms)
+  ✓   59 [chromium] › tests/audio-format.spec.ts:85:5 › source labels remain hoverable beside metrics in a narrow two-video Grid (2.9s)
+  ✓   60 [chromium] › tests/audio-viz-reset.spec.ts:57:7 › replacement clears old audio pixels with the panel open (2.0s)
+  ✓   61 [chromium] › tests/audio-viz-reset.spec.ts:57:7 › replacement clears old audio pixels with the panel closed (2.3s)
+  ✓   62 [chromium] › tests/audio-viz-reset.spec.ts:84:5 › a superseded analysis cannot repaint the new comparison (1.4s)
+  ✓   63 [chromium] › tests/continuous-scrub.spec.ts:5:38 › the selected scrub engine keeps forward slow dialogue near its original volume (343ms)
+  ✓   64 [chromium] › tests/continuous-scrub.spec.ts:5:38 › the selected scrub engine keeps reverse slow dialogue near its original volume (286ms)
+  ✘   65 [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream (4.5s)
+(node:17357) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17357) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:17357) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   66 [chromium] › tests/continuous-scrub.spec.ts:126:5 › old snippet preferences are ignored and failed loading retains click and drag previews (2.2s)
+  ✓   67 [chromium] › tests/continuous-scrub.spec.ts:162:44 › Grid source changes retain only the selected continuous buffer and clear pending work at 44100 Hz (2.6s)
+  ✓   68 [chromium] › tests/continuous-scrub.spec.ts:162:44 › Grid source changes retain only the selected continuous buffer and clear pending work at 48000 Hz (2.7s)
+  ✘   69 [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch native: center and background controls preserve source and clocks (6.8s)
+(node:17427) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17427) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:17427) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   70 [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch continuous: center and background controls preserve source and clocks (6.7s)
+(node:17460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17460) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:17460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

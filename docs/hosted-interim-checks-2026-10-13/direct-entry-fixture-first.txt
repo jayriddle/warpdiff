@@ -1,0 +1,51 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/scrub-pitch.spec.ts --project=chromium --workers=1 --retries=0
+(node:99369) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:99372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99372) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:99372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed (221ms)
+  ✓  2 [chromium] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.4s)
+  ✘  3 [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed (1.5s)
+(node:99602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99602) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:99602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 [chromium] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed (4.4s)
+
+
+  1) [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+
+    Error: expect(received).toHaveLength(expected)
+
+    Expected length: 0
+    Received length: 1
+    Received array:  [{"rate": 1, "time": 0}]
+
+      133 |       // must emit grains; every grain emitted by either path must retain pitch.
+      134 |       if(fallback)expect(active.grains.length).toBeGreaterThan(0);
+    > 135 |       if(mode==='direct')expect(active.grains).toHaveLength(0);
+          |                                                ^
+      136 |       expect(active.grains.every((g:any)=>g.rate===1)).toBe(true);
+      137 |       expect(active.continuous).toBe(!fallback);
+      138 |       if(!fallback)expect(active.direction).toBe(direction);
+        at /Users/jay/Documents/warpdiff/tests/scrub-pitch.spec.ts:135:48
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/scrub-pitch-direct-Continu-3ebf7-out-changing-playback-speed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/scrub-pitch-direct-Continu-3ebf7-out-changing-playback-speed-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+  3 passed (1.2m)

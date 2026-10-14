@@ -1,0 +1,21 @@
+The first metadata verifier failed while parsing the output of:
+
+npm pkg get license private
+
+It assumed that npm's default output was JSON. npm 12.0.2 instead returned text beginning with:
+
+license = 'UNLICENSED'
+
+The recorded error was:
+
+SyntaxError: Unexpected token 'l', "license = "... is not valid JSON
+    at JSON.parse (<anonymous>)
+    at file:///Users/jay/Documents/warpdiff/[eval1]:45:26
+
+Node.js v26.4.0
+
+The verifier exited 1 before writing verification.json. This did not indicate a repository metadata defect. The corrected invocation explicitly requests JSON:
+
+npm pkg get license private --json
+
+That read returned { "license": "UNLICENSED", "private": true }. The complete corrected verifier was then rerun, with its individual results saved in verification.json.

@@ -1,0 +1,48 @@
+{
+  "completeChromium": {
+    "passed": 413,
+    "skipped": 1,
+    "failed": 0,
+    "retries": 0,
+    "workers": 1,
+    "elapsed": "5.8m"
+  },
+  "ownership": {
+    "passed": 525,
+    "failed": 0
+  },
+  "focusedChromiumBeforeFinalSurroundCheck": {
+    "passed": 33,
+    "failed": 0,
+    "retries": 0,
+    "workers": 1
+  },
+  "focusedWebkitWorkflow": {
+    "passed": 26,
+    "failed": 0,
+    "retries": 0,
+    "workers": 1,
+    "elapsed": "9.4s"
+  },
+  "broaderWebkit": {
+    "passed": 31,
+    "failed": 2,
+    "retries": 0,
+    "workers": 1,
+    "elapsed": "2.2m",
+    "remainingFailures": [
+      "7.1 FLAC listening buffer not available",
+      "two surround FLAC listening buffers not available"
+    ]
+  },
+  "runtimeAndTestsUnchangedDuringFinalCompleteRun": true,
+  "originalCodeLicenseChanged": false,
+  "pushed": false,
+  "published": false,
+  "tools": {
+    "node": "v26.4.0",
+    "npm": "12.0.2",
+    "playwright": "1.58.2",
+    "nativeFfmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "browser": "145.0.7632.6",
+  "reports": [
+    {
+      "name": "desktop",
+      "panel": {
+        "x": 848,
+        "y": 48,
+        "width": 420,
+        "height": 423
+      },
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "scrollWidth": 1280,
+      "loadButton": {
+        "x": 865,
+        "y": 427,
+        "width": 140.125,
+        "height": 31
+      },
+      "note": "WarpDiff does not convert audio in the browser. With FFmpeg installed separately, run the copied command in a macOS or Linux terminal from the folder containing the original file. The command makes a stereo AAC copy and pads a short soundtrack to retain the complete video; keep the original for multichannel or original-source measurements. Then use Load (L) or drag and drop to load the _aac output together with the other files in your comparison. Loading files starts a new comparison.",
+      "version": "v3.19.1",
+      "fits": true,
+      "errors": [],
+      "engineRequests": []
+    },
+    {
+      "name": "mobile",
+      "panel": {
+        "x": 12,
+        "y": 48,
+        "width": 366,
+        "height": 454
+      },
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "scrollWidth": 390,
+      "loadButton": {
+        "x": 29,
+        "y": 458,
+        "width": 140.125,
+        "height": 31
+      },
+      "note": "WarpDiff does not convert audio in the browser. With FFmpeg installed separately, run the copied command in a macOS or Linux terminal from the folder containing the original file. The command makes a stereo AAC copy and pads a short soundtrack to retain the complete video; keep the original for multichannel or original-source measurements. Then use Load (L) or drag and drop to load the _aac output together with the other files in your comparison. Loading files starts a new comparison.",
+      "version": "v3.19.1",
+      "fits": true,
+      "errors": [],
+      "engineRequests": []
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+{
+  "recorded_at": "2026-10-11T21:35:00.129Z",
+  "branch": "codex/safe-ffmpeg-command",
+  "head": "e1ceab171cef487cad9fd50fa1f278c0ad2fe2b2",
+  "local_main": "75eb81f701de89628d432148c46dac87b18f0d98",
+  "origin_main": "75eb81f701de89628d432148c46dac87b18f0d98",
+  "github_main": {
+    "ref": "refs/heads/main",
+    "sha": "75eb81f701de89628d432148c46dac87b18f0d98"
+  },
+  "pages": {
+    "build_type": "legacy",
+    "html_url": "https://jayriddle.github.io/warpdiff/",
+    "source": {
+      "branch": "main",
+      "path": "/"
+    },
+    "status": "built"
+  },
+  "current_branch_commits": [
+    {
+      "sha": "e1ceab171cef487cad9fd50fa1f278c0ad2fe2b2",
+      "authored_at": "2026-10-11T12:07:49-06:00",
+      "subject": "Record default branch migration from master to main"
+    },
+    {
+      "sha": "62667591d1f609274ff9a00f17e0010434d309ae",
+      "authored_at": "2026-10-11T11:51:33-06:00",
+      "subject": "Preserve FFmpeg basenames and handle command copy failures"
+    },
+    {
+      "sha": "f7ee15e7b1d516fc7be40534a9d9277c2848b501",
+      "authored_at": "2026-10-10T23:14:59-06:00",
+      "subject": "Quote copied FFmpeg commands as literal POSIX paths"
+    }
+  ],
+  "local_only_branch_commits": [
+    {
+      "sha": "e1ceab171cef487cad9fd50fa1f278c0ad2fe2b2",
+      "authored_at": "2026-10-11T12:07:49-06:00",
+      "subject": "Record default branch migration from master to main"
+    },
+    {
+      "sha": "62667591d1f609274ff9a00f17e0010434d309ae",
+      "authored_at": "2026-10-11T11:51:33-06:00",
+      "subject": "Preserve FFmpeg basenames and handle command copy failures"
+    },
+    {
+      "sha": "f7ee15e7b1d516fc7be40534a9d9277c2848b501",
+      "authored_at": "2026-10-10T23:14:59-06:00",
+      "subject": "Quote copied FFmpeg commands as literal POSIX paths"
+    },
+    {
+      "sha": "a0ffc6eff1d800e2335e23d78347944a912d57b5",
+      "authored_at": "2026-09-07T19:09:11-07:00",
+      "subject": "harden host command catalog lifecycle"
+    },
+    {
+      "sha": "e1dee8211e301dca78f3da9b3751d1b4366e5061",
+      "authored_at": "2026-09-07T15:54:42-07:00",
+      "subject": "publish read-only host command metadata"
+    },
+    {
+      "sha": "12ae7cb54b055f52cb39b690672f7210c1719b51",
+      "authored_at": "2026-05-06T05:53:01Z",
+      "subject": "Add postmortem for scrub-proxy spike (feat/scrub-proxy, deleted)"
+    },
+    {
+      "sha": "a2fb6b313468eb7bf502f738701e989444db6515",
+      "authored_at": "2026-04-17T23:35:50-07:00",
+      "subject": "Fix stale Grid layout after tab switch or BFCache restore"
+    },
+    {
+      "sha": "4caf685e8f7c3aa4f331d30f720fc02d00982eb1",
+      "authored_at": "2026-04-17T23:22:22-07:00",
+      "subject": "feat: add basic audio loudness and true peak metrics analysis"
+    }
+  ],
+  "local_branches": [
+    {
+      "name": "claude/brave-jackson",
+      "sha": "d862ab58fa36a491449740b30e93f06f3e092925",
+      "upstream": "origin/claude/brave-jackson",
+      "tracking": ""
+    },
+    {
+      "name": "claude/eager-elgamal-d83f0d",
+      "sha": "c923a89dfb807f9137afae4e41fb51e62ba5c6b3",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "claude/elastic-albattani-f3663f",
+      "sha": "12ae7cb54b055f52cb39b690672f7210c1719b51",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "claude/ownership-hardening",
+      "sha": "30ff3910c94e681b27dd040b6e7761d5755a7b4d",
+      "upstream": "origin/claude/ownership-hardening",
+      "tracking": ""
+    },
+    {
+      "name": "claude/synced-video-looping-gtn4qg",
+      "sha": "94c3bc519f4c80db5ac7387fb8ec4d85d5d36644",
+      "upstream": "origin/claude/synced-video-looping-gtn4qg",
+      "tracking": ""
+    },
+    {
+      "name": "codex/host-command-catalog-backport",
+      "sha": "a0ffc6eff1d800e2335e23d78347944a912d57b5",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "codex/safe-ffmpeg-command",
+      "sha": "e1ceab171cef487cad9fd50fa1f278c0ad2fe2b2",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "codex/shared-scrub",
+      "sha": "75eb81f701de89628d432148c46dac87b18f0d98",
+      "upstream": "origin/codex/shared-scrub",
+      "tracking": ""
+    },
+    {
+      "name": "docs/post-extraction-architecture",
+      "sha": "647ac866fa9583af588adbc73ad0c40c75d6e2dc",
+      "upstream": "origin/docs/post-extraction-architecture",
+      "tracking": ""
+    },
+    {
+      "name": "docs/readme-refresh",
+      "sha": "98c4f68af10cea6898b24c2182fd4674e229b4fd",
+      "upstream": "origin/docs/readme-refresh",
+      "tracking": ""
+    },
+    {
+      "name": "feat/spectro-inferno-and-border",
+      "sha": "baeda106a9b9bf97da7a292c241185cef622ff86",
+      "upstream": "origin/feat/spectro-inferno-and-border",
+      "tracking": ""
+    },
+    {
+      "name": "feature/analysis-tools",
+      "sha": "f2ac0ffaa4fc44017ee3b33e26c71b6f55fd6fdf",
+      "upstream": "origin/feature/analysis-tools",
+      "tracking": ""
+    },
+    {
+      "name": "feature/content-alignment",
+      "sha": "0c3f558e59c0841b34cbcf82d7a8021df774ad6c",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "feature/ebu-r128",
+      "sha": "6dd9773e4a414b15c5d4960392f26183fc7db55d",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "feature/ffmpeg-transcode",
+      "sha": "45476b6ccaf52bafee99e3a088f203c9054ff736",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "feature/hotkey-reassignment",
+      "sha": "85bf2e0e079ac6915fbe173f160f7d61322e95c5",
+      "upstream": "origin/feature/hotkey-reassignment",
+      "tracking": ""
+    },
+    {
+      "name": "feature/image-rotation",
+      "sha": "1ff29413b15502c79c3b538a4bc272d6e4304197",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "feature/loudness-metrics",
+      "sha": "a2fb6b313468eb7bf502f738701e989444db6515",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "feature/pwa",
+      "sha": "7739f1cb7b4facf48a834a9994eca362d81cec6e",
+      "upstream": "origin/feature/pwa",
+      "tracking": ""
+    },
+    {
+      "name": "feature/rating-panel",
+      "sha": "255ae94d623a635c02ef855411a2124e5afa8b51",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "fix/audioviz-layout-hardening",
+      "sha": "b99149956baf62d7b80e201bffd355dbc46280fd",
+      "upstream": "origin/fix/audioviz-layout-hardening",
+      "tracking": ""
+    },
+    {
+      "name": "fix/grid-vertical-equal-area",
+      "sha": "a8ffb53b93a2a8cdd06da580765fbcf92b78209d",
+      "upstream": "origin/fix/grid-vertical-equal-area",
+      "tracking": ""
+    },
+    {
+      "name": "fix/spectro-coloring",
+      "sha": "cb35f8d2bf51527a519707dc9921bddcaead12a8",
+      "upstream": "origin/fix/spectro-coloring",
+      "tracking": ""
+    },
+    {
+      "name": "grok",
+      "sha": "dfba762127c80b06d8792284fa89c6c2f6838026",
+      "upstream": "",
+      "tracking": ""
+    },
+    {
+      "name": "layout-refactor",
+      "sha": "761021e7d5fceb60a87103ae7c3bde09e251c958",
+      "upstream": "origin/layout-refactor",
+      "tracking": ""
+    },
+    {
+      "name": "main",
+      "sha": "75eb81f701de89628d432148c46dac87b18f0d98",
+      "upstream": "origin/main",
+      "tracking": ""
+    },
+    {
+      "name": "refactor/layout-engine",
+      "sha": "0160435890f685edde4710dc9f1e20b82db44888"
+    }
+  ],
+  "stashes": [
+    {
+      "name": "stash@{0}",
+      "sha": "de525b2a22f03d436bae2c9881483d7cce71fdd7",
+      "subject": "WIP on master: 86c3031 v3.8.4: in-browser FFmpeg transcode assist for unsupported audio codecs"
+    },
+    {
+      "name": "stash@{1}",
+      "sha": "c04062cc7e5703159c36114310c9660b8e08b26d",
+      "subject": "On master: Content alignment feature (align.js, A key, phase-correlation scale search)"
+    },
+    {
+      "name": "stash@{2}",
+      "sha": "8d25efe9370134188cf03fc9df42dfba36a8d01f",
+      "subject": "WIP on master: e98a930 Bump to v3.6 with BPM detection, single-file mode, audio loop fix"
+    }
+  ],
+  "older_branch_patch_equivalence": {
+    "host_command_catalog": [
+      {
+        "patch_equivalent_to_main": true,
+        "sha": "e1dee8211e301dca78f3da9b3751d1b4366e5061",
+        "subject": "publish read-only host command metadata"
+      },
+      {
+        "patch_equivalent_to_main": false,
+        "sha": "a0ffc6eff1d800e2335e23d78347944a912d57b5",
+        "subject": "harden host command catalog lifecycle"
+      }
+    ],
+    "scrub_proxy_postmortem": [
+      {
+        "patch_equivalent_to_main": false,
+        "sha": "12ae7cb54b055f52cb39b690672f7210c1719b51",
+        "subject": "Add postmortem for scrub-proxy spike (feat/scrub-proxy, deleted)"
+      }
+    ],
+    "loudness_metrics": [
+      {
+        "patch_equivalent_to_main": false,
+        "sha": "4caf685e8f7c3aa4f331d30f720fc02d00982eb1",
+        "subject": "feat: add basic audio loudness and true peak metrics analysis"
+      },
+      {
+        "patch_equivalent_to_main": false,
+        "sha": "a2fb6b313468eb7bf502f738701e989444db6515",
+        "subject": "Fix stale Grid layout after tab switch or BFCache restore"
+      }
+    ]
+  },
+  "pending_tracked_files": [
+    "README.md",
+    "package-lock.json",
+    "package.json"
+  ],
+  "license_metadata": {
+    "license": "UNLICENSED",
+    "private": true
+  },
+  "runtime_changes_relative_to_local_review_head": "",
+  "app_version": "3.19.0",
+  "cache_name": "warpdiff-v3.19.0",
+  "evidence_basis": {
+    "command_review": "../command-quoting-review-2026-10-11/README.md",
+    "command_full_browser_log": "../command-quoting-review-2026-10-11/full-final.txt",
+    "license_metadata_receipt": "../license-metadata-2026-10-11/verification.json",
+    "latest_ownership_log": "../license-metadata-2026-10-11/ownership.txt"
+  },
+  "new_browser_run_performed": false,
+  "new_commit_performed": false,
+  "push_merge_or_publication_performed": false
+}

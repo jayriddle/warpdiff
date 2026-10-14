@@ -326,8 +326,9 @@ function extractFn(name, src = SRC) {
   // explicitly owned namespace and runtime allowlist.
   check('service-worker: registration is top-level-only',
         /if \(!_inIframe && 'serviceWorker' in navigator\)/.test(HTML));
-  check('service-worker: activation deletes only WarpDiff version caches',
-        /keys\.filter\(k => k\.startsWith\('warpdiff-v'\) && k !== CACHE_NAME\)/.test(SW));
+  check('service-worker: activation retires app versions and the exact legacy FFmpeg cache',
+        SW.includes("k.startsWith('warpdiff-v') && k !== CACHE_NAME") &&
+        SW.includes("k === 'warpdiff-ffmpeg'"));
   check('service-worker: fetch caching is restricted to the explicit runtime allowlist',
         SW.includes('RUNTIME_URLS.has(url.href)') && !SW.includes("if (url.origin !== self.location.origin) return;"));
 
@@ -486,42 +487,24 @@ function extractFn(name, src = SRC) {
   }
 }
 
-// A host that omits the large local FFmpeg bundle declares that capability in
-// WARPDIFF_LOAD. The upstream contract must remain honest without assuming all
-// iframes have the same packaging, and must guard every runtime entry point.
+// External preparation ships no browser FFmpeg runtime. Clipboard results
+// remain tied to the current command, even though conversion jobs are gone.
 {
-  const register = extractFn('_registerFfmpegCommand');
-  const load = extractFn('_loadFfmpeg');
-  const transcode = extractFn('_transcodeSlot');
-  const transcodeRun = extractFn('_transcodeSlotRun');
-  const finalize = extractFn('_finalizeAudioViz');
-  const updateToast = extractFn('_updateTranscodeToast');
-  const hostBegin = extractFn('_hostLoadBegin');
-  check('one-owner[host-capability]: WARPDIFF_LOAD explicitly owns FFmpeg availability',
-        hostBegin.includes('capabilities.ffmpegTranscode === false') &&
-        countOf(SRC, 'function _ffmpegTranscodeAvailable(') === 1);
-  check('one-owner[embedded-ffmpeg]: registration reports declared unavailability instead of auto-starting',
-        register.includes('if (!_ffmpegTranscodeAvailable())') &&
-        register.indexOf('if (!_ffmpegTranscodeAvailable())') < register.indexOf('_transcodeSlot(slot)'));
-  check('one-owner[embedded-ffmpeg]: loader rejects unavailable use before any runtime work',
-        load.indexOf('if (!_ffmpegTranscodeAvailable())') < load.indexOf('_ffmpegLoadingPromise'));
-  check('one-owner[embedded-ffmpeg]: transcode entry point independently guards declared unavailability',
-        transcode.includes('if (!_ffmpegTranscodeAvailable())') && transcode.includes("phase: 'unavailable'"));
   const clear = extractFn('clearAllMedia');
-  check('one-owner[ffmpeg-load-state]: clear invalidates command identity and removes per-load UI state',
-        clear.includes('_ffmpegLoadEpoch += 1') && clear.includes('_ffmpegCommands = {}') &&
-        clear.includes('_ffmpegTranscoding = {}') && clear.includes('_ffmpegQueue = []'));
-  check('one-owner[ffmpeg-load-state]: async preparation rechecks command identity before starting ff.run',
-        transcodeRun.indexOf('const inputData = await fetchFile(srcFile)') <
-          transcodeRun.indexOf('if (!_ffmpegCommandIsCurrent(slot, info)) return', transcodeRun.indexOf('const inputData = await fetchFile(srcFile)')) &&
-        transcodeRun.indexOf('if (!_ffmpegCommandIsCurrent(slot, info)) {', transcodeRun.indexOf('requestAnimationFrame')) <
-          transcodeRun.indexOf('await ff.run(...ffArgs)'));
-  check('one-owner[ffmpeg-load-state]: delayed done cleanup is epoch- and identity-scoped',
-        finalize.includes('doneState.loadEpoch === _ffmpegLoadEpoch') &&
-        finalize.includes('_ffmpegTranscoding[slot] === doneState'));
-  check('one-owner[ffmpeg-load-state]: delayed toast paint is epoch- and identity-scoped',
-        updateToast.includes('renderEpoch !== _ffmpegLoadEpoch') &&
-        updateToast.includes('_ffmpegTranscoding[slot] !== state'));
+  const copy = extractFn('_copyFfmpegCmd');
+  const hostBegin = extractFn('_hostLoadBegin');
+  check('one-owner[external-audio]: no browser conversion entry points remain',
+    !SRC.includes('function _loadFfmpeg(') && !SRC.includes('function _transcodeSlot(') &&
+    !SRC.includes('function _applyTranscodedFile(') && !SRC.includes('window.FFmpeg'));
+  check('one-owner[external-audio]: host cannot enable a removed converter',
+    hostBegin.includes('ffmpegTranscode: false') && !hostBegin.includes('capabilities.ffmpegTranscode'));
+  check('one-owner[external-audio]: clear retires commands and preparation UI',
+    clear.includes('_ffmpegLoadEpoch += 1') && clear.includes('_ffmpegCommands = {}') &&
+    clear.includes('_setFfmpegPanelOpen(false)'));
+  check('one-owner[external-audio]: clipboard owner fences unsafe and retired commands',
+    copy.includes('!info.cmd') && copy.includes('_ffmpegCommandIsCurrent(slot, info)') && copy.includes('btn.isConnected'));
+  check('one-owner[external-audio]: panel open/close has one owner',
+    countOf(SRC, 'function _setFfmpegPanelOpen(') === 1);
 }
 
 // Every video-audio terminal path — success OR failure — must prove it still
@@ -543,13 +526,13 @@ function extractFn(name, src = SRC) {
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&
         webcodecsFinished.indexOf('if (!_videoAudioDecodeIsCurrent(slot, gen)) return') <
-          webcodecsFinished.indexOf("showToast('Audio decoded'"));
+          webcodecsFinished.indexOf('showToast('));
   check('one-owner[decode-current]: clear removes load-scoped WebCodecs pending identities',
         extractFn('clearAllMedia').includes('_webcodecsPending.clear()'));
 }
 
 // (F) Decode pipeline ownership: each decode function has exactly one definition,
-//     _onAllDecodeFailed is the sole decode-failure → transcode router, and the
+//     _onAllDecodeFailed is the sole decode-failure → external-preparation router, and the
 //     pipeline lives in js/audio-decode.js (index.html keeps only pointers + call
 //     sites). Locks in the step-3 extraction.
 {
@@ -2109,10 +2092,9 @@ function extractFn(name, src = SRC) {
   check('one-owner[audio-routing]: one media-element source per element',
         countOf(SRC, '.createMediaElementSource(') === 1
         && extractFn('_prepareNativeAudio').includes('_nativeAudioRoutes.has(media)'));
-  check('one-owner[audio-routing]: selection and replacement mute use the routing owner',
+  check('one-owner[audio-routing]: selection and decoded native mute use the routing owner',
         extractFn('selectAudioSource').includes('_setNativeAudioMuted(')
-        && extractFn('_finalizeAudioViz').includes('_setNativeAudioMuted(')
-        && extractFn('_applyTranscodedFile').includes('_setNativeAudioMuted('));
+        && extractFn('_finalizeAudioViz').includes('_setNativeAudioMuted('));
   check('one-owner[audio-routing]: native source switching keeps the decoder running',
         extractFn('_setNativeAudioMuted').includes('media.muted = !!_opusSyncSlots[media.dataset.slot]')
         && !extractFn('_setNativeAudioMuted').includes('setTimeout('));

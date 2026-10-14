@@ -1,0 +1,61 @@
+(node:9605) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:9611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:9611) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:9611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] [chromium] › tests/ffmpeg-command.spec.ts:40:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+  1) [chromium] › tests/ffmpeg-command.spec.ts:40:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell › command substitution
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+    @@ -2,11 +2,11 @@
+        "-ignore_editlist",
+        "0",
+        "-fflags",
+        "+bitexact",
+        "-i",
+    -   "./clip-$(printf EXPANDED).mp4",
+    +   "clip-EXPANDED.mp4",
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0",
+        "-c:v",
+    @@ -20,7 +20,7 @@
+        "-b:a",
+        "192k",
+        "-shortest",
+        "-movflags",
+        "+faststart",
+    -   "./clip-$(printf EXPANDED)_aac.mp4",
+    +   "clip-EXPANDED_aac.mp4",
+      ]
+
+      54 |     await test.step(cases[i].label, async () => {
+      55 |       expect(commands[i].filename).toBe(cases[i].input);
+    > 56 |       expect(shellArguments(commands[i].cmd)).toEqual(expectedArguments(cases[i].input, cases[i].output));
+         |                                               ^
+      57 |     });
+      58 |   }
+      59 |   expect(await page.evaluate(() => (window as any).transcodeCalls)).toEqual(cases.map(() => 'original'));
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:56:47
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:54:16
+
+    Error Context: test-results/ffmpeg-command-copied-FFmp-6e078-names-through-a-POSIX-shell-chromium/error-context.md
+
+
+  1 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:40:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell

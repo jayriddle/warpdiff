@@ -1,0 +1,133 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/external-preparation.spec.ts --grep keyboard focus stays|adding another|unusable --workers=1 --retries=0
+(node:15747) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:15749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15749) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:15749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/external-preparation.spec.ts:99:5 › preparation keyboard focus stays in the panel until it closes (5.4s)
+(node:15821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15821) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:15821) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-download (5.3s)
+(node:15912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15912) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:15912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  3 [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-load-btn (6.4m)
+
+
+  1) [chromium] › tests/external-preparation.spec.ts:99:5 › preparation keyboard focus stays in the panel until it closes
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('dialog', { name: 'Prepare audio externally' }).getByRole('button', { name: 'Load prepared files', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'Prepare audio externally' }).getByRole('button', { name: 'Load prepared files', exact: true })
+        9 × locator resolved to <button type="button" class="fp-load-btn">Load prepared files</button>
+          - unexpected value "inactive"
+
+
+      105 |   await close.focus();
+      106 |   await page.keyboard.press('Shift+Tab');
+    > 107 |   await expect(load).toBeFocused();
+          |                      ^
+      108 |   await page.keyboard.press('Tab');
+      109 |   await expect(close).toBeFocused();
+      110 |   await page.keyboard.press('Escape');
+        at /Users/jay/Documents/warpdiff/tests/external-preparation.spec.ts:107:22
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/external-preparation-prepa-bd3a5-n-the-panel-until-it-closes-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/external-preparation-prepa-bd3a5-n-the-panel-until-it-closes-chromium/error-context.md
+
+  2) [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-download
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('#ffmpegPanel .fp-download')
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for locator('#ffmpegPanel .fp-download')
+        9 × locator resolved to <a rel="noopener" target="_blank" class="fp-download" href="https://ffmpeg.org/download.html">FFmpeg download information</a>
+          - unexpected value "inactive"
+
+
+      118 |     await page.locator('#ffmpegPanel ' + control).focus();
+      119 |     await page.evaluate(() => (window as any)._registerFfmpegCommand('editB', 'other.mp4', 'ec-3'));
+    > 120 |     await expect(page.locator('#ffmpegPanel ' + control)).toBeFocused();
+          |                                                           ^
+      121 |   });
+      122 | }
+      123 |
+        at /Users/jay/Documents/warpdiff/tests/external-preparation.spec.ts:120:59
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/external-preparation-addin-8977b-etains-focus-on-fp-download-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/external-preparation-addin-8977b-etains-focus-on-fp-download-chromium/error-context.md
+
+  3) [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-load-btn
+
+    Test timeout of 60000ms exceeded.
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  locator('#ffmpegPanel .fp-load-btn')
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" with timeout 5000ms
+      - waiting for locator('#ffmpegPanel .fp-load-btn')
+        7 × locator resolved to <button type="button" class="fp-load-btn">Load prepared files</button>
+          - unexpected value "inactive"
+
+
+      118 |     await page.locator('#ffmpegPanel ' + control).focus();
+      119 |     await page.evaluate(() => (window as any)._registerFfmpegCommand('editB', 'other.mp4', 'ec-3'));
+    > 120 |     await expect(page.locator('#ffmpegPanel ' + control)).toBeFocused();
+          |                                                           ^
+      121 |   });
+      122 | }
+      123 |
+        at /Users/jay/Documents/warpdiff/tests/external-preparation.spec.ts:120:59
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/external-preparation-addin-5b331-etains-focus-on-fp-load-btn-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/external-preparation-addin-5b331-etains-focus-on-fp-load-btn-chromium/error-context.md
+
+  3 failed
+    [chromium] › tests/external-preparation.spec.ts:99:5 › preparation keyboard focus stays in the panel until it closes
+    [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-download
+    [chromium] › tests/external-preparation.spec.ts:115:7 › adding another preparation entry retains focus on .fp-load-btn
+  1 did not run

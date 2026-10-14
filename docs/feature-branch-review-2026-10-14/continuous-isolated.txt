@@ -1,0 +1,44 @@
+
+Running 1 test using 1 worker
+
+(node:17577) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17577) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream (4.6s)
+Testing stopped early after 1 maximum allowed failures.
+
+
+  1) [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0.01
+    Received:   0
+
+       99 |     return Math.sqrt(data.reduce((s, v) => s + v*v, 0) / data.length);
+      100 |   });
+    > 101 |   expect(rms).toBeGreaterThan(0.01);
+          |               ^
+      102 |   const node = await page.evaluate(() => (window as any).eval(`(window.__scrubNode = _continuousScrubEngine.state.node, true)`));
+      103 |   expect(node).toBe(true);
+      104 |   for (let i = 54; i >= 20; i--) {
+        at /Users/jay/Documents/warpdiff/tests/continuous-scrub.spec.ts:101:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-continuous-check/continuous-scrub-continuou-66911-gue-and-releases-its-stream-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/warpdiff-oct14-continuous-check/continuous-scrub-continuou-66911-gue-and-releases-its-stream-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-continuous-check/continuous-scrub-continuou-66911-gue-and-releases-its-stream-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../tmp/warpdiff-oct14-continuous-check/continuous-scrub-continuou-66911-gue-and-releases-its-stream-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream
+  1 error was not a part of any test, see above for details

@@ -1,0 +1,98 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/scrub-pitch.spec.ts tests/scrub-cadence.spec.ts tests/continuous-scrub.spec.ts tests/full-rate-scrub.spec.ts tests/safari-preview-output.spec.ts --project=chromium --workers=1 --retries=0
+(node:88469) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 25 tests using 1 worker
+
+(node:88479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88479) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:88479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/continuous-scrub.spec.ts:4:38 › the selected scrub engine keeps forward slow dialogue near its original volume (533ms)
+  ✓   2 [chromium] › tests/continuous-scrub.spec.ts:4:38 › the selected scrub engine keeps reverse slow dialogue near its original volume (318ms)
+  ✓   3 [chromium] › tests/continuous-scrub.spec.ts:55:5 › continuous scrub is standard, retains center dialogue, and releases its stream (6.7s)
+  ✓   4 [chromium] › tests/continuous-scrub.spec.ts:125:5 › old snippet preferences are ignored and failed loading retains click and drag previews (2.2s)
+  ✓   5 [chromium] › tests/continuous-scrub.spec.ts:161:5 › Grid source changes retain only the selected continuous buffer and clear pending work (2.9s)
+  ✓   6 [chromium] › tests/full-rate-scrub.spec.ts:3:5 › video preview keeps full-rate high frequencies and stereo phase (351ms)
+  ✓   7 [chromium] › tests/full-rate-scrub.spec.ts:31:5 › surround listening folds center while both analysis views retain original inputs (337ms)
+  ✓   8 [chromium] › tests/full-rate-scrub.spec.ts:52:5 › a preview budget uses filtered, audible fallback and leaves analysis available (530ms)
+  ✓   9 [chromium] › tests/full-rate-scrub.spec.ts:103:5 › clearing during listening preparation skips queued work and fences old publication (188ms)
+  ✓  10 [chromium] › tests/safari-preview-output.spec.ts:79:7 › Continuous reaches the native stream when the direct destination is silent (3.5s)
+  ✓  11 [chromium] › tests/safari-preview-output.spec.ts:79:7 › snippet fallback reaches the native stream when the direct destination is silent (3.5s)
+  ✓  12 [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 51 preserves center listening through the Safari stream output (4.2s)
+  ✓  13 [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 51 preserves center listening through the Safari stream output (4.8s)
+  ✓  14 [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 71 preserves center listening through the Safari stream output (4.3s)
+  ✓  15 [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 71 preserves center listening through the Safari stream output (4.3s)
+  ✓  16 [chromium] › tests/safari-preview-output.spec.ts:127:5 › idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one output (8.1s)
+  ✓  17 [chromium] › tests/safari-preview-output.spec.ts:192:5 › clear during a drag ends the stream and replacement creates a fresh sink (3.9s)
+  ✓  18 [chromium] › tests/safari-preview-output.spec.ts:225:5 › loop-marker adjustment does not start a preview output (1.7s)
+  ✓  19 [chromium] › tests/safari-preview-output.spec.ts:238:5 › tab hiding settles a released fade and a stale play rejection cannot affect replacement (2.2s)
+  ✓  20 [chromium] › tests/safari-preview-output.spec.ts:268:5 › ordinary Chromium keeps its direct preview output (1.7s)
+  ✓  21 [chromium] › tests/scrub-cadence.spec.ts:4:5 › fallback keeps preview audio alive during slow motion while the picture holds a frame (7.0s)
+  ✓  22 [chromium] › tests/scrub-cadence.spec.ts:80:5 › overlapping held-frame grains retain level, channels, volume, and idle silence (218ms)
+  ✓  23 [chromium] › tests/scrub-pitch.spec.ts:7:5 › brief preview PCM retains source pitch and level at every selected playback speed (210ms)
+  ✘  24 [chromium] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed (873ms)
+(node:88840) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88840) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:88840) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  25 [chromium] › tests/scrub-pitch.spec.ts:67:41 › fallback previews retain pitch policy in both drag directions without changing playback speed (1.0s)
+
+
+  1) [chromium] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+
+    Error: page.waitForFunction: ReferenceError: fallback is not defined
+        at eval (eval at predicate (eval at evaluate (:290:30)), <anonymous>:1:53)
+        at predicate (eval at evaluate (:290:30), <anonymous>:7:23)
+        at next (eval at evaluate (:290:30), <anonymous>:29:29)
+        at eval (eval at evaluate (:290:30), <anonymous>:42:9)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at predicate (eval at evaluate (:290:30)), <anonymous>:1:53)
+        at predicate (eval at evaluate (:290:30), <anonymous>:7:23)
+        at next (eval at evaluate (:290:30), <anonymous>:29:29)
+        at eval (eval at evaluate (:290:30), <anonymous>:42:9)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at /Users/jay/Documents/warpdiff/tests/scrub-pitch.spec.ts:82:14
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-chromium/error-context.md
+
+  2) [chromium] › tests/scrub-pitch.spec.ts:67:41 › fallback previews retain pitch policy in both drag directions without changing playback speed
+
+    Error: page.waitForFunction: ReferenceError: fallback is not defined
+        at eval (eval at predicate (eval at evaluate (:290:30)), <anonymous>:1:53)
+        at predicate (eval at evaluate (:290:30), <anonymous>:7:23)
+        at next (eval at evaluate (:290:30), <anonymous>:29:29)
+        at eval (eval at evaluate (:290:30), <anonymous>:42:9)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at eval (eval at predicate (eval at evaluate (:290:30)), <anonymous>:1:53)
+        at predicate (eval at evaluate (:290:30), <anonymous>:7:23)
+        at next (eval at evaluate (:290:30), <anonymous>:29:29)
+        at eval (eval at evaluate (:290:30), <anonymous>:42:9)
+        at UtilityScript.evaluate (<anonymous>:292:16)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+        at /Users/jay/Documents/warpdiff/tests/scrub-pitch.spec.ts:82:14
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/scrub-pitch-fallback-previ-8b200-out-changing-playback-speed-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/scrub-pitch-fallback-previ-8b200-out-changing-playback-speed-chromium/error-context.md
+
+  2 failed
+    [chromium] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+    [chromium] › tests/scrub-pitch.spec.ts:67:41 › fallback previews retain pitch policy in both drag directions without changing playback speed
+  23 passed (3.1m)

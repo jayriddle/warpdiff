@@ -1,0 +1,75 @@
+{
+  "measurements": [
+    {
+      "label": "desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "panel": {
+        "x": 848,
+        "y": 48,
+        "width": 420,
+        "height": 405
+      },
+      "panelFits": true,
+      "scrollHeight": 403,
+      "clientHeight": 403,
+      "loadButtonFits": true,
+      "documentWidth": 1280,
+      "command": "ffmpeg -ignore_editlist 0 -fflags +bitexact -i './Jay'\\''s review-$(printf EXPANDED).mp4' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart './Jay'\\''s review-$(printf EXPANDED)_aac.mp4'",
+      "original": "Jay's review-$(printf EXPANDED).mp4",
+      "legacyCapability": false,
+      "loaderType": "undefined",
+      "converterType": "undefined",
+      "engineRequests": [],
+      "errors": []
+    },
+    {
+      "label": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "panel": {
+        "x": 12,
+        "y": 48,
+        "width": 366,
+        "height": 464
+      },
+      "panelFits": true,
+      "scrollHeight": 462,
+      "clientHeight": 462,
+      "loadButtonFits": true,
+      "documentWidth": 390,
+      "command": "ffmpeg -ignore_editlist 0 -fflags +bitexact -i './Jay'\\''s review-$(printf EXPANDED).mp4' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -shortest -movflags +faststart './Jay'\\''s review-$(printf EXPANDED)_aac.mp4'",
+      "original": "Jay's review-$(printf EXPANDED).mp4",
+      "legacyCapability": false,
+      "loaderType": "undefined",
+      "converterType": "undefined",
+      "engineRequests": [],
+      "errors": []
+    }
+  ],
+  "webkitSurround": {
+    "name": "dialogue_71.mp4",
+    "format": {
+      "text": "FLAC · 7.1 · 48 kHz",
+      "fields": {
+        "audioCodec": "FLAC",
+        "channels": "7.1",
+        "sampleRate": "48 kHz"
+      },
+      "fieldDetails": {
+        "audioCodec": "Audio codec: FLAC",
+        "channels": "Channels / layout: 7.1",
+        "sampleRate": "Sample rate: 48 kHz"
+      },
+      "detail": "Source audio: FLAC · 7.1 · 48 kHz"
+    },
+    "decoded": false,
+    "preparation": true,
+    "codec": "unknown",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+  }
+}

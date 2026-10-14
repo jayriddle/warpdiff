@@ -1,0 +1,82 @@
+name: WarpDiff checks
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warpdiff-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    name: Chromium and ownership
+    runs-on: ubuntu-24.04
+    env:
+      WARPDIFF_BROWSER_CHANNEL: chrome
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install fixture tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg zsh
+      - name: Install test dependencies
+        run: npm ci
+      - name: Install Chrome for native media codecs
+        run: npx playwright install --with-deps chrome
+      - name: Generate media fixtures
+        run: npm run test:fixtures
+      - name: Check ownership
+        run: npm run test:ownership
+      - name: Run complete Chromium suite
+        run: npm run test:ci
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24)
+        if: ${{ !cancelled() }}
+        with:
+          name: chromium-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  webkit:
+    name: WebKit preparation workflow
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install fixture tools
+        run: |
+          if ! command -v ffmpeg >/dev/null; then brew install ffmpeg; fi
+      - name: Install test dependencies
+        run: npm ci
+      - name: Install WebKit
+        run: npx playwright install webkit
+      - name: Generate media fixtures
+        run: npm run test:fixtures
+      - name: Run WebKit workflow checks
+        run: npm run test:webkit
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24)
+        if: ${{ !cancelled() }}
+        with:
+          name: webkit-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

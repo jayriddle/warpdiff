@@ -14,11 +14,14 @@
 # on the live site — they're repo documentation, read on github.com.
 exclude:
   - "*.md"
+  - ffmpeg/ # retired browser bundle; exclude stray local copies too
   - docs/
   - tests/
   - node_modules/
   - scripts/
+  - tools/
   - package.json
   - package-lock.json
   - playwright.config.ts
+  - playwright.webkit.config.ts
   - start.sh

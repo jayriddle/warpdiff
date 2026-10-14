@@ -1,0 +1,47 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/ffmpeg-command.spec.ts tests/external-preparation.spec.ts tests/audio-format.spec.ts --workers=1 --retries=0
+(node:90478) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 33 tests using 1 worker
+
+(node:90479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90479) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:90479) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid (286ms)
+  ✓   2 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid (1.7s)
+  ✓   3 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51_aac.mp4 in Stack and Grid (350ms)
+  ✓   4 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid (344ms)
+  ✓   5 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: landscape_a.mp4 in Stack and Grid (345ms)
+  ✓   6 [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: vorbis_a.webm in Stack and Grid (343ms)
+  ✓   7 [chromium] › tests/audio-format.spec.ts:43:5 › source format clears on reload and ignores a stale decode completion (330ms)
+  ✓   8 [chromium] › tests/audio-format.spec.ts:58:5 › source format changes only when the externally prepared AC-3 copy is loaded (374ms)
+  ✓   9 [chromium] › tests/audio-format.spec.ts:79:5 › source labels remain hoverable beside metrics in a narrow two-video Grid (2.9s)
+  ✓  10 [chromium] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine (230ms)
+  ✓  11 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false (122ms)
+  ✓  12 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true (119ms)
+  ✓  13 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null (119ms)
+  ✓  14 [chromium] › tests/external-preparation.spec.ts:83:5 › multiple preparation entries retain slot order, literal text and keyboard focus (105ms)
+  ✓  15 [chromium] › tests/external-preparation.spec.ts:98:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC (364ms)
+  ✓  16 [chromium] › tests/external-preparation.spec.ts:133:5 › service worker installs without FFmpeg and retires only owned legacy caches (27ms)
+  ✓  17 [chromium] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (310ms)
+  ✓  18 [chromium] › tests/ffmpeg-command.spec.ts:68:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (113ms)
+  ✓  19 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0000 cannot enter a copied command (96ms)
+  ✓  20 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0003 cannot enter a copied command (96ms)
+  ✓  21 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0009 cannot enter a copied command (96ms)
+  ✓  22 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000a cannot enter a copied command (96ms)
+  ✓  23 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+000d cannot enter a copied command (96ms)
+  ✓  24 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+0015 cannot enter a copied command (97ms)
+  ✓  25 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+001b cannot enter a copied command (97ms)
+  ✓  26 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+007f cannot enter a copied command (96ms)
+  ✓  27 [chromium] › tests/ffmpeg-command.spec.ts:91:7 › terminal control U+009b cannot enter a copied command (98ms)
+  ✓  28 [chromium] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports refused clipboard access without claiming success (154ms)
+  ✓  29 [chromium] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports missing clipboard access without claiming success (146ms)
+  ✓  30 [chromium] › tests/ffmpeg-command.spec.ts:110:7 › FFmpeg panel reports synchronous clipboard access without claiming success (146ms)
+  ✓  31 [chromium] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard resolve after clear leaves the retired command silent (128ms)
+  ✓  32 [chromium] › tests/ffmpeg-command.spec.ts:139:7 › a late clipboard reject after clear leaves the retired command silent (131ms)
+  ✓  33 [chromium] › tests/ffmpeg-command.spec.ts:171:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (532ms)
+
+  33 passed (11.6s)

@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.0
+**Current version:** 3.19.1
 
 ---
 
@@ -48,7 +48,7 @@ Clearing or replacing a comparison releases its scrub-audio resources and previo
 
 **Dialogue listening:** open **Listen: Full Mix** beside volume to choose **Dialogue Focus** or **Center Only** for verified surround layouts. Center level and other-channel reduction apply to playback and scrubbing, while original analysis stays intact. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space resumes playback immediately; Escape also returns to playback. Return to Full Mix to check voices outside the center. Each new comparison starts in Full Mix. Multichannel Opus decoding also preserves all source channels. See the [investigation and verification record](docs/dialogue-listening-2026-09-15/README.md).
 
-**Continuous scrubbing** preserves pitch while following drag speed and direction. Video previews now use full-rate mono/stereo listening audio, prepared directly from the original decode. Original waveform, spectrogram, and loudness analysis stay intact. Clicks give short previews; unavailable or oversized Continuous streams fall back automatically with an explanation. Holding still fades the audio out. See the [implementation and verification record](docs/full-rate-scrub-2026-09-15.md).
+**Continuous scrubbing** preserves pitch while following drag speed and direction. Video previews now use full-rate mono/stereo listening audio, prepared directly from the original decode. Original waveform, spectrogram, and loudness analysis stay intact. Clicks give short previews; unavailable or oversized Continuous streams fall back automatically with an explanation. Brief previews also retain original pitch at every selected playback speed. Holding still fades the audio out. See the [implementation and verification record](docs/full-rate-scrub-2026-09-15.md).
 
 Scrub volume now follows the selected source mix more closely, with bounded compensation for level lost during stretching. Quiet/loud differences and stereo balance are retained; strong peaks limit the added boost. See the [volume measurements and limits](docs/scrub-volume-2026-09-22.md).
 
@@ -75,6 +75,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
+- Unsupported video audio uses a safe external FFmpeg command and reload workflow. WarpDiff does not bundle or run FFmpeg. The supplied command targets MP4/MOV video (including `.m4v`); other formats require a suitable external command. Install FFmpeg separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Short soundtracks are padded to retain the complete picture. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
 - Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
@@ -165,6 +166,11 @@ npx playwright test          # behavioral suite (headless Chromium)
 npm run test:ownership       # structural + pure-logic guards (no browser)
 ```
 
+The feature-branch checks run the complete Chromium suite and ownership checks,
+plus focused WebKit external-preparation/reload checks. Native FFmpeg generates
+test fixtures; it is not shipped with the app. See [release safeguards](docs/release-safeguards.md)
+for commands, coverage limits and the approval/activation sequence.
+
 ---
 
 ## Status
@@ -177,7 +183,11 @@ Found a bug or have an idea? [Open an issue](https://github.com/jayriddle/warpdi
 
 ## License
 
-Not currently licensed for redistribution or derivative use. Reach out if you're interested in using or building on this.
+WarpDiff's original application code is not currently licensed for redistribution or derivative use. Reach out if you're interested in using or building on this.
+
+The application's `UNLICENSED` package metadata reflects this policy; it is not a public-domain dedication. Third-party components retain their respective licenses and notices.
+
+This release does not distribute an FFmpeg browser engine or wrapper. External FFmpeg installations retain their own terms. Removing the current bundle does not remove older bundles from repository history or earlier deployments; historical remediation is tracked separately.
 
 ## Contact
 

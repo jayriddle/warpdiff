@@ -1,0 +1,25 @@
+{
+  "testedCommit": "86dcd2634249a2e859b7723514cddf62623b84d5",
+  "runUrl": "https://github.com/jayriddle/warpdiff/actions/runs/38628574447",
+  "stats": {
+    "total": 434,
+    "expected": 433,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 1,
+    "ok": true
+  },
+  "durationMs": 661441.085,
+  "projectNames": [
+    "chromium"
+  ],
+  "workers": 1,
+  "errors": [],
+  "skipped": [
+    {
+      "file": "warpdiff.spec.ts",
+      "title": "shows warning toast for timestamp collision",
+      "outcome": "skipped"
+    }
+  ]
+}

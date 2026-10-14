@@ -1,0 +1,727 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e6]: WarpDiff
+        - generic [ref=e7] [cursor=pointer]: v3.19.1
+        - button "Load files (L)" [ref=e8] [cursor=pointer]:
+          - img [ref=e9]
+        - button "Reset" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+        - button "Help (?)" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: 960×540
+          - generic [ref=e23]: 16:9
+        - generic [ref=e24]: ·
+        - generic [ref=e26]: "--fps"
+        - generic [ref=e27]: ·
+        - 'generic "Source audio: AAC · Stereo · 44.1 kHz" [ref=e28]': AAC · Stereo · 44.1 kHz
+        - generic [ref=e29]: ·
+        - generic [ref=e30]:
+          - generic [ref=e31]: "-21.8 LUFS"
+          - generic [ref=e33]: TP -20.2 dBTP
+        - generic [ref=e34]: 116%
+      - generic [ref=e36]:
+        - button "Grid mode (G toggles Stack / Grid)" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+        - generic [ref=e44]:
+          - button "Stack mode (S toggles Stack / Grid)" [ref=e45] [cursor=pointer]:
+            - img [ref=e46]
+          - generic [ref=e49]:
+            - button "Fit" [ref=e50] [cursor=pointer]
+            - button "Balance" [ref=e51] [cursor=pointer]
+        - generic [ref=e52]: "|"
+        - button "Image wipe comparison (Q)" [ref=e53] [cursor=pointer]:
+          - img [ref=e54]
+        - button "Seamless tile check (Y)" [ref=e57] [cursor=pointer]:
+          - img [ref=e58]
+        - button "Audio waveform / spectrogram (W)" [ref=e64] [cursor=pointer]:
+          - img [ref=e65]
+        - button "Video scopes (V)" [ref=e69] [cursor=pointer]:
+          - img [ref=e70]
+      - button "Customize info bar" [ref=e73] [cursor=pointer]:
+        - img [ref=e74]
+      - button "Appearance and privacy" [ref=e77] [cursor=pointer]:
+        - img [ref=e78]
+        - generic [ref=e81]: ⌄
+    - generic [ref=e83]:
+      - generic: Clips differ in length (A 3.0s · B 4.0s) — playing each in full. Press Shift+L (or the Range button) for frame-locked comparison.
+    - generic [ref=e88]:
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e93]: RGB (log)
+          - button "Histogram — click or press Enter to cycle mode" [ref=e95] [cursor=pointer]
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e98]: "100"
+            - generic [ref=e99]: "0"
+          - button "Waveform monitor — click or press Enter to cycle mode" [ref=e101] [cursor=pointer]
+        - img "Vectorscope" [ref=e103]
+      - generic [ref=e104]:
+        - generic [ref=e105]: Frames 0
+        - button "Clear all" [ref=e106] [cursor=pointer]
+        - button "✕" [ref=e107] [cursor=pointer]
+      - generic:
+        - generic "Drag to resize audio panel" [ref=e109]
+        - generic [ref=e110]:
+          - generic [ref=e111]:
+            - generic [ref=e113]: L
+            - generic [ref=e115]: R
+          - img "Audio waveform" [ref=e117]
+          - group "Waveform and spectrogram scale" [ref=e118]:
+            - generic [ref=e119]: Scale
+            - button "Fit" [pressed] [ref=e120] [cursor=pointer]
+            - button "Ref" [ref=e121] [cursor=pointer]
+        - generic "Drag to adjust waveform/spectrogram split" [ref=e122]
+        - generic [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - generic [ref=e127]: L
+              - generic [ref=e128]:
+                - generic [ref=e129]: 20k
+                - generic [ref=e130]: 10k
+                - generic [ref=e131]: 5k
+                - generic [ref=e132]: 1k
+                - generic [ref=e133]: "100"
+            - generic [ref=e135]:
+              - generic [ref=e137]: R
+              - generic [ref=e138]:
+                - generic [ref=e139]: 20k
+                - generic [ref=e140]: 10k
+                - generic [ref=e141]: 5k
+                - generic [ref=e142]: 1k
+                - generic [ref=e143]: "100"
+          - img "Audio spectrogram" [ref=e145]
+          - generic [ref=e146]:
+            - generic "Cycle color palette" [ref=e147] [cursor=pointer]: INFERNO
+            - generic "Toggle linear/log frequency scale (Shift+W)" [ref=e148] [cursor=pointer]: LIN
+      - generic [ref=e149]:
+        - button "▶" [ref=e150] [cursor=pointer]
+        - group "Playback behavior"
+        - generic [ref=e151]:
+          - generic "Click to change timecode format" [ref=e152] [cursor=pointer]: 00:02.038
+          - generic [ref=e153]: /
+          - generic [ref=e154] [cursor=pointer]: 00:03.023
+        - slider "Playback position" [ref=e155]
+        - generic [ref=e157]:
+          - generic "Click to mute/unmute" [ref=e158] [cursor=pointer]:
+            - img [ref=e160]
+          - slider [ref=e164]: "100"
+        - group [ref=e165]:
+          - 'generic "Listen: Full Mix" [ref=e166] [cursor=pointer]'
+        - button "A" [ref=e168] [cursor=pointer]:
+          - img [ref=e170]
+          - text: A
+  - text: ✓
+  - generic:
+    - generic:
+      - generic: Manual
+      - button "✕"
+    - generic:
+      - paragraph: Managed review hosts supply the media and its labels. Their viewer keeps the original Grid / Stack icons (Compare together / Single candidate in tooltips), view controls, inspection icons and media details in their native positions; task actions and Help belong to the host.
+      - heading "Appearance and privacy" [level=2]
+      - paragraph:
+        - text: Use the appearance button at the right of the header to choose Original, Starfield, Solar, Nebula or Glacier. Preferences stay in this browser. Solar has bodies moving in the same direction on fixed orbital planes; Nebula has orbiting stars and faint spiral arms around a softly glowing hub in violet haze; Glacier has sparse icy stars. Choose
+        - strong: Starfield
+        - text: for a slower Ad Astra animation across a wide landing background. It is now a regular appearance; the hidden X toggle has been removed. Decorations appear only on the landing screen, and reduced motion stops animation. Media, scopes and slot colors stay unchanged.
+      - paragraph: WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+      - paragraph: Usage sharing appears first in the panel, followed by appearances. Expand “What’s shared and who receives it” for the exact categories, GoatCounter’s identity and privacy link, and how to stop sharing. Loading files without answering remembers a local invitation dismissal, keeps sharing off and stops automatic reminders—even after returning to the landing screen or reopening WarpDiff. It records neither Yes nor No and sends nothing. You can enable sharing later from this panel; clearing browser storage or unavailable storage may bring the invitation back.
+      - paragraph: Daily activity counts use of ready comparisons at most once per browser per UTC day. We remember only the last reporting date locally to avoid duplicates across tabs and reloads; no date or user ID is sent. Idle tabs don’t count. These figures estimate active browsers, not people.
+      - paragraph:
+        - text: "Usage sharing is opt-in when a GoatCounter destination is configured. Consent is tied to the sharing scope you accepted. Routine updates do not ask again; a changed scope pauses sharing until a new Yes. No is remembered across scope changes; no analytics request is made before Yes or after turning sharing off. With consent, sharing counts visits, ready reviews of 1–4 items, deliberate comparison-tool use, completed scrub drags, and basic failure/fallback categories, labeled by app release, media type and item count. Features count once per ready review; scrub frequency uses thresholds of 1, 2, 6 and 21 drags. Waveform and spectrogram appear together; their separate scrub surfaces indicate interaction, not separate panel choices. Reloading a set counts again. No files, filenames, contents, raw errors or logs are sent. Failed/canceled sets are not ready reviews; no offline or pre-consent activity is replayed. All appearances remain available with sharing off. The official site uses WarpDiff’s GoatCounter account after consent. Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent. GoatCounter receives IP addresses and browser headers to process requests and distinguish repeat visits; it retains browser/OS and country counts in a private dashboard configured for automatic deletion after 365 days. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. WarpDiff is operated by Jay Riddle; privacy contact:"
+        - link "warpdiff@gmail.com":
+          - /url: mailto:warpdiff@gmail.com
+        - text: .
+      - heading "Loading Files" [level=2]
+      - paragraph: WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode.
+      - paragraph:
+        - strong: "Three ways to load files:"
+      - list:
+        - listitem: Press L
+        - listitem: Click the load icon (file+) in the header
+        - listitem: Drag and drop files onto the window
+      - paragraph:
+        - strong: "File requirements:"
+      - list:
+        - listitem: 1–4 files (images, videos, or audio)
+        - listitem: Use one media type per comparison; mixed image/video/audio selections are rejected
+        - listitem:
+          - text: 2 files → assigned to
+          - strong: A
+          - text: and
+          - strong: B
+        - listitem:
+          - text: 3 files → assigned to
+          - strong: Ref
+          - text: ","
+          - strong: A
+          - text: ", and"
+          - strong: B
+          - text: by default; audio labels the reference
+          - strong: GT
+        - listitem:
+          - text: "4 files → labeled by media type in oldest-to-newest order:"
+          - strong: Image-1…Image-4
+          - text: ","
+          - strong: Video-1…Video-4
+          - text: ", or"
+          - strong: Audio-1…Audio-4
+        - listitem: Files are automatically sorted oldest → newest by last-modified timestamp
+      - paragraph:
+        - strong: "While files are preparing:"
+        - text: The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click
+        - strong: Cancel
+        - text: to stop a manual load.
+      - paragraph:
+        - strong: "Unsupported video audio:"
+        - text: WarpDiff opens
+        - strong: Prepare audio externally
+        - text: when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its
+        - link "download information":
+          - /url: https://ffmpeg.org/download.html
+        - text: ", then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use"
+        - strong: Load prepared files
+        - text: in the panel,
+        - strong: Load (L)
+        - text: ", or drag and drop to load the"
+        - strong: _aac
+        - text: output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain
+        - strong: _aac.mp4
+        - text: . Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access.
+      - paragraph:
+        - strong: "Timestamp warning:"
+        - text: If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.
+      - paragraph:
+        - strong: "Duplicate detection:"
+        - text: If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.
+      - paragraph:
+        - strong: "Audio timing warning:"
+        - text: If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.
+      - paragraph:
+        - strong: "Reset:"
+        - text: Click the reset icon (circular arrow, visible after loading) to clear all files and start over.
+      - heading "View Modes" [level=2]
+      - paragraph:
+        - strong: Stack
+        - text: — The default mode. One asset is visible at a time, layered on top of the others. Use arrow keys or the asset buttons in the header to switch between assets. Asset name, zoom, resolution, aspect ratio, and filename are shown in the header. A mini-map thumbnail appears in the lower-right when the asset overflows the viewport — click or drag it to pan. Press \ to toggle between
+        - emphasis: Fit
+        - text: (each asset fills the viewport independently) and
+        - emphasis: Balance
+        - text: (all assets scaled to the same rendered screen area).
+      - paragraph:
+        - strong: Grid (2 files)
+        - text: — Both assets displayed side-by-side with a gap between them. The layout auto-picks Horizontal or Vertical on load based on which gives larger images, and re-evaluates on resize.
+      - paragraph:
+        - strong: Grid (3 files)
+        - text: — All three assets in a grid. Press 3 to toggle between
+        - strong: Inline
+        - text: (columns or rows, auto-picked by aspect ratio; uses equal-area scaling so mixed-orientation assets share consistent visual weight) and
+        - strong: Offset
+        - text: (Source alone, A/B paired).
+      - paragraph:
+        - strong: Grid (4 files)
+        - text: — All four assets use
+        - strong: Inline
+        - text: in a balanced 2×2 grid. Offset is available only when exactly three assets are visible.
+      - heading "Hiding Slots in Grid" [level=2]
+      - paragraph: "Click a slot label in a Grid info bar to hide it and give the remaining assets more room. Click its dimmed header pill to restore it. Shift+1 through Shift+4 toggle slots 1–4; the final visible slot cannot be hidden. Hiding one item from a four-item grid switches to three-up, preserving the remaining assets' order and labels: hiding #1 leaves #2, #3, #4. In Offset, the first visible asset is on the left and the next two are on the right. Restoring all four returns to 2×2."
+      - heading "Switching Modes" [level=2]
+      - table:
+        - rowgroup:
+          - row "Action Result":
+            - columnheader "Action"
+            - columnheader "Result"
+          - row "Click stack icon (overlapping squares) in header Switch to Stack mode":
+            - cell "Click stack icon (overlapping squares) in header"
+            - cell "Switch to Stack mode"
+          - row "Click grid icon (four squares) in header Switch to Grid mode":
+            - cell "Click grid icon (four squares) in header"
+            - cell "Switch to Grid mode"
+          - row "Press S Toggle between Stack and Grid":
+            - cell "Press S"
+            - cell "Toggle between Stack and Grid"
+          - row "Press G Toggle between Stack and Grid":
+            - cell "Press G"
+            - cell "Toggle between Stack and Grid"
+      - heading "Zoom & Pan" [level=2]
+      - paragraph:
+        - text: Zoom and pan are available in
+        - strong: Stack mode only
+        - text: .
+      - table:
+        - rowgroup:
+          - row "Shortcut Action":
+            - columnheader "Shortcut"
+            - columnheader "Action"
+          - row "+ Zoom in":
+            - cell "+"
+            - cell "Zoom in"
+          - row "− Zoom out":
+            - cell "−"
+            - cell "Zoom out"
+          - row "0 Zoom to fit screen":
+            - cell "0"
+            - cell "Zoom to fit screen"
+          - row "1 Zoom to 100% native pixels for the active asset":
+            - cell "1"
+            - cell "Zoom to 100% native pixels for the active asset"
+          - row "\\ Toggle Fit / Balance zoom mode":
+            - cell "\\"
+            - cell "Toggle Fit / Balance zoom mode"
+          - row "Alt+← Alt+→ Rotate the active asset 90° counterclockwise / clockwise":
+            - cell "Alt+← Alt+→"
+            - cell "Rotate the active asset 90° counterclockwise / clockwise"
+          - row "Click and drag Pan; drag past edges for elastic rubber-band resistance":
+            - cell "Click and drag"
+            - cell "Pan; drag past edges for elastic rubber-band resistance"
+      - paragraph:
+        - text: "Zoom range: 5%–3200%. Each step multiplies/divides by √2 (~1.41×). 1 targets the currently active asset — switching assets and pressing 1 again re-centers 100% on the new slot. In Grid mode, 1 toggles between fit-to-screen and a 100% native pixel cap. In"
+        - emphasis: Balance
+        - text: mode all assets are scaled to equal rendered area; the mini-map in the lower-right shows the full extent of assets and a viewport indicator when any asset overflows.
+      - paragraph:
+        - strong: "Fit vs. Balance:"
+        - text: Fit gives each asset its own largest viewport fit. Balance gives every asset the same rendered screen area, which is useful for portrait, square, and landscape comparisons. Returning to Fit restores the prior Fit zoom and pan.
+      - heading "Zoom Loupe" [level=2]
+      - paragraph: Press Z to toggle a circular zoom loupe that follows your cursor, showing a magnified view of native pixels without changing the overall zoom level. Works in all view modes.
+      - table:
+        - rowgroup:
+          - row "Shortcut Action":
+            - columnheader "Shortcut"
+            - columnheader "Action"
+          - row "Z Toggle zoom loupe":
+            - cell "Z"
+            - cell "Toggle zoom loupe"
+          - row "+ − Adjust magnification (2×–32×, when loupe is active)":
+            - cell "+ −"
+            - cell "Adjust magnification (2×–32×, when loupe is active)"
+          - row "[ ] Resize loupe (100–400px)":
+            - cell "[ ]"
+            - cell "Resize loupe (100–400px)"
+          - row "Shift+Z Toggle linked zoom":
+            - cell "Shift+Z"
+            - cell "Toggle linked zoom"
+      - paragraph:
+        - strong: "Linked zoom:"
+        - text: In Grid modes, enabling linked zoom (Shift+Z) shows corresponding loupes on all other visible assets at the same relative position — hover over one asset to compare the exact same spot across all versions.
+      - paragraph: The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.
+      - heading "Image Wipe" [level=2]
+      - paragraph: "Press Q in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; Shift+Q and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and Alt+← / Alt+→ rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet."
+      - heading "Seamless Tile Check" [level=2]
+      - paragraph:
+        - text: Press Y with images loaded to analyze any source as a repeating surface.
+        - strong: 3×3
+        - text: repeats the complete image nine times;
+        - strong: Offset
+        - text: moves its four source edges into a center cross;
+        - strong: Heatmap
+        - text: marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.
+      - paragraph:
+        - text: WarpDiff rates Left ↔ Right, Top ↔ Bottom, the four-way corner junction, and the weakest overall result as
+        - strong: Seamless
+        - text: ","
+        - strong: Review
+        - text: ", or"
+        - strong: Visible seam
+        - text: . It compares color, transparency, and texture-direction changes at the boundary with ordinary transitions inside the image. This measures technical edge continuity, not whether a recognizable object, shadow, or lighting pattern repeats too obviously, so inspect the repeated preview before accepting a surface. Analysis uses the original local source pixels; Tile Check, Image Wipe, and Difference are mutually exclusive.
+      - heading "Difference Mode" [level=2]
+      - paragraph: Press D in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. Shift+D or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.
+      - heading "Video Playback" [level=2]
+      - paragraph:
+        - text: Video controls appear at the bottom when videos are loaded. Controls wrap as needed in smaller desktop panes so seeking, volume and source selection stay reachable. Playback defaults to
+        - strong: Sync
+        - text: ", where all videos play, pause, and seek together. Press Shift+S or click"
+        - strong: "Playback: Sync"
+        - text: to enter
+        - strong: Solo
+        - text: ", where the transport controls affect only the selected video."
+      - table:
+        - rowgroup:
+          - row "Control Description":
+            - columnheader "Control"
+            - columnheader "Description"
+          - row "Progress bar Click to seek; drag to scrub":
+            - cell "Progress bar"
+            - cell "Click to seek; drag to scrub"
+          - row "Timecode (left) Current position — click to toggle between time and frame count. Video uses M:SS:FF (frames); audio uses M:SS.cc (centiseconds) since audio has no frame rate":
+            - cell "Timecode (left)"
+            - cell "Current position — click to toggle between time and frame count. Video uses M:SS:FF (frames); audio uses M:SS.cc (centiseconds) since audio has no frame rate":
+              - text: Current position — click to toggle between time and frame count. Video uses
+              - code: M:SS:FF
+              - text: (frames); audio uses
+              - code: M:SS.cc
+              - text: (centiseconds) since audio has no frame rate
+          - row "Speaker icon Mute/unmute the active audio source":
+            - cell "Speaker icon"
+            - cell "Mute/unmute the active audio source"
+          - row "Volume slider Adjust volume":
+            - cell "Volume slider"
+            - cell "Adjust volume"
+          - row "S/GT A B buttons Select which asset's audio to hear, with a brief fade and steady playback timing during source changes":
+            - cell "S/GT A B buttons"
+            - cell "Select which asset's audio to hear, with a brief fade and steady playback timing during source changes"
+      - paragraph: Timeline and waveform playheads move evenly during single-video and synced playback, including when you switch active videos. They stop with playback and jump directly to the requested position on a seek, restart or loop wrap.
+      - paragraph: After scrubbing, Space resumes playback and R restarts at the loop in-point or beginning. Both preserve your playback scope and loop range, including automatic looping for a single video.
+      - paragraph: In Safari, video drag seeks wait for decoded frames before following the latest pointer target. Returning to the tab refreshes video surfaces. A drag interrupted by changing tabs ends paused; press Play to continue. Scrub preview uses native sound output to avoid silent previews; Continuous processing, listening controls and short-preview fallback still apply. A new gesture wakes the separate processing engine after suspension or interruption. Desktop mono/stereo video uses native audio to reduce picture stalls after seeking; surround audio keeps the shared listening mix and may retain a brief playback-start delay.
+      - paragraph:
+        - strong: "Keyboard shortcuts:"
+      - table:
+        - rowgroup:
+          - row "Shortcut Action":
+            - columnheader "Shortcut"
+            - columnheader "Action"
+          - row "Space Play / Pause":
+            - cell "Space"
+            - cell "Play / Pause"
+          - 'row "Shift+S Toggle Playback: Sync / Solo"':
+            - cell "Shift+S"
+            - 'cell "Toggle Playback: Sync / Solo"'
+          - row "R Restart immediately at the loop in-point, or beginning if unset":
+            - cell "R"
+            - cell "Restart immediately at the loop in-point, or beginning if unset"
+          - row "J K Slower / faster playback (0.25×–2×)":
+            - cell "J K"
+            - cell "Slower / faster playback (0.25×–2×)"
+          - row "M Mute / Unmute":
+            - cell "M"
+            - cell "Mute / Unmute"
+          - row "I O Set shared loop in / out points":
+            - cell "I O"
+            - cell "Set shared loop in / out points"
+          - 'row "Shift+L Playback range: Sync (shortest) / Full (longest)"':
+            - cell "Shift+L"
+            - 'cell "Playback range: Sync (shortest) / Full (longest)"'
+          - row ", Step back one frame":
+            - cell ","
+            - cell "Step back one frame"
+          - row ". Step forward one frame":
+            - cell "."
+            - cell "Step forward one frame"
+          - row "W Toggle waveform / spectrogram":
+            - cell "W"
+            - cell "Toggle waveform / spectrogram"
+          - row "E Cycle waveform / LUFS envelope display":
+            - cell "E"
+            - cell "Cycle waveform / LUFS envelope display"
+          - row "Shift+W Toggle linear / log frequency scale":
+            - cell "Shift+W"
+            - cell "Toggle linear / log frequency scale"
+          - row "P Cycle spectrogram color palette":
+            - cell "P"
+            - cell "Cycle spectrogram color palette"
+      - paragraph:
+        - strong: "Playback scope:"
+        - text: The adjacent
+        - strong: "Playback: Sync / Solo"
+        - text: and
+        - strong: "Range: Sync / Full"
+        - text: controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip
+        - strong: "Range: Sync / Full"
+        - text: control is hidden while Solo is active.
+      - paragraph: Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.
+      - paragraph:
+        - strong: "Sync and clip length:"
+        - text: Multiple videos share one transport and stay frame-aligned. Different-length clips default to
+        - strong: Full
+        - text: ", where shorter clips hold on their last frame;"
+        - strong: Sync
+        - text: wraps at the shortest clip so every frame has a counterpart.
+      - paragraph: Waveform, spectrogram, and loudness analysis prepare in the background using the same original-audio calculations. Playback can begin before the graphs and scrub preview are ready. In browsers that restrict background processing, analysis can briefly pause the controls.
+      - paragraph: Loading a new comparison clears the previous waveform and spectrogram immediately, including if the panel was closed. The graphs remain blank until the new analysis is ready.
+      - paragraph: Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.
+      - paragraph:
+        - strong: "Fit / Ref audio scaling:"
+        - text: The contextual
+        - strong: Scale
+        - text: control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram.
+        - strong: Fit
+        - text: normalizes each asset to reveal its detail.
+        - strong: Ref
+        - text: preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.
+      - heading "Audio Timeline Interaction" [level=2]
+      - paragraph: In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.
+      - table:
+        - rowgroup:
+          - row "Action Result":
+            - columnheader "Action"
+            - columnheader "Result"
+          - row "Click on waveform/spectrogram Seek to that position":
+            - cell "Click on waveform/spectrogram"
+            - cell "Seek to that position"
+          - row "Click and drag Scrub through audio with preview":
+            - cell "Click and drag"
+            - cell "Scrub through audio with preview"
+          - row "Shift + click and drag Select a region to set loop in/out points":
+            - cell "Shift + click and drag"
+            - cell "Select a region to set loop in/out points"
+          - row "Click on a different slot's canvas Switch active audio to that slot":
+            - cell "Click on a different slot's canvas"
+            - cell "Switch active audio to that slot"
+      - paragraph:
+        - strong: "Surround audio:"
+        - text: 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.
+      - paragraph:
+        - strong: "Dialogue listening:"
+        - text: open
+        - strong: "Listen: Full Mix"
+        - text: beside volume.
+        - strong: Dialogue Focus
+        - text: initially reduces other channels by 9 dB;
+        - strong: Center Only
+        - text: plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.
+      - paragraph:
+        - strong: "Slow scrubbing:"
+        - text: Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.
+      - paragraph:
+        - strong: "Chrome scrubbing:"
+        - text: Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position.
+      - paragraph:
+        - strong: "Loop markers:"
+        - text: Use I and O to set in and out points at the current playback position, or Shift-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.
+      - table:
+        - rowgroup:
+          - row "Shortcut Action":
+            - columnheader "Shortcut"
+            - columnheader "Action"
+          - row "I Set loop in-point at current time":
+            - cell "I"
+            - cell "Set loop in-point at current time"
+          - row "O Set loop out-point at current time":
+            - cell "O"
+            - cell "Set loop out-point at current time"
+          - row "Esc 2× Clear both loop markers (double-tap)":
+            - cell "Esc 2×"
+            - cell "Clear both loop markers (double-tap)"
+          - row "R Restart at in-point (or beginning if no markers)":
+            - cell "R"
+            - cell "Restart at in-point (or beginning if no markers)"
+      - heading "Keyboard Shortcuts Reference" [level=2]
+      - table:
+        - rowgroup:
+          - row "Key Action":
+            - columnheader "Key"
+            - columnheader "Action"
+          - row "L Load files":
+            - cell "L"
+            - cell "Load files"
+          - row "J / K Slower / Faster":
+            - cell "J / K"
+            - cell "Slower / Faster"
+          - row "Z Toggle zoom loupe":
+            - cell "Z"
+            - cell "Toggle zoom loupe"
+          - row "Shift+Z Toggle linked zoom in Grid mode":
+            - cell "Shift+Z"
+            - cell "Toggle linked zoom in Grid mode"
+          - row "[ ] Resize zoom loupe":
+            - cell "[ ]"
+            - cell "Resize zoom loupe"
+          - row "← → ↑ ↓ Switch asset":
+            - cell "← → ↑ ↓"
+            - cell "Switch asset"
+          - row "Alt+← / Alt+→ Rotate active asset 90°":
+            - cell "Alt+← / Alt+→"
+            - cell "Rotate active asset 90°"
+          - row "S Toggle Stack / Grid":
+            - cell "S"
+            - cell "Toggle Stack / Grid"
+          - row "G Toggle Stack / Grid":
+            - cell "G"
+            - cell "Toggle Stack / Grid"
+          - 'row "\\ Stack: Fit / Balance zoom toggle"':
+            - cell "\\"
+            - 'cell "Stack: Fit / Balance zoom toggle"'
+          - row "3 Toggle Grid layout (Inline ↔ Offset)":
+            - cell "3"
+            - cell "Toggle Grid layout (Inline ↔ Offset)"
+          - row "Shift+1 / 2 / 3 Toggle Grid slot visibility":
+            - cell "Shift+1 / 2 / 3"
+            - cell "Toggle Grid slot visibility"
+          - row "F Fullscreen":
+            - cell "F"
+            - cell "Fullscreen"
+          - row "+ Zoom in":
+            - cell "+"
+            - cell "Zoom in"
+          - row "− Zoom out":
+            - cell "−"
+            - cell "Zoom out"
+          - row "0 Zoom to fit screen":
+            - cell "0"
+            - cell "Zoom to fit screen"
+          - row "1 Zoom to 100% / toggle 100% cap":
+            - cell "1"
+            - cell "Zoom to 100% / toggle 100% cap"
+          - row "Space Play / Pause":
+            - cell "Space"
+            - cell "Play / Pause"
+          - row "R Restart":
+            - cell "R"
+            - cell "Restart"
+          - row "M Mute":
+            - cell "M"
+            - cell "Mute"
+          - row "I Set loop in-point":
+            - cell "I"
+            - cell "Set loop in-point"
+          - row "O Set loop out-point":
+            - cell "O"
+            - cell "Set loop out-point"
+          - 'row "Shift+L Toggle playback range: Sync / Full"':
+            - cell "Shift+L"
+            - 'cell "Toggle playback range: Sync / Full"'
+          - row "Esc 2× Clear loop markers":
+            - cell "Esc 2×"
+            - cell "Clear loop markers"
+          - row ", Step back one frame":
+            - cell ","
+            - cell "Step back one frame"
+          - row ". Step forward one frame":
+            - cell "."
+            - cell "Step forward one frame"
+          - row "V Toggle video scopes":
+            - cell "V"
+            - cell "Toggle video scopes"
+          - row "W Toggle waveform / spectrogram":
+            - cell "W"
+            - cell "Toggle waveform / spectrogram"
+          - row "E Cycle waveform / LUFS envelope display":
+            - cell "E"
+            - cell "Cycle waveform / LUFS envelope display"
+          - row "Shift+W Toggle linear / log frequency scale":
+            - cell "Shift+W"
+            - cell "Toggle linear / log frequency scale"
+          - row "P Cycle spectrogram color palette":
+            - cell "P"
+            - cell "Cycle spectrogram color palette"
+          - row "Y Toggle seamless Tile Check":
+            - cell "Y"
+            - cell "Toggle seamless Tile Check"
+          - row "D Toggle difference mode (Stack)":
+            - cell "D"
+            - cell "Toggle difference mode (Stack)"
+          - row "Shift+D Cycle difference pair":
+            - cell "Shift+D"
+            - cell "Cycle difference pair"
+          - row "Q Toggle image wipe (Stack)":
+            - cell "Q"
+            - cell "Toggle image wipe (Stack)"
+          - row "Shift+Q Cycle image wipe pair":
+            - cell "Shift+Q"
+            - cell "Cycle image wipe pair"
+          - row "B Toggle black & white":
+            - cell "B"
+            - cell "Toggle black & white"
+          - row "N Toggle no-video mode (audio focus)":
+            - cell "N"
+            - cell "Toggle no-video mode (audio focus)"
+          - row "T Cycle timecode format":
+            - cell "T"
+            - cell "Cycle timecode format"
+          - row "C Copy timecode":
+            - cell "C"
+            - cell "Copy timecode"
+          - row "Shift+C Open timecode format chooser":
+            - cell "Shift+C"
+            - cell "Open timecode format chooser"
+          - row "Shift+G Grab frame to gallery":
+            - cell "Shift+G"
+            - cell "Grab frame to gallery"
+          - 'row "{ } Gallery: previous / next frame"':
+            - 'cell "{ }"'
+            - 'cell "Gallery: previous / next frame"'
+          - row "H Toggle shortcuts panel":
+            - cell "H"
+            - cell "Toggle shortcuts panel"
+          - row "? Getting Started help":
+            - cell "?"
+            - cell "Getting Started help"
+          - row "Esc Dismiss loupe / close panel":
+            - cell "Esc"
+            - cell "Dismiss loupe / close panel"
+      - heading "Scrub Audio" [level=2]
+      - paragraph:
+        - strong: Continuous
+        - text: is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Click for a short preview, and hold still to fade out. There is no mode selector.
+      - paragraph: Scrub volume follows the selected source mix more closely in both directions, including backward speech that previously stayed quieter. Bounded compensation restores level lost during time stretching while retaining quiet/loud differences and stereo balance. Strong peaks and the correction limit can still leave some passages quieter. Normal playback and original analysis are unchanged.
+      - paragraph: Video listening copies use full-rate decoded audio, with surround dialogue folded into a separate stereo mix. Original waveform, spectrogram, and loudness inputs remain intact in both views. A single video follows its displayed frame; multi-video Grid uses the shared pointer timeline. Volume, mute, and intentional audio-start silence still apply.
+      - paragraph: Verified surround previews also retain a separate mono center for listening adjustments. This uses 50% more preview PCM within the same memory budgets, so long surround clips can reach the filtered short-preview fallback sooner. Dialogue Focus changes channel balance; Continuous can still soften articulation.
+      - paragraph: If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic short-preview fallback. Long clips may use filtered, lower-rate preview audio. If no useful preview fits, normal playback and analysis remain available. Each video listening copy and the selected Continuous stream have separate 64 MiB limits; decoding and analysis use additional memory. Continuous can soften sharp sounds; use normal playback for final defect inspection.
+      - heading "Preferences" [level=2]
+      - paragraph: "The following settings are saved to your browser and persist across sessions and page reloads:"
+      - list:
+        - listitem: Zoom loupe size and magnification level
+        - listitem: Linked zoom on/off
+        - listitem: Volume level
+        - listitem: Master mute
+        - listitem: Stack Fit / Balance mode and per-slot rotation
+        - listitem: Audio visualization visibility, height, and row split
+        - listitem: Waveform and spectrogram Fit / Ref level scaling
+        - listitem: Spectrogram scale (linear/log) and color palette
+        - listitem: Tile Check preview type and heatmap visibility
+        - listitem: Timecode display/copy format and custom hotkeys
+        - listitem: Separate image, video and audio info bar profiles
+      - heading "Info Bar" [level=2]
+      - paragraph:
+        - text: By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example
+        - strong: FLAC · 7.1 · 48 kHz
+        - text: . Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.
+      - paragraph:
+        - text: Open
+        - strong: Customize info bar
+        - text: (the sliders icon in the header) and choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in
+        - strong: Left aligned
+        - text: and
+        - strong: Right aligned
+        - text: "sections: drag their"
+        - strong: ⠿ handles
+        - text: to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.
+      - paragraph:
+        - text: Add
+        - strong: spacers
+        - text: after the selected row in the same section to group related items. Move them between sections, hide or remove them, and set their width from 12–48 pixels. Empty edge groups and adjacent gaps collapse within each section. Narrow bars compress gaps, preserve right-edge fields first, then put remaining selected fields into
+        - strong: More
+        - text: (
+        - strong: ⋯
+        - text: in compact Grid bars). Portrait bars can extend within their own cells to keep controls reachable; customized Stack information moves to its own header row when space is tight. Hidden fields stay excluded even after audio analysis arrives. Multiple source tracks are numbered within each selected field. A red ! retains the above −9 LUFS warning with custom colors. Slot controls, the image wipe pair chooser and managed host display retain their existing behavior. Escape closes More or the editor and returns focus.
+      - paragraph: Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.
+      - paragraph:
+        - text: The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60). Video durations are shown as
+        - code: M:SS:FF
+        - text: (frames at the detected rate); audio durations use
+        - code: M:SS.cc
+        - text: (decimal centiseconds) since audio has no inherent frame rate.
+      - paragraph: In split modes, the info bar of the asset whose audio is currently playing is highlighted.
+      - heading "Limitations" [level=2]
+      - list:
+        - listitem:
+          - strong: 1–4 files
+          - text: — four-item reviews use Image-1…4, Video-1…4, or Audio-1…4 labels; visual media uses a 2×2 Inline grid
+        - listitem:
+          - strong: Images, videos, and audio only
+          - text: — other file types are ignored
+        - listitem:
+          - strong: One media type per comparison
+          - text: — mixed image/video/audio loads are not supported
+        - listitem:
+          - strong: Pan available in Stack mode only
+        - listitem:
+          - strong: "Audio:"
+          - text: one track at a time; others are automatically muted
+  - status:
+    - generic:
+      - img
+    - generic: Audio is muted
+    - button "Enable"
+  - generic [ref=e174]:
+    - generic [ref=e175]: Timecode Format
+    - button "✕" [ref=e176] [cursor=pointer]
+  - generic:
+    - generic:
+      - generic: Hotkeys
+      - button "✕"
+```

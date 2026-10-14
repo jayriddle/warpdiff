@@ -1,6 +1,7 @@
 import {test, expect, Page} from '@playwright/test';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {useAudioContextRate} from './helpers/audio-context';
 
 async function load(page:Page, filename='dialogue_51.mp4') {
   await page.addInitScript(() => localStorage.setItem('lastSeenVersion','3.17.2'));
@@ -17,16 +18,20 @@ async function audioWait(page:Page, seconds=.25) {
     if(ctx.currentTime<end) throw Error('Audio clock did not advance');
   },seconds);
 }
-async function bands(page:Page) {
-  return page.evaluate(() => {
+async function bands(page:Page,windowed=false) {
+  return page.evaluate(windowed => {
     const a=(window as any).__dialogueAnalyser, data=new Float32Array(a.fftSize); a.getFloatTimeDomainData(data);
     const amplitude=(hz:number) => {
-      let real=0,imag=0;
-      for(let i=0;i<data.length;i++){const angle=2*Math.PI*hz*i/a.context.sampleRate;real+=data[i]*Math.cos(angle);imag+=data[i]*Math.sin(angle);}
-      return 2*Math.hypot(real,imag)/data.length;
+      let real=0,imag=0,weightSum=0;
+      for(let i=0;i<data.length;i++){
+        const angle=2*Math.PI*hz*i/a.context.sampleRate;
+        const weight=windowed ? .5-.5*Math.cos(2*Math.PI*i/(data.length-1)) : 1;
+        real+=data[i]*weight*Math.cos(angle);imag+=data[i]*weight*Math.sin(angle);weightSum+=weight;
+      }
+      return 2*Math.hypot(real,imag)/weightSum;
     };
     return {center:amplitude(1500),front:amplitude(375),surround:amplitude(3000)};
-  });
+  },windowed);
 }
 
 for(const channels of [6,8]) for(const output of ['native','continuous','replacement']) {
@@ -117,14 +122,17 @@ for(const [file,channels] of [['dialogue_51_opus.mp4',6],['dialogue_71_opus.mp4'
   });
 }
 
-test('dialogue short previews use the same center mix',async({page})=>{
+for(const sampleRate of [44100,48000]) test(`dialogue short previews use the same center mix at ${sampleRate} Hz`,async({page})=>{
+  await useAudioContextRate(page,sampleRate);
   await load(page);
   const sample=async(mode:string)=>{
     await page.evaluate(mode=> (window as any).eval(`(async()=>{
       setAudioListening({mode:'${mode}',centerDb:0});const ctx=getAudioContext();await ctx.resume();
       playScrubSnippet(1);const a=ctx.createAnalyser();a.fftSize=1024;_scrubGain.connect(a);window.__dialogueAnalyser=a;
     })()`),mode);
-    await audioWait(page,.035);return bands(page);
+    // At 44.1kHz the tones do not occupy whole cycles in this window. Hann
+    // weighting prevents center-tone leakage from looking like front audio.
+    await audioWait(page,.035);return bands(page,true);
   };
   const full=await sample('full'),center=await sample('center');
   expect(full.center).toBeGreaterThan(.02);expect(full.front).toBeGreaterThan(.006);

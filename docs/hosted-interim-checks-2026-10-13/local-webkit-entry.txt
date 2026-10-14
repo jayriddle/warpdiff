@@ -1,0 +1,70 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --config=playwright.webkit.config.ts --workers=1 --retries=0 --reporter=line,json
+(node:99826) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 32 tests using 1 worker
+
+(node:99827) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:99827) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:99827) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/32] [webkit-workflow] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+[2/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false
+[3/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true
+[4/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null
+[5/32] [webkit-workflow] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus
+[6/32] [webkit-workflow] › tests/external-preparation.spec.ts:99:5 › native codec limits retain original surround metadata and give a preparation route
+[7/32] [webkit-workflow] › tests/external-preparation.spec.ts:117:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC
+[8/32] [webkit-workflow] › tests/external-preparation.spec.ts:154:5 › service worker installs without FFmpeg and retires only owned legacy caches
+[9/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+[10/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[11/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command
+[12/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command
+[13/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command
+[14/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command
+[15/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+[16/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command
+[17/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command
+[18/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command
+[19/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command
+[20/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success
+[21/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success
+[22/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+[23/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent
+[24/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent
+[25/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+[26/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+[27/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+(node:291) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:291) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:291) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[28/32] [webkit-reload] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded
+(node:307) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:307) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:307) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[29/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed
+[30/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+[31/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+[32/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed
+  32 passed (29.0s)

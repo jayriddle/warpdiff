@@ -1,0 +1,48 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/warpdiff.spec.ts --project=chromium --workers=1 --retries=0 --grep surface refresh preserves rotation
+(node:2778) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:2779) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2779) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:2779) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 [chromium] › tests/warpdiff.spec.ts:3440:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform (595ms)
+
+
+  1) [chromium] › tests/warpdiff.spec.ts:3440:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "latest": "rotate(180deg)",
+    -   "preserved": "rotate(90deg)",
+    +   "latest": "translate(-50%, -50%) rotate(180deg)",
+    +   "preserved": "translate(-50%, -50%) rotate(90deg)",
+      }
+
+      3457 |       return { preserved, latest: video.style.transform };
+      3458 |     });
+    > 3459 |     expect(rotations).toEqual({ preserved: 'rotate(90deg)', latest: 'rotate(180deg)' });
+           |                       ^
+      3460 |   });
+      3461 | });
+      3462 |
+        at /Users/jay/Documents/warpdiff/tests/warpdiff.spec.ts:3459:23
+
+    Test timeout of 60000ms exceeded.
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results/warpdiff-Safari-native-scr-39bea-nd-a-newer-layout-transform-chromium/error-context.md
+
+  1 failed
+    [chromium] › tests/warpdiff.spec.ts:3440:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform

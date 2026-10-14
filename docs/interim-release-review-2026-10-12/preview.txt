@@ -1,0 +1,39 @@
+npm notice run warpdiff@1.0.0 test:ci
+npm notice run playwright test --project=chromium --workers=1 --retries=0 tests/safari-preview-output.spec.ts --reporter=line,json --output=/tmp/warpdiff-interim-review-20261012/preview-results
+(node:64832) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[WebServer] (node:64833) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] npm notice run warpdiff@1.0.0 npx
+
+[WebServer] npm notice run 'serve' -l 8080 --no-clipboard .
+
+[WebServer] (node:64856) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 11 tests using 1 worker
+
+(node:64857) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:64857) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:64857) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/11] [chromium] › tests/safari-preview-output.spec.ts:77:7 › Continuous reaches the native stream when the direct destination is silent
+[2/11] [chromium] › tests/safari-preview-output.spec.ts:77:7 › snippet fallback reaches the native stream when the direct destination is silent
+[3/11] [chromium] › tests/safari-preview-output.spec.ts:96:7 › FLAC 51 preserves center listening through the Safari stream output
+[4/11] [chromium] › tests/safari-preview-output.spec.ts:96:7 › Opus 51 preserves center listening through the Safari stream output
+[5/11] [chromium] › tests/safari-preview-output.spec.ts:96:7 › FLAC 71 preserves center listening through the Safari stream output
+[6/11] [chromium] › tests/safari-preview-output.spec.ts:96:7 › Opus 71 preserves center listening through the Safari stream output
+[7/11] [chromium] › tests/safari-preview-output.spec.ts:125:5 › idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one output
+[8/11] [chromium] › tests/safari-preview-output.spec.ts:190:5 › clear during a drag ends the stream and replacement creates a fresh sink
+[9/11] [chromium] › tests/safari-preview-output.spec.ts:223:5 › loop-marker adjustment does not start a preview output
+[10/11] [chromium] › tests/safari-preview-output.spec.ts:236:5 › tab hiding settles a released fade and a stale play rejection cannot affect replacement
+[11/11] [chromium] › tests/safari-preview-output.spec.ts:266:5 › ordinary Chromium keeps its direct preview output
+  11 passed (56.4s)

@@ -1,0 +1,136 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test --config=/tmp/warpdiff-external-20261011/playwright.webkit.config.cjs
+(node:91187) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 33 tests using 1 worker
+
+(node:91188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91188) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   1 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid (1.0m)
+(node:91295) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91295) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91295) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   2 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid (1.0m)
+(node:91410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91410) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:91410) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   3 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51_aac.mp4 in Stack and Grid (849ms)
+  ✘   4 [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid (11.1s)
+
+
+  1) [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for locator('#stackInfoStrip .sih-audio-format')
+        - locator resolved to <span class="sih-audio-format" title="Source audio: FLAC · 5.1 · 48 kHz" aria-label="Source audio: FLAC · 5.1 · 48 kHz">FLAC · 5.1 · 48 kHz</span>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        114 × waiting for element to be visible, enabled and stable
+            - element is visible, enabled and stable
+            - scrolling into view if needed
+            - done scrolling
+            - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+          - retrying click action
+            - waiting 500ms
+
+
+      32 |     }
+      33 |     // Leave the listening control's local keyboard scope before using G.
+    > 34 |     await page.locator('#stackInfoStrip .sih-audio-format').click();
+         |                                                             ^
+      35 |     await page.keyboard.press('g');
+      36 |     await expect(field).toBeVisible();
+      37 |     const box = await field.boundingBox();
+        at /Users/jay/Documents/warpdiff/tests/audio-format.spec.ts:34:61
+
+    Error Context: ../../../../tmp/warpdiff-external-20261011/webkit-artifacts/audio-format-source-audio--d2d2a-ue-51-mp4-in-Stack-and-Grid-webkit/error-context.md
+
+  2) [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid
+
+    Test timeout of 60000ms exceeded.
+
+    Error: page.waitForFunction: Test timeout of 60000ms exceeded.
+
+      25 |     await expect(field).toHaveAttribute('title', 'Source audio: ' + expected);
+      26 |     if (file === 'dialogue_71.mp4') {
+    > 27 |       await page.waitForFunction(() => (window as any).eval('_videoAudioBuffers.editA?.numberOfChannels === 3'));
+         |                  ^
+      28 |       await page.locator('#audioListeningLabel').click();
+      29 |       await page.getByRole('button', {name:'Center Only', exact:true}).click();
+      30 |       await expect(field).toHaveText(expected);
+        at /Users/jay/Documents/warpdiff/tests/audio-format.spec.ts:27:18
+
+    Error Context: ../../../../tmp/warpdiff-external-20261011/webkit-artifacts/audio-format-source-audio--ad466-ue-71-mp4-in-Stack-and-Grid-webkit/error-context.md
+
+  3) [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid
+
+    Test was interrupted.
+
+    Error: locator.click: Test ended.
+    Call log:
+      - waiting for locator('#stackInfoStrip .sih-audio-format')
+        - locator resolved to <span class="sih-audio-format" title="Source audio: Opus · 7.1 · 48 kHz" aria-label="Source audio: Opus · 7.1 · 48 kHz">Opus · 7.1 · 48 kHz</span>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        20 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div id="ffmpegBackdrop" class="fp-backdrop open" onclick="toggleFfmpegPanel()"></div> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      32 |     }
+      33 |     // Leave the listening control's local keyboard scope before using G.
+    > 34 |     await page.locator('#stackInfoStrip .sih-audio-format').click();
+         |                                                             ^
+      35 |     await page.keyboard.press('g');
+      36 |     await expect(field).toBeVisible();
+      37 |     const box = await field.boundingBox();
+        at /Users/jay/Documents/warpdiff/tests/audio-format.spec.ts:34:61
+
+  2 failed
+    [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid
+    [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid
+  1 interrupted
+    [webkit] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid
+  29 did not run
+  1 passed (2.2m)

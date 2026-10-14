@@ -1,0 +1,18 @@
+npm notice run warpdiff@1.0.0 test:ownership
+npm notice run node tests/ownership.test.mjs
+  ✗ service-worker: activation deletes only WarpDiff version caches
+[mp4-parse] 135 audio samples, timescale=44100, rate=44100, ch=2, elst_media_time=0, skipSamples=0, timelineStart=0, segDur=3024, movieTs=1000, maxSamples=133358
+[mp4-parse] 72 audio samples, timescale=48000, rate=48000, ch=1, elst_media_time=0, skipSamples=0, timelineStart=0.144, segDur=1522, movieTs=1000, maxSamples=73056
+[mp4-parse] 401 audio samples, timescale=48000, rate=48000, ch=8, elst_media_time=312, skipSamples=312, timelineStart=0, segDur=8000, movieTs=1000, maxSamples=384000
+file:///Users/jay/Documents/warpdiff/tests/ownership.test.mjs:110
+  if (!m) throw new Error('function not found: ' + name);
+                ^
+
+Error: function not found: _applyTranscodedFile
+    at extractFn (file:///Users/jay/Documents/warpdiff/tests/ownership.test.mjs:110:17)
+    at file:///Users/jay/Documents/warpdiff/tests/ownership.test.mjs:2097:12
+    at ModuleJob.run (node:internal/modules/esm/module_job:447:25)
+    at async node:internal/modules/esm/loader:646:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.4.0

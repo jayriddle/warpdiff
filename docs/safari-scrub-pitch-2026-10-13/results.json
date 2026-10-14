@@ -1,0 +1,546 @@
+{
+  "at": "2026-10-13T23:01:10.260Z",
+  "branch": "codex/interim-release-review",
+  "head": "b17d7b7",
+  "input": "ac3_video_aac.mp4",
+  "sha256": "ccec39850289f28fa14eedf88c2cd808855760e95be239d170be668e62e50cb0",
+  "method": "Offline renders; snippet context/destination substituted only in isolated pages; Continuous message acknowledgment appended without DSP edits.",
+  "sourceHashes": {
+    "index.html": "7ee9f48d8435f40f33747cf234c8d75a415affbbb88d2c6db8936a3dafae85e9",
+    "js/scrub-audio.js": "10ca4e28959470852fcf5ce882fa5f6c3b764dde330bbad7fab4cecfe8e267da",
+    "js/scrub-audio-core.js": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+    "js/scrub-worklet.js": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+    "js/SCRUB_AUDIO_LOCK.json": "0bd9bc37f65815d443c35a9b253ce70109180c1e34c31399a8b0cd010174c4df"
+  },
+  "browsers": [
+    {
+      "name": "chromium",
+      "errors": [],
+      "renders": [
+        {
+          "kind": "snippet",
+          "rate": 0.25,
+          "actualRate": 0.25,
+          "rms": 0.0616755650801732,
+          "minHz": 109.93841665259409,
+          "maxHz": 110.0140664620295,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 0.5,
+          "actualRate": 0.5,
+          "rms": 0.06274620138551497,
+          "minHz": 219.9029874012114,
+          "maxHz": 220.13280895940818,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 0.75,
+          "actualRate": 0.75,
+          "rms": 0.06253273764275676,
+          "minHz": 329.9481704616333,
+          "maxHz": 330.1152072383839,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 1,
+          "actualRate": 1,
+          "rms": 0.0628900946027719,
+          "minHz": 439.9354285464024,
+          "maxHz": 440.14829126975184,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 1.5,
+          "actualRate": 1.5,
+          "rms": 0.06273559480535937,
+          "minHz": 660.0214076784906,
+          "maxHz": 660.0828345988914,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 2,
+          "actualRate": 2,
+          "rms": 0.062672077384217,
+          "minHz": 879.9751319151035,
+          "maxHz": 880.042388336337,
+          "windows": 2
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.25,
+          "direction": 1,
+          "rms": 0.06282718533286742,
+          "minHz": 439.7620569480116,
+          "maxHz": 440.1720784868654,
+          "windows": 48
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.25,
+          "direction": -1,
+          "rms": 0.06283896131856546,
+          "minHz": 439.8355166933064,
+          "maxHz": 440.1703038166734,
+          "windows": 48
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.5,
+          "direction": 1,
+          "rms": 0.06316468919881932,
+          "minHz": 439.87223840111943,
+          "maxHz": 440.08603116645503,
+          "windows": 22
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.5,
+          "direction": -1,
+          "rms": 0.06319612213205882,
+          "minHz": 439.8404664113843,
+          "maxHz": 440.15561002051595,
+          "windows": 22
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1,
+          "direction": 1,
+          "rms": 0.062456489000982385,
+          "minHz": 439.93726467587817,
+          "maxHz": 440.04314437176845,
+          "windows": 10
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1,
+          "direction": -1,
+          "rms": 0.06243430843706677,
+          "minHz": 439.9478287459537,
+          "maxHz": 440.06617813524923,
+          "windows": 10
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1.5,
+          "direction": 1,
+          "rms": 0.06492985885141057,
+          "minHz": 439.97648327562206,
+          "maxHz": 440.00919399864,
+          "windows": 5
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1.5,
+          "direction": -1,
+          "rms": 0.06494254162224015,
+          "minHz": 439.97041422820223,
+          "maxHz": 440.0293106635159,
+          "windows": 5
+        },
+        {
+          "kind": "continuous",
+          "tempo": 2,
+          "direction": 1,
+          "rms": 0.0651943082399436,
+          "minHz": 439.98761055842476,
+          "maxHz": 440.0185251607007,
+          "windows": 3
+        },
+        {
+          "kind": "continuous",
+          "tempo": 2,
+          "direction": -1,
+          "rms": 0.06514809313661188,
+          "minHz": 439.98613997176074,
+          "maxHz": 440.01915817518267,
+          "windows": 3
+        }
+      ],
+      "environment": {
+        "version": "3.19.1",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+        "channels": 2,
+        "sampleRate": 48000,
+        "duration": 0.9813333333333333,
+        "timelineStart": 0,
+        "pinned": "1.3.1"
+      },
+      "reference": {
+        "rms": 0.06250380445055963,
+        "minHz": 439.9369703829884,
+        "maxHz": 440.05503164968474,
+        "windows": 13
+      },
+      "gestures": [
+        {
+          "rate": 1,
+          "direction": 1,
+          "selectedRate": 1,
+          "maximumInputGapMs": 42.60000002384186,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.249448,
+              "rate": 1
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102.5
+        },
+        {
+          "rate": 1,
+          "direction": -1,
+          "selectedRate": 1,
+          "maximumInputGapMs": 42.30000001192093,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6666666666666666,
+              "rate": 1
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102.5
+        },
+        {
+          "rate": 0.5,
+          "direction": 1,
+          "selectedRate": 0.5,
+          "maximumInputGapMs": 42.400000005960464,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.25,
+              "rate": 0.5
+            }
+          ],
+          "activeTicks": 12,
+          "firstContinuousAfterSnippetMs": 101.80000001192093
+        },
+        {
+          "rate": 0.5,
+          "direction": -1,
+          "selectedRate": 0.5,
+          "maximumInputGapMs": 42.29999998211861,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6666666666666666,
+              "rate": 0.5
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102
+        },
+        {
+          "rate": 0.25,
+          "direction": 1,
+          "selectedRate": 0.25,
+          "maximumInputGapMs": 42.5,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.25,
+              "rate": 0.25
+            }
+          ],
+          "activeTicks": 12,
+          "firstContinuousAfterSnippetMs": 101.19999998807907
+        },
+        {
+          "rate": 0.25,
+          "direction": -1,
+          "selectedRate": 0.25,
+          "maximumInputGapMs": 41.80000001192093,
+          "sinkRate": null,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6666666666666666,
+              "rate": 0.25
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102.2000000178814
+        }
+      ],
+      "gestureErrors": []
+    },
+    {
+      "name": "webkit",
+      "errors": [],
+      "renders": [
+        {
+          "kind": "snippet",
+          "rate": 0.25,
+          "actualRate": 0.25,
+          "rms": 0.06167556510166959,
+          "minHz": 109.93841656881993,
+          "maxHz": 110.01406632744612,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 0.5,
+          "actualRate": 0.5,
+          "rms": 0.06274620110705233,
+          "minHz": 219.90298741159495,
+          "maxHz": 220.1328087847922,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 0.75,
+          "actualRate": 0.75,
+          "rms": 0.06253273920449608,
+          "minHz": 329.94816810678503,
+          "maxHz": 330.1152065135369,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 1,
+          "actualRate": 1,
+          "rms": 0.06289009362260055,
+          "minHz": 439.9354283137319,
+          "maxHz": 440.14829145329605,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 1.5,
+          "actualRate": 1.5,
+          "rms": 0.06273561739512754,
+          "minHz": 660.0214125837008,
+          "maxHz": 660.082820487979,
+          "windows": 2
+        },
+        {
+          "kind": "snippet",
+          "rate": 2,
+          "actualRate": 2,
+          "rms": 0.06267207621694369,
+          "minHz": 879.975132340563,
+          "maxHz": 880.0423884115423,
+          "windows": 2
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.25,
+          "direction": 1,
+          "rms": 0.06282717059358404,
+          "minHz": 439.7610716222873,
+          "maxHz": 440.17208910074345,
+          "windows": 48
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.25,
+          "direction": -1,
+          "rms": 0.06283896069898688,
+          "minHz": 439.8355167318663,
+          "maxHz": 440.170303818447,
+          "windows": 48
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.5,
+          "direction": 1,
+          "rms": 0.06316468773913272,
+          "minHz": 439.87223832322564,
+          "maxHz": 440.0860311348987,
+          "windows": 22
+        },
+        {
+          "kind": "continuous",
+          "tempo": 0.5,
+          "direction": -1,
+          "rms": 0.06319612034516876,
+          "minHz": 439.8404664814938,
+          "maxHz": 440.1556099945704,
+          "windows": 22
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1,
+          "direction": 1,
+          "rms": 0.06245649269843219,
+          "minHz": 439.9372646906077,
+          "maxHz": 440.04314437186855,
+          "windows": 10
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1,
+          "direction": -1,
+          "rms": 0.0624343074004832,
+          "minHz": 439.9478287830749,
+          "maxHz": 440.06620845149166,
+          "windows": 10
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1.5,
+          "direction": 1,
+          "rms": 0.06492985528462138,
+          "minHz": 439.97648354793375,
+          "maxHz": 440.0091940016429,
+          "windows": 5
+        },
+        {
+          "kind": "continuous",
+          "tempo": 1.5,
+          "direction": -1,
+          "rms": 0.06494253701514345,
+          "minHz": 439.9704142186795,
+          "maxHz": 440.0293106984751,
+          "windows": 5
+        },
+        {
+          "kind": "continuous",
+          "tempo": 2,
+          "direction": 1,
+          "rms": 0.06519430721255909,
+          "minHz": 439.987610560537,
+          "maxHz": 440.0185250486291,
+          "windows": 3
+        },
+        {
+          "kind": "continuous",
+          "tempo": 2,
+          "direction": -1,
+          "rms": 0.06514809126940291,
+          "minHz": 439.98613997737016,
+          "maxHz": 440.0191581306033,
+          "windows": 3
+        }
+      ],
+      "environment": {
+        "version": "3.19.1",
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+        "channels": 2,
+        "sampleRate": 48000,
+        "duration": 0.981,
+        "timelineStart": 0,
+        "pinned": "1.3.1"
+      },
+      "reference": {
+        "rms": 0.06250380289204954,
+        "minHz": 439.9369703805902,
+        "maxHz": 440.0550317703406,
+        "windows": 13
+      },
+      "gestures": [
+        {
+          "rate": 1,
+          "direction": 1,
+          "selectedRate": 1,
+          "maximumInputGapMs": 45,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.2496139,
+              "rate": 1
+            }
+          ],
+          "activeTicks": 12,
+          "firstContinuousAfterSnippetMs": 101
+        },
+        {
+          "rate": 1,
+          "direction": -1,
+          "selectedRate": 1,
+          "maximumInputGapMs": 45,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6996411,
+              "rate": 1
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102
+        },
+        {
+          "rate": 0.5,
+          "direction": 1,
+          "selectedRate": 0.5,
+          "maximumInputGapMs": 46,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.2496139,
+              "rate": 0.5
+            }
+          ],
+          "activeTicks": 12,
+          "firstContinuousAfterSnippetMs": 100.00000000000045
+        },
+        {
+          "rate": 0.5,
+          "direction": -1,
+          "selectedRate": 0.5,
+          "maximumInputGapMs": 45,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6996411,
+              "rate": 0.5
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 101.99999999999955
+        },
+        {
+          "rate": 0.25,
+          "direction": 1,
+          "selectedRate": 0.25,
+          "maximumInputGapMs": 45,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.2496139,
+              "rate": 0.25
+            }
+          ],
+          "activeTicks": 12,
+          "firstContinuousAfterSnippetMs": 101
+        },
+        {
+          "rate": 0.25,
+          "direction": -1,
+          "selectedRate": 0.25,
+          "maximumInputGapMs": 45,
+          "sinkRate": 1,
+          "engineError": null,
+          "snippets": [
+            {
+              "time": 0.6996411,
+              "rate": 0.25
+            }
+          ],
+          "activeTicks": 11,
+          "firstContinuousAfterSnippetMs": 102
+        }
+      ],
+      "gestureErrors": []
+    }
+  ],
+  "inputUnchanged": true
+}

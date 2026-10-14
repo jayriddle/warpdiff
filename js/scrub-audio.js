@@ -168,7 +168,7 @@ function _playContinuousScrub(time) {
         targetOffset:offset, pointerOffset, at, rate:tempo, direction};
     return true;
 }
-const _SCRUB_OUTPUT_LEN = 0.09;   // 90ms at every playback rate (source span scales with rate)
+const _SCRUB_OUTPUT_LEN = 0.09;   // 90ms at original pitch, independent of playback speed
 const _SCRUB_FADE = 0.01;         // 10ms fade in/out
 const _SCRUB_AUDIO_CLOCK_MS = 50; // steady cadence, independent of pointer/decoder event bursts
 const _SCRUB_AUDIO_IDLE_MS = 130; // stop after the pointer/presentation clock holds still
@@ -263,15 +263,16 @@ function playScrubSnippet(time) {
         _stopScrubAudioNodes();
         return;
     }
-    const rate = PLAYBACK_RATES[playbackRateIndex] || 1;
+    // Click, warm-up and fallback previews keep the source pitch, matching
+    // Continuous. Selected playback speed belongs to normal transport only.
+    const rate = 1;
     if (_scrubSource && _scrubSourceBuffer === buf) {
         const priorOffset = _scrubSourceOffset +
             Math.max(0, ctx.currentTime - _scrubSourceStartCtx) * _scrubSourceRate;
         offset = _phaseAlignScrubOffset(buf, offset, priorOffset, rate);
     }
-    // Hold the OUTPUT grain length steady. The old fixed source span
-    // shrank to 40ms at 2×, shorter than its 50ms scheduling interval,
-    // which guaranteed gaps even with perfectly regular callbacks.
+    // Keep the output grain longer than its 50ms scheduling interval,
+    // with the existing shorter tail when the source runs out.
     const grainLengths = _scrubGrainLengths(rate, buf.duration - offset);
     const snippetLen = grainLengths.source;
     const outputSnippetLen = grainLengths.output;
@@ -299,8 +300,7 @@ function playScrubSnippet(time) {
 
     const source = ctx.createBufferSource();
     source.buffer = buf;
-    // Match the current playback rate so the scrub preview sounds like the
-    // user's selected speed rather than always playing at 1×.
+    // A brief preview must not transpose when transport speed changes.
     source.playbackRate.value = rate;
     const output = _connectAudioOutput(source, gain, buf.numberOfChannels, slot);
     source.start(0, offset, snippetLen);

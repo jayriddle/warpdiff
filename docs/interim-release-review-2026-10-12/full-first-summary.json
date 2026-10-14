@@ -1,0 +1,57 @@
+{
+  "stats": {
+    "startTime": "2026-10-13T03:09:55.512Z",
+    "duration": 627891.301,
+    "expected": 414,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  },
+  "outcomes": [
+    {
+      "title": "shows warning toast for timestamp collision",
+      "status": "skipped",
+      "expectedStatus": "skipped",
+      "result": [
+        {
+          "status": "skipped",
+          "duration": 99,
+          "attachments": []
+        }
+      ]
+    },
+    {
+      "title": "selecting another slot hands off solo playback, and Sync rejoins at that time",
+      "status": "unexpected",
+      "expectedStatus": "passed",
+      "result": [
+        {
+          "status": "failed",
+          "duration": 1442,
+          "error": {
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.3\u001b[39m\nReceived:   \u001b[31m0.32244100000000003\u001b[39m",
+            "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m0.3\u001b[39m\nReceived:   \u001b[31m0.32244100000000003\u001b[39m\n    at /Users/jay/Documents/warpdiff/tests/warpdiff.spec.ts:1655:59",
+            "location": {
+              "file": "/Users/jay/Documents/warpdiff/tests/warpdiff.spec.ts",
+              "column": 59,
+              "line": 1655
+            },
+            "snippet": "  1653 |     expect(videoStates[0].paused).toBe(true);\n  1654 |     expect(videoStates[1].paused).toBe(false);\n> 1655 |     expect(Math.abs(videoStates[0].t - videoStates[1].t)).toBeLessThan(0.3);\n       |                                                           ^\n  1656 |\n  1657 |     await page.keyboard.press('Shift+s');\n  1658 |     await page.waitForTimeout(250);"
+          },
+          "attachments": [
+            {
+              "name": "screenshot",
+              "contentType": "image/png",
+              "path": "/tmp/warpdiff-interim-review-20261012/full-results/warpdiff-Solo-video-playba-327a4-d-Sync-rejoins-at-that-time-chromium/test-failed-1.png"
+            },
+            {
+              "name": "error-context",
+              "contentType": "text/markdown",
+              "path": "/tmp/warpdiff-interim-review-20261012/full-results/warpdiff-Solo-video-playba-327a4-d-Sync-rejoins-at-that-time-chromium/error-context.md"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -64,6 +64,8 @@ Press `Shift+G` to grab the current frame from the active slot and pin it to a g
 
 ## Sync and Solo video playback
 
+Unsupported video audio uses the **Prepare audio externally** panel. WarpDiff does not include, download or run FFmpeg. Install it separately using [FFmpeg download information](https://ffmpeg.org/download.html), copy the macOS/Linux terminal command, and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including `.m4v`); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use **Load prepared files** in the panel, **Load (L)**, or drag and drop to load the `_aac` output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally; extensionless names stay intact and gain `_aac.mp4`. Rename files containing control characters before copying a command. Copy reports unavailable or blocked clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.
+
 Playback controls wrap when a desktop window or embedded pane has limited width, keeping seeking, volume and audio-source selection reachable.
 
 Loading a new comparison immediately clears the previous waveform and spectrogram, even if their panel is closed. The graphs remain blank while the new audio analysis prepares.
@@ -117,7 +119,7 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 ## Scrub audio
 
-Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
+Continuous is standard for video and audio-only timelines. It preserves pitch while following drag speed and direction, including backward audio on backward drags. Short previews retain original pitch, independent of selected normal playback speed. Clicks audition short previews; holding still fades audio out. The separate mode button is gone, and old mode preferences no longer affect scrubbing.
 
 Source-relative volume compensation reduces level loss during stretching in both directions, including backward speech that previously stayed quieter. One smooth, bounded gain serves both ears, retaining stereo balance and quiet/loud differences; strong peaks limit the boost. It follows the selected Listen mix rather than normalizing clips to a fixed loudness. The finite correction limit and peak headroom can still leave some passages quieter, and stretching can still change the sound. Normal playback and original analysis remain unchanged.
 

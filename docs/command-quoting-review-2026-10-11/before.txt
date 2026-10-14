@@ -1,0 +1,101 @@
+(node:18260) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 4 tests using 1 worker
+
+(node:18261) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:18261) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:18261) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/4] [chromium] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+  1) [chromium] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell › no extension
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+    @@ -20,7 +20,7 @@
+        "-b:a",
+        "192k",
+        "-shortest",
+        "-movflags",
+        "+faststart",
+    -   "./review_aac.mp4",
+    +   "./re_aac.mp4",
+      ]
+
+      55 |     await test.step(cases[i].label, async () => {
+      56 |       expect(commands[i].filename).toBe(cases[i].input);
+    > 57 |       expect(shellArguments(commands[i].cmd)).toEqual(expectedArguments(cases[i].input, cases[i].output));
+         |                                               ^
+      58 |     });
+      59 |   }
+      60 |   expect(await page.evaluate(() => (window as any).transcodeCalls)).toEqual(cases.map(() => 'original'));
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:57:47
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:55:16
+
+    Error Context: test-results/ffmpeg-command-copied-FFmp-6e078-names-through-a-POSIX-shell-chromium/error-context.md
+
+
+(node:18292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:18292) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:18292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/4] [chromium] › tests/ffmpeg-command.spec.ts:63:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+[3/4] [chromium] › tests/ffmpeg-command.spec.ts:87:5 › FFmpeg panel reports a refused clipboard write without claiming success
+  2) [chromium] › tests/ffmpeg-command.spec.ts:87:5 › FFmpeg panel reports a refused clipboard write without claiming success
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('#toast')
+    Expected substring: "Could not copy"
+    Received string:    ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('#toast')
+        9 × locator resolved to <div id="toast" class="toast"></div>
+          - unexpected value ""
+
+
+       97 |   const button = page.locator('#ffmpegPanel .fp-copy-btn');
+       98 |   await button.click();
+    >  99 |   await expect(page.locator('#toast')).toContainText('Could not copy');
+          |                                        ^
+      100 |   await expect(button).toHaveText('Copy');
+      101 |   expect(errors).toEqual([]);
+      102 | });
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:99:40
+
+    Error Context: test-results/ffmpeg-command-FFmpeg-pane-a621d-te-without-claiming-success-chromium/error-context.md
+
+
+(node:18305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:18305) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+(node:18305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[4/4] [chromium] › tests/ffmpeg-command.spec.ts:104:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+  2 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:41:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+    [chromium] › tests/ffmpeg-command.spec.ts:87:5 › FFmpeg panel reports a refused clipboard write without claiming success
+  2 passed (8.9s)

@@ -1,0 +1,262 @@
+[
+  {
+    "file": "test-results/dialogue-listening-dialogu-5fd9e--preserve-source-and-clocks-chromium/trace.zip",
+    "entries": [
+      {
+        "name": "test.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "pw:api@49",
+            "endTime": 189895.134,
+            "annotations": [],
+            "error": {
+              "name": "",
+              "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at audioWait (/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:14:14)\n    at /Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:70:11"
+            }
+          },
+          {
+            "type": "error",
+            "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+            "stack": [
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 14,
+                "column": 14,
+                "function": "audioWait"
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 70,
+                "column": 11
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "0-trace.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "call@26",
+            "endTime": 189888.672,
+            "error": {
+              "message": "Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at CRExecutionContext.evaluateWithArguments (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/chromium/crExecutionContext.js:80:13)\n    at LongStandingScope._race (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/utils/isomorphic/manualPromise.js:94:14)\n    at Object.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/javascript.js:217:12)\n    at Frame.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/frames.js:599:19)\n    at FrameDispatcher.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/frameDispatcher.js:76:68)\n    at ProgressController.run (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/progress.js:98:22)\n    at FrameDispatcher._runCommand (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:91:14)\n    at DispatcherConnection.dispatch (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:325:22)",
+              "name": "Error"
+            },
+            "afterSnapshot": "after@call@26"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "test-results/dialogue-listening-dialogu-07af6--preserve-source-and-clocks-chromium/trace.zip",
+    "entries": [
+      {
+        "name": "test.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "pw:api@42",
+            "endTime": 122410.011,
+            "annotations": [],
+            "error": {
+              "name": "",
+              "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at audioWait (/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:14:14)\n    at /Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:70:11"
+            }
+          },
+          {
+            "type": "error",
+            "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+            "stack": [
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 14,
+                "column": 14,
+                "function": "audioWait"
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 70,
+                "column": 11
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "0-trace.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "call@235",
+            "endTime": 122406.485,
+            "error": {
+              "message": "Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at CRExecutionContext.evaluateWithArguments (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/chromium/crExecutionContext.js:80:13)\n    at LongStandingScope._race (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/utils/isomorphic/manualPromise.js:94:14)\n    at Object.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/javascript.js:217:12)\n    at Frame.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/frames.js:599:19)\n    at FrameDispatcher.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/frameDispatcher.js:76:68)\n    at ProgressController.run (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/progress.js:98:22)\n    at FrameDispatcher._runCommand (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:91:14)\n    at DispatcherConnection.dispatch (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:325:22)",
+              "name": "Error"
+            },
+            "afterSnapshot": "after@call@235"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "test-results/continuous-scrub-continuou-66911-gue-and-releases-its-stream-chromium/trace.zip",
+    "entries": [
+      {
+        "name": "test.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "expect@163",
+            "endTime": 47355.858,
+            "annotations": [],
+            "error": {
+              "name": "",
+              "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0.01\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+              "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0.01\u001b[39m\nReceived:   \u001b[31m0\u001b[39m\n    at /Users/jay/Documents/warpdiff/tests/continuous-scrub.spec.ts:101:15"
+            }
+          },
+          {
+            "type": "error",
+            "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0.01\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
+            "stack": [
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/continuous-scrub.spec.ts",
+                "line": 101,
+                "column": 15
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "file": "test-results/dialogue-listening-dialogu-c7972--preserve-source-and-clocks-chromium/trace.zip",
+    "entries": [
+      {
+        "name": "test.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "pw:api@49",
+            "endTime": 258738.481,
+            "annotations": [],
+            "error": {
+              "name": "",
+              "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at audioWait (/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:14:14)\n    at /Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts:70:11"
+            }
+          },
+          {
+            "type": "error",
+            "message": "Error: page.evaluate: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+            "stack": [
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "eval at evaluate (:290:30), <anonymous>",
+                "line": 7,
+                "column": 38,
+                "function": "eval"
+              },
+              {
+                "file": "async <anonymous>",
+                "line": 316,
+                "column": 30
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 14,
+                "column": 14,
+                "function": "audioWait"
+              },
+              {
+                "file": "/Users/jay/Documents/warpdiff/tests/dialogue-listening.spec.ts",
+                "line": 70,
+                "column": 11
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "0-trace.trace",
+        "errors": [
+          {
+            "type": "after",
+            "callId": "call@26",
+            "endTime": 258732.184,
+            "error": {
+              "message": "Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30",
+              "stack": "Error: Error: Audio clock did not advance\n    at eval (eval at evaluate (:290:30), <anonymous>:7:38)\n    at async <anonymous>:316:30\n    at CRExecutionContext.evaluateWithArguments (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/chromium/crExecutionContext.js:80:13)\n    at LongStandingScope._race (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/utils/isomorphic/manualPromise.js:94:14)\n    at Object.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/javascript.js:217:12)\n    at Frame.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/frames.js:599:19)\n    at FrameDispatcher.evaluateExpression (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/frameDispatcher.js:76:68)\n    at ProgressController.run (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/progress.js:98:22)\n    at FrameDispatcher._runCommand (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:91:14)\n    at DispatcherConnection.dispatch (/Users/jay/Documents/warpdiff/node_modules/playwright-core/lib/server/dispatchers/dispatcher.js:325:22)",
+              "name": "Error"
+            },
+            "afterSnapshot": "after@call@26"
+          }
+        ]
+      }
+    ]
+  }
+]

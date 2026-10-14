@@ -1,0 +1,36 @@
+2026-10-14T03:06:50.2864890Z   1) [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:06:50.2885940Z
+2026-10-14T03:06:50.2945960Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-14T03:06:50.2971760Z
+2026-10-14T03:06:50.2982020Z     Expected: true
+2026-10-14T03:06:50.3008860Z     Received: false
+2026-10-14T03:06:50.3021530Z
+2026-10-14T03:06:50.3047860Z       111 |       expect(active.grains.length).toBeGreaterThan(0);
+2026-10-14T03:06:50.3057720Z       112 |       expect(active.grains.every((g:any)=>g.rate===1)).toBe(true);
+2026-10-14T03:06:50.3087700Z     > 113 |       expect(active.continuous).toBe(!fallback);
+2026-10-14T03:06:50.3089170Z           |                                 ^
+2026-10-14T03:06:50.3192760Z       114 |       if(!fallback)expect(active.direction).toBe(direction);
+2026-10-14T03:06:50.3198230Z       115 |       await expect.poll(() => page.evaluate(() => (window as any).eval('!!_scrubSource || _continuousScrubEngine.state.active'))).toBe(false);
+2026-10-14T03:06:50.3200260Z       116 |     }
+2026-10-14T03:06:50.3202380Z         at /Users/runner/work/warpdiff/warpdiff/tests/scrub-pitch.spec.ts:113:33
+2026-10-14T03:06:50.3203640Z
+2026-10-14T03:06:50.3205700Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-14T03:06:50.3208480Z     test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-webkit-scrub-pitch/test-failed-1.png
+2026-10-14T03:06:50.3210920Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-14T03:06:50.3212060Z
+2026-10-14T03:06:50.3213740Z     Error Context: test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-webkit-scrub-pitch/error-context.md
+2026-10-14T03:06:50.3215140Z
+2026-10-14T03:06:50.3216560Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-14T03:06:50.3218810Z     test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-webkit-scrub-pitch/trace.zip
+2026-10-14T03:06:50.3225450Z     Usage:
+2026-10-14T03:06:50.3226230Z
+2026-10-14T03:06:50.3237810Z         npx playwright show-trace test-results/scrub-pitch-Continuous-ent-a301c-out-changing-playback-speed-webkit-scrub-pitch/trace.zip
+2026-10-14T03:06:50.3239420Z
+2026-10-14T03:06:50.3240170Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-14T03:06:50.3241340Z
+2026-10-14T03:06:50.3241350Z
+2026-10-14T03:06:51.4764750Z [31/31] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:67:41 › fallback previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:07:04.1280730Z   1 failed
+2026-10-14T03:07:04.1365010Z     [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:67:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:07:04.1464370Z   30 passed (1.9m)
+2026-10-14T03:07:04.2801020Z ##[error]Process completed with exit code 1.
