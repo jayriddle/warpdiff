@@ -1,0 +1,28 @@
+npm notice run warpdiff@1.0.0 npx
+npm notice run 'playwright' test tests/scrub-pitch.spec.ts tests/safari-preview-output.spec.ts --project=chromium --workers=1 --retries=0
+(node:96261) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 14 tests using 1 worker
+
+(node:96262) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96262) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:96262) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/safari-preview-output.spec.ts:79:7 › Continuous reaches the native stream when the direct destination is silent (3.7s)
+  ✓   2 [chromium] › tests/safari-preview-output.spec.ts:79:7 › snippet fallback reaches the native stream when the direct destination is silent (3.6s)
+  ✓   3 [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 51 preserves center listening through the Safari stream output (4.1s)
+  ✓   4 [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 51 preserves center listening through the Safari stream output (4.7s)
+  ✓   5 [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 71 preserves center listening through the Safari stream output (4.1s)
+  ✓   6 [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 71 preserves center listening through the Safari stream output (4.3s)
+  ✓   7 [chromium] › tests/safari-preview-output.spec.ts:127:5 › idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one output (8.1s)
+  ✓   8 [chromium] › tests/safari-preview-output.spec.ts:192:5 › clear during a drag ends the stream and replacement creates a fresh sink (3.8s)
+  ✓   9 [chromium] › tests/safari-preview-output.spec.ts:225:5 › loop-marker adjustment does not start a preview output (1.6s)
+  ✓  10 [chromium] › tests/safari-preview-output.spec.ts:238:5 › tab hiding settles a released fade and a stale play rejection cannot affect replacement (2.2s)
+  ✓  11 [chromium] › tests/safari-preview-output.spec.ts:268:5 › ordinary Chromium keeps its direct preview output (1.7s)
+  ✓  12 [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed (197ms)
+  ✓  13 [chromium] › tests/scrub-pitch.spec.ts:71:41 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.3s)
+  ✓  14 [chromium] › tests/scrub-pitch.spec.ts:71:41 › fallback previews retain pitch policy in both drag directions without changing playback speed (4.1s)
+
+  14 passed (51.6s)

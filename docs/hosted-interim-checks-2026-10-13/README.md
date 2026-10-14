@@ -27,8 +27,17 @@ held.** This record does not declare complete Safari or multichannel acceptance.
 
 ## Hosted run
 
-Pending the feature-branch push. The workflow is `WarpDiff checks`, triggered
-by the push. It has two jobs:
+The feature branch was pushed successfully at
+`103f92b58709502f43ad1c1eef9eaf39e2945c52`. A read-back confirmed that remote
+`main` remained at the preflight SHA. No tags, other feature branches or main
+updates were pushed.
+
+The push triggered [`WarpDiff checks`, run 38504321421](
+https://github.com/jayriddle/warpdiff/actions/runs/38504321421), attempt 1, for
+that exact SHA. Both jobs started and passed installation and fixture
+generation; Ubuntu ownership also passed before starting the full browser
+suite. The initial WebKit job then failed one test (30 passed), as documented
+below. The full Chromium conclusion is still pending. The workflow has two jobs:
 
 - **Chromium and ownership** — Ubuntu 24.04, Node 24, native FFmpeg/zsh,
   Chrome media codecs, fixture generation, ownership and complete Chromium.
@@ -38,6 +47,47 @@ by the push. It has two jobs:
 Both browser gates use one worker and zero retries. The workflow has a read-only
 token, exact action pins and no merge/deployment step. Hosted failures will be
 recorded and addressed on this feature branch before considering a release.
+
+## Initial WebKit failure and test correction
+
+The hosted WebKit job failed the Continuous-entry check during a reverse 0.5×
+drag: it expected the processor to be active but read it after activity ended.
+The pitch-spectrum regression and fallback check passed. The [failure excerpt](
+initial-webkit-failure.txt) and [extracted trace timing](initial-webkit-timing.json)
+retain the original result.
+
+The complete trace shows actual held-motion gaps of at most 53 ms. The last
+in-page sample was read 46 ms after motion and still reported the native stream
+requested/running. Between the sweep's browser-protocol completion and the next
+state-read request, tracing introduced **168.782 ms**. That interval alone
+exceeds the app's existing **130 ms** idle cutoff. The later read returned
+`continuous:false`, one snippet at source rate 1×, and selected/native playback
+rates both at 0.5×. The original sweep did not sample the Continuous flag, so
+its original during-motion state is not independently established by this trace.
+
+The test helper now optionally invokes a test-only state sampler alongside
+motion in the page's clock. The pitch test reads that captured state, asserts
+its actual motion age is below 130 ms, and retains the same active/direction,
+pitch, playback-rate and cleanup assertions. One reverse 0.5× gesture also
+deliberately waits 180 ms afterward and verifies the processor has gone idle,
+while its captured moving sample must have been active. This reproduces the
+late-read condition without changing the app's idle behavior or hiding it with
+retries. An afterEach attachment preserves accumulated gesture evidence on
+success or failure.
+
+No application file, vendor pin, playback policy, timing limit or test timeout
+was changed for this correction. A diff against `103f92b` confirms the runtime
+is unchanged. Local checks for the test correction:
+
+- **14 Chromium checks passed**, 51.6 seconds: new pitch tests plus all existing
+  Safari-preview output checks sharing the helper. [Log](local-chromium.txt).
+- **31 WebKit checks passed**, 23.0 seconds, zero retries and zero skips.
+  [Log](local-webkit.txt), [gesture samples](local-gesture-samples.json).
+- **525 ownership checks passed**. [Log](local-ownership.txt).
+
+The complete initial Chromium run is allowed to finish before a corrected
+feature-branch push, so its evidence is retained instead of canceled by workflow
+concurrency. The next push will start a fresh pair of hosted checks.
 
 ## Remaining decisions
 

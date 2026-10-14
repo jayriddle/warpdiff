@@ -1,0 +1,151 @@
+{
+  "run": 38504321421,
+  "job": 115658203309,
+  "sha": "103f92b58709502f43ad1c1eef9eaf39e2945c52",
+  "failedAssertion": "Expected Continuous active during reverse drag; actual false in late state read",
+  "driverClock": {
+    "sweepCompleteMs": 99992.842,
+    "stateReadRequestedMs": 100161.624,
+    "gapMs": 168.78199999999197
+  },
+  "sweep": {
+    "trace": [
+      {
+        "at": 6249.000000000001,
+        "readAt": 6293,
+        "rms": null,
+        "contextTime": 3.496,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6293,
+        "readAt": 6335,
+        "rms": null,
+        "contextTime": 3.538666666666667,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6335,
+        "readAt": 6381,
+        "rms": null,
+        "contextTime": 3.584,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6381,
+        "readAt": 6423,
+        "rms": null,
+        "contextTime": 3.6266666666666665,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6423,
+        "readAt": 6463,
+        "rms": null,
+        "contextTime": 3.6666666666666665,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6463,
+        "readAt": 6505,
+        "rms": null,
+        "contextTime": 3.7066666666666666,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6505,
+        "readAt": 6552.000000000001,
+        "rms": null,
+        "contextTime": 3.7546666666666666,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6552.000000000001,
+        "readAt": 6602,
+        "rms": null,
+        "contextTime": 3.8053333333333335,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6602,
+        "readAt": 6655,
+        "rms": null,
+        "contextTime": 3.856,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6655,
+        "readAt": 6697,
+        "rms": null,
+        "contextTime": 3.8986666666666667,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6697,
+        "readAt": 6743,
+        "rms": null,
+        "contextTime": 3.9466666666666668,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      },
+      {
+        "at": 6743,
+        "readAt": 6789,
+        "rms": null,
+        "contextTime": 3.992,
+        "contextState": "running",
+        "nativePaused": false,
+        "nativeReadyState": 4,
+        "requested": true
+      }
+    ],
+    "peak": 0,
+    "maximumInputGap": 53
+  },
+  "lateState": {
+    "grains": [
+      {
+        "time": 1.8123642,
+        "rate": 1
+      }
+    ],
+    "continuous": false,
+    "direction": null,
+    "selectedRate": 0.5,
+    "mediaRate": 0.5
+  },
+  "idleCutoffMs": 130,
+  "interpretation": "53ms maximum input gap; last sample read 46ms after motion. Driver gap to separate state request is 168.782ms, exceeding the 130ms idle cutoff. No Continuous flag was captured during the original sweep; corrected test samples it there and checks actual motion age."
+}

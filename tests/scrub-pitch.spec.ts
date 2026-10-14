@@ -3,6 +3,10 @@ import path from 'node:path';
 import {moveHeldPointer} from './helpers/scrub-motion';
 
 test.use({serviceWorkers:'block'});
+test.afterEach(async({page},info)=>{
+  const evidence=await page.evaluate(()=>(window as any).__pitchChecks||[]).catch(()=>[]);
+  if(evidence.length)await info.attach('gesture-preview-rates',{body:Buffer.from(JSON.stringify(evidence,null,2)),contentType:'application/json'});
+});
 
 test('brief preview PCM retains source pitch and level at every selected playback speed', async ({page}, info) => {
   await page.goto('/');
@@ -82,15 +86,22 @@ for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entr
   await page.waitForFunction(field => (window as any).eval('!!_continuousScrubEngine.state.'+field),fallback?'error':'node');
   await expect(page.locator('#comparisonView.active')).toBeVisible();
   await page.evaluate(() => (window as any).eval(`
-    pauseAllMedia(); window.__pitchGrains=[];
+    pauseAllMedia(); window.__pitchGrains=[];window.__pitchChecks=[];
     const play=playScrubSnippet;
     playScrubSnippet=time=>{
       const prior=_scrubSource;play(time);
       if(_scrubSource&&_scrubSource!==prior)__pitchGrains.push({time,rate:_scrubSource.playbackRate.value});
     };
+    // Read while the held gesture is still active. Hosted tracing can delay a
+    // separate driver evaluate past the app's legitimate 130ms idle cutoff.
+    window.scrubMotionState=()=>({
+      motionAge:performance.now()-_scrubAudioMotionAt,
+      grains:__pitchGrains.slice(),continuous:_continuousScrubEngine.state.active,
+      direction:_continuousScrubCursor?.direction,selectedRate:PLAYBACK_RATES[playbackRateIndex],
+      mediaRate:document.querySelector('#layerEditA video').playbackRate
+    });
   `));
   const box=(await page.locator('#videoProgressContainer').boundingBox())!;
-  const evidence=[];
   for(const speed of [.5,1,2]) {
     while(await page.evaluate(speed=>(window as any).eval('PLAYBACK_RATES[playbackRateIndex]')>speed,speed))await page.keyboard.press('j');
     while(await page.evaluate(speed=>(window as any).eval('PLAYBACK_RATES[playbackRateIndex]')<speed,speed))await page.keyboard.press('k');
@@ -98,15 +109,18 @@ for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entr
       const start=direction>0?.2:.6,end=direction>0?.6:.2,y=box.y+box.height/2;
       await page.evaluate(() => { (window as any).__pitchGrains=[]; });
       await page.mouse.move(box.x+box.width*start,y);await page.mouse.down();
-      const sweep=await moveHeldPointer(page,Array.from({length:12},(_,i)=>({x:box.x+box.width*(start+(end-start)*(i+1)/12),y})),40);
-      const active=await page.evaluate(() => (window as any).eval(`({
-        grains:__pitchGrains.slice(),continuous:_continuousScrubEngine.state.active,
-        direction:_continuousScrubCursor?.direction,selectedRate:PLAYBACK_RATES[playbackRateIndex],
-        mediaRate:document.querySelector('#layerEditA video').playbackRate
-      })`));
+      const sweep=await moveHeldPointer(page,Array.from({length:12},(_,i)=>({x:box.x+box.width*(start+(end-start)*(i+1)/12),y})),40,false,true);
+      const active=sweep.trace[sweep.trace.length-1].state;
+      if(!fallback&&speed===.5&&direction===-1) {
+        // Reproduce the hosted driver's late read: idle is correct now, while
+        // the captured sample must still prove Continuous during motion.
+        await page.waitForTimeout(180);
+        expect(await page.evaluate(()=>(window as any).__testAPI.continuousScrubState.active)).toBe(false);
+      }
       await page.mouse.up();
-      evidence.push({speed,direction,maximumInputGap:sweep.maximumInputGap,...active});
+      await page.evaluate(check=>{(window as any).__pitchChecks.push(check);},{speed,direction,maximumInputGap:sweep.maximumInputGap,...active});
       expect(sweep.maximumInputGap).toBeLessThan(130);
+      expect(active.motionAge,'sample must be inside the actual motion window').toBeLessThan(130);
       expect(active.selectedRate).toBe(speed);expect(active.mediaRate).toBe(speed);
       expect(active.grains.length).toBeGreaterThan(0);
       expect(active.grains.every((g:any)=>g.rate===1)).toBe(true);
@@ -115,7 +129,6 @@ for(const fallback of [false,true]) test(`${fallback?'fallback':'Continuous entr
       await expect.poll(() => page.evaluate(() => (window as any).eval('!!_scrubSource || _continuousScrubEngine.state.active'))).toBe(false);
     }
   }
-  await info.attach('gesture-preview-rates',{body:Buffer.from(JSON.stringify(evidence,null,2)),contentType:'application/json'});
   await page.evaluate(() => (window as any).clearAllMedia());
   await expect(page.locator('audio[data-scrub-preview-output]')).toHaveCount(0);
 });
