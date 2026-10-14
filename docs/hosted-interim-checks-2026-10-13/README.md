@@ -5,6 +5,27 @@ fix. He authorizes pushing `codex/interim-release-review` and running the
 proposed hosted checks. **Merge, publication and protection activation remain
 held.** This record does not declare complete Safari or multichannel acceptance.
 
+**Outcome: the feature branch is pushed and both hosted checks passed** at
+`e72f098347ec1fc06a0e958762c053244adbf1a1` in [run 38508619644](
+https://github.com/jayriddle/warpdiff/actions/runs/38508619644), attempt 1.
+
+| Hosted check | Final result |
+|---|---|
+| Ubuntu Chromium | **423 passed, zero failed/flaky, one existing skip**, 13.2 minutes. [Report summary](final-chromium-summary.json), [test/ownership log excerpts](final-chromium-log.txt). |
+| Ubuntu ownership | **523 passed, zero failed**. A standalone runner lacks the two neighboring WarpCap source checks included in the 525-check local result. |
+| macOS WebKit | **32 passed, zero failed/flaky/skipped**, 81.3 seconds. [Report summary](final-webkit-summary.json), [test log excerpts](final-webkit-log.txt). |
+
+Both hosted jobs succeeded, with one browser worker and zero test retries.
+[Exact run/job metadata](final-run.json) records the tested SHA and job URLs.
+The earlier two hosted failures and all corrections are retained below; they
+are not hidden by retries or represented as passes.
+
+After the green run, a remote read-back confirmed the feature branch at `e72f098`
+and main still at `75eb81f701de89628d432148c46dac87b18f0d98`. Pages still builds
+from main `/`, and main protection remains inactive. No merge, publication or
+repository setting change occurred. Results recorded after the run are local
+documentation only; they have not been pushed to trigger another full gate.
+
 ## Scope and remote preflight
 
 - Remote default branch: `main`, at
@@ -213,10 +234,27 @@ Both earlier full runs finished, so none of their full-suite evidence was
 canceled. The next revision combines the valid direct-entry test and owned
 rotation fixture before starting a fresh hosted gate.
 
+## Final submitted revision
+
+The combined test corrections were pushed at
+`e72f098347ec1fc06a0e958762c053244adbf1a1`. Remote main remains at the original
+preflight SHA. [Run 38508619644](
+https://github.com/jayriddle/warpdiff/actions/runs/38508619644), attempt 1, tests
+this exact revision. The WebKit job passed: **32 tests, zero failures, skips or
+flaky results**, 81.3 seconds of browser execution. [Report summary](
+final-webkit-summary.json). The complete Chromium suite also passed: **423 tests,
+no failures or flaky results, one existing skip**, 13.2 minutes. The entire
+workflow concluded **success**.
+
+The application, audio components, vendor pins, service worker and manifest
+are byte-identical to the Safari-accepted runtime; only tests and their records
+changed while establishing the hosted gate. No merge, publication, PR creation,
+protection activation or other branch push has occurred.
+
 ## Remaining decisions
 
-Read both job conclusions and the tested SHA. Resolve any hosted failures and
-retain the evidence. Then review the result with Jay. Main protection,
+Both job conclusions and the tested SHA are verified, and the evidence is saved.
+Review the result with Jay. Main protection,
 pull-request/merge approval, publication and served-site verification remain
 separate actions. Historical FFmpeg distribution remediation and broader
 host-load/audio-measurement changes remain separate work.

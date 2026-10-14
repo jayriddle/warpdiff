@@ -92,3 +92,9 @@ The authorized branch is `codex/interim-release-review`; broader foundations
 and the replacement FFmpeg-distribution experiment remain outside its ancestry.
 See the [hosted-check record](../hosted-interim-checks-2026-10-13/README.md) for
 the pushed revision, Actions results and remaining release decisions.
+
+The final hosted gate passed at `e72f098`: Chromium 423/0 with its one existing
+skip, ownership 523/0 in the standalone runner, and WebKit 32/0. Tests now cover
+44.1/48 kHz device rates and both valid Continuous startup paths. Runtime code
+remained identical to the Safari-accepted version throughout the hosted fixes.
+Main, publication and protection activation remain held.

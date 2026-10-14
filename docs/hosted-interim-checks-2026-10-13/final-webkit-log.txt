@@ -1,0 +1,33 @@
+2026-10-14T03:54:40.8999550Z [1/32] [webkit-workflow] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+2026-10-14T03:54:50.2234700Z [2/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false
+2026-10-14T03:54:52.0074970Z [3/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true
+2026-10-14T03:54:53.5516260Z [4/32] [webkit-workflow] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null
+2026-10-14T03:54:54.9811170Z [5/32] [webkit-workflow] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus
+2026-10-14T03:54:56.2820770Z [6/32] [webkit-workflow] › tests/external-preparation.spec.ts:99:5 › native codec limits retain original surround metadata and give a preparation route
+2026-10-14T03:54:58.6938480Z [7/32] [webkit-workflow] › tests/external-preparation.spec.ts:117:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC
+2026-10-14T03:55:01.5475710Z [8/32] [webkit-workflow] › tests/external-preparation.spec.ts:154:5 › service worker installs without FFmpeg and retires only owned legacy caches
+2026-10-14T03:55:01.7779500Z [9/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+2026-10-14T03:55:03.4293990Z [10/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+2026-10-14T03:55:04.5038080Z [11/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command
+2026-10-14T03:55:05.5954800Z [12/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command
+2026-10-14T03:55:06.6643380Z [13/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command
+2026-10-14T03:55:07.6933270Z [14/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command
+2026-10-14T03:55:08.7483820Z [15/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+2026-10-14T03:55:09.8330430Z [16/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command
+2026-10-14T03:55:10.9181980Z [17/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command
+2026-10-14T03:55:12.0353630Z [18/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command
+2026-10-14T03:55:13.1776140Z [19/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command
+2026-10-14T03:55:14.6048570Z [20/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success
+2026-10-14T03:55:16.2998140Z [21/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success
+2026-10-14T03:55:17.9878000Z [22/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+2026-10-14T03:55:19.4551820Z [23/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent
+2026-10-14T03:55:20.7484070Z [24/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent
+2026-10-14T03:55:21.9483280Z [25/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+2026-10-14T03:55:23.8873840Z [26/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+2026-10-14T03:55:25.2255500Z [27/32] [webkit-workflow] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+2026-10-14T03:55:27.4252990Z [28/32] [webkit-reload] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded
+2026-10-14T03:55:32.1453660Z [29/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed
+2026-10-14T03:55:34.0561370Z [30/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:55:42.7541260Z [31/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:55:51.8017790Z [32/32] [webkit-scrub-pitch] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T03:56:00.2055620Z   32 passed (1.4m)

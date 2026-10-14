@@ -1,0 +1,24 @@
+{
+  "stats": {
+    "total": 424,
+    "expected": 423,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 1,
+    "ok": true
+  },
+  "duration": 792971.651,
+  "startTime": 1791950098127,
+  "projectNames": [
+    "chromium"
+  ],
+  "skippedTests": [
+    {
+      "file": "warpdiff.spec.ts",
+      "title": "shows warning toast for timestamp collision",
+      "path": [
+        "File Loading & Slot Assignment"
+      ]
+    }
+  ]
+}

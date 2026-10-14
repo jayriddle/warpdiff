@@ -1,0 +1,427 @@
+2026-10-14T03:54:57.1548299Z 523 passed, 0 failed
+2026-10-14T03:55:00.8481333Z [1/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 759x599 as narrow-short once per ready review
+2026-10-14T03:55:02.1908840Z [2/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 759x600 as narrow-tall once per ready review
+2026-10-14T03:55:03.2303924Z [3/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 760x599 as medium-short once per ready review
+2026-10-14T03:55:04.2424201Z [4/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1199x600 as medium-tall once per ready review
+2026-10-14T03:55:05.2417720Z [5/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1200x599 as wide-short once per ready review
+2026-10-14T03:55:06.2442342Z [6/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 1200x600 as wide-tall once per ready review
+2026-10-14T03:55:07.3046479Z [7/424] [chromium] › tests/appearance-usage.spec.ts:33:17 › working space samples 960x900 as medium-tall once per ready review
+2026-10-14T03:55:08.3072976Z [8/424] [chromium] › tests/appearance-usage.spec.ts:52:5 › scope-3 Yes cannot collect working space; renewal does not replay its review
+2026-10-14T03:55:09.8417986Z [9/424] [chromium] › tests/appearance-usage.spec.ts:70:5 › privacy remains reachable after loading media in a narrow window
+2026-10-14T03:55:10.9927163Z [10/424] [chromium] › tests/appearance-usage.spec.ts:103:5 › themes persist independently of consent and never change media rendering
+2026-10-14T03:55:12.7773537Z [11/424] [chromium] › tests/appearance-usage.spec.ts:125:5 › no request before consent, No persists, later Yes counts only new comparisons
+2026-10-14T03:55:14.5751265Z [12/424] [chromium] › tests/appearance-usage.spec.ts:148:5 › new loads count once each; duplicate readiness and layout changes do not
+2026-10-14T03:55:15.6133503Z [13/424] [chromium] › tests/appearance-usage.spec.ts:168:5 › single files count as reviews; failed sets and stale readiness do not
+2026-10-14T03:55:16.5964290Z [14/424] [chromium] › tests/appearance-usage.spec.ts:182:5 › audio and video readiness produce type-specific comparison counts
+2026-10-14T03:55:20.0551114Z [15/424] [chromium] › tests/appearance-usage.spec.ts:193:5 › offline comparisons are dropped and not replayed on reconnect
+2026-10-14T03:55:21.2107581Z [16/424] [chromium] › tests/appearance-usage.spec.ts:206:5 › blocked collector never blocks review or clearing
+2026-10-14T03:55:22.2751380Z [17/424] [chromium] › tests/appearance-usage.spec.ts:219:5 › revoking in another tab stops reporting; clearing preferences withdraws consent
+2026-10-14T03:55:24.1933817Z [18/424] [chromium] › tests/appearance-usage.spec.ts:236:5 › local test consent does not enable production or ordinary localhost reporting
+2026-10-14T03:55:25.5355014Z [19/424] [chromium] › tests/appearance-usage.spec.ts:251:5 › embedded local tests do not collect usage even with a saved Yes
+2026-10-14T03:55:26.6836843Z [20/424] [chromium] › tests/appearance-usage.spec.ts:264:5 › reduced motion is static; panel works at narrow widths and with keyboard
+2026-10-14T03:55:27.4791954Z [21/424] [chromium] › tests/appearance-usage.spec.ts:281:5 › turning sharing off cancels an in-flight request without retrying
+2026-10-14T03:55:28.5388402Z [22/424] [chromium] › tests/appearance-usage.spec.ts:304:5 › host negotiation aborts an in-flight standalone request and permanently retires reporting
+2026-10-14T03:55:29.4447897Z [23/424] [chromium] › tests/appearance-usage.spec.ts:329:5 › corrupt consent fails closed and invalid appearance falls back to Original
+2026-10-14T03:55:30.2032794Z [24/424] [chromium] › tests/appearance-usage.spec.ts:340:5 › Starfield is selected visibly, stops when hidden or reduced, and resumes
+2026-10-14T03:55:31.4982322Z [25/424] [chromium] › tests/appearance-usage.spec.ts:374:5 › Solar planes stay fixed while bodies follow their ellipses at desktop and mobile sizes
+2026-10-14T03:55:32.3423550Z [26/424] [chromium] › tests/appearance-usage.spec.ts:418:5 › legacy starfield migrates once and X no longer changes the appearance
+2026-10-14T03:55:33.5269937Z [27/424] [chromium] › tests/appearance-usage.spec.ts:435:5 › Nebula moves only while visible and keeps a still galaxy with reduced motion
+2026-10-14T03:55:37.6678019Z [28/424] [chromium] › tests/appearance-usage.spec.ts:507:5 › consent records the accepted scope and time locally, and survives ordinary reloads
+2026-10-14T03:55:38.6647346Z [29/424] [chromium] › tests/appearance-usage.spec.ts:523:5 › legacy, mismatched and incomplete Yes records cannot authorize reporting or replay
+2026-10-14T03:55:41.4858007Z [30/424] [chromium] › tests/appearance-usage.spec.ts:549:5 › No remains off without renewed prompting across legacy and changed scopes
+2026-10-14T03:55:43.4329273Z [31/424] [chromium] › tests/appearance-usage.spec.ts:564:5 › a mismatched consent scope from another tab pauses an already open reporting tab
+2026-10-14T03:55:44.6164332Z [32/424] [chromium] › tests/appearance-usage.spec.ts:580:7 › consent scope changes between actual script revisions › scope upgrades and downgrades fail closed; fresh consent resumes at the new scope
+2026-10-14T03:55:46.6353559Z [33/424] [chromium] › tests/appearance-usage.spec.ts:616:5 › feature adoption counts deliberate actions once per ready review, not restored layout
+2026-10-14T03:55:48.3676123Z [34/424] [chromium] › tests/appearance-usage.spec.ts:647:5 › scrub counts completed drags, surfaces and threshold crossings, excluding click, loop and cancellation
+2026-10-14T03:55:53.0121305Z [35/424] [chromium] › tests/appearance-usage.spec.ts:685:5 › video timeline scrubbing and opening combined audio graphs have distinct counts
+2026-10-14T03:55:54.1178370Z [36/424] [chromium] › tests/appearance-usage.spec.ts:702:5 › broken media counts one failed load without recording the filename or a ready review
+2026-10-14T03:55:54.8300399Z [37/424] [chromium] › tests/appearance-usage.spec.ts:714:5 › blocked analysis worker counts a successful fallback; terminal analysis failure is separate
+2026-10-14T03:55:57.5534979Z [38/424] [chromium] › tests/appearance-usage.spec.ts:731:5 › pending diagnostic tickets cannot cross clear, consent withdrawal or offline boundaries
+2026-10-14T03:55:59.0212109Z [39/424] [chromium] › tests/appearance-usage.spec.ts:750:5 › preview preparation reports reduced quality and unavailability as separate fixed outcomes
+2026-10-14T03:56:03.4667755Z [40/424] [chromium] › tests/appearance-usage.spec.ts:764:5 › unavailable Continuous processor uses short previews and reports one fallback per load
+2026-10-14T03:56:06.0134612Z [41/424] [chromium] › tests/appearance-usage.spec.ts:781:5 › readiness waits for every slot and cannot revive an incomplete pre-consent load
+2026-10-14T03:56:06.7460251Z [42/424] [chromium] › tests/appearance-usage.spec.ts:795:5 › sharing appears first and the provider is accessible through expandable details
+2026-10-14T03:56:07.5263392Z [43/424] [chromium] › tests/appearance-usage.spec.ts:816:5 › continuing without answering quietly retires the invitation without recording consent or reporting
+2026-10-14T03:56:08.8797584Z [44/424] [chromium] › tests/appearance-usage.spec.ts:841:5 › quiet dismissal follows other tabs; clearing its local preference permits an invitation again
+2026-10-14T03:56:10.0364703Z [45/424] [chromium] › tests/appearance-usage.spec.ts:855:5 › ignored scope review stays off across reloads without silently updating the old Yes
+2026-10-14T03:56:11.1190973Z [46/424] [chromium] › tests/appearance-usage.spec.ts:873:5 › dismissal write failure still suppresses this page and never enables sharing
+2026-10-14T03:56:12.1906827Z [47/424] [chromium] › tests/audio-analysis.spec.ts:6:5 › background analysis preserves every value and source channel while animation continues
+2026-10-14T03:56:17.4049110Z [48/424] [chromium] › tests/audio-analysis.spec.ts:57:7 › analysis clear cancels obsolete work and leaves the queue usable
+2026-10-14T03:56:17.9853422Z [49/424] [chromium] › tests/audio-analysis.spec.ts:57:7 › analysis supersede cancels obsolete work and leaves the queue usable
+2026-10-14T03:56:18.5692454Z [50/424] [chromium] › tests/audio-analysis.spec.ts:89:5 › blocked workers retain the original analysis compatibility path
+2026-10-14T03:56:19.1407582Z [51/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51.mp4 in Stack and Grid
+2026-10-14T03:56:20.0030285Z [52/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71.mp4 in Stack and Grid
+2026-10-14T03:56:24.4711769Z [53/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_51_aac.mp4 in Stack and Grid
+2026-10-14T03:56:25.5363712Z [54/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: dialogue_71_opus.mp4 in Stack and Grid
+2026-10-14T03:56:26.4815873Z [55/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: landscape_a.mp4 in Stack and Grid
+2026-10-14T03:56:27.3736153Z [56/424] [chromium] › tests/audio-format.spec.ts:20:7 › source audio format: vorbis_a.webm in Stack and Grid
+2026-10-14T03:56:28.3382111Z [57/424] [chromium] › tests/audio-format.spec.ts:47:5 › source format clears on reload and ignores a stale decode completion
+2026-10-14T03:56:29.4009108Z [58/424] [chromium] › tests/audio-format.spec.ts:62:5 › source format changes only when the externally prepared AC-3 copy is loaded
+2026-10-14T03:56:30.3633206Z [59/424] [chromium] › tests/audio-format.spec.ts:85:5 › source labels remain hoverable beside metrics in a narrow two-video Grid
+2026-10-14T03:56:37.7659185Z [60/424] [chromium] › tests/audio-viz-reset.spec.ts:57:7 › replacement clears old audio pixels with the panel open
+2026-10-14T03:56:42.0051600Z [61/424] [chromium] › tests/audio-viz-reset.spec.ts:57:7 › replacement clears old audio pixels with the panel closed
+2026-10-14T03:56:46.5350037Z [62/424] [chromium] › tests/audio-viz-reset.spec.ts:84:5 › a superseded analysis cannot repaint the new comparison
+2026-10-14T03:56:49.9657306Z [63/424] [chromium] › tests/continuous-scrub.spec.ts:5:38 › the selected scrub engine keeps forward slow dialogue near its original volume
+2026-10-14T03:56:51.1186489Z [64/424] [chromium] › tests/continuous-scrub.spec.ts:5:38 › the selected scrub engine keeps reverse slow dialogue near its original volume
+2026-10-14T03:56:52.1033619Z [65/424] [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream
+2026-10-14T03:57:02.0601167Z [66/424] [chromium] › tests/continuous-scrub.spec.ts:126:5 › old snippet preferences are ignored and failed loading retains click and drag previews
+2026-10-14T03:57:06.5463663Z [67/424] [chromium] › tests/continuous-scrub.spec.ts:162:44 › Grid source changes retain only the selected continuous buffer and clear pending work at 44100 Hz
+2026-10-14T03:57:12.3609968Z [68/424] [chromium] › tests/continuous-scrub.spec.ts:162:44 › Grid source changes retain only the selected continuous buffer and clear pending work at 48000 Hz
+2026-10-14T03:57:19.0384715Z [69/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch native: center and background controls preserve source and clocks
+2026-10-14T03:57:24.7789517Z [70/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch continuous: center and background controls preserve source and clocks
+2026-10-14T03:57:30.3773747Z [71/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch replacement: center and background controls preserve source and clocks
+2026-10-14T03:57:39.2591261Z [72/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 8ch native: center and background controls preserve source and clocks
+2026-10-14T03:57:45.0099487Z [73/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 8ch continuous: center and background controls preserve source and clocks
+2026-10-14T03:57:50.5598807Z [74/424] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 8ch replacement: center and background controls preserve source and clocks
+2026-10-14T03:57:59.5574523Z [75/424] [chromium] › tests/dialogue-listening.spec.ts:96:7 › codec center identity survives decode and Continuous: dialogue_51_opus.mp4
+2026-10-14T03:58:05.2588241Z [76/424] [chromium] › tests/dialogue-listening.spec.ts:96:7 › codec center identity survives decode and Continuous: dialogue_71_opus.mp4
+2026-10-14T03:58:11.1569915Z [77/424] [chromium] › tests/dialogue-listening.spec.ts:96:7 › codec center identity survives decode and Continuous: dialogue_51_aac.mp4
+2026-10-14T03:58:15.6410555Z [78/424] [chromium] › tests/dialogue-listening.spec.ts:125:44 › dialogue short previews use the same center mix at 44100 Hz
+2026-10-14T03:58:19.6722797Z [79/424] [chromium] › tests/dialogue-listening.spec.ts:125:44 › dialogue short previews use the same center mix at 48000 Hz
+2026-10-14T03:58:23.8608310Z [80/424] [chromium] › tests/dialogue-listening.spec.ts:142:5 › Listen preset choices hand focus back to playback without hiding the level controls
+2026-10-14T03:58:29.0721581Z [81/424] [chromium] › tests/dialogue-listening.spec.ts:171:5 › Listen mouse sliders and dismissal release focus while keyboard sliders keep arrow editing
+2026-10-14T03:58:33.8239681Z [82/424] [chromium] › tests/dialogue-listening.spec.ts:209:5 › dialogue controls keep keyboard focus, show unsupported files, and reset on clear
+2026-10-14T03:58:38.8660377Z [83/424] [chromium] › tests/dialogue-listening.spec.ts:231:5 › dialogue settings follow source handoffs and verified audio-only files
+2026-10-14T03:58:51.7198266Z [84/424] [chromium] › tests/dialogue-listening.spec.ts:266:5 › dialogue preparation retains filtered center within budget and cancels stale publication
+2026-10-14T03:58:55.7017993Z [85/424] [chromium] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine
+2026-10-14T03:58:56.7035362Z [86/424] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false
+2026-10-14T03:58:57.3671078Z [87/424] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true
+2026-10-14T03:58:58.0504194Z [88/424] [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null
+2026-10-14T03:58:58.7361701Z [89/424] [chromium] › tests/external-preparation.spec.ts:84:5 › multiple preparation entries retain slot order, literal text and keyboard focus
+2026-10-14T03:58:59.3308642Z [90/424] [chromium] › tests/external-preparation.spec.ts:99:5 › native codec limits retain original surround metadata and give a preparation route
+2026-10-14T03:59:03.9901344Z [91/424] [chromium] › tests/external-preparation.spec.ts:117:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC
+2026-10-14T03:59:05.2037999Z [92/424] [chromium] › tests/external-preparation.spec.ts:154:5 › service worker installs without FFmpeg and retires only owned legacy caches
+2026-10-14T03:59:05.4032586Z [93/424] [chromium] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell
+2026-10-14T03:59:06.3926953Z [94/424] [chromium] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim
+2026-10-14T03:59:07.0777384Z [95/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command
+2026-10-14T03:59:07.6419891Z [96/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command
+2026-10-14T03:59:08.2093698Z [97/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command
+2026-10-14T03:59:08.7746498Z [98/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command
+2026-10-14T03:59:09.3225379Z [99/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command
+2026-10-14T03:59:09.8929761Z [100/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command
+2026-10-14T03:59:10.4577155Z [101/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command
+2026-10-14T03:59:11.0406511Z [102/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command
+2026-10-14T03:59:11.6064814Z [103/424] [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command
+2026-10-14T03:59:12.1602642Z [104/424] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success
+2026-10-14T03:59:12.8580583Z [105/424] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success
+2026-10-14T03:59:13.5405739Z [106/424] [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success
+2026-10-14T03:59:14.2727331Z [107/424] [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent
+2026-10-14T03:59:14.8525930Z [108/424] [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent
+2026-10-14T03:59:15.4561844Z [109/424] [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+2026-10-14T03:59:16.8751957Z [110/424] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0s retains every copied video packet
+2026-10-14T03:59:17.7412882Z [111/424] [chromium] › tests/ffmpeg-command.spec.ts:210:7 › a short soundtrack starting at 0.5s retains every copied video packet
+2026-10-14T03:59:18.6307580Z [112/424] [chromium] › tests/full-rate-scrub.spec.ts:4:5 › video preview keeps full-rate high frequencies and stereo phase
+2026-10-14T03:59:19.6113441Z [113/424] [chromium] › tests/full-rate-scrub.spec.ts:32:5 › surround listening folds center while both analysis views retain original inputs
+2026-10-14T03:59:20.6664021Z [114/424] [chromium] › tests/full-rate-scrub.spec.ts:53:44 › a preview budget uses filtered, audible fallback and leaves analysis available at 44100 Hz
+2026-10-14T03:59:22.0597358Z [115/424] [chromium] › tests/full-rate-scrub.spec.ts:53:44 › a preview budget uses filtered, audible fallback and leaves analysis available at 48000 Hz
+2026-10-14T03:59:23.5771912Z [116/424] [chromium] › tests/full-rate-scrub.spec.ts:105:44 › clearing during listening preparation skips queued work and fences old publication at 44100 Hz
+2026-10-14T03:59:24.2448395Z [117/424] [chromium] › tests/full-rate-scrub.spec.ts:105:44 › clearing during listening preparation skips queued work and fences old publication at 48000 Hz
+2026-10-14T03:59:24.8821930Z [118/424] [chromium] › tests/grid-order.spec.ts:46:7 › hiding each of four videos preserves Inline columns order and restoration
+2026-10-14T03:59:28.9798140Z [119/424] [chromium] › tests/grid-order.spec.ts:46:7 › hiding each of four videos preserves Inline rows order and restoration
+2026-10-14T03:59:33.5946662Z [120/424] [chromium] › tests/grid-order.spec.ts:79:40 › Offset assigns its three positions to the remaining landscape videos in order
+2026-10-14T03:59:36.1327896Z [121/424] [chromium] › tests/grid-order.spec.ts:79:40 › Offset assigns its three positions to the remaining mixed-aspect videos in order
+2026-10-14T03:59:38.8462852Z [122/424] [chromium] › tests/info-bar.spec.ts:36:5 › default stays unchanged; presets keep their name and Reset restores the original bars
+2026-10-14T03:59:40.1422447Z [123/424] [chromium] › tests/info-bar.spec.ts:58:5 › field order and typography apply to Stack and Grid without changing playback
+2026-10-14T03:59:41.5918343Z [124/424] [chromium] › tests/info-bar.spec.ts:85:5 › spacers are repeatable, adjustable, movable and collapse around unavailable fields
+2026-10-14T03:59:42.9850795Z [125/424] [chromium] › tests/info-bar.spec.ts:109:5 › media profiles persist independently through reload and new comparisons
+2026-10-14T03:59:44.6624171Z [126/424] [chromium] › tests/info-bar.spec.ts:129:5 › late source and loudness publication retain hidden fields and user styles
+2026-10-14T03:59:47.1030553Z [127/424] [chromium] › tests/info-bar.spec.ts:159:5 › narrow bars show only selected overflow fields and clearing removes stale details
+2026-10-14T03:59:48.5344869Z [128/424] [chromium] › tests/info-bar.spec.ts:184:5 › editor keyboard controls stay local, native focus is contained and Escape restores focus
+2026-10-14T03:59:51.4256438Z [129/424] [chromium] › tests/info-bar.spec.ts:207:5 › all metadata can be hidden and four-slot identity controls remain usable
+2026-10-14T03:59:52.4528090Z [130/424] [chromium] › tests/info-bar.spec.ts:219:5 › another tab updates the active profile and failed storage is explained
+2026-10-14T03:59:53.9931545Z [131/424] [chromium] › tests/info-bar.spec.ts:240:5 › managed hosts close the editor and retain their standard review chrome
+2026-10-14T03:59:54.8391769Z [132/424] [chromium] › tests/info-bar.spec.ts:251:5 › image wipe uses its pair chooser and restores custom metadata on exit
+2026-10-14T03:59:55.6997904Z [133/424] [chromium] › tests/info-bar.spec.ts:263:5 › drag ordering works and preview More stays inside the modal top layer
+2026-10-14T03:59:56.6700915Z [134/424] [chromium] › tests/info-bar.spec.ts:276:5 › large text keeps every four-video picture below its own bar
+2026-10-14T03:59:57.7601632Z [135/424] [chromium] › tests/info-bar.spec.ts:288:5 › narrow and tablet Stack headers retain a reachable More button after resizing
+2026-10-14T04:00:01.0636715Z [136/424] [chromium] › tests/info-bar.spec.ts:306:5 › left and right sections anchor Zoom, preserve styles and survive reload in Stack and Grid
+2026-10-14T04:00:03.0066680Z [137/424] [chromium] › tests/info-bar.spec.ts:339:5 › each section orders its fields and spacers independently and supports drag transfers
+2026-10-14T04:00:04.5922107Z [138/424] [chromium] › tests/info-bar.spec.ts:365:5 › portrait Grid cells retain identity, Zoom and selected overflow through narrow and short resizes
+2026-10-14T04:00:21.7659940Z [139/424] [chromium] › tests/info-bar.spec.ts:392:5 › older single-section profiles keep custom ordering and named presets migrate Zoom to the right
+2026-10-14T04:00:22.9597839Z [140/424] [chromium] › tests/info-bar.spec.ts:409:5 › drag handles replace arrow buttons and support keyboard moves without app shortcuts
+2026-10-14T04:00:23.8646816Z [141/424] [chromium] › tests/info-bar.spec.ts:428:5 › touch handles move between sections and cancel without saving a partial drag
+2026-10-14T04:00:25.0275670Z [142/424] [chromium] › tests/info-bar.spec.ts:457:5 › touch dragging scrolls to an offscreen section and retires scrolling after release or cancel
+2026-10-14T04:00:27.5808475Z [143/424] [chromium] › tests/info-bar.spec.ts:501:5 › three portrait Inline and Offset bars keep selected controls inside the viewport
+2026-10-14T04:00:44.6797728Z [144/424] [chromium] › tests/memory-lifecycle.spec.ts:7:7 › clearing media releases real audio/video objects with a running audio context
+2026-10-14T04:00:46.7049147Z [145/424] [chromium] › tests/memory-lifecycle.spec.ts:7:7 › clearing media releases real audio/video objects with a suspended audio context
+2026-10-14T04:00:48.7558850Z [146/424] [chromium] › tests/multichannel.spec.ts:5:7 › multichannel listening output › normal playback keeps native channel mixing until decoded channels are known
+2026-10-14T04:00:51.2677569Z [147/424] [chromium] › tests/multichannel.spec.ts:32:7 › multichannel listening output › scrubbing preserves 7.1 center and surrounds without changing source channels
+2026-10-14T04:00:51.8598772Z [148/424] [chromium] › tests/multichannel.spec.ts:97:7 › multichannel listening output › 7.1 FLAC dialogue survives normal playback, mute, and decoded replacement
+2026-10-14T04:00:55.0488454Z [149/424] [chromium] › tests/multichannel.spec.ts:160:7 › multichannel listening output › audio-only 7.1 keeps center output and original analysis channels
+2026-10-14T04:00:57.5774128Z [150/424] [chromium] › tests/playhead-clock.spec.ts:13:7 › single playheads advance evenly and stop when the media clock stops
+2026-10-14T04:00:58.4372985Z [151/424] [chromium] › tests/playhead-clock.spec.ts:13:7 › Stack playheads advance evenly and stop when the media clock stops
+2026-10-14T04:00:59.3061699Z [152/424] [chromium] › tests/playhead-clock.spec.ts:13:7 › Grid playheads advance evenly and stop when the media clock stops
+2026-10-14T04:01:00.1771475Z [153/424] [chromium] › tests/playhead-clock.spec.ts:13:7 › single fast playheads advance evenly and stop when the media clock stops
+2026-10-14T04:01:01.0102593Z [154/424] [chromium] › tests/restart-playback.spec.ts:77:7 › Space after a paused scrub restores native looping and suspends retained decoders
+2026-10-14T04:01:07.0836288Z [155/424] [chromium] › tests/restart-playback.spec.ts:77:7 › r after a paused scrub restores native looping and suspends retained decoders
+2026-10-14T04:01:15.1483700Z [156/424] [chromium] › tests/restart-playback.spec.ts:102:5 › R after a Grid scrub preserves the shared custom loop
+2026-10-14T04:01:18.5963157Z [157/424] [chromium] › tests/restart-playback.spec.ts:125:5 › R after a Solo scrub loops only the selected video and suspends all retained decoders
+2026-10-14T04:01:26.7520701Z [158/424] [chromium] › tests/safari-preview-output.spec.ts:79:7 › Continuous reaches the native stream when the direct destination is silent
+2026-10-14T04:01:32.2519715Z [159/424] [chromium] › tests/safari-preview-output.spec.ts:79:7 › snippet fallback reaches the native stream when the direct destination is silent
+2026-10-14T04:01:38.0386251Z [160/424] [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 51 preserves center listening through the Safari stream output
+2026-10-14T04:01:45.4619896Z [161/424] [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 51 preserves center listening through the Safari stream output
+2026-10-14T04:01:52.8668193Z [162/424] [chromium] › tests/safari-preview-output.spec.ts:98:7 › FLAC 71 preserves center listening through the Safari stream output
+2026-10-14T04:02:00.2111821Z [163/424] [chromium] › tests/safari-preview-output.spec.ts:98:7 › Opus 71 preserves center listening through the Safari stream output
+2026-10-14T04:02:08.2333499Z [164/424] [chromium] › tests/safari-preview-output.spec.ts:127:5 › idle, mute, volume, rapid re-entry and hidden-tab cancellation keep one output
+2026-10-14T04:02:18.4033489Z [165/424] [chromium] › tests/safari-preview-output.spec.ts:192:5 › clear during a drag ends the stream and replacement creates a fresh sink
+2026-10-14T04:02:25.0693422Z [166/424] [chromium] › tests/safari-preview-output.spec.ts:225:5 › loop-marker adjustment does not start a preview output
+2026-10-14T04:02:29.0324129Z [167/424] [chromium] › tests/safari-preview-output.spec.ts:238:5 › tab hiding settles a released fade and a stale play rejection cannot affect replacement
+2026-10-14T04:02:33.4007249Z [168/424] [chromium] › tests/safari-preview-output.spec.ts:268:5 › ordinary Chromium keeps its direct preview output
+2026-10-14T04:02:37.3521997Z [169/424] [chromium] › tests/scrub-cadence.spec.ts:4:5 › fallback keeps preview audio alive during slow motion while the picture holds a frame
+2026-10-14T04:02:47.6978134Z [170/424] [chromium] › tests/scrub-cadence.spec.ts:80:5 › overlapping held-frame grains retain level, channels, volume, and idle silence
+2026-10-14T04:02:48.3607223Z [171/424] [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed
+2026-10-14T04:02:48.9918798Z [172/424] [chromium] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T04:02:54.6942786Z [173/424] [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T04:03:00.3467842Z [174/424] [chromium] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed
+2026-10-14T04:03:05.8884770Z [175/424] [chromium] › tests/slow-playback.spec.ts:46:5 › slow playback: pitch, verified center controls, original analysis, and shared stream budget
+2026-10-14T04:03:12.6307312Z [176/424] [chromium] › tests/slow-playback.spec.ts:76:5 › slow playback follows pause, seek, restart, speed, source changes, and scrub handoff
+2026-10-14T04:03:21.6984103Z [177/424] [chromium] › tests/slow-playback.spec.ts:109:5 › worklet chunks match one-buffer DSP and retire before context close
+2026-10-14T04:03:23.0017681Z [178/424] [chromium] › tests/slow-playback.spec.ts:158:5 › playback budget refusal, failed module, and clear during initialization stay bounded
+2026-10-14T04:03:23.6054379Z [179/424] [chromium] › tests/slow-playback.spec.ts:177:5 › slow playback places a known audio event on its scheduled timeline, including leading silence
+2026-10-14T04:03:24.4197085Z [180/424] [chromium] › tests/slow-playback.spec.ts:196:5 › rapid transport cancellation and repeated clear release old processors
+2026-10-14T04:03:36.5966178Z [181/424] [chromium] › tests/usage-daily.spec.ts:57:5 › ten ready comparisons produce one daily count; an open tab renews on next-day use
+2026-10-14T04:03:39.4574799Z [182/424] [chromium] › tests/usage-daily.spec.ts:87:5 › same-day reloads and simultaneous ready tabs share an atomic daily claim
+2026-10-14T04:03:41.4837973Z [183/424] [chromium] › tests/usage-daily.spec.ts:108:5 › a known hotkey or wheel can renew an existing review; synthetic input cannot
+2026-10-14T04:03:42.6498106Z [184/424] [chromium] › tests/usage-daily.spec.ts:134:5 › normal playback and scrubbing can renew an existing video review without another comparison
+2026-10-14T04:03:43.9588832Z [185/424] [chromium] › tests/usage-daily.spec.ts:155:5 › wipe pointer and local keyboard controls renew activity even when they stop event bubbling
+2026-10-14T04:03:45.0628110Z [186/424] [chromium] › tests/usage-daily.spec.ts:177:5 › unanswered, No and outdated consent cannot create or replay a daily marker
+2026-10-14T04:03:46.6960705Z [187/424] [chromium] › tests/usage-daily.spec.ts:200:79 › daily counting fails closed on read
+2026-10-14T04:03:47.6797256Z [188/424] [chromium] › tests/usage-daily.spec.ts:200:79 › daily counting fails closed on write
+2026-10-14T04:03:48.5961532Z [189/424] [chromium] › tests/usage-daily.spec.ts:200:79 › daily counting fails closed on locks-missing
+2026-10-14T04:03:49.5343165Z [190/424] [chromium] › tests/usage-daily.spec.ts:200:79 › daily counting fails closed on locks-reject
+2026-10-14T04:03:50.5134198Z [191/424] [chromium] › tests/usage-daily.spec.ts:223:5 › a busy cross-tab lock skips the old activity; release does not replay it
+2026-10-14T04:03:51.7809013Z [192/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross withdrawal
+2026-10-14T04:03:52.9664332Z [193/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross clear
+2026-10-14T04:03:54.0150553Z [194/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross replacement
+2026-10-14T04:03:55.1662575Z [195/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross offline
+2026-10-14T04:03:56.1313306Z [196/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross host
+2026-10-14T04:03:57.1354596Z [197/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross pagehide
+2026-10-14T04:03:58.1677411Z [198/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross hidden
+2026-10-14T04:03:59.1666055Z [199/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross midnight
+2026-10-14T04:04:00.2164422Z [200/424] [chromium] › tests/usage-daily.spec.ts:243:139 › delayed daily claim cannot cross undelivered-No
+2026-10-14T04:04:01.2999723Z [201/424] [chromium] › tests/usage-daily.spec.ts:274:5 › collector failure is not retried on reload and clock rollback does not double count
+2026-10-14T04:04:02.6978797Z [202/424] [chromium] › tests/usage-production.spec.ts:71:5 › official site sends only after current consent, remembers No, and excludes local-test preferences
+2026-10-14T04:04:04.6121099Z [203/424] [chromium] › tests/usage-production.spec.ts:112:5 › confirmed Reset aborts pending counts; canceling Reset preserves them and a new review can report
+2026-10-14T04:04:05.7168639Z [204/424] [chromium] › tests/usage-production.spec.ts:182:47 › failed withdrawal stays off and explains persistence (cleanup fails: false)
+2026-10-14T04:04:07.4491235Z [205/424] [chromium] › tests/usage-production.spec.ts:182:47 › failed withdrawal stays off and explains persistence (cleanup fails: true)
+2026-10-14T04:04:09.2061520Z [206/424] [chromium] › tests/usage-production.spec.ts:225:56 › queued No then Yes permanently retires the review (related window)
+2026-10-14T04:04:10.7989703Z [207/424] [chromium] › tests/usage-production.spec.ts:225:56 › queued No then Yes permanently retires the review (iframe)
+2026-10-14T04:04:12.0817071Z [208/424] [chromium] › tests/usage-production.spec.ts:261:5 › saved standalone consent cannot report before a top-level managed handshake
+2026-10-14T04:04:12.9603037Z [209/424] [chromium] › tests/usage-production.spec.ts:273:5 › N restores saved W state without recording an explicit W opening
+2026-10-14T04:04:14.1097920Z [210/424] [chromium] › tests/usage-production.spec.ts:289:5 › current production Yes resumes but outdated Yes waits for renewed consent
+2026-10-14T04:04:15.5807676Z [211/424] [chromium] › tests/usage-production.spec.ts:309:5 › copied site cannot report or accept a destination from the URL
+2026-10-14T04:04:16.3637906Z [212/424] [chromium] › tests/usage-production.spec.ts:321:5 › production automation cannot report even after consent
+2026-10-14T04:04:17.1971681Z [213/424] [chromium] › tests/usage-production.spec.ts:331:5 › verified provider details are visible before consent
+2026-10-14T04:04:17.9402427Z [214/424] [chromium] › tests/usage-production.spec.ts:348:5 › scope-2 Yes requires review and cannot replay the prior load under scope 4
+2026-10-14T04:04:18.9469848Z [215/424] [chromium] › tests/usage-production.spec.ts:365:5 › an account-verification hold disables production even with saved consent
+2026-10-14T04:04:19.8090018Z [216/424] [chromium] › tests/warpdiff.spec.ts:125:7 › host-load protocol and embedded lifecycle › newer load wins when older fetch completes later; stale failure is silent
+2026-10-14T04:04:20.9620707Z [217/424] [chromium] › tests/warpdiff.spec.ts:155:7 › host-load protocol and embedded lifecycle › same-origin parent is accepted and cross-origin parent is rejected
+2026-10-14T04:04:22.0573441Z [218/424] [chromium] › tests/warpdiff.spec.ts:188:7 › host-load protocol and embedded lifecycle › a real shortcut remap notifies only the correlated loaded host
+2026-10-14T04:04:23.1250493Z [219/424] [chromium] › tests/warpdiff.spec.ts:231:7 › host-load protocol and embedded lifecycle › embedded WarpDiff does not register a service worker
+2026-10-14T04:04:24.2109855Z [220/424] [chromium] › tests/warpdiff.spec.ts:244:5 › corrupt persisted preference recovers without aborting startup
+2026-10-14T04:04:24.8258392Z [221/424] [chromium] › tests/warpdiff.spec.ts:251:5 › audio-only decode from a cleared load cannot overwrite a newer completion
+2026-10-14T04:04:25.4278202Z [222/424] [chromium] › tests/warpdiff.spec.ts:302:5 › failed video-audio decode from a cleared load cannot mark the newer slot as silent
+2026-10-14T04:04:26.0104858Z [223/424] [chromium] › tests/warpdiff.spec.ts:337:5 › stale WebCodecs completion cannot announce success after clear
+2026-10-14T04:04:26.5911752Z [224/424] [chromium] › tests/warpdiff.spec.ts:432:7 › Page Load & Initial State › title is WarpDiff
+2026-10-14T04:04:27.2431513Z [225/424] [chromium] › tests/warpdiff.spec.ts:437:7 › Page Load & Initial State › header shows version and action buttons
+2026-10-14T04:04:27.8762861Z [226/424] [chromium] › tests/warpdiff.spec.ts:447:7 › Page Load & Initial State › comparison view is hidden initially
+2026-10-14T04:04:28.5427629Z [227/424] [chromium] › tests/warpdiff.spec.ts:452:7 › Page Load & Initial State › quick start or changelog shows on first visit/version change
+2026-10-14T04:04:29.1909393Z [228/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.17.5
+2026-10-14T04:04:30.1470087Z [229/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.18.11
+2026-10-14T04:04:31.0917833Z [230/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.18.12
+2026-10-14T04:04:32.0421583Z [231/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.18.13
+2026-10-14T04:04:32.9401381Z [232/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.18.14
+2026-10-14T04:04:33.9236124Z [233/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes show after 3.19.0
+2026-10-14T04:04:34.8413320Z [234/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes stay quiet after 3.19.1
+2026-10-14T04:04:35.4897068Z [235/424] [chromium] › tests/warpdiff.spec.ts:462:19 › Page Load & Initial State › release notes stay quiet after 4.0.0
+2026-10-14T04:04:36.1278820Z [236/424] [chromium] › tests/warpdiff.spec.ts:486:7 › File Loading & Slot Assignment › loading screen identifies ready and pending videos before revealing the comparison
+2026-10-14T04:04:36.9095862Z [237/424] [chromium] › tests/warpdiff.spec.ts:514:7 › File Loading & Slot Assignment › loads 1 file as single asset review
+2026-10-14T04:04:37.5924477Z [238/424] [chromium] › tests/warpdiff.spec.ts:521:7 › File Loading & Slot Assignment › loads 2 images in Grid mode with A/B slots
+2026-10-14T04:04:38.3298401Z [239/424] [chromium] › tests/warpdiff.spec.ts:529:7 › File Loading & Slot Assignment › loads 3 images in Grid mode with GT/A/B slots
+2026-10-14T04:04:39.0782011Z [240/424] [chromium] › tests/warpdiff.spec.ts:541:7 › File Loading & Slot Assignment › shows warning toast for timestamp collision
+2026-10-14T04:04:39.2644485Z [241/424] [chromium] › tests/warpdiff.spec.ts:545:7 › File Loading & Slot Assignment › loads 4 images as Image-1…Image-4 in a 2×2 Inline grid
+2026-10-14T04:04:40.0490642Z [242/424] [chromium] › tests/warpdiff.spec.ts:590:7 › File Loading & Slot Assignment › rejects 5+ files with warning toast
+2026-10-14T04:04:40.7089480Z [243/424] [chromium] › tests/warpdiff.spec.ts:605:7 › File Loading & Slot Assignment › rejects mixed media types with warning toast
+2026-10-14T04:04:41.3420747Z [244/424] [chromium] › tests/warpdiff.spec.ts:623:7 › View Modes (Stack/Grid) › defaults to Grid for 2 files
+2026-10-14T04:04:42.0361707Z [245/424] [chromium] › tests/warpdiff.spec.ts:627:7 › View Modes (Stack/Grid) › S key toggles between Stack and Grid
+2026-10-14T04:04:42.7791540Z [246/424] [chromium] › tests/warpdiff.spec.ts:634:7 › View Modes (Stack/Grid) › G key toggles between Stack and Grid
+2026-10-14T04:04:43.5142094Z [247/424] [chromium] › tests/warpdiff.spec.ts:641:7 › View Modes (Stack/Grid) › mode buttons reflect current mode
+2026-10-14T04:04:44.2022880Z [248/424] [chromium] › tests/warpdiff.spec.ts:653:7 › Audio Visualization › W key toggles waveform and spectrogram views
+2026-10-14T04:04:44.9016402Z [249/424] [chromium] › tests/warpdiff.spec.ts:662:7 › Audio Visualization › Shift+W toggles linear/log frequency scale
+2026-10-14T04:04:45.6157507Z [250/424] [chromium] › tests/warpdiff.spec.ts:676:7 › Audio Visualization › palette cycling changes spectrogram color scheme
+2026-10-14T04:04:46.3351971Z [251/424] [chromium] › tests/warpdiff.spec.ts:690:7 › Audio Visualization › displays audio info bars (sample rate, channels, bit depth, BPM)
+2026-10-14T04:04:47.0449673Z [252/424] [chromium] › tests/warpdiff.spec.ts:703:7 › Video Scopes › V key toggles scopes panel
+2026-10-14T04:04:47.8083683Z [253/424] [chromium] › tests/warpdiff.spec.ts:711:7 › Video Scopes › clicking scopes cycles through modes
+2026-10-14T04:04:48.6531802Z [254/424] [chromium] › tests/warpdiff.spec.ts:725:7 › Video Scopes › scopes panel contains histogram, waveform, and vectorscope
+2026-10-14T04:04:49.4405832Z [255/424] [chromium] › tests/warpdiff.spec.ts:736:7 › Keyboard Shortcuts › L key opens file input
+2026-10-14T04:04:50.0736885Z [256/424] [chromium] › tests/warpdiff.spec.ts:748:7 › Keyboard Shortcuts › H or ? opens shortcuts or help panel
+2026-10-14T04:04:50.7376924Z [257/424] [chromium] › tests/warpdiff.spec.ts:757:7 › Keyboard Shortcuts › arrow keys switch assets in Stack mode
+2026-10-14T04:04:51.5344301Z [258/424] [chromium] › tests/warpdiff.spec.ts:766:7 › Keyboard Shortcuts › +/ - /0 /1 keys control zoom
+2026-10-14T04:04:52.4006211Z [259/424] [chromium] › tests/warpdiff.spec.ts:778:7 › Keyboard Shortcuts › I/O keys set loop in/out points
+2026-10-14T04:04:53.1422990Z [260/424] [chromium] › tests/warpdiff.spec.ts:790:7 › Zoom & Loupe › Z key toggles loupe (magnifier)
+2026-10-14T04:04:53.9009145Z [261/424] [chromium] › tests/warpdiff.spec.ts:797:7 › Zoom & Loupe › + and - keys adjust magnification
+2026-10-14T04:04:54.6997529Z [262/424] [chromium] › tests/warpdiff.spec.ts:809:7 › Zoom & Loupe › 0 key resets to fit zoom
+2026-10-14T04:04:55.5178876Z [263/424] [chromium] › tests/warpdiff.spec.ts:819:7 › Zoom & Loupe › 1 key sets zoom to 100% (native pixels)
+2026-10-14T04:04:56.2455644Z [264/424] [chromium] › tests/warpdiff.spec.ts:827:7 › Zoom & Loupe › \ key toggles Stack Fit/Balance zoom mode
+2026-10-14T04:04:57.0636136Z [265/424] [chromium] › tests/warpdiff.spec.ts:846:7 › Zoom & Loupe › Shift+Z enables linked loupe in Grid mode
+2026-10-14T04:04:57.7506071Z [266/424] [chromium] › tests/warpdiff.spec.ts:861:7 › Grid Layout Direction › mixed-orientation grid: each picture stays inside its own layer (hit box)
+2026-10-14T04:04:59.0720966Z [267/424] [chromium] › tests/warpdiff.spec.ts:906:7 › Grid Layout Direction › two wide/landscape images get vertical (stacked) layout
+2026-10-14T04:04:59.7692962Z [268/424] [chromium] › tests/warpdiff.spec.ts:922:7 › Grid Layout Direction › two tall/portrait images get horizontal (side-by-side) layout
+2026-10-14T04:05:00.4866637Z [269/424] [chromium] › tests/warpdiff.spec.ts:935:7 › Grid Layout Direction › side-by-side images have a visible gap between A and B
+2026-10-14T04:05:01.2225598Z [270/424] [chromium] › tests/warpdiff.spec.ts:956:7 › Grid Layout Direction › stacked videos have a visible gap between A and B
+2026-10-14T04:05:02.0710201Z [271/424] [chromium] › tests/warpdiff.spec.ts:970:7 › Grid Layout Direction › layout re-evaluates correctly after S→G round-trip
+2026-10-14T04:05:02.8617949Z [272/424] [chromium] › tests/warpdiff.spec.ts:986:7 › Grid Layout Direction › two different-AR landscapes (vertical stack) are sized for EQUAL AREA, not equal width
+2026-10-14T04:05:03.6605466Z [273/424] [chromium] › tests/warpdiff.spec.ts:1018:7 › Difference Mode › D key toggles difference mode on and off (Stack mode only)
+2026-10-14T04:05:04.4167274Z [274/424] [chromium] › tests/warpdiff.spec.ts:1031:7 › Difference Mode › diff canvas (#diffOverlay) is appended to body when diff mode activates
+2026-10-14T04:05:05.2497074Z [275/424] [chromium] › tests/warpdiff.spec.ts:1048:7 › Difference Mode › switching to Grid exits image diff mode and restores info-bar labels
+2026-10-14T04:05:06.0238036Z [276/424] [chromium] › tests/warpdiff.spec.ts:1066:7 › Reset › reset button returns to landing state
+2026-10-14T04:05:06.7393298Z [277/424] [chromium] › tests/warpdiff.spec.ts:1079:7 › Reset › reset clears the Stack header after a single video
+2026-10-14T04:05:07.5792579Z [278/424] [chromium] › tests/warpdiff.spec.ts:1097:7 › Reset › second load clears progress bar to 0
+2026-10-14T04:05:08.3296594Z [279/424] [chromium] › tests/warpdiff.spec.ts:1115:7 › Reset › loading new files clears previous slot labels
+2026-10-14T04:05:09.0651227Z [280/424] [chromium] › tests/warpdiff.spec.ts:1130:7 › Grid Inline/Offset Toggle › 3 key cycles inline vs offset layout for 3 files
+2026-10-14T04:05:09.8117595Z [281/424] [chromium] › tests/warpdiff.spec.ts:1144:7 › Grid Inline/Offset Toggle › four-input Inline collapses to three-up when slot 4 is hidden and restores to 2×2
+2026-10-14T04:05:10.6168687Z [282/424] [chromium] › tests/warpdiff.spec.ts:1163:7 › Timecode Format › T key cycles timecode display format
+2026-10-14T04:05:11.3630110Z [283/424] [chromium] › tests/warpdiff.spec.ts:1179:7 › Mute Toggle › M key toggles mute button icon
+2026-10-14T04:05:12.0916406Z [284/424] [chromium] › tests/warpdiff.spec.ts:1210:7 › Persistent Mute + First-play Nudge › default is unmuted; the "Muted" label is hidden
+2026-10-14T04:05:12.8359543Z [285/424] [chromium] › tests/warpdiff.spec.ts:1218:7 › Persistent Mute + First-play Nudge › mute shows the amber chip + "Muted" label and persists the preference
+2026-10-14T04:05:13.6687990Z [286/424] [chromium] › tests/warpdiff.spec.ts:1228:7 › Persistent Mute + First-play Nudge › mute survives loading a fresh comparison
+2026-10-14T04:05:14.6449198Z [287/424] [chromium] › tests/warpdiff.spec.ts:1238:7 › Persistent Mute + First-play Nudge › mute survives a page reload (cross-session)
+2026-10-14T04:05:15.8572607Z [288/424] [chromium] › tests/warpdiff.spec.ts:1248:7 › Persistent Mute + First-play Nudge › first play while muted surfaces the nudge, once per session
+2026-10-14T04:05:17.0990895Z [289/424] [chromium] › tests/warpdiff.spec.ts:1263:7 › Persistent Mute + First-play Nudge › Enable in the nudge unmutes, persists, and dismisses
+2026-10-14T04:05:18.0725808Z [290/424] [chromium] › tests/warpdiff.spec.ts:1277:7 › Persistent Mute + First-play Nudge › unmuted playback never nudges
+2026-10-14T04:05:19.0337666Z [291/424] [chromium] › tests/warpdiff.spec.ts:1287:7 › File Rejection › non-media file is rejected with toast
+2026-10-14T04:05:19.6563184Z [292/424] [chromium] › tests/warpdiff.spec.ts:1298:7 › Landing State › landing CTA shows format capsules and load button
+2026-10-14T04:05:20.2729703Z [293/424] [chromium] › tests/warpdiff.spec.ts:1304:7 › Landing State › whole page is a drop target (body dragover calls preventDefault)
+2026-10-14T04:05:20.8408700Z [294/424] [chromium] › tests/warpdiff.spec.ts:1318:7 › Video Loading › hasVideos is true after loading MP4 files
+2026-10-14T04:05:21.5207640Z [295/424] [chromium] › tests/warpdiff.spec.ts:1326:7 › Video Loading › 3 videos load with Ref/A/B slot assignment by mtime
+2026-10-14T04:05:22.2389847Z [296/424] [chromium] › tests/warpdiff.spec.ts:1334:7 › Video Loading › 4 videos populate every transport slot in the 2×2 Inline grid
+2026-10-14T04:05:23.1357454Z [297/424] [chromium] › tests/warpdiff.spec.ts:1344:7 › Video Loading › W key opens audio viz panel for video with audio track
+2026-10-14T04:05:23.9142420Z [298/424] [chromium] › tests/warpdiff.spec.ts:1353:7 › Video Loading › V key opens scopes panel for video content
+2026-10-14T04:05:24.7666383Z [299/424] [chromium] › tests/warpdiff.spec.ts:1361:7 › Video Loading › timecode display is visible for video
+2026-10-14T04:05:25.4360936Z [300/424] [chromium] › tests/warpdiff.spec.ts:1370:7 › Audio Loading › hasAudios is true after loading WAV files
+2026-10-14T04:05:26.1816777Z [301/424] [chromium] › tests/warpdiff.spec.ts:1378:7 › Audio Loading › info bars show real sample rate and channel count
+2026-10-14T04:05:28.8196177Z [302/424] [chromium] › tests/warpdiff.spec.ts:1392:7 › Audio Loading › original slot label is GT for audio
+2026-10-14T04:05:29.5947684Z [303/424] [chromium] › tests/warpdiff.spec.ts:1400:7 › Audio Loading › audio viz canvases are shown in main view for audio files
+2026-10-14T04:05:30.3429244Z [304/424] [chromium] › tests/warpdiff.spec.ts:1409:7 › Audio Loading › W key in audio mode shows informational toast (viz is in main view)
+2026-10-14T04:05:31.0940307Z [305/424] [chromium] › tests/warpdiff.spec.ts:1420:7 › Audio Loading › 3 audio files: all three slots populated
+2026-10-14T04:05:31.8397498Z [306/424] [chromium] › tests/warpdiff.spec.ts:1428:7 › Audio Loading › 4 audio files use four aligned vertical slots and expose every source
+2026-10-14T04:05:32.7259053Z [307/424] [chromium] › tests/warpdiff.spec.ts:1444:7 › Mixed Orientation Offset Layout › offset layout works for mixed portrait/landscape videos
+2026-10-14T04:05:33.6115015Z [308/424] [chromium] › tests/warpdiff.spec.ts:1464:7 › Mixed Orientation Offset Layout › 3 key cycles between inline and offset for mixed-orientation videos
+2026-10-14T04:05:34.3537113Z [309/424] [chromium] › tests/warpdiff.spec.ts:1501:7 › Loop in/out points › start clean: both points are null
+2026-10-14T04:05:35.0379916Z [310/424] [chromium] › tests/warpdiff.spec.ts:1508:7 › Loop in/out points › I sets in-point at currentTime, O sets out-point at currentTime
+2026-10-14T04:05:35.7864414Z [311/424] [chromium] › tests/warpdiff.spec.ts:1520:7 › Loop in/out points › out-before-in then in-after-out auto-swaps to keep in < out
+2026-10-14T04:05:36.5351575Z [312/424] [chromium] › tests/warpdiff.spec.ts:1538:7 › Loop in/out points › loop region marker is rendered when both points are set
+2026-10-14T04:05:37.3188731Z [313/424] [chromium] › tests/warpdiff.spec.ts:1552:7 › Loop in/out points › double-Escape clears both loop points
+2026-10-14T04:05:38.2176049Z [314/424] [chromium] › tests/warpdiff.spec.ts:1588:7 › Solo video playback › Shift+S makes Space, frame step, and speed affect only the selected video
+2026-10-14T04:05:39.7321048Z [315/424] [chromium] › tests/warpdiff.spec.ts:1641:7 › Solo video playback › selecting another slot hands off solo playback, and Sync rejoins at that time
+2026-10-14T04:05:41.4258794Z [316/424] [chromium] › tests/warpdiff.spec.ts:1678:7 › Solo video playback › four-video labels identify the active solo target by media type
+2026-10-14T04:05:42.1884942Z [317/424] [chromium] › tests/warpdiff.spec.ts:1687:7 › Solo video playback › long-to-short handoff holds the final frame and Full Sync preserves the absolute time
+2026-10-14T04:05:43.6856374Z [318/424] [chromium] › tests/warpdiff.spec.ts:1723:7 › Solo video playback › returning to range-limited Sync past its end restarts at the shared in-point
+2026-10-14T04:05:44.7897744Z [319/424] [chromium] › tests/warpdiff.spec.ts:1745:7 › Solo video playback › custom loops clamp to a shorter Solo target without changing the shared markers
+2026-10-14T04:05:45.7664302Z [320/424] [chromium] › tests/warpdiff.spec.ts:1767:7 › Solo video playback › a custom loop starting after the Solo target ends holds and refuses playback
+2026-10-14T04:05:47.1150654Z [321/424] [chromium] › tests/warpdiff.spec.ts:1796:7 › Solo video playback › effective duration belongs to the supplied video, including corrected Opus tails
+2026-10-14T04:05:47.7859911Z [322/424] [chromium] › tests/warpdiff.spec.ts:1809:7 › Solo video playback › a late corrected duration reconciles an active Solo target to a paused final frame
+2026-10-14T04:05:48.7479480Z [323/424] [chromium] › tests/warpdiff.spec.ts:1851:7 › Multi-video sync-lock › 2 videos → sync loop bounds [0, shortest] and native loop disabled
+2026-10-14T04:05:49.5662677Z [324/424] [chromium] › tests/warpdiff.spec.ts:1866:7 › Multi-video sync-lock › single video keeps plain native looping (no managed region)
+2026-10-14T04:05:50.2757231Z [325/424] [chromium] › tests/warpdiff.spec.ts:1875:7 › Multi-video sync-lock › videos wrap together at the shortest duration and come out in sync
+2026-10-14T04:05:52.0624887Z [326/424] [chromium] › tests/warpdiff.spec.ts:1897:7 › Multi-video sync-lock › Space pauses a longer video after the shorter video has ended in Full range
+2026-10-14T04:05:53.8720352Z [327/424] [chromium] › tests/warpdiff.spec.ts:1918:7 › Multi-video sync-lock › frame stepping holds sync across MIXED frame rates
+2026-10-14T04:05:58.1686981Z [328/424] [chromium] › tests/warpdiff.spec.ts:1985:7 › Multi-video sync-lock › audio-viz panel does not overlap the videos (Grid, two clips)
+2026-10-14T04:06:00.4201621Z [329/424] [chromium] › tests/warpdiff.spec.ts:2033:7 › Multi-video sync-lock › drift lock re-syncs a follower knocked off the primary clock
+2026-10-14T04:06:01.4721550Z [330/424] [chromium] › tests/warpdiff.spec.ts:2054:7 › Multi-video sync-lock › custom loop points are enforced in Grid mode
+2026-10-14T04:06:04.8679417Z [331/424] [chromium] › tests/warpdiff.spec.ts:2084:7 › Difference mode (video) › D enters diff mode in Stack with 3 videos; _diffPair is the first pair
+2026-10-14T04:06:05.7767931Z [332/424] [chromium] › tests/warpdiff.spec.ts:2095:7 › Difference mode (video) › Shift+D cycles _diffPair through all 3 pairs and wraps
+2026-10-14T04:06:06.7591616Z [333/424] [chromium] › tests/warpdiff.spec.ts:2109:7 › Difference mode (video) › four inputs expose all six media-numbered difference pairs
+2026-10-14T04:06:07.7372273Z [334/424] [chromium] › tests/warpdiff.spec.ts:2130:7 › Difference mode (video) › exiting diff hides #diffOverlay and restores the slot label
+2026-10-14T04:06:08.5532970Z [335/424] [chromium] › tests/warpdiff.spec.ts:2148:7 › Difference mode (video) › switching to Grid exits video diff mode and restores info-bar labels
+2026-10-14T04:06:09.4992720Z [336/424] [chromium] › tests/warpdiff.spec.ts:2168:7 › Pan bounds › image fitting in viewport gives zero pan bounds in both axes
+2026-10-14T04:06:10.3491239Z [337/424] [chromium] › tests/warpdiff.spec.ts:2178:7 › Pan bounds › zoom-in expands pan bounds; min ≤ 0 ≤ max invariant holds
+2026-10-14T04:06:11.2252795Z [338/424] [chromium] › tests/warpdiff.spec.ts:2197:7 › Pan bounds › Balance mode captures _savedFitPanX/Y and restores them on toggle back
+2026-10-14T04:06:12.1609689Z [339/424] [chromium] › tests/warpdiff.spec.ts:2219:7 › Hotkey reassignment via localStorage.customHotkeys › host command catalog is metadata-only and follows resolved custom assignments
+2026-10-14T04:06:12.7056362Z [340/424] [chromium] › tests/warpdiff.spec.ts:2262:7 › Hotkey reassignment via localStorage.customHotkeys › custom mapping in localStorage is applied at init: _customKeys + _keymap reflect it
+2026-10-14T04:06:13.2863528Z [341/424] [chromium] › tests/warpdiff.spec.ts:2275:7 › Hotkey reassignment via localStorage.customHotkeys › reassigned key triggers the action; default key is inert
+2026-10-14T04:06:14.0650034Z [342/424] [chromium] › tests/warpdiff.spec.ts:2293:7 › Hotkey reassignment via localStorage.customHotkeys › a fresh context (no override) gets the default _keymap
+2026-10-14T04:06:15.5477482Z [343/424] [chromium] › tests/warpdiff.spec.ts:2319:7 › Seamless Tile Check › Y opens a scored 3×3 preview and can inspect all four image sources
+2026-10-14T04:06:16.5598222Z [344/424] [chromium] › tests/warpdiff.spec.ts:2352:7 › Seamless Tile Check › Tile Check, wipe, and reset hand off ownership cleanly
+2026-10-14T04:06:17.4212701Z [345/424] [chromium] › tests/warpdiff.spec.ts:2375:7 › Image Wipe › Q enables a draggable real-layer wipe in Stack mode
+2026-10-14T04:06:18.5110998Z [346/424] [chromium] › tests/warpdiff.spec.ts:2446:7 › Image Wipe › three-image wipe cycles all comparison pairs
+2026-10-14T04:06:19.5263496Z [347/424] [chromium] › tests/warpdiff.spec.ts:2474:7 › Image Wipe › scopes choose their source while loupe and rotation follow the visible side
+2026-10-14T04:06:20.6047661Z [348/424] [chromium] › tests/warpdiff.spec.ts:2505:7 › Image Wipe › wipe controls remain usable and clear of header actions in a narrow window
+2026-10-14T04:06:21.3083334Z [349/424] [chromium] › tests/warpdiff.spec.ts:2530:7 › Image Wipe › clicking the plate snaps the divider while pan drags and outside clicks do not
+2026-10-14T04:06:22.2229561Z [350/424] [chromium] › tests/warpdiff.spec.ts:2563:7 › Image Wipe › clicking the divider focuses its keyboard slider
+2026-10-14T04:06:22.9811553Z [351/424] [chromium] › tests/warpdiff.spec.ts:2574:7 › Image Wipe › wipe follows zoom and rotation, then exits cleanly for Grid
+2026-10-14T04:06:23.7999024Z [352/424] [chromium] › tests/warpdiff.spec.ts:2598:7 › Image Wipe › square-versus-portrait wipe uses an opaque presentation plate
+2026-10-14T04:06:24.5761179Z [353/424] [chromium] › tests/warpdiff.spec.ts:2623:7 › Image Wipe › video wipe remains explicitly gated
+2026-10-14T04:06:25.4257818Z [354/424] [chromium] › tests/warpdiff.spec.ts:2633:7 › Image Wipe › Difference mode takes ownership from wipe
+2026-10-14T04:06:26.3031181Z [355/424] [chromium] › tests/warpdiff.spec.ts:2647:7 › Grid layout recalculation on window resize › two wide images: layout flips between viewports as resize handler re-evaluates
+2026-10-14T04:06:27.0778951Z [356/424] [chromium] › tests/warpdiff.spec.ts:2689:7 › Audio viz rendering (W panel) + load hygiene › spectrogram canvas actually renders pixels for a video with audio
+2026-10-14T04:06:29.1036051Z [357/424] [chromium] › tests/warpdiff.spec.ts:2698:7 › Audio viz rendering (W panel) + load hygiene › audio-only slot canvas actually renders pixels
+2026-10-14T04:06:30.4100769Z [358/424] [chromium] › tests/warpdiff.spec.ts:2716:7 › Audio viz rendering (W panel) + load hygiene › Fit/Ref applies one persistent level scale to waveform and spectrogram
+2026-10-14T04:06:31.5753086Z [359/424] [chromium] › tests/warpdiff.spec.ts:2737:7 › Audio viz rendering (W panel) + load hygiene › video Fit/Ref scale lives in the waveform utility rail with visible controls
+2026-10-14T04:06:32.5156113Z [360/424] [chromium] › tests/warpdiff.spec.ts:2757:7 › Audio viz rendering (W panel) + load hygiene › no-video mode cursors honor the presented-time override
+2026-10-14T04:06:33.2794810Z [361/424] [chromium] › tests/warpdiff.spec.ts:2783:7 › Audio viz rendering (W panel) + load hygiene › video waveform playheads use layout-free percentage positioning
+2026-10-14T04:06:34.0809216Z [362/424] [chromium] › tests/warpdiff.spec.ts:2800:7 › Audio viz rendering (W panel) + load hygiene › loading a new set clears stale loop points and resets the spectrogram cursor
+2026-10-14T04:06:35.0982157Z [363/424] [chromium] › tests/warpdiff.spec.ts:2831:7 › Opus deferred-start window (Web Audio sync replacement) › replacing an audible source defers the new start until the fade-out is silent
+2026-10-14T04:06:35.8020907Z [364/424] [chromium] › tests/warpdiff.spec.ts:2849:7 › Opus deferred-start window (Web Audio sync replacement) › deferred start compensates the buffer offset so audio meets the video at startTime
+2026-10-14T04:06:36.6006361Z [365/424] [chromium] › tests/warpdiff.spec.ts:2865:7 › Opus deferred-start window (Web Audio sync replacement) › leading timeline silence delays the source instead of playing sample zero early
+2026-10-14T04:06:37.4296079Z [366/424] [chromium] › tests/warpdiff.spec.ts:2878:7 › Opus deferred-start window (Web Audio sync replacement) › rate change during leading silence reschedules the delayed soundtrack start
+2026-10-14T04:06:38.1981014Z [367/424] [chromium] › tests/warpdiff.spec.ts:2897:7 › Opus deferred-start window (Web Audio sync replacement) › stopping a pending source cancels silently without extending fadeUntil
+2026-10-14T04:06:38.9611620Z [368/424] [chromium] › tests/warpdiff.spec.ts:2918:7 › Opus deferred-start window (Web Audio sync replacement) › rate change during the pending window applies the rate without re-anchoring
+2026-10-14T04:06:39.8117082Z [369/424] [chromium] › tests/warpdiff.spec.ts:2937:7 › Decoded audio timeline placement › unknown container audio timing is alerted while authoritative zero stays silent
+2026-10-14T04:06:40.7489034Z [370/424] [chromium] › tests/warpdiff.spec.ts:2955:7 › Decoded audio timeline placement › MP4 leading empty edit is retained for scrub-audio mapping
+2026-10-14T04:06:43.1190416Z [371/424] [chromium] › tests/warpdiff.spec.ts:2977:7 › Decoded audio timeline placement › video scrub audio preserves anti-phase stereo side information
+2026-10-14T04:06:44.6097507Z [372/424] [chromium] › tests/warpdiff.spec.ts:3012:7 › Decoded audio timeline placement › scrub preview level follows the normal playback volume
+2026-10-14T04:06:45.2577492Z [373/424] [chromium] › tests/warpdiff.spec.ts:3022:7 › Decoded audio timeline placement › scrub grains keep the same audible duration at every playback rate
+2026-10-14T04:06:45.8023313Z [374/424] [chromium] › tests/warpdiff.spec.ts:3042:7 › WebCodecs scrub decoder › multi-video Grid uses the steady pointer clock for scrub audio
+2026-10-14T04:06:46.6445578Z [375/424] [chromium] › tests/warpdiff.spec.ts:3052:7 › WebCodecs scrub decoder › multi-video scrub dispatches only the latest target once per display frame
+2026-10-14T04:06:47.4311803Z [376/424] [chromium] › tests/warpdiff.spec.ts:3061:7 › WebCodecs scrub decoder › decodes a sparse-GOP target and paints frames up to it
+2026-10-14T04:06:49.7276451Z [377/424] [chromium] › tests/warpdiff.spec.ts:3079:7 › WebCodecs scrub decoder › session is cached per slot and cleared on reset
+2026-10-14T04:06:52.0069115Z [378/424] [chromium] › tests/warpdiff.spec.ts:3090:7 › WebCodecs scrub decoder › revisiting a decoded position is served from the frame cache
+2026-10-14T04:06:55.8564120Z [379/424] [chromium] › tests/warpdiff.spec.ts:3113:7 › WebCodecs scrub decoder › Grid-mode drag engages an overlay per video slot
+2026-10-14T04:06:59.2020994Z [380/424] [chromium] › tests/warpdiff.spec.ts:3162:7 › WebCodecs scrub decoder › HDR (PQ) content is refused — falls back to native scrubbing
+2026-10-14T04:07:01.9077651Z [381/424] [chromium] › tests/warpdiff.spec.ts:3181:7 › WebCodecs scrub decoder › Stack-mode drag engages the overlay canvas and tears it down on mouseup
+2026-10-14T04:07:05.0408477Z [382/424] [chromium] › tests/warpdiff.spec.ts:3221:7 › Cancelable play intent › a rejected play request restores the truthful paused control
+2026-10-14T04:07:05.7694925Z [383/424] [chromium] › tests/warpdiff.spec.ts:3234:7 › Safari native scrub scheduling and restored surfaces › a platform with locked native volume keeps inactive soundtracks on graph gains
+2026-10-14T04:07:07.0163540Z [384/424] [chromium] › tests/warpdiff.spec.ts:3251:7 › Safari native scrub scheduling and restored surfaces › verified surround video keeps the shared monitoring graph on Safari
+2026-10-14T04:07:11.6427129Z [385/424] [chromium] › tests/warpdiff.spec.ts:3265:7 › Safari native scrub scheduling and restored surfaces › mono/stereo native output preserves volume, selection, mute and cancellation
+2026-10-14T04:07:13.4739116Z [386/424] [chromium] › tests/warpdiff.spec.ts:3311:7 › Safari native scrub scheduling and restored surfaces › Safari native output resumes an interrupted scrub engine and produces preview PCM
+2026-10-14T04:07:18.5700212Z [387/424] [chromium] › tests/warpdiff.spec.ts:3365:7 › Safari native scrub scheduling and restored surfaces › Grid waits for slow seeks and keeps only the latest timeline target
+2026-10-14T04:07:19.9764554Z [388/424] [chromium] › tests/warpdiff.spec.ts:3417:7 › Safari native scrub scheduling and restored surfaces › hiding a page retires a drag and its deferred resume
+2026-10-14T04:07:21.1617827Z [389/424] [chromium] › tests/warpdiff.spec.ts:3440:7 › Safari native scrub scheduling and restored surfaces › surface refresh preserves rotation and a newer layout transform
+2026-10-14T04:07:21.9628657Z [390/424] [chromium] › tests/warpdiff.spec.ts:3514:7 › Scrub drag lost-mouseup recovery (v3.11.7) › ghost mousemove (buttons=0) finalizes: mute routing intact, playback resumed
+2026-10-14T04:07:23.3455939Z [391/424] [chromium] › tests/warpdiff.spec.ts:3539:7 › Scrub drag lost-mouseup recovery (v3.11.7) › a mousedown mid-stuck-drag finalizes first — mute routing intact
+2026-10-14T04:07:24.9277771Z [392/424] [chromium] › tests/warpdiff.spec.ts:3557:7 › Scrub drag lost-mouseup recovery (v3.11.7) › window blur mid-drag finalizes the drag
+2026-10-14T04:07:26.2968119Z [393/424] [chromium] › tests/warpdiff.spec.ts:3567:7 › Scrub drag lost-mouseup recovery (v3.11.7) › loading a new media set cancels the old drag without resuming the new media
+2026-10-14T04:07:28.6403980Z [394/424] [chromium] › tests/warpdiff.spec.ts:3607:7 › Scrub drag lost-mouseup recovery (v3.11.7) › dragging past a corrected timeline end does not resume playback
+2026-10-14T04:07:30.2794648Z [395/424] [chromium] › tests/warpdiff.spec.ts:3633:7 › Scrub drag lost-mouseup recovery (v3.11.7) › an ended signal during a paused scrub cannot start a managed loop
+2026-10-14T04:07:31.1300255Z [396/424] [chromium] › tests/warpdiff.spec.ts:3676:7 › Pause-time frame snap (v3.11.4, revised v3.12.4) › pause snaps a follower MORE than half a frame off onto the reference frame
+2026-10-14T04:07:32.4987680Z [397/424] [chromium] › tests/warpdiff.spec.ts:3703:7 › Pause-time frame snap (v3.11.4, revised v3.12.4) › a follower within half a frame is left where it froze (no catch-up hop)
+2026-10-14T04:07:33.8943312Z [398/424] [chromium] › tests/warpdiff.spec.ts:3734:7 › Pause-time frame snap (v3.11.4, revised v3.12.4) › pause does not re-seek clips already on the same frame
+2026-10-14T04:07:35.3097064Z [399/424] [chromium] › tests/warpdiff.spec.ts:3768:7 › Stack switch repaint (v3.11.3) › switch fires a same-frame repaint seek on the incoming clip
+2026-10-14T04:07:36.6369332Z [400/424] [chromium] › tests/warpdiff.spec.ts:3806:7 › Stack switch repaint (v3.11.3) › switch during playback is a no-op (clip keeps playing)
+2026-10-14T04:07:37.9469345Z [401/424] [chromium] › tests/warpdiff.spec.ts:3830:7 › Stack drift lock — no seek storm (v3.11.8) › hidden follower converges without a seek storm; switch never steps backward
+2026-10-14T04:07:40.5574369Z [402/424] [chromium] › tests/warpdiff.spec.ts:3879:7 › Seamless mid-playback Stack switch (v3.11.9) › switch covers with the outgoing clip until the incoming presents, then swaps
+2026-10-14T04:07:42.1163186Z [403/424] [chromium] › tests/warpdiff.spec.ts:3927:7 › Seamless mid-playback Stack switch (v3.11.9) › rapid back-and-forth switches leave exactly one covering layer, then none
+2026-10-14T04:07:43.4097989Z [404/424] [chromium] › tests/warpdiff.spec.ts:3956:7 › Version hash display (v3.11.6) › local raw file → bare version, no page errors
+2026-10-14T04:07:44.5696016Z [405/424] [chromium] › tests/warpdiff.spec.ts:3965:7 › Version hash display (v3.11.6) › substituted SHA → short hash appended
+2026-10-14T04:07:45.1651272Z [406/424] [chromium] › tests/warpdiff.spec.ts:3977:7 › Version hash display (v3.11.6) › empty sha (metadata unavailable) → bare version
+2026-10-14T04:07:46.3314169Z [407/424] [chromium] › tests/warpdiff.spec.ts:3995:5 › desktop embedded transport keeps playback, seeking, volume and source controls reachable
+2026-10-14T04:07:47.9063008Z [408/424] [chromium] › tests/warpdiff.spec.ts:4019:5 › managed review host labels own media, audio and Solo across loads while standalone remains available
+2026-10-14T04:07:49.1631396Z [409/424] [chromium] › tests/warpdiff.spec.ts:4056:5 › managed image inspection retains its task label in Tile Check
+2026-10-14T04:07:49.9098044Z [410/424] [chromium] › tests/warpdiff.spec.ts:4070:9 › Audio source handoffs and restart jumps › native soundtrack handoffs fade, survive rapid reversal, and retain master volume (landscape_a.mp4)
+2026-10-14T04:07:51.1684959Z [411/424] [chromium] › tests/warpdiff.spec.ts:4070:9 › Audio source handoffs and restart jumps › native soundtrack handoffs fade, survive rapid reversal, and retain master volume (vorbis_a.webm)
+2026-10-14T04:07:52.4328263Z [412/424] [chromium] › tests/warpdiff.spec.ts:4142:7 › Audio source handoffs and restart jumps › rendered gain envelopes remain continuous through rapid switches
+2026-10-14T04:07:53.0026981Z [413/424] [chromium] › tests/warpdiff.spec.ts:4169:7 › Audio source handoffs and restart jumps › Opus selection ramps both sources and a pending muted start stays silent
+2026-10-14T04:07:53.7944015Z [414/424] [chromium] › tests/warpdiff.spec.ts:4205:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0
+2026-10-14T04:07:54.7947453Z [415/424] [chromium] › tests/warpdiff.spec.ts:4205:9 › Audio source handoffs and restart jumps › R snaps timeline and waveform playheads directly to 0.5
+2026-10-14T04:07:56.0169426Z [416/424] [chromium] › tests/warpdiff.spec.ts:4242:5 › arrow-key video switches keep native renderers running and output continuous
+2026-10-14T04:07:57.4911370Z [417/424] [chromium] › tests/warpdiff.spec.ts:4298:7 › automatic native wrap snaps every playhead without reverse animation
+2026-10-14T04:07:58.6256356Z [418/424] [chromium] › tests/warpdiff.spec.ts:4298:7 › automatic sync wrap snaps every playhead without reverse animation
+2026-10-14T04:08:00.0347733Z [419/424] [chromium] › tests/warpdiff.spec.ts:4298:7 › automatic full wrap snaps every playhead without reverse animation
+2026-10-14T04:08:01.2430106Z [420/424] [chromium] › tests/warpdiff.spec.ts:4350:7 › Stack video handoff keeps the displayed timeline and waveform moving forward
+2026-10-14T04:08:02.3851275Z [421/424] [chromium] › tests/warpdiff.spec.ts:4350:7 › Grid video handoff keeps the displayed timeline and waveform moving forward
+2026-10-14T04:08:03.5950628Z [422/424] [chromium] › tests/warpdiff.spec.ts:4407:7 › Stack rapid arrow switches preserve forward progress on every rendered frame
+2026-10-14T04:08:05.0347200Z [423/424] [chromium] › tests/warpdiff.spec.ts:4407:7 › Grid rapid arrow switches preserve forward progress on every rendered frame
+2026-10-14T04:08:08.3535000Z [424/424] [chromium] › tests/usage-update.spec.ts:22:5 › installed client fails closed on partial upgrades, downgrades, and disclosure mismatch
+2026-10-14T04:08:11.1001597Z   1 skipped
+2026-10-14T04:08:11.1002347Z   423 passed (13.2m)
