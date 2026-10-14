@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
+import {useAudioContextRate} from './helpers/audio-context';
 
 for (const direction of [1, -1]) test(`the selected scrub engine keeps ${direction > 0 ? 'forward' : 'reverse'} slow dialogue near its original volume`, async ({ page }) => {
   await page.goto('/');
@@ -158,7 +159,8 @@ test('old snippet preferences are ignored and failed loading retains click and d
   expect(await page.evaluate(() => (window as any).eval('!!_scrubSource'))).toBe(true);
 });
 
-test('Grid source changes retain only the selected continuous buffer and clear pending work', async ({ page }) => {
+for(const sampleRate of [44100,48000]) test(`Grid source changes retain only the selected continuous buffer and clear pending work at ${sampleRate} Hz`, async ({ page }) => {
+  await useAudioContextRate(page,sampleRate);
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles([
     path.join(__dirname, 'fixtures/surround_71.mp4'),
@@ -174,7 +176,8 @@ test('Grid source changes retain only the selected continuous buffer and clear p
       selectAudioSource(slot); await _prepareContinuousScrub();
       const state = _continuousScrubEngine.state;
       counts.push({selected:state.buffer === _videoAudioBuffers[slot], channels:state.node.numberOfOutputs,
-        bytes:state.bytes, expected:Math.ceil(_videoAudioBuffers[slot].duration * state.ctx.sampleRate) * _videoAudioBuffers[slot].numberOfChannels * 4});
+        rate:state.ctx.sampleRate,bufferRate:_videoAudioBuffers[slot].sampleRate,
+        bytes:state.bytes, expected:_videoAudioBuffers[slot].length * _videoAudioBuffers[slot].numberOfChannels * 4});
     }
     // Start another request and clear immediately. Its completion cannot republish.
     const wasGrid = isGridMode; selectAudioSource(slots[0]); const pending = _prepareContinuousScrub(); clearAllMedia(); await pending;
@@ -182,6 +185,9 @@ test('Grid source changes retain only the selected continuous buffer and clear p
   })()`));
   expect(result.wasGrid).toBe(true);
   expect(result.grid).toHaveLength(3);
-  for (const row of result.grid) { expect(row.selected).toBe(true); expect(row.bytes).toBe(row.expected); }
+  for (const row of result.grid) {
+    expect(row.selected).toBe(true);expect(row.rate).toBe(sampleRate);expect(row.bufferRate).toBe(sampleRate);
+    expect(row.bytes).toBe(row.expected);
+  }
   expect(result.bytes).toBe(0); expect(result.node).toBe(false);
 });

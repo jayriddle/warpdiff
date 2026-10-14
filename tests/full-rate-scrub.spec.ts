@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {useAudioContextRate} from './helpers/audio-context';
 
 test('video preview keeps full-rate high frequencies and stereo phase', async ({ page }) => {
   await page.goto('/');
@@ -49,7 +50,8 @@ test('surround listening folds center while both analysis views retain original 
   expect(result.sameWaveform && result.sameSpectrogram).toBe(true);
 });
 
-test('a preview budget uses filtered, audible fallback and leaves analysis available', async ({ page }) => {
+for(const sampleRate of [44100,48000]) test(`a preview budget uses filtered, audible fallback and leaves analysis available at ${sampleRate} Hz`, async ({ page }) => {
+  await useAudioContextRate(page,sampleRate);
   // Scale only the shipped budget down to exercise the real allocation/fallback
   // owners with a one-second signal, without a large allocation in CI.
   await page.route('**/js/scrub-audio.js', async route => {
@@ -93,17 +95,22 @@ test('a preview budget uses filtered, audible fallback and leaves analysis avail
     clearAllMedia();
     return {fallback, unavailable, cleared:Object.keys(_videoScrubStatus).length};
   })()`));
-  expect(result.fallback).toMatchObject({rate:8000, bytes:64000, limited:true, streamBytes:0, snippet:true, phase:0, originalRate:48000});
+  expect(result.fallback).toMatchObject({rate:8000, bytes:64000, limited:true, streamBytes:0, snippet:true, phase:0, originalRate:sampleRate});
   expect(result.fallback.error).toContain('memory budget');
   expect(result.fallback.low).toBeCloseTo(0.1, 3); expect(result.fallback.alias).toBeLessThan(0.001);
   expect(result.unavailable).toEqual({buffer:false, flagged:true, waveform:true, duration:1, metrics:2});
   expect(result.cleared).toBe(0);
 });
 
-test('clearing during listening preparation skips queued work and fences old publication', async ({ page }) => {
+for(const sampleRate of [44100,48000]) test(`clearing during listening preparation skips queued work and fences old publication at ${sampleRate} Hz`, async ({ page }) => {
+  await useAudioContextRate(page,sampleRate);
   await page.goto('/');
   const result = await page.evaluate(() => (window as any).eval(`(async () => {
-    const ctx = getAudioContext(), old = ctx.createBuffer(8, 4800, 48000), newer = ctx.createBuffer(2, 2400, 48000);
+    const ctx = getAudioContext();
+    // Surround folding enters the blocked offline render; a same-rate stereo
+    // replacement can be reused after clear, regardless of the device rate.
+    const old=ctx.createBuffer(8,Math.round(ctx.sampleRate*.1),ctx.sampleRate);
+    const newer=ctx.createBuffer(2,Math.round(ctx.sampleRate*.05),ctx.sampleRate);
     let release, entered, calls = 0;
     const started = new Promise(resolve => { entered = resolve; });
     const real = window.OfflineAudioContext;

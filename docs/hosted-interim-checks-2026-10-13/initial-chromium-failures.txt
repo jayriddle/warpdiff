@@ -1,0 +1,19 @@
+2026-10-14T03:05:20.8699581Z 523 passed, 0 failed
+2026-10-14T03:07:56.1370213Z     Error: expect(received).toBe(expected) // Object.is equality
+2026-10-14T03:07:56.1371272Z     Expected: 2381400
+2026-10-14T03:07:56.1371810Z     Received: 2381388
+2026-10-14T03:09:00.5956834Z     Error: expect(received).toBeLessThan(expected)
+2026-10-14T03:09:00.5957988Z     Expected: < 0.01
+2026-10-14T03:09:00.5958640Z     Received:   0.01150934155345124
+2026-10-14T03:10:06.4329903Z     Error: expect(received).toMatchObject(expected)
+2026-10-14T03:10:06.4332808Z     -   "originalRate": 48000,
+2026-10-14T03:10:06.4333172Z     +   "originalRate": 44100,
+2026-10-14T03:10:06.4336414Z     > 96 |   expect(result.fallback).toMatchObject({rate:8000, bytes:64000, limited:true, streamBytes:0, snippet:true, phase:0, originalRate:48000});
+2026-10-14T03:10:07.4709711Z [113/419] [chromium] › tests/full-rate-scrub.spec.ts:103:5 › clearing during listening preparation skips queued work and fences old publication
+2026-10-14T03:11:08.7675099Z   4) [chromium] › tests/full-rate-scrub.spec.ts:103:5 › clearing during listening preparation skips queued work and fences old publication
+2026-10-14T03:11:08.7677203Z     Error: page.evaluate: Test timeout of 60000ms exceeded.
+2026-10-14T03:11:08.7678446Z       103 | test('clearing during listening preparation skips queued work and fences old publication', async ({ page }) => {
+2026-10-14T03:21:03.6796994Z   4 failed
+2026-10-14T03:21:03.6802599Z     [chromium] › tests/full-rate-scrub.spec.ts:103:5 › clearing during listening preparation skips queued work and fences old publication
+2026-10-14T03:21:03.6803323Z   1 skipped
+2026-10-14T03:21:03.6803560Z   414 passed (15.7m)

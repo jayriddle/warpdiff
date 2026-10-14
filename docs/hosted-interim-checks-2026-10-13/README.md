@@ -37,7 +37,10 @@ https://github.com/jayriddle/warpdiff/actions/runs/38504321421), attempt 1, for
 that exact SHA. Both jobs started and passed installation and fixture
 generation; Ubuntu ownership also passed before starting the full browser
 suite. The initial WebKit job then failed one test (30 passed), as documented
-below. The full Chromium conclusion is still pending. The workflow has two jobs:
+below. The initial Chromium result was **414 passed, four failed and one existing
+skip** (15.7 minutes); hosted ownership passed **523 checks**, with the two
+neighboring canonical-repository checks unavailable in a standalone checkout.
+The workflow has two jobs:
 
 - **Chromium and ownership** — Ubuntu 24.04, Node 24, native FFmpeg/zsh,
   Chrome media codecs, fixture generation, ownership and complete Chromium.
@@ -85,9 +88,56 @@ is unchanged. Local checks for the test correction:
   [Log](local-webkit.txt), [gesture samples](local-gesture-samples.json).
 - **525 ownership checks passed**. [Log](local-ownership.txt).
 
-The complete initial Chromium run is allowed to finish before a corrected
-feature-branch push, so its evidence is retained instead of canceled by workflow
-concurrency. The next push will start a fresh pair of hosted checks.
+The complete initial Chromium run finished before a corrected feature-branch
+push, so its evidence was retained instead of canceled by workflow concurrency.
+The next push will start a fresh pair of hosted checks.
+
+## Initial Chromium failures and portability corrections
+
+The [initial run metadata](initial-run.json) and [failure excerpts](
+initial-chromium-failures.txt) retain all four failures. Ubuntu's audio context
+uses 44.1 kHz; local checks had used 48 kHz. The corrections affect tests only:
+
+1. **Selected-stream byte accounting:** an exact-byte assertion computed a
+   same-rate buffer's frame count from `ceil(duration × rate)`. At 44.1 kHz,
+   floating-point rounding added one three-channel frame: expected 2,381,400
+   bytes versus 2,381,388 actually retained. The test now uses integer buffer
+   length, still asserts exact bytes, and explicitly checks source/context rates.
+2. **Fallback analysis rate:** a signal generated at the context rate was
+   asserted to retain 48 kHz metadata. The runner correctly retained 44.1 kHz.
+   The assertion now checks the configured source rate, retaining exact 8 kHz /
+   64,000-byte fallback, phase, alias rejection, level and analysis assertions.
+3. **Clear-during-preparation fixture:** hardcoded 48 kHz source buffers used
+   filtered downsampling at a 44.1 kHz context, bypassing the OfflineAudioContext
+   barrier the test awaited. It timed out waiting for a path it never exercised.
+   Source fixtures now match the test context: surround folding enters the
+   deliberately blocked offline render, and the current stereo replacement is
+   reused. The single-render, stale-publication and identity assertions remain.
+4. **Center-only tone measurement:** a rectangular 1,024-sample measurement
+   happens to contain whole 1,500/375 Hz cycles at 48 kHz, but not at 44.1 kHz.
+   Spectral leakage then looked like front-channel audio: the measured ratio was
+   0.011509 against the unchanged 0.01 limit. A separate pure 1,500 Hz sine check
+   across 32 phases produced false 375 Hz ratios up to 0.011797 at 44.1 kHz.
+   Hann weighting with coherent-gain normalization reduces that false ratio
+   below 0.000010. The short-preview test uses that window and retains its
+   original channel-level and rejection limits; other band measurements retain
+   their existing method.
+
+All four affected cases now run explicitly at **44,100 and 48,000 Hz** through
+a test-only AudioContext constructor helper. No runner's native rate is assumed.
+The three affected suites passed **28/28 locally**, one worker, zero retries,
+including native/Continuous/replacement listening and both-rate cases.
+[Log](local-rate-fixes.txt), [summary](local-rate-fixes-summary.json).
+Ownership still passed **525/525 locally**. Runtime files remain byte-identical
+to `103f92b`; no threshold was relaxed, existing skip expanded, or timeout raised.
+
+The initial artifacts are downloaded locally under
+`/tmp/warpdiff-hosted-38504321421-{chromium,webkit}/`. GitHub retains their uploaded
+HTML reports and complete failure traces for 14 days. This directory keeps the
+run metadata, numerical timing, failure excerpts and local correction results
+for lasting review. The artifact upload action succeeded but warned about its
+Node 20 declaration being forced onto Node 24; upgrading that action is separate
+maintenance and is not the cause of these test failures.
 
 ## Remaining decisions
 
