@@ -1,0 +1,21 @@
+Chromium and ownership	Check ownership	2026-10-14T20:03:09.1875589Z 523 passed, 0 failed
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:04:39.1661496Z [65/434] [chromium] › tests/continuous-scrub.spec.ts:56:5 › continuous scrub is standard, retains center dialogue, and releases its stream
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:04:58.1202609Z [69/434] [chromium] › tests/dialogue-listening.spec.ts:38:7 › dialogue 6ch native: center and background controls preserve source and clocks
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:08.0989023Z [90/434] [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "review.mp4"
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:08.6717325Z [91/434] [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "clip\u001b.mp4"
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:09.2390124Z [92/434] [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "review.webm"
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:09.7888927Z [93/434] [chromium] › tests/external-preparation.spec.ts:123:7 › adding another preparation entry retains focus on .fp-download
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:10.3127092Z [94/434] [chromium] › tests/external-preparation.spec.ts:123:7 › adding another preparation entry retains focus on .fp-load-btn
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:10.8308966Z [95/434] [chromium] › tests/external-preparation.spec.ts:132:5 › a narrow preparation panel reveals focused controls after wrapping, refresh and reopen
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:11.4625062Z [96/434] [chromium] › tests/external-preparation.spec.ts:161:7 › review.webm preparation does not offer an unusable MP4-specific command
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:11.9576811Z [97/434] [chromium] › tests/external-preparation.spec.ts:161:7 › review.mkv preparation does not offer an unusable MP4-specific command
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:12.4585332Z [98/434] [chromium] › tests/external-preparation.spec.ts:161:7 › review.avi preparation does not offer an unusable MP4-specific command
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:13.0124249Z [99/434] [chromium] › tests/external-preparation.spec.ts:161:7 › review.wav preparation does not offer an unusable MP4-specific command
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:27.9002576Z [119/434] [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:29.6282326Z [120/434] [chromium] › tests/ffmpeg-command.spec.ts:212:7 › a short soundtrack starting at 0s retains every copied video packet
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:06:30.4262317Z [121/434] [chromium] › tests/ffmpeg-command.spec.ts:212:7 › a short soundtrack starting at 0.5s retains every copied video packet
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:09:32.6574181Z [181/434] [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:14:11.4268487Z   1 skipped
+Chromium and ownership	Run complete Chromium suite	2026-10-14T20:14:11.4268923Z   433 passed (11.0m)
+Chromium and ownership	Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9	2026-10-14T20:14:12.7697037Z SHA256 digest of uploaded artifact is 99ed8e484eb928ddcd607534f722a2efd5045a31a4a130056e82a644ba9df429
+Chromium and ownership	Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9	2026-10-14T20:14:13.1433810Z Artifact chromium-results has been successfully uploaded! Final size is 755728 bytes. Artifact ID is 11924554825

@@ -1,0 +1,21 @@
+{
+  "testedCommit": "86dcd2634249a2e859b7723514cddf62623b84d5",
+  "runUrl": "https://github.com/jayriddle/warpdiff/actions/runs/38628574447",
+  "stats": {
+    "total": 42,
+    "expected": 42,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "ok": true
+  },
+  "durationMs": 118551.389,
+  "projectNames": [
+    "webkit-workflow",
+    "webkit-reload",
+    "webkit-scrub-pitch"
+  ],
+  "workers": 1,
+  "errors": [],
+  "skipped": []
+}

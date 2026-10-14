@@ -4,6 +4,32 @@ Jay requests review and correction of `codex/interim-release-review`, with merge
 and publication held. Earlier authorization to push this feature branch and
 run hosted checks remains in force. No main/protection/Pages settings are changed.
 
+**Outcome: review corrections are committed and pushed; both hosted jobs
+passed** at `86dcd2634249a2e859b7723514cddf62623b84d5` in [run 38628574447](
+https://github.com/jayriddle/warpdiff/actions/runs/38628574447), attempt 1.
+No remaining blocking issue was found within this interim-release scope.
+
+| Final hosted verification | Result |
+|---|---|
+| Ubuntu Chromium | **433 passed, zero failed/flaky, one existing skip**, 11.0 minutes. [Report summary](hosted-chromium-summary.json), [log excerpts](hosted-chromium-log.txt). |
+| Ubuntu ownership | **523 passed, zero failed**. Two neighboring WarpCap source checks are unavailable in the standalone runner; local ownership passed 525. |
+| macOS WebKit | **42 passed, zero failed/flaky/skipped**, 118.6 seconds. [Report summary](hosted-webkit-summary.json), [log excerpts](hosted-webkit-log.txt). |
+
+Both browser gates used one worker and zero retries. The one Chromium skip
+is the existing timestamp-collision placeholder, not a new exception. The
+new keyboard, focus-preservation, narrow-window visibility and format checks
+all passed. Native conversion, packet retention, original-pitch previews and
+the full real-time audio cases passed on the hosted runner. The uploader
+successfully saved both reports, with no old Node 20 forced-runtime warning.
+[Run/job metadata](hosted-run.json) and report metadata establish the exact
+tested revision.
+
+After completion, remote read-back confirmed this feature head and main still
+at `75eb81f701de89628d432148c46dac87b18f0d98`, unprotected. Pages remains a
+legacy build from main `/`. **No merge, publication or setting activation.**
+Final result notes are saved locally after the green run; they are not pushed
+to create another documentation-only full test cycle.
+
 ## Scope and baseline
 
 Reviewed the feature branch at local `1b78a8d`, against freshly fetched main
@@ -140,13 +166,12 @@ names, assertions, failures and counts are preserved.
 The first push (`122dc31cadabfe9bb92e675b1845c8718c22e254`) started [run
 38627199812](https://github.com/jayriddle/warpdiff/actions/runs/38627199812).
 Its WebKit job succeeded before the narrow-window correction was ready;
-Chromium was still running. The next feature-branch push supersedes that
-revision through the workflow's existing concurrency policy. Final verification
-must target the corrected revision, including the extra visibility regression.
-
-Hosted verification is pending. Results below will be
-updated only after completion; the old hosted pass does not certify the new
-review corrections.
+Chromium was still running. Pushing `86dcd26` superseded that revision through
+the existing concurrency policy: the first run is cancelled, its Chromium job
+cancelled, and its WebKit job successful ([retained metadata](
+superseded-hosted-run.json)). The completed final run above tests the corrected
+revision, including the extra visibility regression. The cancelled run is not
+represented as a complete pass or as a product failure.
 
 ## Remaining limits and release holds
 
