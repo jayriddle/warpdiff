@@ -78,3 +78,17 @@ prepared AAC file, press J twice for 0.5×, and scrub both directions with sever
 starts/stops. Check whether the intermittent lower starting tone is gone.
 Press K twice to return to 1× and repeat. The unpublished candidate remains
 v3.19.1; an older open page must reload to use the changed adapter.
+
+## Safari result and hosted-check authorization — October 13, 2026
+
+Jay reports: **“The lower tone is gone in Safari.”** This closes the reported
+pitch concern based on the user's listening check after the local fix. It is
+not an independent acoustic capture or certification of every Safari feature;
+the browser build, output device and exact retest rates were not supplied.
+
+Jay explicitly approved pushing the interim feature branch and running hosted
+tests, while retaining the instruction **“don’t merge or publish yet.”**
+The authorized branch is `codex/interim-release-review`; broader foundations
+and the replacement FFmpeg-distribution experiment remain outside its ancestry.
+See the [hosted-check record](../hosted-interim-checks-2026-10-13/README.md) for
+the pushed revision, Actions results and remaining release decisions.
