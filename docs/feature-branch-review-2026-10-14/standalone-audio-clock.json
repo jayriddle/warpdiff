@@ -1,0 +1,23 @@
+{
+  "node": "v24.19.0",
+  "results": [
+    {
+      "channel": "bundled-chromium",
+      "state": "running",
+      "sampleRate": 48000,
+      "start": 0,
+      "end": 0.005333333333333333,
+      "wallMs": 1001.0999999940395,
+      "messages": []
+    },
+    {
+      "channel": "chrome",
+      "state": "running",
+      "sampleRate": 48000,
+      "start": 0,
+      "end": 0.005333333333333333,
+      "wallMs": 1002.3000000119209,
+      "messages": []
+    }
+  ]
+}

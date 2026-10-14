@@ -1,0 +1,87 @@
+
+Running 40 tests using 1 worker
+
+(node:17729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17729) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/external-preparation.spec.ts:13:5 › unsupported audio retains its source, opens external preparation and never loads an engine (499ms)
+  ✓   2 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag false (219ms)
+  ✓   3 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag true (203ms)
+  ✓   4 [chromium] › tests/external-preparation.spec.ts:60:7 › managed host uses external preparation with legacy converter flag null (207ms)
+  ✓   5 [chromium] › tests/external-preparation.spec.ts:89:5 › multiple preparation entries retain slot order, literal text and keyboard focus (181ms)
+  ✓   6 [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "review.mp4" (174ms)
+  ✓   7 [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "clip\u001b.mp4" (180ms)
+  ✓   8 [chromium] › tests/external-preparation.spec.ts:105:7 › preparation keyboard focus stays in the panel until it closes: "review.webm" (171ms)
+  ✓   9 [chromium] › tests/external-preparation.spec.ts:123:7 › adding another preparation entry retains focus on .fp-download (160ms)
+  ✓  10 [chromium] › tests/external-preparation.spec.ts:123:7 › adding another preparation entry retains focus on .fp-load-btn (162ms)
+  ✓  11 [chromium] › tests/external-preparation.spec.ts:133:7 › review.webm preparation does not offer an unusable MP4-specific command (172ms)
+  ✓  12 [chromium] › tests/external-preparation.spec.ts:133:7 › review.mkv preparation does not offer an unusable MP4-specific command (163ms)
+  ✓  13 [chromium] › tests/external-preparation.spec.ts:133:7 › review.avi preparation does not offer an unusable MP4-specific command (163ms)
+  ✓  14 [chromium] › tests/external-preparation.spec.ts:133:7 › review.wav preparation does not offer an unusable MP4-specific command (164ms)
+  ✓  15 [chromium] › tests/external-preparation.spec.ts:145:5 › native codec limits retain original surround metadata and give a preparation route (2.2s)
+  ✓  16 [chromium] › tests/external-preparation.spec.ts:163:5 › external conversion and ordinary reload preserve an extensionless name and produce audible AAC (680ms)
+  ✓  17 [chromium] › tests/external-preparation.spec.ts:200:5 › service worker installs without FFmpeg and retires only owned legacy caches (47ms)
+  ✓  18 [chromium] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (364ms)
+  ✓  19 [chromium] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (216ms)
+  ✓  20 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command (171ms)
+  ✓  21 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command (162ms)
+  ✓  22 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command (164ms)
+  ✓  23 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command (163ms)
+  ✓  24 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command (163ms)
+  ✓  25 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command (163ms)
+  ✓  26 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command (164ms)
+  ✓  27 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command (163ms)
+  ✓  28 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command (163ms)
+  ✓  29 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success (231ms)
+  ✓  30 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success (238ms)
+  ✓  31 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success (230ms)
+  ✓  32 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent (183ms)
+  ✓  33 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent (189ms)
+  ✘  34 [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (7.5s)
+(node:17894) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17894) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  35 [chromium] › tests/ffmpeg-command.spec.ts:211:7 › a short soundtrack starting at 0s retains every copied video packet (348ms)
+  ✓  36 [chromium] › tests/ffmpeg-command.spec.ts:211:7 › a short soundtrack starting at 0.5s retains every copied video packet (310ms)
+  ✓  37 [chromium] › tests/scrub-pitch.spec.ts:11:5 › brief preview PCM retains source pitch and level at every selected playback speed (178ms)
+  ✓  38 [chromium] › tests/scrub-pitch.spec.ts:71:54 › Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.3s)
+  ✓  39 [chromium] › tests/scrub-pitch.spec.ts:71:54 › direct Continuous entry previews retain pitch policy in both drag directions without changing playback speed (4.2s)
+  ✓  40 [chromium] › tests/scrub-pitch.spec.ts:71:54 › fallback previews retain pitch policy in both drag directions without changing playback speed (4.0s)
+
+
+  1) [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen › M4V video
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: null
+
+      195 |           'stream=codec_type,codec_name,channels,sample_rate:format=duration', '-of', 'json', './' + selected[i].output],
+      196 |           { cwd: directory, encoding: 'utf8', timeout: 5000 });
+    > 197 |         expect(probe.status, probe.stderr).toBe(0);
+          |                                            ^
+      198 |         const info = JSON.parse(probe.stdout);
+      199 |         expect(info.streams.find((stream: any) => stream.codec_type === 'audio')).toMatchObject(
+      200 |           { codec_name: 'aac', channels: 2, sample_rate: '48000' });
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:197:44
+        at /Users/jay/Documents/warpdiff/tests/ffmpeg-command.spec.ts:188:18
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-focused-final/ffmpeg-command-real-termin-e9b67--including-a-leading-hyphen-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ../../../../tmp/warpdiff-oct14-focused-final/ffmpeg-command-real-termin-e9b67--including-a-leading-hyphen-chromium/error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    ../../../../tmp/warpdiff-oct14-focused-final/ffmpeg-command-real-termin-e9b67--including-a-leading-hyphen-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace ../../../../tmp/warpdiff-oct14-focused-final/ffmpeg-command-real-termin-e9b67--including-a-leading-hyphen-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen
+  39 passed (31.2s)

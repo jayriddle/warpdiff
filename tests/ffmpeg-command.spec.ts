@@ -172,6 +172,7 @@ for (const outcome of ['resolve', 'reject'] as const) {
 test('real terminal FFmpeg converts literal filenames including a leading hyphen', async ({ page }) => {
   test.skip(process.platform === 'win32', 'Copied commands target macOS/Linux POSIX shells.');
   const selected = cases.filter(item => ['leading hyphen', 'apostrophe', 'command substitution',
+    'uppercase MP4', 'MOV video', 'M4V video',
     'protocol-like prefix', 'no extension', 'short name without extension', 'hidden name without extension'].includes(item.label));
   const commands = await page.evaluate(items => {
     const w = window as any;
@@ -193,6 +194,7 @@ test('real terminal FFmpeg converts literal filenames including a leading hyphen
         const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries',
           'stream=codec_type,codec_name,channels,sample_rate:format=duration', '-of', 'json', './' + selected[i].output],
           { cwd: directory, encoding: 'utf8', timeout: 5000 });
+        expect(probe.error, 'ffprobe must complete before checking its output').toBeUndefined();
         expect(probe.status, probe.stderr).toBe(0);
         const info = JSON.parse(probe.stdout);
         expect(info.streams.find((stream: any) => stream.codec_type === 'audio')).toMatchObject(

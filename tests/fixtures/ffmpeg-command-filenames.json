@@ -1,6 +1,9 @@
 [
   { "label": "command substitution", "input": "clip-$(printf EXPANDED).mp4", "output": "clip-$(printf EXPANDED)_aac.mp4" },
   { "label": "ordinary filename", "input": "clip.mp4", "output": "clip_aac.mp4" },
+  { "label": "uppercase MP4", "input": "clip.MP4", "output": "clip_aac.MP4" },
+  { "label": "MOV video", "input": "review.mov", "output": "review_aac.mov" },
+  { "label": "M4V video", "input": "review.m4v", "output": "review_aac.m4v" },
   { "label": "spaces", "input": "My review clip.mp4", "output": "My review clip_aac.mp4" },
   { "label": "apostrophe", "input": "Jay's clip.mp4", "output": "Jay's clip_aac.mp4" },
   { "label": "double quotes", "input": "clip\"review\".mp4", "output": "clip\"review\"_aac.mp4" },

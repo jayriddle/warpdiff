@@ -1,9 +1,14 @@
 # Interim release checks and activation
 
-The small engine-free interim release has two proposed GitHub checks:
+The small engine-free interim release has two hosted GitHub checks:
 **Chromium and ownership** and **WebKit preparation workflow**. They run on
 pushes, pull requests targeting `main`, and manual dispatch. There is no
 deployment step in this workflow.
+
+Feature-branch pushing and test execution were authorized on October 13, 2026.
+Both checks passed for `e72f098` ([hosted verification](hosted-interim-checks-2026-10-13/README.md)).
+Protection activation, merge and publication remain held. Further review fixes
+must pass the checks at their own revision.
 
 The Ubuntu 24.04 job uses Node 24, locked npm dependencies, native FFmpeg and
 zsh for fixtures and terminal-command verification, and the Chrome channel for
@@ -29,6 +34,12 @@ access, and checkout credentials are not persisted. CI rejects accidental
 minutes, and allows 45 minutes per job. Failure traces, screenshots and HTML
 reports are retained for 14 days. Local default Chromium remains available;
 `WARPDIFF_BROWSER_CHANNEL=chrome` selects the hosted Linux configuration.
+
+The report uploader is pinned to `actions/upload-artifact` v7.0.2, which declares
+Node 24. Its normal archived-report behavior is retained; direct single-file
+uploads are not enabled. This replaces v5's Node 20 declaration and the hosted
+forced-runtime warning. Sources: [v7.0.2 release](https://github.com/actions/upload-artifact/releases/tag/v7.0.2)
+and [pinned action metadata](https://github.com/actions/upload-artifact/blob/cf430e030ddbb5b0abf93d22962f4752f3646cd9/action.yml).
 
 ## Approval and activation
 

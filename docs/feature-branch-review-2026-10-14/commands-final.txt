@@ -1,0 +1,28 @@
+
+Running 19 tests using 1 worker
+
+(node:18451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18451) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/ffmpeg-command.spec.ts:42:5 › copied FFmpeg commands preserve adversarial filenames through a POSIX shell (449ms)
+  ✓   2 [chromium] › tests/ffmpeg-command.spec.ts:69:5 › FFmpeg panel copies the displayed macOS/Linux command verbatim (230ms)
+  ✓   3 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0000 cannot enter a copied command (162ms)
+  ✓   4 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0003 cannot enter a copied command (165ms)
+  ✓   5 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0009 cannot enter a copied command (163ms)
+  ✓   6 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000a cannot enter a copied command (163ms)
+  ✓   7 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+000d cannot enter a copied command (164ms)
+  ✓   8 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+0015 cannot enter a copied command (163ms)
+  ✓   9 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+001b cannot enter a copied command (163ms)
+  ✓  10 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+007f cannot enter a copied command (163ms)
+  ✓  11 [chromium] › tests/ffmpeg-command.spec.ts:92:7 › terminal control U+009b cannot enter a copied command (171ms)
+  ✓  12 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports refused clipboard access without claiming success (241ms)
+  ✓  13 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports missing clipboard access without claiming success (229ms)
+  ✓  14 [chromium] › tests/ffmpeg-command.spec.ts:111:7 › FFmpeg panel reports synchronous clipboard access without claiming success (229ms)
+  ✓  15 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard resolve after clear leaves the retired command silent (184ms)
+  ✓  16 [chromium] › tests/ffmpeg-command.spec.ts:140:7 › a late clipboard reject after clear leaves the retired command silent (180ms)
+  ✓  17 [chromium] › tests/ffmpeg-command.spec.ts:172:5 › real terminal FFmpeg converts literal filenames including a leading hyphen (767ms)
+  ✓  18 [chromium] › tests/ffmpeg-command.spec.ts:212:7 › a short soundtrack starting at 0s retains every copied video packet (305ms)
+  ✓  19 [chromium] › tests/ffmpeg-command.spec.ts:212:7 › a short soundtrack starting at 0.5s retains every copied video packet (304ms)
+
+  19 passed (5.4s)

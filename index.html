@@ -6375,6 +6375,7 @@
         let _ffmpegLoadEpoch = 0; // retires pending clipboard completions
         let _ffmpegPanelFocus = null;
         const _FFMPEG_UNSAFE_FILENAME = 'Rename this file without control characters before copying a terminal command.';
+        const _FFMPEG_UNSUPPORTED_CONTAINER = 'This command supports MP4/MOV video (including .m4v). Prepare other formats with a command suited to their container and video codec, then reload the prepared file.';
 
         function _ffmpegCommandIsCurrent(slot, info) {
             return !!info && info.loadEpoch === _ffmpegLoadEpoch && _ffmpegCommands[slot] === info;
@@ -6412,11 +6413,13 @@
             if (_ffmpegCommands[slot]) return;
             const codecLabel = _UNSUPPORTED_CODEC_LABELS[codec] || 'Unsupported audio codec';
             const { base, ext } = _ffmpegFilenameParts(filename);
+            const commandNotice = /[\x00-\x1F\x7F-\x9F]/.test(filename) ? _FFMPEG_UNSAFE_FILENAME
+                : !['.mp4', '.mov', '.m4v'].includes(ext.toLowerCase()) ? _FFMPEG_UNSUPPORTED_CONTAINER : '';
             // ./ keeps leading hyphens and protocol-like basenames local.
             // Terminal controls act before shell parsing: require a rename.
             // Pad audio so -shortest ends with the picture, even when sound ends first.
-            const cmd = /[\x00-\x1F\x7F-\x9F]/.test(filename) ? null : 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i ' + _quotePosixShellArg('./' + filename) + ' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -af apad -shortest -movflags +faststart ' + _quotePosixShellArg('./' + base + '_aac' + ext);
-            _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd, loadEpoch: _ffmpegLoadEpoch };
+            const cmd = commandNotice ? null : 'ffmpeg -ignore_editlist 0 -fflags +bitexact -i ' + _quotePosixShellArg('./' + filename) + ' -map 0:v:0 -map 0:a:0 -c:v copy -c:a aac -ac 2 -ar 48000 -b:a 192k -af apad -shortest -movflags +faststart ' + _quotePosixShellArg('./' + base + '_aac' + ext);
+            _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd, commandNotice, loadEpoch: _ffmpegLoadEpoch };
             _setFfmpegPanelOpen(true);
             requestAnimationFrame(() => _drawDecodingPlaceholder(slot));
             if (slot === currentAudioSource) updateAudioVisForSlot(slot);
@@ -6455,6 +6458,8 @@
             const body = document.getElementById('ffmpegPanelBody');
             if (!body) return;
             const focusedSlot = document.activeElement?.closest('.fp-entry')?.dataset.fpSlot;
+            const focusedControl = document.activeElement?.matches('.fp-download') ? '.fp-download'
+                : document.activeElement?.matches('.fp-load-btn') ? '.fp-load-btn' : null;
             body.replaceChildren();
             for (const slot of assetOrder) {
                 const info = _ffmpegCommands[slot];
@@ -6472,13 +6477,13 @@
                 row.className = 'fp-cmd-row';
                 const command = document.createElement('div');
                 command.className = 'fp-cmd';
-                command.textContent = info.cmd || _FFMPEG_UNSAFE_FILENAME;
+                command.textContent = info.cmd || info.commandNotice;
                 const copy = document.createElement('button');
                 copy.type = 'button';
                 copy.className = 'fp-copy-btn';
                 copy.textContent = 'Copy';
                 copy.disabled = !info.cmd;
-                copy.title = info.cmd ? 'Copy command for a macOS or Linux terminal' : _FFMPEG_UNSAFE_FILENAME;
+                copy.title = info.cmd ? 'Copy command for a macOS or Linux terminal' : info.commandNotice;
                 copy.setAttribute('aria-label', copy.title);
                 copy.addEventListener('click', () => _copyFfmpegCmd(copy, slot));
                 row.append(command, copy);
@@ -6487,7 +6492,8 @@
             }
             const note = document.createElement('p');
             note.className = 'fp-note';
-            note.textContent = 'WarpDiff does not convert audio in the browser. With FFmpeg installed separately, run the copied command in a macOS or Linux terminal from the folder containing the original file. The command makes a stereo AAC copy and pads a short soundtrack to retain the complete video; keep the original for multichannel or original-source measurements. '
+            note.id = 'ffmpegPanelNote';
+            note.textContent = 'WarpDiff does not convert audio in the browser. The supplied command targets MP4/MOV video (including .m4v); other containers need a suitable external command. With FFmpeg installed separately, run the copied command in a macOS or Linux terminal from the folder containing the original file. The video stream is copied, so its codec must also work in your browser. The command makes a stereo AAC copy and pads a short soundtrack to retain the complete video; keep the original for multichannel or original-source measurements. '
                 + (_managedReviewActive()
                     ? 'Return the prepared file to your review host so it can reload the comparison.'
                     : 'Then use Load (L) or drag and drop to load the _aac output together with the other files in your comparison. Loading files starts a new comparison.');
@@ -6508,6 +6514,7 @@
                 body.append(load);
             }
             if (focusedSlot) body.querySelector('[data-fp-slot="' + focusedSlot + '"] .fp-copy-btn')?.focus({ preventScroll: true });
+            else if (focusedControl) body.querySelector(focusedControl)?.focus({ preventScroll: true });
         }
 
         async function _copyFfmpegCmd(btn, slot) {
@@ -13244,8 +13251,20 @@
         document.addEventListener('keydown', (e) => {
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
-            if (document.getElementById('ffmpegPanel').classList.contains('open')) {
+            const preparationPanel = document.getElementById('ffmpegPanel');
+            if (preparationPanel.classList.contains('open')) {
                 if (e.key === 'Escape') { e.preventDefault(); _setFfmpegPanelOpen(false); }
+                else if (e.key === 'Tab') {
+                    const controls = [...preparationPanel.querySelectorAll('button:not(:disabled), a[href]')]
+                        .filter(control => control.getClientRects().length);
+                    const first = controls[0], last = controls[controls.length - 1];
+                    if (!preparationPanel.contains(document.activeElement) ||
+                        (e.shiftKey && document.activeElement === first) ||
+                        (!e.shiftKey && document.activeElement === last)) {
+                        e.preventDefault();
+                        (e.shiftKey ? last : first)?.focus({ preventScroll: true });
+                    }
+                }
                 else if (e.key.toLowerCase() === 'l' && !_managedReviewActive()) { e.preventDefault(); _loadPreparedFiles(); }
                 return;
             }
@@ -13705,7 +13724,7 @@
     <script src="js/starfield.js"></script>
 
     <div class="fp-backdrop" id="ffmpegBackdrop" onclick="toggleFfmpegPanel()"></div>
-    <div class="fp-panel" id="ffmpegPanel" role="dialog" aria-labelledby="ffmpegPanelTitle">
+    <div class="fp-panel" id="ffmpegPanel" role="dialog" aria-modal="true" aria-labelledby="ffmpegPanelTitle" aria-describedby="ffmpegPanelNote">
         <div class="fp-header"><span id="ffmpegPanelTitle">Prepare audio externally</span><button type="button" id="ffmpegPanelClose" aria-label="Close audio preparation" onclick="toggleFfmpegPanel()">×</button></div>
         <div id="ffmpegPanelBody"></div>
     </div>
@@ -13776,7 +13795,7 @@
                 <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
-            <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access.</p>
+            <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>

@@ -76,6 +76,11 @@ for (const legacyFlag of [false, true, null]) {
     await expect(frame.locator('#ffmpegPanel .fp-note')).toContainText('review host');
     await expect(frame.locator('#ffmpegPanel .fp-note')).not.toContainText('Load (L)');
     await expect(frame.locator('#ffmpegPanel .fp-load-btn')).toHaveCount(0);
+    await frame.locator('#ffmpegPanelClose').focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(frame.locator('#ffmpegPanel .fp-download')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(frame.locator('#ffmpegPanelClose')).toBeFocused();
     expect(await frame.locator('body').evaluate(() => (window as any).eval('_hostCapabilities.ffmpegTranscode'))).toBe(false);
     expect(engineRequests).toEqual([]);
   });
@@ -95,6 +100,47 @@ test('multiple preparation entries retain slot order, literal text and keyboard 
   await expect(page.locator('#ffmpegPanel img')).toHaveCount(0);
   await expect(page.locator('[data-fp-slot="editB"] .fp-entry-codec')).toContainText('<img src=x onerror=alert(1)>.mp4');
 });
+
+for (const filename of ['review.mp4', 'clip\u001b.mp4', 'review.webm']) {
+  test(`preparation keyboard focus stays in the panel until it closes: ${JSON.stringify(filename)}`, async ({page}) => {
+    await page.goto('/');
+    await page.evaluate(name => (window as any)._registerFfmpegCommand('editA', name, 'ac-3'), filename);
+    const panel = page.getByRole('dialog', {name:'Prepare audio externally'});
+    await expect(panel).toHaveAttribute('aria-modal', 'true');
+    const close = panel.getByRole('button', {name:'Close audio preparation'});
+    const load = panel.getByRole('button', {name:'Load prepared files', exact:true});
+    await close.focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(load).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(close).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+  });
+}
+
+for (const control of ['.fp-download', '.fp-load-btn']) {
+  test(`adding another preparation entry retains focus on ${control}`, async ({page}) => {
+    await page.goto('/');
+    await page.evaluate(() => (window as any)._registerFfmpegCommand('editA', 'review.mp4', 'ac-3'));
+    await page.locator('#ffmpegPanel ' + control).focus();
+    await page.evaluate(() => (window as any)._registerFfmpegCommand('editB', 'other.mp4', 'ec-3'));
+    await expect(page.locator('#ffmpegPanel ' + control)).toBeFocused();
+  });
+}
+
+for (const filename of ['review.webm', 'review.mkv', 'review.avi', 'review.wav']) {
+  test(`${filename} preparation does not offer an unusable MP4-specific command`, async ({page}) => {
+    await page.goto('/');
+    await page.evaluate(name => (window as any)._registerFfmpegCommand('editA', name, 'unknown'), filename);
+    const panel = page.getByRole('dialog', {name:'Prepare audio externally'});
+    await expect(panel.locator('.fp-copy-btn')).toBeDisabled();
+    await expect(panel.locator('.fp-cmd')).toContainText('MP4/MOV');
+    expect(await page.evaluate(() => (window as any).eval('_ffmpegCommands.editA.cmd'))).toBeNull();
+    await page.evaluate(() => (window as any)._copyFfmpegCmd(document.querySelector('.fp-copy-btn'), 'editA'));
+    await expect(panel.locator('.fp-copy-btn')).toHaveText('Copy');
+  });
+}
 
 test('native codec limits retain original surround metadata and give a preparation route', async ({page}) => {
   await page.goto('/');
