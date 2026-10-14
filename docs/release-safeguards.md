@@ -7,8 +7,11 @@ deployment step in this workflow.
 
 Feature-branch pushing and test execution were authorized on October 13, 2026.
 Both checks passed for `e72f098` ([hosted verification](hosted-interim-checks-2026-10-13/README.md)).
-Protection activation, merge and publication remain held. Further review fixes
-must pass the checks at their own revision.
+On October 14, Jay approved protection activation, final verification-note
+publication to the feature branch, and opening the pull request. Main protection
+is now active with the rules below; [activation evidence](release-gate-activation-2026-10-14/README.md)
+records the read-back and pending-check blocking observation. Merge and app
+publication remain held. Further revisions must pass the checks at their own head.
 
 The Ubuntu 24.04 job uses Node 24, locked npm dependencies, native FFmpeg and
 zsh for fixtures and terminal-command verification, and the Chrome channel for
@@ -50,8 +53,9 @@ and [pinned action metadata](https://github.com/actions/upload-artifact/blob/cf4
 3. After approval, require both checks on `main` with up-to-date branches,
    pull-request merges, administrator enforcement, conversation resolution,
    and force pushes/deletion disabled. The [proposed protection payload](
-   interim-release-review-2026-10-12/main-protection.proposed.json) is a proposal
-   only. Re-read existing remote settings before applying it.
+   interim-release-review-2026-10-12/main-protection.proposed.json) records the
+   approved configuration, now applied. Re-read remote settings before any
+   later update; the activation record preserves the effective request.
 4. Inspect the active protection and verify that failing checks cannot merge,
    using a controlled feature branch if necessary. Do not push an intentional
    failure to `main`.
@@ -64,7 +68,8 @@ and [pinned action metadata](https://github.com/actions/upload-artifact/blob/cf4
 
 The proposed PR rule requires zero additional GitHub reviewer approvals for
 this solo-maintainer repository. Jay's release decision remains required in
-the task. No remote setting is changed by adding these files locally.
+the task. The approved remote settings were activated on October 14, separately
+from adding the workflow files; see the linked activation evidence.
 
 ## Local checks
 
