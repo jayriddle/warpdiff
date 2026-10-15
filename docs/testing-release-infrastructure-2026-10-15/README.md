@@ -69,8 +69,36 @@ Local verification completed with zero browser retries:
 | actionlint 1.7.12 | No findings; downloaded tool checksum verified |
 | Inventory and scope audit | All 436 cases preserved; production assets and existing test sources unchanged |
 
-A feature-branch manual hosted run will measure the actual three-job speedup.
-It cannot deploy. Hosted evidence will be appended after that run.
+Both hosted candidates passed on attempt 1, with zero browser retries. The initial
+run [38767437257](https://github.com/jayriddle/warpdiff/actions/runs/38767437257) tested 28725cd942cb80ef27a677a3c62602b6113daea5; the final run
+[38768601504](https://github.com/jayriddle/warpdiff/actions/runs/38768601504) tested **7bba0530d8b42b1d50d1e957728518f0e7813afd** after the Pages-action update.
+
+| Hosted run | Complete workflow | Longest Chromium test portion |
+|---|---|---|
+| Previous released main | 16m 27s | 15m 11s |
+| Initial candidate | 7m 43s | 5m 59s |
+| Final candidate | 7m 32s | 5m 57s |
+
+The final observation reduces complete-workflow elapsed time by about
+54% relative to the prior run. Runner variation applies; this is a
+measured comparison, not a guaranteed runtime. Each candidate accounts for
+all 436 Chromium cases (435 pass, one existing skip), WebKit 50 passes, hosted
+ownership 523 passes, and all 18 infrastructure tests. Publication was skipped
+as required. No job rerun or browser test retry was used.
+
+Both actual uploaded Pages artifacts contain exactly the 35 permitted files,
+match every SHA-256 manifest entry, and identify their exact tested SHA. The
+updated uploader completes without the initial Node 20 dependency warning.
+The final deployment action remains intentionally unexecuted pending approval.
+A local packaged-site smoke check at 28725cd loaded two images and installed
+the service worker in Chrome and WebKit; Chrome also passed offline reload.
+Runtime asset bytes are unchanged throughout these infrastructure revisions.
+
+The final follow-up commit records verification notes only; the implementation
+tested by the final hosted run is pinned above. Any later PR must receive its
+own exact-revision required checks. No PR, merge, Pages setting change or
+publication occurred in this task.
+
 Raw evidence is retained locally in
 `output/testing-release-infrastructure-2026-10-15-Pgwyn8/`, outside Git and
 outside the public artifact. It includes the pre-edit preservation snapshot,
