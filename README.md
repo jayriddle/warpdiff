@@ -142,7 +142,7 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 
 ### Design principles
 
-- **No build, no runtime dependencies.** Vanilla HTML / CSS / JS in the app itself. Playwright is the only npm dependency, and only for tests.
+- **No build, no runtime dependencies.** Vanilla HTML / CSS / JS in the app itself. Playwright and the other npm tools are development dependencies only.
 - **Memory-aware by default.** Typed arrays for bulk data, cached buffers reused across frames, blob URLs over base64, audio downsampled for scrub but kept full-quality where sync matters.
 - **Frame-accurate where it matters.** Midpoint seeking `(frame + 0.5) / fps` to avoid IEEE 754 boundary issues; epsilon-based timecode display; `requestVideoFrameCallback` for loop-point detection.
 - **Color-correct by default.** Magnifier uses cloned `<video>` elements to stay on the hardware compositor path, because `drawImage(video, canvas)` produces incorrect colors on macOS P3 displays.
@@ -166,10 +166,15 @@ npx playwright test          # behavioral suite (headless Chromium)
 npm run test:ownership       # structural + pure-logic guards (no browser)
 ```
 
-The feature-branch checks run the complete Chromium suite and ownership checks,
-plus focused WebKit external-preparation/reload checks. Native FFmpeg generates
-test fixtures; it is not shipped with the app. See [release safeguards](docs/release-safeguards.md)
-for commands, coverage limits and the approval/activation sequence.
+Pull requests and pushes to `main` run the complete Chromium suite across three
+isolated jobs, ownership/infrastructure checks, and the focused WebKit profile.
+Feature branches use explicit manual dispatch before a PR, avoiding duplicate
+push/PR runs. Native FFmpeg generates fixtures; it is not shipped with the app.
+The proposed Pages workflow stages only public assets and waits for successful
+checks before publishing a `main` push. Activating that workflow requires a
+separately approved Pages setting change; the live site retains its current
+publishing configuration until review. See [release safeguards](docs/release-safeguards.md)
+for commands, coverage limits, and activation instructions.
 
 ---
 

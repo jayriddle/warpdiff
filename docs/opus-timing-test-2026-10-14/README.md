@@ -175,7 +175,7 @@ WARPDIFF_BROWSER_CHANNEL=chrome npx playwright test \
 npm run test:webkit
 ```
 
-Run `node docs/opus-timing-test-2026-10-14/mutation-check.mjs` with the existing
+Run `npm run test:mutations` with the existing
 localhost:8080 test server available to repeat the four negative probes. They
 need the installed Chrome channel and produce temporary copied specs, reports
 and logs under `output/opus-timing-test-2026-10-14/mutations/`.
@@ -183,7 +183,7 @@ Pass a different output directory as the first argument to preserve an earlier
 run, as in the follow-up verification:
 
 ```sh
-node docs/opus-timing-test-2026-10-14/mutation-check.mjs \
+npm run test:mutations -- \
   output/opus-timing-review-fix-2026-10-15/mutations-rerun
 ```
 
@@ -198,3 +198,5 @@ Large generated reports, copied specs and traces are kept out of the commit.
 Hosted results are linked in the final completion record and feature-branch
 check history. No merge,
 release tag or Pages publication is authorized by this test-only work.
+
+The runner is manual verification tooling in `tools/investigations/opus-timing/`. Its exact `from` strings must be reviewed with changes to `js/opus-sync.js`; missing or ambiguous targets fail loudly. Generated output is ignored by Git and excluded from Pages.

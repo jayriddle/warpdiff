@@ -7,8 +7,10 @@
     "test": "npx playwright test",
     "test:ownership": "node tests/ownership.test.mjs",
     "test:fixtures": "bash tests/fixtures/generate.sh",
-    "test:ci": "playwright test --project=chromium --workers=1 --retries=0",
-    "test:webkit": "playwright test --config=playwright.webkit.config.ts"
+    "test:ci": "playwright test --config=playwright.ci.config.ts --project=chromium --workers=1 --retries=0",
+    "test:webkit": "playwright test --config=playwright.webkit.config.ts",
+    "test:infra": "node --test tests/release-infrastructure.test.mjs",
+    "test:mutations": "node tools/investigations/opus-timing/mutation-check.mjs"
   },
   "repository": {
     "type": "git",
@@ -25,6 +27,7 @@
   "homepage": "https://github.com/jayriddle/warpdiff#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "serve": "^14.2.5"
+    "serve": "^14.2.5",
+    "yaml": "2.9.1"
   }
 }
