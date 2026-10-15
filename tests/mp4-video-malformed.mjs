@@ -5,7 +5,9 @@ import {runInNewContext} from 'node:vm';
 const u32 = (...values) => { const b = Buffer.alloc(values.length * 4); values.forEach((v,i) => b.writeUInt32BE(v,i*4)); return b; };
 const box = (name, ...payload) => { const data=Buffer.concat(payload); return Buffer.concat([u32(data.length+8),Buffer.from(name),data]); };
 const table = (...rows) => Buffer.concat([u32(0,rows.length),...rows.map(row=>u32(...row))]);
-const avc = Buffer.from([1,100,0,31,255,225,0]);
+// Complete AVC configuration record from the landscape_a fixture (SPS + PPS).
+// Parser tests below still do not establish bitstream/decoder conformance.
+const avc = Buffer.from('0164001fffe1001a6764001facd940f0117ef011000003000100000300300f18319601000468ef8fcbfdf8f800','hex');
 function description(config = box('avcC',avc), fourcc='avc1') {
   const entry=Buffer.alloc(86); entry.writeUInt32BE(86+config.length); entry.write(fourcc,4); entry.writeUInt16BE(640,32); entry.writeUInt16BE(360,34);
   return Buffer.concat([u32(0,1),entry,config]);
@@ -53,6 +55,36 @@ export function runMalformedVideoChecks(check, source=readFileSync(new URL('../j
   for(const name of ['elst','stss','stsc','stco','stts','ctts']) rejects(name+' overdeclared table',fixture({[name]:u32(0,0xffffffff)}));
   rejects('stsz truncated per-sample table',fixture({stsz:u32(0,0,2,1)}));
   rejects('stsz enormous uniform count',fixture({stsz:u32(0,1,0xffffffff)}));
+  // A count below file length still must not amplify an already impossible
+  // table into per-sample allocations. Observe allocation order, not just null.
+  const count = 100000;
+  const paddedFixture = overrides => new Uint8Array(Buffer.concat([fixture(overrides),box('free',Buffer.alloc(120000))]));
+  const earlyRejects = (name, bytes, threshold=count) => {
+    const allocations=[];
+    const guarded={Array:new Proxy(Array,{construct(target,args) {
+      if (typeof args[0] === 'number') allocations.push(args[0]);
+      return Reflect.construct(target,args);
+    }})};
+    runInNewContext(source,guarded);
+    let result,error;
+    try {result=guarded._demuxMP4Video(bytes);} catch(e) {error=e;}
+    check('demux[malformed-video]: '+name+' rejects before count-sized allocations',
+      !error && result===null && allocations.every(n=>n<threshold));
+  };
+  earlyRejects('impossible uniform size below byte-count cap',paddedFixture({stsz:u32(0,0xffffffff,count)}));
+  earlyRejects('impossible aggregate uniform bytes',paddedFixture({stsz:u32(0,2,count)}));
+  earlyRejects('incomplete chunk coverage',paddedFixture({stsz:u32(0,1,count)}));
+  earlyRejects('incomplete timing coverage',paddedFixture({stsz:u32(0,1,count),stsc:table([1,count,1])}));
+  earlyRejects('invalid uniform sample range',paddedFixture({stsz:u32(0,1,count),stsc:table([1,count,1]),
+    stts:table([count,1]),ctts:null,stco:table([120000])}));
+  const variable=Buffer.alloc(12+count*4);
+  u32(0,0,count).copy(variable);
+  for(let i=0;i<count;i++) variable.writeUInt32BE(1,12+i*4);
+  earlyRejects('variable table with incomplete chunk coverage',paddedFixture({stsz:variable}));
+  variable.writeUInt32BE(0xffffffff,12);
+  earlyRejects('impossible variable sample size',paddedFixture({stsz:variable}));
+  earlyRejects('practical sample limit',new Uint8Array(Buffer.concat([fixture({stsz:u32(0,1,1000001),
+    stsc:table([1,1000001,1]),stts:table([1000001,1]),ctts:null}),box('free',Buffer.alloc(1100000))])),1000001);
   rejects('missing stsc',fixture({stsc:null}));
   rejects('empty stsc',fixture({stsc:table()}));
   rejects('first chunk zero',fixture({stsc:table([0,2,1])}));

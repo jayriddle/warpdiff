@@ -4,7 +4,7 @@ Visual & audio comparison for creative review. Compare images, videos, or audio 
 
 ## Load and compare instantly
 
-Load 1–4 images, videos, or audio files of one media type by dragging and dropping, pressing `L`, or clicking Load. Files auto-sort by save time. One- to three-item comparisons use Ref/GT/A/B naming as appropriate; four-item comparisons use media-aware Image-1…Image-4, Video-1…Video-4, or Audio-1…Audio-4 labels. A landing drop zone with hints appears when no files are loaded.
+Load 1–4 images, videos, or audio files of one media type by dragging and dropping, pressing `L`, or clicking Load. Manually loaded files auto-sort by save time; host loads retain the supplied order. One- to three-item comparisons use Ref/GT/A/B naming as appropriate; four-item comparisons use media-aware Image-1…Image-4, Video-1…Video-4, or Audio-1…Audio-4 labels. A landing drop zone with hints appears when no files are loaded.
 
 While a comparison is preparing, the loading screen lists every assigned slot and filename with live milestones: **Opening**, **Reading metadata**, **Decoding first frame**, and **Ready**. Completed files are checked off while slower files retain an animated status. If one video is ready first, WarpDiff identifies the remaining video and explains that it is waiting so the complete comparison appears together. Longer waits add a large-file reminder, and manual loads can be canceled.
 
@@ -74,7 +74,7 @@ Both Play and Restart (`R`) restore looping after a scrub, follow the selected S
 
 Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long gaps between keyframes can still delay an uncached seek; scrubbing does not transcode the original video.
 
-Encoded scrub inputs are limited to 256 MiB per video and 512 MiB across retained and pending reads. Videos that cannot fit use native video scrubbing; playback and audio preview remain available. Decoded frames, audio analysis and browser-native buffers have separate memory costs.
+Encoded scrub inputs are limited to 256 MiB per video and 512 MiB across retained and pending reads. Videos that cannot fit use native video scrubbing; playback and audio preview remain available. Video sample tables above one million entries also use native seeking. Decoded frames, audio analysis and browser-native buffers have separate memory costs.
 
 Safari video drag seeks wait for decoded frames before advancing to the latest pointer target, including in Grid. Returning to the tab refreshes video surfaces. A drag interrupted by a tab change ends paused; Play resumes it. Scrub preview uses native sound output to avoid silent previews while keeping Continuous processing, listening controls and short-preview fallback. A new gesture wakes the processing engine after suspension or interruption. Desktop mono/stereo video keeps Safari's native audio output to reduce picture stalls after seeking; surround audio retains the shared listening mix and may still have a brief playback-start delay.
 
@@ -170,4 +170,4 @@ No install required, no account, no upload. Open in any browser, load your files
 
 Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
 
-Malformed host-supplied file payloads report a correlated failure, clear partial loading state, and restore the Pull control. Superseded requests cannot reset a newer comparison. Hosts can supply base64, ArrayBuffers, byte views or byte arrays for 1–4 files.
+Host loads retain the supplied file order so display labels stay with their media. Empty files, invalid converted types and initial media decoding failures report one correlated failure, clear the partial comparison, and restore the Pull control. READY waits for every image to decode, every video to expose its first frame, and audio-only files to become playable with decoded waveforms. Superseded requests cannot reset a newer comparison. Hosts can supply base64, ArrayBuffers, byte views or byte arrays for 1–4 files.

@@ -3,19 +3,168 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 
 const image64 = readFileSync(path.join(__dirname, 'fixtures/green.png')).toString('base64');
+const orderImages = ['green.png','red.png','blue.png','fourth.png'].map(name =>
+  ({name,base64:readFileSync(path.join(__dirname,'fixtures',name)).toString('base64')}));
 
 test.beforeEach(async ({page}) => {
   await page.addInitScript(() => {
     const w = window as any;
     w.hostReplies = [];
     w.hostErrors = [];
+    w.hostFallbacks = 0;
     addEventListener('message', event => {
       if (/^WARPDIFF_LOAD_(READY|FAILED)$/.test(event.data?.type)) w.hostReplies.push(event.data);
+      if (event.data?.type === 'WARPDIFF_PULL_FALLBACK') w.hostFallbacks++;
     });
     addEventListener('error', event => w.hostErrors.push(event.message));
     addEventListener('unhandledrejection', event => w.hostErrors.push(String(event.reason)));
   });
   await page.goto('/');
+});
+
+for (const sender of ['same window', 'managed parent']) {
+  for (const kind of ['empty signed image', 'empty signed video', 'empty signed audio',
+    'corrupt supplied image', 'corrupt supplied video', 'corrupt supplied audio', 'corrupt signed image', 'invalid converted MIME']) {
+    test(`${sender} rejects ${kind} with one terminal failure`, async ({page}) => {
+      await page.route('**/rejected-host-media', route => route.fulfill({status:200,
+        body:kind.startsWith('empty') ? Buffer.alloc(0) : Buffer.from([1,2,3])}));
+      if (sender === 'managed parent') {
+        await page.route('**/media-host.html', route => route.fulfill({contentType:'text/html',
+          body:'<!doctype html><iframe src="/"></iframe>'}));
+        await page.goto('/media-host.html');
+      }
+      const app = sender === 'managed parent' ? page.frames().find(frame => frame.parentFrame())! : page;
+      await app.waitForFunction(() => typeof (window as any).handleMultipleFiles === 'function');
+      await page.evaluate(({kind, sender, base64}) => {
+        const item = {name:'rejected.' + (kind.includes('video') ? 'mp4' : kind.includes('audio') ? 'wav' : 'png'),
+          contentType:kind.includes('video') ? 'video/mp4' : kind.includes('audio') ? 'audio/wav' : 'image/png', buffer:[1,2,3]};
+        // File normalizes this control-containing MIME to the empty string.
+        if (kind === 'invalid converted MIME') item.contentType = 'image/png\n';
+        const payload = kind.includes('signed') ? {signedItems:[{...item,signedUrl:'/rejected-host-media'}]}
+          : {files:kind === 'invalid converted MIME' ? [{name:'valid.png',contentType:'image/png',base64},item] : [item]};
+        const receiver = sender === 'managed parent' ? document.querySelector('iframe')!.contentWindow! : window;
+        receiver.postMessage({type:'WARPDIFF_LOAD', requestId:'rejected', taskId:'rejected-task',
+          capabilities:{managedReview:sender === 'managed parent'}, slotLabels:['','Candidate','Second'], ...payload}, location.origin);
+      }, {kind,sender,base64:image64});
+      await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+        expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'rejected',taskId:'rejected-task',error:expect.any(String)}),
+      ]);
+      await expect(app.locator('#comparisonView')).not.toHaveClass(/active/);
+      await expect(app.locator('.asset-layer img, .asset-layer video, .asset-layer audio')).toHaveCount(0);
+      await expect(app.locator('#landingCta')).not.toHaveClass(/loading/);
+      await expect(app.locator('#ihwaPullBtn')).toBeEnabled();
+      expect(await app.evaluate(() => (window as any).eval('_ihwaPullTimer'))).toBeNull();
+      expect(await page.evaluate(() => (window as any).hostFallbacks)).toBe(0);
+      expect(await app.evaluate(() => (window as any).hostErrors)).toEqual([]);
+      // Let any sibling callbacks/activation deadline run; failure stays terminal.
+      await app.waitForTimeout(550);
+      expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(1);
+    });
+  }
+}
+
+for (const count of [1,2,3,4]) for (const signed of [false,true]) {
+  test(`host preserves ${count} label/file associations with descending timestamps via ${signed ? 'signed URLs' : 'supplied bytes'}`, async ({page}) => {
+    await page.evaluate(({count,signed,images}) => {
+      const files = Array.from({length:count}, (_, i) => ({name:`item-${i+1}.png`, contentType:'image/png',
+        lastModified:100000-i*10000, ...(signed ? {signedUrl:'/tests/fixtures/'+images[i].name} : {base64:images[i].base64})}));
+      window.postMessage({type:'WARPDIFF_LOAD', requestId:'ordered', capabilities:{managedReview:true},
+        slotLabels:count <= 2 ? ['',...files.map((_,i)=>`Label ${i+1}`)] : files.map((_,i)=>`Label ${i+1}`),
+        ...(signed ? {signedItems:files} : {files})}, location.origin);
+    }, {count,signed,images:orderImages});
+    await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+      expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'ordered'}),
+    ]);
+    const pairs = await page.evaluate(() => (window as any).eval('assetOrder.filter(s=>mediaData[s]).map(s=>({name:mediaData[s].name,label:slotLabel(s)}))'));
+    expect(pairs).toEqual(Array.from({length:count}, (_,i)=>({name:`item-${i+1}.png`,label:`Label ${i+1}`})));
+    const bytes = await page.evaluate(async () => Promise.all((window as any).eval('assetOrder.filter(s=>mediaData[s]).map(s=>mediaData[s].src)')
+      .map(async (src:string) => btoa(Array.from(new Uint8Array(await (await fetch(src)).arrayBuffer()), n=>String.fromCharCode(n)).join('')))));
+    expect(bytes).toEqual(orderImages.slice(0,count).map(image=>image.base64));
+  });
+}
+
+for (const completion of ['resolve','reject']) test(`host waits for every decoded image and ignores old decode ${completion} after replacement`, async ({page}) => {
+  await page.evaluate(({base64,completion}) => {
+    const original = HTMLImageElement.prototype.decode;
+    HTMLImageElement.prototype.decode = function() {
+      HTMLImageElement.prototype.decode = original;
+      return new Promise((resolve,reject) => { (window as any).finishOldDecode = completion === 'resolve' ? resolve : () => reject(new Error('retired decode failure')); });
+    };
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'old-decoding',files:[
+      {name:'held.png',contentType:'image/png',base64}, {name:'sibling.png',contentType:'image/png',base64},
+    ]}, location.origin);
+  }, {base64:image64,completion});
+  await page.waitForFunction(() => !!(window as any).finishOldDecode);
+  await page.waitForTimeout(550);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toEqual([]);
+  await page.evaluate(base64 => window.postMessage({type:'WARPDIFF_LOAD',requestId:'replacement',
+    files:[{name:'new.png',contentType:'image/png',base64}]}, location.origin), image64);
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'replacement'}),
+  ]);
+  await page.evaluate(() => (window as any).finishOldDecode());
+  await page.waitForTimeout(550);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(1);
+  expect(await page.evaluate(() => (window as any).eval('mediaData.editA.name'))).toBe('new.png');
+});
+
+test('a host batch with one decoded image and one rejected image fails and clears every slot', async ({page}) => {
+  await page.evaluate(base64 => window.postMessage({type:'WARPDIFF_LOAD',requestId:'partial',files:[
+    {name:'valid.png',contentType:'image/png',base64}, {name:'invalid.png',contentType:'image/png',buffer:[1,2,3]},
+  ]}, location.origin), image64);
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'partial'}),
+  ]);
+  await page.waitForTimeout(550);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(1);
+  expect(await page.evaluate(() => (window as any).eval('getLoadedSlotCount()'))).toBe(0);
+  await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);
+});
+
+test('valid host audio waits for playable media and decoded waveforms', async ({page}) => {
+  await page.evaluate(() => {
+    // Host acceptance retires the preceding AudioContext. Hold the first decode
+    // on the new context rather than patching an instance that clear discards.
+    const proto = AudioContext.prototype, original = proto.decodeAudioData;
+    proto.decodeAudioData = function(bytes:ArrayBuffer) {
+      proto.decodeAudioData = original;
+      return original.call(this,bytes).then(audio => new Promise<AudioBuffer>(resolve => {
+        (window as any).finishAudioAnalysis = () => resolve(audio);
+      }));
+    };
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'audio',signedItems:[
+      {name:'valid.wav',contentType:'audio/wav',signedUrl:'/tests/fixtures/mono.wav'},
+    ]}, location.origin);
+  });
+  await page.waitForFunction(() => !!(window as any).finishAudioAnalysis && document.querySelector('audio')!.readyState >= 2);
+  await page.waitForTimeout(550);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toEqual([]);
+  await page.evaluate(() => (window as any).finishAudioAnalysis());
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'audio'}),
+  ]);
+  expect(await page.evaluate(() => !!(window as any).eval('_audioSlotVizData.editA.audioBuffer'))).toBe(true);
+});
+
+test('valid signed host video reaches a decoded first frame before READY', async ({page}) => {
+  await page.evaluate(() => window.postMessage({type:'WARPDIFF_LOAD',requestId:'video',signedItems:[
+    {name:'valid.mp4',contentType:'video/mp4',signedUrl:'/tests/fixtures/landscape_a.mp4'},
+  ]}, location.origin));
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'video'}),
+  ]);
+  const video = page.locator('.asset-layer video').first();
+  expect(await video.evaluate((v:HTMLVideoElement) => v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0)).toBe(true);
+});
+
+test('standalone manual loads retain timestamp ordering', async ({page}) => {
+  await page.evaluate(base64 => {
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    (window as any).handleMultipleFiles([new File([bytes],'new.png',{type:'image/png',lastModified:20000}),
+      new File([bytes],'old.png',{type:'image/png',lastModified:10000})]);
+  }, image64);
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  expect(await page.evaluate(() => (window as any).eval('[mediaData.editA.name,mediaData.editB.name]'))).toEqual(['old.png','new.png']);
 });
 
 test.afterEach(async ({page}) => {

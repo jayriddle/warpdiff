@@ -36,7 +36,7 @@ evidence are preserved. No live settings or publication workflows were changed.
 ## Video parser hardening
 
 The video demuxer returns null on short fixed headers, overdeclared tables,
-unsafe extended lengths, excessive nesting, short visual/configuration/color
+unsafe extended lengths, excessive nesting, short visual/fixed-configuration-header/color
 records, empty/missing chunk maps, invalid chunk ordering or sample-description
 indices, inconsistent timing coverage, and out-of-file sample ranges. Reads
 are bounded by each containing box. Chunk-map expansion is linear rather than
@@ -167,3 +167,12 @@ named above. Reproduce with test:ownership, test:infra, the zero-retry Chromium
 CI configuration, and the expanded test:webkit profile. No Opus timing-policy
 or timing-test change was made, so the separate Opus mutation runner was not
 rerun for this slice.
+
+## Independent-review follow-up
+
+The independent review found two remaining P2 gaps: empty/decode-rejected host
+media could receive READY, and impossible sample tables allocated count-sized
+arrays before rejection. The [follow-up record](follow-up.md) describes their
+corrections, the separate host label/order correction, negative verification,
+retained failed attempts and final suite evidence. Earlier results above describe
+the original branch revision and are preserved as historical evidence.

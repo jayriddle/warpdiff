@@ -692,6 +692,8 @@ function _demuxMP4Video(data) {
         return s;
     }
 
+    const maxSamples = 1000000; // bounded metadata; larger inputs use native seeking
+
     // Per-trak temp state, committed at trak end only for the first 'vide' track.
     let t = null;      // current trak accumulator
     let video = null;  // committed video track
@@ -759,7 +761,7 @@ function _demuxMP4Video(data) {
             } else if (type === 'stss') {
                 if (e - s < 8) return false;
                 const n = view.getUint32(s + 4);
-                if (n > Math.floor((e - s - 8) / 4)) return false;
+                if (n > maxSamples || n > Math.floor((e - s - 8) / 4)) return false;
                 t.syncSamples = new Set();
                 for (let i = 0; i < n && s + 8 + i * 4 + 4 <= e; i++) {
                     t.syncSamples.add(view.getUint32(s + 8 + i * 4)); // 1-based
@@ -777,16 +779,26 @@ function _demuxMP4Video(data) {
                     ? Math.min(n, data.length)
                     : Math.min(n, Math.max(0, Math.floor((e - (s + 12)) / 4)));
                 if (cnt !== n) return false;
-                t.sizes = new Array(cnt);
-                for (let i = 0; i < cnt; i++) {
-                    t.sizes[i] = uniform || view.getUint32(s + 12 + i * 4);
+                // Keep a view of the encoded table until cheap cross-table and
+                // range checks pass. A declared count must not allocate samples.
+                // One million samples also bounds valid-but-pathological metadata;
+                // larger inputs retain native seeking (about 4.6 h at 60 fps).
+                if (n > maxSamples || (uniform && n > Math.floor(data.length / uniform))) return false;
+                if (!uniform) {
+                    let total = 0;
+                    for (let i = 0; i < cnt; i++) {
+                        const size = view.getUint32(s + 12 + i * 4);
+                        if (!size || size > data.length - total) return false;
+                        total += size;
+                    }
                 }
+                t.sizes = { length: cnt, uniform, start: s + 12 };
             } else if (type === 'stsc') {
                 if (e - s < 8) return false;
                 // Clamp entry count to the box bytes (12 per entry) — defense in
                 // depth so a bogus count can't drive an out-of-bounds getUint32.
                 const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 12)));
-                if (n !== view.getUint32(s + 4)) return false;
+                if (n > maxSamples || n !== view.getUint32(s + 4)) return false;
                 t.stsc = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 12;
@@ -796,7 +808,7 @@ function _demuxMP4Video(data) {
                 if (e - s < 8) return false;
                 const entry = type === 'stco' ? 4 : 8;
                 const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / entry)));
-                if (n !== view.getUint32(s + 4)) return false;
+                if (n > maxSamples || n !== view.getUint32(s + 4)) return false;
                 t.chunkOffsets = new Array(n);
                 for (let i = 0; i < n; i++) {
                     t.chunkOffsets[i] = type === 'stco'
@@ -806,7 +818,7 @@ function _demuxMP4Video(data) {
             } else if (type === 'stts') {
                 if (e - s < 8) return false;
                 const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 8)));
-                if (n !== view.getUint32(s + 4)) return false;
+                if (n > maxSamples || n !== view.getUint32(s + 4)) return false;
                 t.dtsDeltas = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 8;
@@ -816,7 +828,7 @@ function _demuxMP4Video(data) {
                 if (e - s < 8 || data[s] > 1) return false;
                 const version = data[s];
                 const n = Math.min(view.getUint32(s + 4), Math.max(0, Math.floor((e - (s + 8)) / 8)));
-                if (n !== view.getUint32(s + 4)) return false;
+                if (n > maxSamples || n !== view.getUint32(s + 4)) return false;
                 t.ctts = [];
                 for (let i = 0; i < n; i++) {
                     const b = s + 8 + i * 8;
@@ -903,48 +915,69 @@ function _demuxMP4Video(data) {
     if (!walk(0, data.length)) return null;
     if (!video || !video.sizes.length) return null;
 
-    // Expand chunk map → per-sample file offsets (decode order = file order).
     const nSamples = video.sizes.length;
-    const offsets = new Array(nSamples);
-    {
-        const stsc = video.stsc;
-        if (!stsc?.length || stsc[0].firstChunk !== 1 || !video.chunkOffsets.length) return null;
-        for (let i = 0; i < stsc.length; i++) {
-            const entry = stsc[i];
-            if (!entry.perChunk || entry.description !== 1 || entry.firstChunk > video.chunkOffsets.length
-                || (i && entry.firstChunk <= stsc[i - 1].firstChunk)) return null;
-        }
-        let sample = 0;
-        let mapIndex = 0;
-        for (let ci = 0; ci < video.chunkOffsets.length; ci++) {
-            // Walk both sorted tables once; hostile tables must not create a quadratic loop.
-            while (mapIndex + 1 < stsc.length && stsc[mapIndex + 1].firstChunk <= ci + 1) mapIndex++;
-            const per = stsc[mapIndex].perChunk;
-            if (per > nSamples - sample) return null;
-            let pos = video.chunkOffsets[ci];
-            if (!Number.isSafeInteger(pos) || pos < 0 || pos > data.length) return null;
-            for (let j = 0; j < per && sample < nSamples; j++, sample++) {
-                if (!video.sizes[sample] || video.sizes[sample] > data.length - pos) return null;
-                offsets[sample] = pos;
-                pos += video.sizes[sample];
-            }
-        }
-        if (sample < nSamples) return null; // malformed chunk map
-    }
+    const sizeAt = i => video.sizes.uniform || view.getUint32(video.sizes.start + i * 4);
 
-    // Declared timing runs must cover exactly the sample table, rather than
-    // inventing times after a truncated run. Composition offsets may be signed.
+    // Validate compact chunk/timing coverage before allocating per-sample data.
+    const stsc = video.stsc;
+    const chunks = video.chunkOffsets;
+    if (!stsc?.length || stsc[0].firstChunk !== 1 || !chunks.length) return null;
+    let mapped = 0;
+    for (let i = 0; i < stsc.length; i++) {
+        const entry = stsc[i];
+        const next = i + 1 < stsc.length ? stsc[i + 1].firstChunk : chunks.length + 1;
+        if (!entry.perChunk || entry.description !== 1 || entry.firstChunk > chunks.length
+            || next <= entry.firstChunk || next > chunks.length + 1) return null;
+        const span = next - entry.firstChunk;
+        if (entry.perChunk > Math.floor((nSamples - mapped) / span)) return null;
+        mapped += span * entry.perChunk;
+    }
+    if (mapped !== nSamples) return null;
     for (const runs of [video.dtsDeltas, video.ctts]) {
         if (!runs) continue;
         let count = 0;
         for (const run of runs) {
-            if (!run.count) return null;
+            if (!run.count || run.count > nSamples - count) return null;
             count += run.count;
-            if (count > nSamples) return null;
         }
         if (count !== nSamples) return null;
     }
-    if (video.syncSamples && (!video.syncSamples.size || [...video.syncSamples].some(n => n < 1 || n > nSamples))) return null;
+    if (video.syncSamples) {
+        if (!video.syncSamples.size) return null;
+        for (const n of video.syncSamples) if (n < 1 || n > nSamples) return null;
+    }
+
+    // Check every byte range without an offsets array. Uniform runs take one
+    // check per chunk; variable sizes are read directly from the bounded table.
+    let sample = 0, mapIndex = 0;
+    for (let ci = 0; ci < chunks.length; ci++) {
+        while (mapIndex + 1 < stsc.length && stsc[mapIndex + 1].firstChunk <= ci + 1) mapIndex++;
+        const per = stsc[mapIndex].perChunk;
+        let pos = chunks[ci];
+        if (!Number.isSafeInteger(pos) || pos < 0 || pos > data.length) return null;
+        if (video.sizes.uniform) {
+            if (per > Math.floor((data.length - pos) / video.sizes.uniform)) return null;
+            sample += per;
+        } else {
+            for (let j = 0; j < per; j++, sample++) {
+                const size = sizeAt(sample);
+                if (size > data.length - pos) return null;
+                pos += size;
+            }
+        }
+    }
+
+    // All inexpensive rejection paths above precede per-sample allocation.
+    const offsets = new Array(nSamples);
+    sample = 0; mapIndex = 0;
+    for (let ci = 0; ci < chunks.length; ci++) {
+        while (mapIndex + 1 < stsc.length && stsc[mapIndex + 1].firstChunk <= ci + 1) mapIndex++;
+        let pos = chunks[ci];
+        for (let j = 0; j < stsc[mapIndex].perChunk; j++, sample++) {
+            offsets[sample] = pos;
+            pos += sizeAt(sample);
+        }
+    }
 
     // stts → dts; ctts → pts; elst shifts pts onto the element's timeline
     const ts = video.timescale || 1;
@@ -960,7 +993,7 @@ function _demuxMP4Video(data) {
         }
         samples[i] = {
             offset: offsets[i],
-            size: video.sizes[i],
+            size: sizeAt(i),
             dts: dts / ts,
             pts: (dts + ctsOffset) / ts - ptsShift,
             key: video.syncSamples ? video.syncSamples.has(i + 1) : true

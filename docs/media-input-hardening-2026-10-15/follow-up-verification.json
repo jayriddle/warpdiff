@@ -1,0 +1,57 @@
+{
+  "reviewedStartingPoint": "40154668bdef6fdcbde5d108b217b7e89348d954",
+  "releasedBaseline": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+  "branch": "codex/media-input-hardening",
+  "candidateVersion": "3.19.2",
+  "local": {
+    "chromium": {
+      "total": 490,
+      "passed": 489,
+      "skipped": 1,
+      "reports": 1,
+      "seconds": 470.896987,
+      "retries": 0
+    },
+    "webkit": {
+      "total": 103,
+      "passed": 103,
+      "skipped": 0,
+      "reports": 1,
+      "seconds": 81.04351299999999,
+      "retries": 0
+    },
+    "hostChrome": {
+      "passed": 50,
+      "seconds": 33.23549,
+      "retries": 0
+    },
+    "ownership": 872,
+    "infrastructure": 18,
+    "parser": {
+      "passed": 314,
+      "newAllocationChecks": 8,
+      "counterfactualFailures": 8,
+      "identicalFixtures": 16
+    },
+    "negativeBrowser": {
+      "expectedFailures": 3,
+      "seconds": 13.441532,
+      "retries": 0
+    }
+  },
+  "evidenceDirectory": "/Users/jay/Documents/warpdiff/output/media-input-follow-up-2026-10-15-aaaPWt",
+  "merge": "held",
+  "publication": "held",
+  "hosted": null,
+  "limitations": [
+    "Encoded-input budgets and metadata caps do not cap total browser memory",
+    "No complete AVC/HEVC bitstream validation",
+    "Focused WebKit profile, no physical Safari listening or loudness/true-peak conformance",
+    "Historical Grid failure remains unexplained"
+  ],
+  "retainedFailedAttempts": [
+    "Exploratory negative run interrupted after reproducing empty READY; completed pinned replay has three intended failures",
+    "Expanded Chrome host run interrupted because its new audio probe patched a retired context; corrected 50-case run passes",
+    "Earlier independent/author failures retained in original verification record"
+  ]
+}

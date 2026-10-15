@@ -4,8 +4,8 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 
 ## v3.19.2 (prepared October 15, 2026; unpublished)
 
-- Malformed host-supplied media now reports a correlated failure and restores loading controls. Superseded requests and manual replacements retire pending host work.
-- Video scrubbing rejects malformed MP4 headers, configurations and sample maps cleanly. Encoded scrub inputs have a 256 MiB per-video and 512 MiB shared budget; larger inputs use native seeking. Pending cancellation remains accounted until settlement.
+- Empty or decode-rejected host media now reports one correlated failure and restores loading controls. Host file order and display labels stay paired, independently of timestamps. Superseded requests and manual replacements retire pending host work.
+- Video scrubbing rejects malformed MP4 headers, short configuration headers and inconsistent sample maps cleanly; impossible tables are rejected before per-sample allocation. Tables above one million entries use native seeking. Encoded scrub inputs have a 256 MiB per-video and 512 MiB shared budget; larger inputs use native seeking. Pending cancellation remains accounted until settlement.
 - Original audio analysis, playback and frame-cache budgets retain their existing owners. The existing What's New summary is retained for this quiet maintenance update. Verification: [input hardening](media-input-hardening-2026-10-15/README.md).
 
 ## v3.19.1 (interim release prepared October 11, 2026; unpublished)

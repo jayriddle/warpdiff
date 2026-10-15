@@ -5850,10 +5850,26 @@
         }
 
         function _hostLoadReady(generation) {
-            if (!_hostLoadIsCurrent(generation) || _hostLoadRequest.terminal) return;
+            if (!_hostLoadBatchReady(generation) || _hostLoadRequest.terminal) return;
             _hostLoadRequest.terminal = true;
             _hostLoadRequest.status = 'ready';
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
+        }
+
+        function _hostLoadBatchReady(generation) {
+            return _hostLoadIsCurrent(generation) && !!_hostLoadRequest.slots?.size
+                && [..._hostLoadRequest.slots.values()].every(state => state.media && state.analysis);
+        }
+
+        // One host readiness owner. Media events retain the loading token that
+        // created their element; a retired event cannot settle a newer request.
+        // Audio-only comparisons need both native playback and decoded waveforms.
+        function _hostLoadSlotUpdate(slot, loadingToken, state, error) {
+            if (loadingToken !== _loadingProgressToken || !_hostLoadIsCurrent(_viewLoadGeneration)
+                || _hostLoadRequest.terminal || !_hostLoadRequest.slots?.has(slot)) return false;
+            if (state === 'failed') _hostLoadFailed(_hostLoadRequest, error);
+            else _hostLoadRequest.slots.get(slot)[state] = true;
+            return true;
         }
 
         function _hostLoadFailed(request, error) {
@@ -6045,6 +6061,14 @@
                     files = await Promise.all(items.map(item => _hostLoadSuppliedFile(item, request.signal)));
                 }
                 if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                // Validate the converted batch for both transports. File can
+                // normalize invalid MIME strings to empty; silently filtering one
+                // item would move host labels onto different media. Empty HTTP
+                // 200 bodies are application failures, never network fallbacks.
+                if (files.length !== items.length || files.some(file => !file.size
+                    || !/^(image|video|audio)\//.test(file.type))) {
+                    throw new Error('Empty or invalid supplied media file');
+                }
                 console.log(`[IHWA] ${signed ? 'Direct fetch' : 'Supplied files'}: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
                 _ihwaPullReset();
                 if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
@@ -6091,8 +6115,10 @@
             // hiding a not-yet-loaded layer and activating the wrong Grid geometry.
             expectedFileCount = mediaFiles.length;
 
-            // Sort by lastModified timestamp (oldest to newest)
-            const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
+            // Host labels correspond to the host's array order. Only standalone
+            // loads infer comparison order from oldest-to-newest timestamps.
+            const sortedFiles = opts && opts.loadGeneration ? mediaFiles
+                : mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
             const loadSlots = {
                 1: ['editA'],
                 2: ['editA', 'editB'],
@@ -6101,6 +6127,10 @@
             };
             const assignedSlots = loadSlots[sortedFiles.length];
             const assignments = sortedFiles.map((file, i) => ({ slot: assignedSlots[i], file }));
+            if (opts && _hostLoadIsCurrent(opts.loadGeneration)) {
+                _hostLoadRequest.slots = new Map(assignments.map(({slot,file}) =>
+                    [slot, {media:false, analysis:!file.type.startsWith('audio/')} ]));
+            }
             if (!(opts && (opts.loadGeneration || opts.skipToast))) _usage.enterStandalone();
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
 
@@ -8199,6 +8229,12 @@
             audio.addEventListener('error', function() {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not open', 'error');
+                _hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not play ' + file.name);
+            }, { once: true });
+            audio.addEventListener('loadeddata', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                checkAllLoaded();
             }, { once: true });
 
             hasAudios = true;
@@ -8242,6 +8278,7 @@
             _reader.onerror = () => {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not read', 'error');
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not read ' + file.name)) return;
                 showLoadToast(`Failed to read ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
@@ -8282,7 +8319,10 @@
                     // valid video dimensions (audio-only or unsupported codec).
                     // Mark as failed so checkAllLoaded doesn't wait for dimensions
                     // that will never arrive from this source.
-                    if (!video.videoWidth) mediaData[slot]._videoLoadFailed = true;
+                    if (!video.videoWidth || !video.videoHeight) {
+                        mediaData[slot]._videoLoadFailed = true;
+                        if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
+                    }
                 }
                 updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
                 updateDurationDisplay(slot, video.duration);
@@ -8295,7 +8335,11 @@
             });
             video.addEventListener('loadeddata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                if (!video.videoWidth || !video.videoHeight) {
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
+                } else _hostLoadSlotUpdate(slot, loadingToken, 'media');
                 _setLoadingSlotState(slot, 'Ready', 'ready');
+                checkAllLoaded();
             }, { once: true });
 
             // If the browser can't load the file at all (unsupported container/codec),
@@ -8304,6 +8348,7 @@
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                 checkAllLoaded();
             });
 
@@ -8351,8 +8396,12 @@
                     await img.decode();
                 } catch (e) {
                     console.warn('Image decode error:', e);
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 }
                 if (loadingToken !== _loadingProgressToken) return;
+                if (!img.naturalWidth || !img.naturalHeight) {
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
+                } else _hostLoadSlotUpdate(slot, loadingToken, 'media');
 
                 if (mediaData[slot]) { mediaData[slot].w = img.naturalWidth; mediaData[slot].h = img.naturalHeight; }
                 _setLoadingSlotState(slot, 'Ready', 'ready');
@@ -8367,6 +8416,7 @@
             img.onerror = function() {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 showLoadToast(`Failed to load ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
@@ -12459,6 +12509,9 @@
 
         // Update checkAllLoaded to show view mode buttons
         function checkAllLoaded() {
+            // Registering mediaData is not evidence that a host asset decoded.
+            // Standalone loads retain their existing partial-failure presentation.
+            if (_hostLoadIsCurrent(_viewLoadGeneration) && !_hostLoadBatchReady(_viewLoadGeneration)) return;
             const loadedCount = getLoadedSlotCount();
             
             // Wait until all expected files are loaded before activating the view.
@@ -13852,7 +13905,7 @@
                 <li>2 files → assigned to <strong>A</strong> and <strong>B</strong></li>
                 <li>3 files → assigned to <strong>Ref</strong>, <strong>A</strong>, and <strong>B</strong> by default; audio labels the reference <strong>GT</strong></li>
                 <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
-                <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
+                <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
             <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
@@ -13966,7 +14019,7 @@
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
             <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
-            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available.</p>
+            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
