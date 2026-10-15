@@ -84,3 +84,33 @@ checks pass **18**. Complete browser verification follows below.
 
 The candidate version/cache is 3.19.2. The existing 3.19.1 What's New summary is
 retained so this maintenance update does not repeat the prior announcement.
+
+## Complete local verification and self-review corrections
+
+The initial complete Chromium attempt at 92995b2 was intentionally interrupted
+before completion when self-review caught an empty managed-host request taking
+the standalone extension retry path. A regression case now verifies immediate
+managed failure and retained standalone retries. The corrected 20 host cases
+pass in Chrome. The interrupted log is retained and is not a green suite.
+
+The complete Chromium run at production revision 1463a02 executed all **460**
+cases with zero retries in **444.3 seconds**: **458 passed, one failed, one
+existing timestamp-collision skip**. Its sole failure was the service-worker
+cache test hardcoding 3.19.1 as the current cache. At candidate 3.19.2 the worker
+correctly deletes that old cache. The version-independent test now reads
+CACHE_NAME in its VM context, verifies exact deletion of two old owned caches
+and the exact legacy FFmpeg cache, and preserves the actual current cache plus
+unrelated host caches. The corrected Chrome test passes. No production code
+changed for this correction; the complete failed log and screenshot/trace remain
+retained rather than being described as a passing suite.
+
+The expanded WebKit profile passes **73** cases with zero retries, including
+all 50 preceding cases, 20 host cases and three memory/fallback cases. Ownership
+passes **864** locally; infrastructure passes **18**. The local public artifact
+contains the same 35 allowed files. Hosted exact-revision verification will run
+on this feature branch before review; manual feature checks cannot publish.
+
+The historical four-image Grid uncertainty remains unexplained. This slice
+changes no loudness/true-peak algorithms, audio mix policy, codec normalization
+or licensing. No new physical Safari listening check was performed. No claim of
+a complete arbitrary-media audit or a total-browser-memory limit is made.
