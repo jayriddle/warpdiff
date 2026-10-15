@@ -3849,7 +3849,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.1';
+        const APP_VERSION = '3.19.2';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.1';
@@ -5104,6 +5104,8 @@
 
         // ── WebCodecs scrub overlay (Chrome smooth-scrub, see js/scrub-video.js) ──
         let _scrubVideoSessions = {};    // { slot: session | 'failed' | Promise<session|null> }
+        const _scrubVideoInputBudget = _createScrubVideoInputBudget(); // encoded bytes, including pending reads
+        let _scrubVideoInputNotice = false;
         let _scrubSessionGen = 0;        // bumped by clearAllMedia/_invalidateScrubSession to cancel in-flight session init
         let _scrubOverlayLive = {};      // { slot: session } — sessions painting this drag
         let _scrubOverlayCanvases = {};  // { slot: canvas } — reused across drags
@@ -5132,30 +5134,54 @@
             if (cached) return Promise.resolve(cached);
             const md = mediaData[slot];
             if (!md || md.type !== 'video') return Promise.resolve(null);
+            // File.size is known before any encoded-video read. Over-budget or
+            // unknown-sized inputs keep the native seek path without fetching.
+            const input = _scrubVideoInputBudget.reserve(md.size);
+            if (!input) {
+                _scrubVideoSessions[slot] = 'failed';
+                if (!_scrubVideoInputNotice) {
+                    _scrubVideoInputNotice = true;
+                    showLoadToast('Using native video scrubbing to limit memory.', false, 6000);
+                }
+                return Promise.resolve(null);
+            }
             // Capture the session generation; clearAllMedia / _invalidateScrubSession
             // bump it. If it changes while we're initializing, the media was cleared
             // or replaced and the session we're building belongs to a stale file.
             const gen = _scrubSessionGen;
-            const p = fetch(md.src)
-                .then(r => r.arrayBuffer())
-                .then(buf => {
-                    const session = _createScrubVideoSession(new Uint8Array(buf));
+            let session = null, retained = false;
+            const p = Promise.resolve().then(async () => {
+                    if (input.retired) return null;
+                    const response = await fetch(md.src, { signal: input.controller.signal });
+                    const bytes = await _readScrubVideoInput(response, input.bytes, input.controller.signal);
+                    if (gen !== _scrubSessionGen || input.retired) return null;
+                    session = _createScrubVideoSession(bytes);
                     if (!session) throw new Error('not scrubbable');
-                    return session.ready.then(ok => {
-                        if (!ok) { session.close(); throw new Error('unsupported codec'); }
-                        // Stale: close the session (releasing its VideoDecoder and the
-                        // retained file bytes) and do NOT publish it into the live map,
-                        // where it would leak and be painted for the NEW file's frames.
-                        if (gen !== _scrubSessionGen) { session.close(); return null; }
-                        _scrubVideoSessions[slot] = session;
-                        // Init outlived the drag (quick tap): don't leave a live
-                        // decoder configured while playback may be running —
-                        // suspend now; the next drag's request() resumes it.
-                        if (!isDragging) session.suspend();
-                        return session;
-                    });
+                    const close = session.close.bind(session);
+                    session.close = () => { try { close(); } finally { _scrubVideoInputBudget.release(input); } };
+                    const ok = await session.ready;
+                    if (!ok) throw new Error('unsupported codec');
+                    // Stale: close the session before it can publish for a new file.
+                    if (gen !== _scrubSessionGen || input.retired) { session.close(); return null; }
+                    _scrubVideoSessions[slot] = session;
+                    retained = true;
+                    // A quick tap may finish before initialization. Retain the
+                    // admitted bytes/cache, but release its idle decoder.
+                    if (!isDragging) session.suspend();
+                    return session;
                 })
-                .catch(() => { if (gen === _scrubSessionGen) _scrubVideoSessions[slot] = 'failed'; return null; });
+                .catch(() => {
+                    if (session) session.close();
+                    if (gen === _scrubSessionGen) _scrubVideoSessions[slot] = 'failed';
+                    return null;
+                })
+                .finally(() => {
+                    _scrubVideoInputBudget.settle(input);
+                    if (!retained) _scrubVideoInputBudget.release(input);
+                });
+            // The existing release/invalidate sweep can now cancel pending I/O
+            // and a session awaiting configuration, as well as retained sessions.
+            p.close = () => { _scrubVideoInputBudget.release(input); if (session) session.close(); };
             _scrubVideoSessions[slot] = p;
             return p;
         }
@@ -5195,6 +5221,7 @@
             }
             _scrubSessionGen++;   // invalidate any in-flight session init (see _scrubOverlayGetSession)
             _scrubVideoSessions = {};
+            _scrubVideoInputNotice = false;
         }
 
         // The video slots the overlay should engage for this drag: all visible
@@ -13695,18 +13722,19 @@
             // lacks VideoDecoder or can't decode the slot's codec.
             scrubVideo: {
                 supported() { return _scrubVideoSupported(); },
+                inputBudget() { return _scrubVideoInputBudget.state; },
                 sessionState(slot) {
                     const s = _scrubVideoSessions[slot];
                     if (!s) return 'none';
                     if (s === 'failed') return 'failed';
-                    if (typeof s.close !== 'function') return 'pending';
+                    if (typeof s.then === 'function') return 'pending';
                     return s.suspended ? 'suspended' : 'ready';
                 },
                 overlayLive() { return Object.keys(_scrubOverlayLive).length > 0; },
                 overlayCount() { return Object.keys(_scrubOverlayLive).length; },
                 cacheStats(slot) {
                     const s = _scrubVideoSessions[slot];
-                    return (s && typeof s.close === 'function') ? s.cacheStats : null;
+                    return (s && typeof s.then !== 'function' && typeof s.close === 'function') ? s.cacheStats : null;
                 },
                 async dispatchProbe(targets) {
                     if (isDragging || _scrubOverlayDispatchRaf) return null;
@@ -13938,7 +13966,7 @@
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
             <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
-            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position.</p>
+            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>

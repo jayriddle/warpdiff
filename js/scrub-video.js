@@ -26,6 +26,66 @@
 //   _scrubVideoSupported()          — feature gate
 //   _createScrubVideoSession(bytes) — demux + configure; null if not scrubbable
 
+// Encoded inputs have a separate budget from decoded frames/audio. Pending
+// reads count too, including cancelled reads until their promises settle.
+function _createScrubVideoInputBudget(maxFileBytes = 256 * 1024 * 1024, maxTotalBytes = 512 * 1024 * 1024) {
+    const inputs = new Set();
+    const used = () => Array.from(inputs).reduce((sum, input) => sum + input.bytes, 0);
+    function release(input) {
+        if (!input || !inputs.has(input)) return;
+        input.retired = true;
+        input.controller.abort();
+        if (input.settled) inputs.delete(input);
+    }
+    return {
+        reserve(bytes) {
+            if (!Number.isSafeInteger(bytes) || bytes <= 0 || bytes > maxFileBytes || bytes > maxTotalBytes - used()) return null;
+            const input = { bytes, controller: new AbortController(), settled: false, retired: false };
+            inputs.add(input);
+            return input;
+        },
+        release,
+        settle(input) {
+            if (!inputs.has(input)) return;
+            input.settled = true;
+            if (input.retired) inputs.delete(input);
+        },
+        get state() { return { bytes: used(), inputs: inputs.size, maxFileBytes, maxTotalBytes }; },
+    };
+}
+
+async function _readScrubVideoInput(response, expectedBytes, signal) {
+    if (!response.ok || !response.body || signal.aborted) throw new Error('Scrub input unavailable');
+    const length = response.headers.get('Content-Length');
+    if (length !== null && Number(length) !== expectedBytes) throw new Error('Scrub input size changed');
+    const reader = response.body.getReader();
+    const cancel = () => { reader.cancel().catch(() => {}); };
+    signal.addEventListener('abort', cancel, { once: true });
+    let complete = false;
+    try {
+        // One admitted allocation, rather than accumulating chunks and copying
+        // them into another whole-file buffer. Never trust a response size alone.
+        const bytes = new Uint8Array(expectedBytes);
+        let offset = 0;
+        while (true) {
+            if (signal.aborted) throw new Error('Scrub input cancelled');
+            const { value, done } = await reader.read();
+            if (signal.aborted) throw new Error('Scrub input cancelled');
+            if (done) break;
+            if (value.byteLength > expectedBytes - offset) throw new Error('Scrub input exceeds reserved size');
+            bytes.set(value, offset);
+            offset += value.byteLength;
+        }
+        if (offset !== expectedBytes) throw new Error('Truncated scrub input');
+        complete = true;
+        return bytes;
+    } finally {
+        signal.removeEventListener('abort', cancel);
+        if (!complete) cancel();
+        reader.releaseLock();
+    }
+}
+
 function _scrubVideoSupported() {
     return typeof VideoDecoder !== 'undefined' && typeof EncodedVideoChunk !== 'undefined';
 }
@@ -567,6 +627,7 @@ function _createScrubVideoSession(bytes) {
 
         close() {
             dead = true;
+            bytes = null; // a retained closed handle must not keep the encoded file alive
             if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
             if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
             for (const idx of cache.keys()) cacheRemove(idx);

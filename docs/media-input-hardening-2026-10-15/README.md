@@ -54,3 +54,33 @@ The parser fix changes no audio demuxing or playback ownership.
 The released host fallback was also reproduced in temporary Chrome and WebKit
 contexts: malformed base64 caused an unhandled rejection, no terminal reply and
 a disabled Pull button. The corrected browser cases above exercise recovery.
+
+## Encoded video input budget
+
+Admission uses known File.size before fetch: at most **256 MiB per video** and
+**512 MiB total** for pending initialization and retained scrub sessions.
+Unknown/over-budget inputs immediately use native video seeking, with one notice
+per comparison. Admitted responses stream into one reserved buffer, with length,
+overrun, underrun and cancellation checks. There is no unbounded arrayBuffer read
+or accumulated chunk array in this scrub path. Cancelled reservations count
+until their initialization settles; stale completions cannot release a new
+reservation. Clear/invalidation abort pending reads and close sessions still
+awaiting decoder configuration. Playback suspension retains its encoded charge.
+Closing a session clears its encoded-byte reference even if a closed handle lives on.
+
+These are encoded-input accounting limits, **not a total-memory guarantee**.
+Blob backing, stream chunks, demuxed sample tables, decoded-frame caches, source
+audio decoding/analysis, native video buffers and GC delays remain additional.
+Range-based demuxing is deferred. Files that do not fit retain native seeking,
+normal playback and existing audio preparation/preview behavior.
+
+Focused checks passed with zero retries: four real-browser Chrome cases
+(including a real small-file decoder, pre-fetch rejection with native seeking,
+cancel/late completion and response overrun), plus three WebKit fallback/cancel
+cases. The controlled budget/stream/controller checks exercise exact/shared
+limits with small buffers rather than allocating multi-hundred-MiB test data.
+The complete ownership harness now passes **864** local checks. Infrastructure
+checks pass **18**. Complete browser verification follows below.
+
+The candidate version/cache is 3.19.2. The existing 3.19.1 What's New summary is
+retained so this maintenance update does not repeat the prior announcement.

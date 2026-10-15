@@ -21,6 +21,24 @@
 - **BPM & viz**: Uses typed arrays (`Float32Array`) for FFT, waveform buckets, spectral flux. Spectrogram palettes precomputed once.
 
 ## Video Scopes & Visualization (`js/scopes.js`)
+
+### Encoded scrub-video input
+
+`_createScrubVideoInputBudget` limits encoded scrub inputs to 256 MiB per video
+and 512 MiB across pending and retained sessions. Admission uses the original
+File.size before fetching. `_readScrubVideoInput` fills one admitted buffer from
+a stream, rejecting missing, short, oversized or inconsistent responses.
+Cancellation aborts fetches; reservations remain charged until initialization
+settles, so an old completion cannot release a newer input's budget. The existing
+release/invalidate owner closes both pending and retained sessions; playback
+suspension retains its charge. Closing a decoder session also nulls its encoded
+byte reference. Unknown/over-budget inputs use native scrubbing, with a notice
+once per comparison. No range-read decoder is implemented here.
+
+This is an encoded-input accounting limit, not total memory: blob backing,
+stream chunks, demuxed sample tables, decoded-frame caches, audio decoding and
+analysis, native video buffers and garbage-collection delays remain additional.
+See `docs/media-input-hardening-2026-10-15/README.md` for verification.
 - **Cached buffers**: Critical for performance — `_wfmBuf`, `_wfmHits*` (Uint16Array), `_vsHit*` (Float32Array/Uint16Array) reused across *all* frames.
   - Reallocated *only* on canvas resize (`_wfmCachedW/H`, `_vsCachedSize`).
   - Comment: "Cached buffers for waveform monitor — reused across frames to avoid per-frame GC pressure."
