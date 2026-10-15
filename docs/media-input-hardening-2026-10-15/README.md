@@ -32,3 +32,25 @@ all three fixes.
 Raw evidence is retained in ignored local directory
 `output/media-input-hardening-2026-10-15-lr2_3mrr/`. Existing user files and earlier
 evidence are preserved. No live settings or publication workflows were changed.
+
+## Video parser hardening
+
+The video demuxer returns null on short fixed headers, overdeclared tables,
+unsafe extended lengths, excessive nesting, short visual/configuration/color
+records, empty/missing chunk maps, invalid chunk ordering or sample-description
+indices, inconsistent timing coverage, and out-of-file sample ranges. Reads
+are bounded by each containing box. Chunk-map expansion is linear rather than
+repeatedly searching the entire map for every chunk. Unsupported multiple
+visual sample descriptions also use native scrubbing; the decoder only supports
+the first description and cannot safely infer transitions.
+
+All **306** new parser checks pass inside ownership (**831** total local passes).
+Running the same probes on the released parser identifies **146** failures,
+confirming regression sensitivity. All **16** available MP4 fixtures produce
+byte-for-byte identical structured parser results before and after the change,
+including unsupported tracks that already return null. No fixture was rewritten.
+The parser fix changes no audio demuxing or playback ownership.
+
+The released host fallback was also reproduced in temporary Chrome and WebKit
+contexts: malformed base64 caused an unhandled rejection, no terminal reply and
+a disabled Pull button. The corrected browser cases above exercise recovery.
