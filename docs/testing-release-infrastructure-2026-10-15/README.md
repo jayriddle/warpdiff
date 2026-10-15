@@ -79,6 +79,15 @@ workflow validation, remote settings readbacks and dependency-audit comparison.
 
 ## Retained failures and limitations
 
+The first hosted candidate used the Pages uploader version shown in GitHub's
+workflow guide. It packaged and uploaded the correct artifact, but its internal
+uploader emitted a Node 20 deprecation warning. The current stable Pages upload
+action v5.0.0 and deployment action v5.0.1 use the Node 24 generation. Their exact
+commits were verified against official action metadata and pinned in the next
+candidate. The warning-bearing candidate remains retained; the revised workflow
+receives its own hosted verification. No deploy action is executed while
+publication is held.
+
 One added negative packaging fixture initially omitted other required tracked
 assets. Staging correctly refused those assets before reaching the intended
 symlink rejection. The fixture was completed; the resulting test reaches and
