@@ -57,14 +57,14 @@ These are scheduling and graph-API checks, not rendered-audio, codec or
 listening checks. Other existing browser and scrub-pitch tests retain those
 responsibilities. No production timing policy or listening behavior changed.
 
-## Verification record
+## Original October 14 verification
 
 | Check | Result |
 |---|---|
 | Initial controlled-clock prototype | 7 passed, no retries |
 | First 25-repeat run with tighter assertions | 175 passed, 25 failed; all failures were the incorrect new leading-silence expectation described below |
 | Corrected eight-case group, repeated 25 times | **200 passed**, zero failures or retries, 1.8 minutes |
-| Regression probes | Baseline 8 passed; all four deliberate regressions failed their intended assertions |
+| Initial regression probes | Baseline 8 passed; all four mutants were detected, but independent review established that the boundary mutant failed a setup precondition rather than its intended behavior assertion; corrected below |
 | Ownership | 525 passed, zero failed |
 | Complete Chromium suite | **435 passed**, one existing skip, zero failures or retries, 7.5 minutes |
 | Focused WebKit profile | **50 passed**, zero failures or retries, 45.6 seconds |
@@ -83,18 +83,82 @@ production failure or a remaining intermittent timing failure.
 output folders and supplies modified `js/opus-sync.js` responses only inside
 isolated browser contexts. It never edits the app source on disk. Each probe
 runs with one worker and zero retries, checks the structured Playwright report,
-and requires an assertion failure rather than a launch or setup error.
+and now requires the specific labeled behavioral assertion and its source line
+to fail. The original runner only required an `expect(...)` failure, which did
+not exclude setup assertions. That original verification claim was too strong.
 
 | Deliberate regression | Detecting scenario |
 |---|---|
 | Remove the pending-cancel branch | Pending stop changes the old fade deadline |
-| Change the future-start comparison from `>` to `>=` | Stop at the start boundary no longer follows the expected schedule/fade |
+| Change the future-start comparison from `>` to `>=` | Stop at the recorded delayed start fails the audible fade-deadline assertion |
 | Remove offset compensation | Deferred buffer offset no longer advances with the scheduled delay |
 | Re-anchor during a pending rate change | Scheduled timeline anchors move backward |
 
 The expected negative results are preserved as verification successes in the
 probe summary, with each underlying test failure retained. The app source hash
-remains unchanged before and after these probes.
+remains unchanged before and after these probes. The original boundary result
+is superseded by the October 15 correction below.
+
+## October 15 independent review and correction
+
+The independent review covered commit
+`905dfae7b22f11df2887fd6a18e480a0f8f8a6f7` against released main
+`f5d620837b628ca20e1ae93aa1c4ec69eb7550a2`. It found one P2 issue in the
+negative verification, with no production defect or new clock/isolation defect.
+
+The boundary scenario originally replaced its first source at the same clock
+time at which that source began. Under the `>=` mutant, this first source was
+silently cancelled and the replacement started immediately. The test then
+failed its boundary precondition, never reaching the fade-deadline assertion.
+The original mutation runner accepted any failed expectation, so it overstated
+what that negative result established.
+
+The first source now advances five milliseconds before replacement. Both the
+original comparison and the mutant therefore take the audible fade path during
+setup. The clock then advances to the replacement's **recorded** start, plus
+five milliseconds for the after-start case. Explicit assertions require that
+the replacement was delayed and that stopping occurred at the intended time.
+
+Each of the four negative probes requires its named behavioral assertion,
+with the failure located at that assertion's line in the copied test. Runner
+errors, retries, skipped/flaky results, or failed setup/precondition assertions
+cannot count as successful negative verification. A temporary copy removing
+the new setup advance verifies that the runner rejects the broken setup,
+retains its failing report, and does not mark the probe summary successful.
+Production source files remain unchanged.
+
+| Follow-up check | Result (zero test retries) |
+|---|---|
+| Corrected eight-case group, 25 repeats | **200 passed**, zero failures/skips, 89.9 seconds |
+| Corrected negative probes | Baseline **8 passed**; all **4 mutants** fail their intended labeled assertions at the expected source lines |
+| Broken boundary setup | Baseline 8 passed; boundary mutant fails the delayed-start precondition and is **rejected** by the runner, exit 1 |
+| Assertion-location replay | Valid retained behavior accepted; a precondition location with the behavior message substituted is rejected |
+| Ownership | **525 passed**, zero failed |
+| Complete Chromium suite | **435 passed**, one existing skip, zero failures, 7.3 minutes |
+| Focused WebKit profile | **50 passed**, zero failures/skips, 44.4 seconds |
+
+The corrected boundary mutant now reaches the intended fade-deadline assertion:
+approximately **1.035 seconds expected versus 1.020 received**. Both setup
+preconditions have passed. The runner also rejects additional errors, so a
+teardown failure cannot be silently included in a claimed negative result.
+
+The independent full Chromium run was **not green**: 434 passed, one failed,
+and one existing skip. The unchanged four-image Inline Grid test received
+`topGap = -899` where it required `>= 3.5`. It runs before the modified Opus
+group. Isolated checks passed 10/10 on the target and 10/10 on a copied pinned
+baseline test, but the failure mechanism remains unexplained. Its original
+failure, screenshot and reports are retained in
+`output/opus-timing-independent-review-2026-10-14-J2waLB/`; later successful
+runs do not resolve or erase that observation. No unrelated Grid repair is
+included in this test fix.
+
+Updated local results and structured mutation evidence are recorded in
+[verification.json](verification.json). Raw follow-up reports and logs are
+retained separately in `output/opus-timing-review-fix-2026-10-15/`, preserving
+all earlier author and independent-review evidence. Hosted run
+[38677484930](https://github.com/jayriddle/warpdiff/actions/runs/38677484930)
+passed at the reviewed `905dfae` revision; its results do not apply to the
+subsequent correction until that correction receives its own hosted checks.
 
 ## Reproduction and retained evidence
 
@@ -115,6 +179,13 @@ Run `node docs/opus-timing-test-2026-10-14/mutation-check.mjs` with the existing
 localhost:8080 test server available to repeat the four negative probes. They
 need the installed Chrome channel and produce temporary copied specs, reports
 and logs under `output/opus-timing-test-2026-10-14/mutations/`.
+Pass a different output directory as the first argument to preserve an earlier
+run, as in the follow-up verification:
+
+```sh
+node docs/opus-timing-test-2026-10-14/mutation-check.mjs \
+  output/opus-timing-review-fix-2026-10-15/mutations-rerun
+```
 
 The committed [verification summary](verification.json) records the counts,
 deliberate negative results, initial failed expectation, and matching app/source

@@ -2887,7 +2887,7 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
     // startVideo must be fromTime advanced by (startCtx − now)·rate, not raw
     // fromTime — raw fromTime would bake a permanent ~15 ms lag into the anchors.
     const expected = 0.6 + (r.second.startCtx - r.tBefore) * r.second.rate;
-    expect(r.second.startVideo).toBeCloseTo(expected, 6);
+    expect(r.second.startVideo, 'Deferred start compensates the media offset').toBeCloseTo(expected, 6);
     expect(r.second.startVideo).toBeGreaterThan(0.6 + 0.005); // clearly compensated, not raw fromTime
   });
 
@@ -2948,7 +2948,7 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
     expect(r.afterStop.hasSource).toBe(false);
     // A silent cancel leaves the old stamp; the audible-fade branch would have
     // re-stamped fadeUntil ≈ tStop + fade, pushing the next start out further.
-    expect(r.afterStop.fadeUntil).toBeCloseTo(r.pending.fadeUntil, 6);
+    expect(r.afterStop.fadeUntil, 'Pending cancellation preserves the previous fade deadline').toBeCloseTo(r.pending.fadeUntil, 6);
     expect(r.third.startCtx).toBeCloseTo(r.pending.fadeUntil, 6);
   });
 
@@ -2958,18 +2958,23 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
         const opus = (window as any).__testAPI.opus;
         opus.installTestBuffer('editA', 2);
         opus.start('editA', 0.5);
+        // Make the first source unambiguously audible even if the pending
+        // comparison regresses from > to >= at the later start boundary.
+        clock.advance(0.005);
         opus.start('editA', 0.6);
         const scheduled = opus.state('editA');
-        clock.advance(opus.fade() + elapsed);
+        const scheduledAt = opus.ctxTime();
+        clock.advance(scheduled.startCtx - scheduledAt + elapsed);
         const tStop = opus.ctxTime();
         opus.stop('editA');
         const afterStop = opus.state('editA');
         opus.start('editA', 0.7);
-        return {scheduled, tStop, afterStop, third: opus.state('editA'), fade: opus.fade()};
+        return {scheduled, scheduledAt, tStop, afterStop, third: opus.state('editA'), fade: opus.fade()};
       }), elapsed);
-      expect(r.tStop - r.scheduled.startCtx).toBeCloseTo(elapsed, 6);
+      expect(r.scheduled.startCtx, 'Replacement starts in the future').toBeGreaterThan(r.scheduledAt);
+      expect(r.tStop - r.scheduled.startCtx, 'Stop reaches the recorded start boundary').toBeCloseTo(elapsed, 6);
       expect(r.afterStop.hasSource).toBe(false);
-      expect(r.afterStop.fadeUntil).toBeCloseTo(r.tStop + r.fade, 6);
+      expect(r.afterStop.fadeUntil, 'An audible stop extends the fade deadline').toBeCloseTo(r.tStop + r.fade, 6);
       expect(r.third.startCtx).toBeCloseTo(r.afterStop.fadeUntil, 6);
     });
   }
@@ -2989,7 +2994,7 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
     // Re-anchoring with negative elapsed would drag startVideo backward and
     // detach startCtx from the scheduled start — both must be untouched.
     expect(r.before.startCtx).toBeGreaterThan(r.tUpdate);
-    expect(r.after.startVideo).toBeCloseTo(r.before.startVideo, 6);
+    expect(r.after.startVideo, 'Pending rate change preserves the media anchor').toBeCloseTo(r.before.startVideo, 6);
     expect(r.after.startCtx).toBeCloseTo(r.before.startCtx, 6);
     expect(r.after.rate).toBe(2);
   });

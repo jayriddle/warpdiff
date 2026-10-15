@@ -20,8 +20,10 @@
     }
   ],
   "tests": {
-    "spec": "7550d72936ead6b35f98488355009d4f330e69db2a96438549adf52aae30bda2",
-    "webkitConfig": "46234ddcd1c2ddb188b97bfe37c7dba13b62dd7f0ecc85a31ec23cdd02504043"
+    "spec": "65ed090a175e21a687ad3a6e11fff281af87a7929241b149322750546bd1064d",
+    "webkitConfig": "46234ddcd1c2ddb188b97bfe37c7dba13b62dd7f0ecc85a31ec23cdd02504043",
+    "reviewedSpec": "7550d72936ead6b35f98488355009d4f330e69db2a96438549adf52aae30bda2",
+    "mutationHarness": "404291233865c381f8f8c9575d34a172693354906774b80dcbcf29985cb482db"
   },
   "checks": {
     "prototype": {
@@ -72,100 +74,247 @@
   },
   "initialFailureResolution": "The new leading-silence assertion incorrectly advanced the paused video with the audio clock. The corrected assertion uses the explicit video position; no app code changed.",
   "mutations": {
-    "at": "2026-10-15T03:30:08.198Z",
+    "at": "2026-10-15T14:05:20.167Z",
     "cases": [
       {
         "name": "baseline",
         "exit": 0,
         "stats": {
-          "startTime": "2026-10-15T03:30:08.672Z",
-          "duration": 4876.185,
+          "startTime": "2026-10-15T14:05:20.627Z",
+          "duration": 3259.402,
           "expected": 8,
           "skipped": 0,
           "unexpected": 0,
           "flaky": 0
         },
-        "failures": []
+        "failures": [],
+        "verified": true
       },
       {
         "name": "missing-pending-cancel",
         "exit": 1,
         "stats": {
-          "startTime": "2026-10-15T03:30:14.045Z",
-          "duration": 1995.9360000000001,
+          "startTime": "2026-10-15T14:05:24.348Z",
+          "duration": 1593.39,
           "expected": 0,
           "skipped": 0,
           "unexpected": 1,
           "flaky": 0
         },
+        "expectedAssertion": "Pending cancellation preserves the previous fade deadline",
+        "expectedAssertionLine": 2951,
         "failures": [
           {
             "title": "stopping a pending source cancels silently without extending fadeUntil",
-            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 1.015\nReceived: 1.0199999999999998\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.004999999999999893"
+            "error": "Error: Pending cancellation preserves the previous fade deadline\n\nexpect(received).toBeCloseTo(expected, precision)\n\nExpected: 1.015\nReceived: 1.0199999999999998\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.004999999999999893",
+            "location": {
+              "file": "output/opus-timing-review-fix-2026-10-15/mutations-final/missing-pending-cancel/probe.spec.ts",
+              "column": 96,
+              "line": 2951
+            }
           }
-        ]
+        ],
+        "verified": true
       },
       {
         "name": "cancel-at-start-boundary",
         "exit": 1,
         "stats": {
-          "startTime": "2026-10-15T03:30:16.501Z",
-          "duration": 1854.1809999999998,
+          "startTime": "2026-10-15T14:05:26.397Z",
+          "duration": 1555.5190000000002,
           "expected": 0,
           "skipped": 0,
           "unexpected": 1,
           "flaky": 0
         },
+        "expectedAssertion": "An audible stop extends the fade deadline",
+        "expectedAssertionLine": 2977,
         "failures": [
           {
             "title": "stopping at the scheduled start fades the audible source before replacement",
-            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0\nReceived: 0.014999999999999902\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902"
+            "error": "Error: An audible stop extends the fade deadline\n\nexpect(received).toBeCloseTo(expected, precision)\n\nExpected: 1.0349999999999997\nReceived: 1.0199999999999998\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902",
+            "location": {
+              "file": "output/opus-timing-review-fix-2026-10-15/mutations-final/cancel-at-start-boundary/probe.spec.ts",
+              "column": 82,
+              "line": 2977
+            }
           }
-        ]
+        ],
+        "verified": true
       },
       {
         "name": "missing-offset-compensation",
         "exit": 1,
         "stats": {
-          "startTime": "2026-10-15T03:30:18.841Z",
-          "duration": 1745.7390000000003,
+          "startTime": "2026-10-15T14:05:28.409Z",
+          "duration": 1536.341,
           "expected": 0,
           "skipped": 0,
           "unexpected": 1,
           "flaky": 0
         },
+        "expectedAssertion": "Deferred start compensates the media offset",
+        "expectedAssertionLine": 2890,
         "failures": [
           {
             "title": "deferred start compensates the buffer offset so audio meets the video at startTime",
-            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902"
+            "error": "Error: Deferred start compensates the media offset\n\nexpect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902",
+            "location": {
+              "file": "output/opus-timing-review-fix-2026-10-15/mutations-final/missing-offset-compensation/probe.spec.ts",
+              "column": 80,
+              "line": 2890
+            }
           }
-        ]
+        ],
+        "verified": true
       },
       {
         "name": "pending-rate-reanchors",
         "exit": 1,
         "stats": {
-          "startTime": "2026-10-15T03:30:21.037Z",
-          "duration": 1809.56,
+          "startTime": "2026-10-15T14:05:30.415Z",
+          "duration": 1581.856,
           "expected": 0,
           "skipped": 0,
           "unexpected": 1,
           "flaky": 0
         },
+        "expectedAssertion": "Pending rate change preserves the media anchor",
+        "expectedAssertionLine": 2997,
         "failures": [
           {
             "title": "rate change during the pending window applies the rate without re-anchoring",
-            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6049999999999999\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.010000000000000009"
+            "error": "Error: Pending rate change preserves the media anchor\n\nexpect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6049999999999999\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.010000000000000009",
+            "location": {
+              "file": "output/opus-timing-review-fix-2026-10-15/mutations-final/pending-rate-reanchors/probe.spec.ts",
+              "column": 82,
+              "line": 2997
+            }
           }
-        ]
+        ],
+        "verified": true
       }
     ],
     "passed": true
   },
   "limits": [
     "The graph is unrendered: scheduling-policy assertions do not measure PCM output or actual codec playback.",
-    "Raw output logs remain local; generated copied specs and reports are not committed."
+    "Raw output logs remain local; generated copied specs and reports are not committed.",
+    "The independent complete Chromium run at the reviewed revision had one unexplained Grid geometry failure; a later passing full run does not establish its cause."
   ],
   "mergeAuthorized": false,
-  "publicationAuthorized": false
+  "publicationAuthorized": false,
+  "revisedAt": "2026-10-15T14:10:20.466Z",
+  "checksRevision": "905dfae7b22f11df2887fd6a18e480a0f8f8a6f7",
+  "originalBoundaryProbe": {
+    "reviewedRevision": "905dfae7b22f11df2887fd6a18e480a0f8f8a6f7",
+    "runnerReportedPassed": true,
+    "intendedBehaviorVerified": false,
+    "failedPrecondition": true,
+    "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0\nReceived: 0.014999999999999902\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902",
+    "note": "The original runner accepted a setup assertion failure. This result did not demonstrate the delayed-start boundary behavior and is superseded by the corrected probe below."
+  },
+  "reviewCorrection": {
+    "date": "2026-10-15",
+    "reviewedRevision": "905dfae7b22f11df2887fd6a18e480a0f8f8a6f7",
+    "finding": "P2: boundary mutation was accepted after a failed setup precondition.",
+    "changes": [
+      "Advance the first source by five milliseconds before replacement, then stop at the recorded replacement start or five milliseconds after it.",
+      "Require delayed-start and boundary preconditions, then the audible fade deadline.",
+      "Require a unique behavioral assertion message, its copied-source line and file, and exactly one test error per mutation.",
+      "Reject runner errors, retries, skipped/flaky results and setup failures; retain previous evidence in separate output folders."
+    ],
+    "checks": {
+      "stress": {
+        "passed": 200,
+        "failed": 0,
+        "skipped": 0,
+        "retries": 0,
+        "durationMs": 89854.129,
+        "report": "output/opus-timing-review-fix-2026-10-15/stress.json"
+      },
+      "webkit": {
+        "passed": 50,
+        "failed": 0,
+        "skipped": 0,
+        "retries": 0,
+        "durationMs": 44401.135,
+        "report": "output/opus-timing-review-fix-2026-10-15/webkit.json"
+      },
+      "chromium": {
+        "passed": 435,
+        "failed": 0,
+        "skipped": 1,
+        "retries": 0,
+        "durationMs": 437554.24399999995,
+        "report": "output/opus-timing-review-fix-2026-10-15/chromium.json"
+      },
+      "ownership": {
+        "passed": 525,
+        "failed": 0,
+        "log": "output/opus-timing-review-fix-2026-10-15/ownership.txt"
+      },
+      "mutations": {
+        "baselinePassed": 8,
+        "intendedMutationsDetected": 4,
+        "retries": 0,
+        "summary": "output/opus-timing-review-fix-2026-10-15/mutations-final/summary.json"
+      },
+      "invalidSetupRejection": {
+        "at": "2026-10-15T14:06:08.036Z",
+        "expectedExit": 1,
+        "actualExit": 1,
+        "baselinePassed": 8,
+        "rejectedPrecondition": "Replacement starts in the future",
+        "intendedAssertion": "An audible stop extends the fade deadline",
+        "summaryDidNotClaimSuccess": true,
+        "trackedFilesEditedByProbe": false
+      },
+      "assertionLocationGuard": {
+        "at": "2026-10-15T14:07:22.744Z",
+        "validBehaviorAccepted": true,
+        "preconditionWithCopiedBehaviorMessageRejected": true,
+        "behaviorLine": 2977,
+        "rejectedLine": 2973,
+        "scope": "Replay of the unchanged runner validation block against retained failure records; no browser or app changes"
+      }
+    },
+    "independentReview": {
+      "target": "905dfae7b22f11df2887fd6a18e480a0f8f8a6f7",
+      "fullChromium": {
+        "passed": 434,
+        "failed": 1,
+        "skipped": 1,
+        "retries": 0,
+        "durationMs": 526100.5499999999,
+        "failure": {
+          "test": "loads 4 images as Image-1…Image-4 in a 2×2 Inline grid",
+          "file": "tests/warpdiff.spec.ts",
+          "line": 577,
+          "expected": "topGap >= 3.5",
+          "received": -899
+        },
+        "note": "The unchanged test executes before the modified Opus describe. Production files and the entire Grid test are byte-identical to the pinned baseline. Isolated target and copied pinned-baseline test both passed 10/10 with zero retries. No second complete-suite run was performed or claimed green. The geometry failure mechanism was not established."
+      },
+      "isolatedGridTarget": {
+        "passed": 10,
+        "failed": 0,
+        "retries": 0,
+        "durationMs": 14031.374
+      },
+      "isolatedGridBaselineCopy": {
+        "passed": 10,
+        "failed": 0,
+        "retries": 0,
+        "durationMs": 14341.512
+      },
+      "evidence": "output/opus-timing-independent-review-2026-10-14-J2waLB/review-evidence.json"
+    },
+    "gridFollowUp": {
+      "passedInThisCompleteRun": true,
+      "rootCauseEstablished": false,
+      "repairIncluded": false
+    },
+    "hostedStatusAtRecord": "Existing hosted run 38677484930 passed at the reviewed revision. New hosted results must be recorded against the follow-up commit after push; this record does not reuse the old result for changed files."
+  }
 }
