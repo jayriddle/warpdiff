@@ -114,3 +114,56 @@ The historical four-image Grid uncertainty remains unexplained. This slice
 changes no loudness/true-peak algorithms, audio mix policy, codec normalization
 or licensing. No new physical Safari listening check was performed. No claim of
 a complete arbitrary-media audit or a total-browser-memory limit is made.
+
+## Hosted final verification
+
+[Hosted run 38801164123](https://github.com/jayriddle/warpdiff/actions/runs/38801164123) passed on attempt 1 at exact revision
+**116476976631d803715cbc23963bf73c0a100cab**, with zero browser retries, in **7m29s**.
+
+| Check | Result |
+|---|---|
+| Chromium, three isolated shards | **459 passed**, one existing skip; all **460** cases accounted for |
+| Expanded WebKit profile | **73 passed** |
+| Hosted ownership | **862 passed**, zero failures |
+| Infrastructure | **18 passed**, zero failures |
+| Actual uploaded Pages artifact | All **35** files match every manifest hash |
+| Publication job | **Skipped**, as required for feature/manual verification |
+
+The two extra local ownership passes inspect neighboring WarpCap sources absent
+from the hosted checkout. Report validation confirms complete/disjoint Chromium
+execution, the one allowlisted timestamp skip, no runner errors and no retries.
+The corrected version-independent cache case is included in the passing hosted
+Chromium and WebKit runs. The earlier failed local complete run is retained
+above, not retrospectively relabeled green.
+
+The actual uploaded artifact is byte-identical, including its exact-SHA version
+file, to a separately staged candidate exercised in installed Chrome and
+Playwright WebKit. Both passed version/service-worker checks, image comparisons,
+Stack/Grid switching, video play/pause/frame stepping and audio loading/graphs.
+Chrome additionally passed offline reload and image loading. Both observed zero
+uncaught application errors and zero analytics requests. Candidate screenshots
+are retained; the Chrome video screenshot was visually inspected. The temporary
+loopback server was shut down after verification.
+
+## Final preservation and review boundary
+
+The baseline snapshot covers **1,057** existing tracked/nonignored untracked
+files, including **578** pre-existing untracked files. Every unrelated file hash
+and every pre-existing untracked hash is unchanged. The tracked working tree and
+index are clean after the commits. Earlier ignored evidence was read/copied,
+not included in that snapshot's hash count. Normal generated test outputs are
+separate from the retained failure records.
+
+Main and the normal live version remain **c2454a5 / 3.19.1**. Pages settings and
+main protections compare equal to their pre-run readbacks. No PR, merge, tag,
+release, setting change or publication was performed. The feature branch was
+pushed for hosted verification. This final follow-up records evidence only;
+production and test bytes remain those checked at 116476976631d803715cbc23963bf73c0a100cab.
+
+The compact [verification data](verification.json) accompanies this record.
+Raw logs, browser reports, failed-check artifacts, baseline-negative probes,
+35-file manifests and preservation records remain in the ignored directory
+named above. Reproduce with test:ownership, test:infra, the zero-retry Chromium
+CI configuration, and the expanded test:webkit profile. No Opus timing-policy
+or timing-test change was made, so the separate Opus mutation runner was not
+rerun for this slice.

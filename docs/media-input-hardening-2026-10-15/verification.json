@@ -1,0 +1,141 @@
+{
+  "baseline": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+  "branch": "codex/media-input-hardening",
+  "candidateVersion": "3.19.2",
+  "testedCommit": "116476976631d803715cbc23963bf73c0a100cab",
+  "hosted": {
+    "sha": "116476976631d803715cbc23963bf73c0a100cab",
+    "runId": 38801164123,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/38801164123",
+    "attempt": 1,
+    "conclusion": "success",
+    "chromium": {
+      "total": 460,
+      "passed": 459,
+      "skipped": 1,
+      "reports": 3
+    },
+    "webkit": 73,
+    "ownership": 862,
+    "infra": 18,
+    "seconds": 449,
+    "publication": "skipped",
+    "publicArtifact": {
+      "sha": "116476976631d803715cbc23963bf73c0a100cab",
+      "files": 35,
+      "allHashesVerified": true
+    },
+    "jobs": [
+      {
+        "name": "WebKit preparation workflow",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 3/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 1/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Stage public files",
+        "conclusion": "success"
+      },
+      {
+        "name": "Ownership and infrastructure",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 2/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium and ownership",
+        "conclusion": "success"
+      },
+      {
+        "name": "Publish verified main",
+        "conclusion": "skipped"
+      }
+    ],
+    "sourceCommit": "116476976631d803715cbc23963bf73c0a100cab"
+  },
+  "local": {
+    "chromium": {
+      "total": 460,
+      "passed": 458,
+      "failed": 1,
+      "skipped": 1,
+      "retries": 0,
+      "seconds": 444.346827,
+      "failure": "Version-specific service-worker cache expectation",
+      "correctionCommit": "a504dd5f2915d10b906f1665bae1095c3bab4a79",
+      "correctedCasePassed": true
+    },
+    "webkit": {
+      "passed": 73,
+      "retries": 0,
+      "seconds": 54.272957999999996
+    },
+    "ownership": 864,
+    "infra": 18
+  },
+  "regressions": {
+    "malformedParserCases": 306,
+    "baselineParserFailures": 146,
+    "mp4FixtureResultsUnchanged": 16,
+    "encodedBudgetCases": 33,
+    "hostCases": 20,
+    "realBrowserScrubInputCases": 4,
+    "webkitScrubInputCases": 3,
+    "originalHostDefectReproduced": [
+      "Chrome",
+      "WebKit"
+    ]
+  },
+  "packagedSmoke": {
+    "results": [
+      {
+        "browser": "chromium",
+        "version": "v3.19.2 · 1164769",
+        "serviceWorker": true,
+        "imageComparison": true,
+        "stackGrid": true,
+        "videoPlaybackPauseStep": true,
+        "audioLoadVisualization": true,
+        "uncaughtErrors": [],
+        "analyticsRequests": [],
+        "offlineReloadAndImages": true
+      },
+      {
+        "browser": "webkit",
+        "version": "v3.19.2 · 1164769",
+        "serviceWorker": true,
+        "imageComparison": true,
+        "stackGrid": true,
+        "videoPlaybackPauseStep": true,
+        "audioLoadVisualization": true,
+        "uncaughtErrors": [],
+        "analyticsRequests": []
+      }
+    ],
+    "uploadedArtifactIdentical": true
+  },
+  "preservation": {
+    "baselineFiles": 1057,
+    "preexistingUntrackedFiles": 578,
+    "unrelatedChanged": [],
+    "preexistingUntrackedChanged": [],
+    "main": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+    "liveSha": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+    "settingsUnchanged": true
+  },
+  "publication": "held; hosted deploy skipped",
+  "limitations": [
+    "Encoded-input budgets exclude other browser memory; range-based demuxing is deferred.",
+    "Historical Grid uncertainty remains unexplained.",
+    "No loudness/true-peak, audio-mix, licensing or physical Safari listening changes."
+  ],
+  "rawEvidenceDirectory": "output/media-input-hardening-2026-10-15-lr2_3mrr/"
+}
