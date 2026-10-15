@@ -95,8 +95,8 @@ the earlier broader documentation wording has been narrowed accordingly.
 - Local ownership: 872 passes; infrastructure: 18 passes. The two neighboring
   WarpCap checks are local-only, so hosted ownership should contain 870.
 
-Complete-suite and hosted results are recorded in the final verification section
-below after execution. All browser runs use one worker and zero retries. Existing
+Complete-suite and hosted results are recorded in the final verification sections
+below. All browser runs use one worker and zero retries. Existing
 fixtures are protected by a preload that skips identical writes and rejects
 changes; failure artifacts and reports use fresh paths.
 
@@ -132,7 +132,7 @@ identities, one worker, zero retries, no runner/test errors or flaky results.
 Chrome's only skip is the existing declared timestamp-collision case. The Grid
 case passed here; its historical failure remains unexplained.
 
-Hosted and packaged verification will be added after the feature-branch commit.
+Hosted and packaged results appear below.
 See [structured verification](follow-up-verification.json).
 
 ## First hosted run and response-interception correction
@@ -162,9 +162,55 @@ and More did not retain focus after Escape in a narrow info bar. Their causes ar
 not established. Their test bodies and audio/info-bar modules are unchanged; that
 does not prove the branch cannot influence them. They passed in the complete local
 run. Retain these failures, rather than claiming they are repaired or calling the
-first hosted run green. A new hosted run will check the committed fixture fix.
+first hosted run green. The completed hosted run below checks the committed fixture fix.
 
 The three negative browser controls pin index.html only; other scripts came from
 the candidate checkout. These selected image cases do not exercise the changed
 audio/video helpers. The parser counterfactual independently pins the parser
 source. The complete hosted runs provide the exact-commit integration checks.
+
+## Completed hosted and packaged verification
+
+[Run 38814474872](https://github.com/jayriddle/warpdiff/actions/runs/38814474872), attempt 1, **passed** at
+`976423bd40f7168dcca34cbf000fc169ae36e187`. Runtime changes originate in `eae70cd53e339a8237d7cbebc7deb9fabd5683a8`;
+the intervening commit changes only the protocol test fixture and verification
+notes. All 34 app assets are identical between those commits; version.json
+receives the newer SHA during staging.
+
+| Hosted check | Result |
+|---|---|
+| Complete Chromium inventory, three disjoint shards | 489 passed, one existing timestamp-collision skip |
+| Selected WebKit profile | 103 passed |
+| Ownership | 870 passed (local-only neighboring-source checks account for the two additional local passes) |
+| Infrastructure | 18 passed |
+| Public staging | 35 files; all manifest hashes and source bytes verified |
+| Publish verified main | Skipped |
+
+Report validation requires a complete inventory, one execution per identity, one
+worker per machine, zero retries, no flaky results and no unexpected skips or
+runner/test errors. Chromium JSON reports and WebKit's embedded report were
+checked. All six downloaded report/package artifact digests match GitHub's
+metadata. Elapsed hosted time: 423 seconds from run start to the final job end.
+
+Both packaged Chrome and WebKit smoke checks passed for the exact tested SHA:
+version display, installed service worker, two-image comparison, Stack/Grid,
+video play/pause/frame step, audio visualization, rejected host-image decoding,
+and host ordering. Chrome also passed offline reload and image loading. No
+uncaught app errors or analytics requests were observed in either smoke context.
+These are local tests of the packaged artifact, not a new deployment.
+
+The two extra Chromium failures from the first hosted run passed in this final
+run. **Their causes remain unestablished; this is not evidence of a repair.**
+Their raw reports, screenshots and traces remain under hosted-first/. The older
+Grid failure likewise remains an unresolved historical observation.
+
+Read-only checks confirm remote main and live version.json still identify
+`c2454a53cfab6c863e78fc0d07adc52b2235fa7f`. Live index.html, audio-decode.js and
+mp4-demux.js match that released baseline, and Pages/protection settings are
+unchanged. All 4,252 pre-existing files and seven symlinks were checked; only the
+explicit correction files changed, and the 578 pre-existing nonignored untracked
+files remain intact. Raw new evidence stays in the fresh ignored directory.
+
+The correction is ready for follow-up review. Merge and publication remain held;
+no pull request, merge, tag, release, deployment or settings change was made.
+Final verification notes are a documentation-only follow-up to the hosted target.
