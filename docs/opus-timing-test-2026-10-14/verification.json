@@ -1,0 +1,171 @@
+{
+  "at": "2026-10-15T03:39:42.961Z",
+  "branch": "codex/deterministic-opus-timing",
+  "baseCommit": "f5d620837b628ca20e1ae93aa1c4ec69eb7550a2",
+  "runtime": [
+    {
+      "file": "index.html",
+      "current": "28f30b739f4cb81565ec879b057cd393f613ca932ff9acae0eba11f659173352",
+      "base": "28f30b739f4cb81565ec879b057cd393f613ca932ff9acae0eba11f659173352"
+    },
+    {
+      "file": "js/opus-sync.js",
+      "current": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "base": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90"
+    },
+    {
+      "file": "sw.js",
+      "current": "ad26ae076e38a0644d91927a583e7fffbad914df0523f1ab42151c85fe311d37",
+      "base": "ad26ae076e38a0644d91927a583e7fffbad914df0523f1ab42151c85fe311d37"
+    }
+  ],
+  "tests": {
+    "spec": "7550d72936ead6b35f98488355009d4f330e69db2a96438549adf52aae30bda2",
+    "webkitConfig": "46234ddcd1c2ddb188b97bfe37c7dba13b62dd7f0ecc85a31ec23cdd02504043"
+  },
+  "checks": {
+    "prototype": {
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "4.9s",
+      "retries": 0,
+      "log": "output/opus-timing-test-2026-10-14/focused-first.txt"
+    },
+    "firstTighterExpectation": {
+      "passed": 175,
+      "failed": 25,
+      "skipped": 0,
+      "duration": "2.4m",
+      "retries": 0,
+      "log": "output/opus-timing-test-2026-10-14/focused-stress.txt"
+    },
+    "stress": {
+      "passed": 200,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "1.8m",
+      "retries": 0,
+      "log": "output/opus-timing-test-2026-10-14/focused-stress-final.txt"
+    },
+    "chromium": {
+      "passed": 435,
+      "failed": 0,
+      "skipped": 1,
+      "duration": "7.5m",
+      "retries": 0,
+      "log": "output/opus-timing-test-2026-10-14/full-chromium.txt"
+    },
+    "webkit": {
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0,
+      "duration": "45.6s",
+      "retries": 0,
+      "log": "output/opus-timing-test-2026-10-14/webkit.txt"
+    },
+    "ownership": {
+      "passed": 525,
+      "failed": 0,
+      "log": "output/opus-timing-test-2026-10-14/ownership-final.txt"
+    }
+  },
+  "initialFailureResolution": "The new leading-silence assertion incorrectly advanced the paused video with the audio clock. The corrected assertion uses the explicit video position; no app code changed.",
+  "mutations": {
+    "at": "2026-10-15T03:30:08.198Z",
+    "cases": [
+      {
+        "name": "baseline",
+        "exit": 0,
+        "stats": {
+          "startTime": "2026-10-15T03:30:08.672Z",
+          "duration": 4876.185,
+          "expected": 8,
+          "skipped": 0,
+          "unexpected": 0,
+          "flaky": 0
+        },
+        "failures": []
+      },
+      {
+        "name": "missing-pending-cancel",
+        "exit": 1,
+        "stats": {
+          "startTime": "2026-10-15T03:30:14.045Z",
+          "duration": 1995.9360000000001,
+          "expected": 0,
+          "skipped": 0,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "failures": [
+          {
+            "title": "stopping a pending source cancels silently without extending fadeUntil",
+            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 1.015\nReceived: 1.0199999999999998\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.004999999999999893"
+          }
+        ]
+      },
+      {
+        "name": "cancel-at-start-boundary",
+        "exit": 1,
+        "stats": {
+          "startTime": "2026-10-15T03:30:16.501Z",
+          "duration": 1854.1809999999998,
+          "expected": 0,
+          "skipped": 0,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "failures": [
+          {
+            "title": "stopping at the scheduled start fades the audible source before replacement",
+            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0\nReceived: 0.014999999999999902\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902"
+          }
+        ]
+      },
+      {
+        "name": "missing-offset-compensation",
+        "exit": 1,
+        "stats": {
+          "startTime": "2026-10-15T03:30:18.841Z",
+          "duration": 1745.7390000000003,
+          "expected": 0,
+          "skipped": 0,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "failures": [
+          {
+            "title": "deferred start compensates the buffer offset so audio meets the video at startTime",
+            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.014999999999999902"
+          }
+        ]
+      },
+      {
+        "name": "pending-rate-reanchors",
+        "exit": 1,
+        "stats": {
+          "startTime": "2026-10-15T03:30:21.037Z",
+          "duration": 1809.56,
+          "expected": 0,
+          "skipped": 0,
+          "unexpected": 1,
+          "flaky": 0
+        },
+        "failures": [
+          {
+            "title": "rate change during the pending window applies the rate without re-anchoring",
+            "error": "Error: expect(received).toBeCloseTo(expected, precision)\n\nExpected: 0.6149999999999999\nReceived: 0.6049999999999999\n\nExpected precision:    6\nExpected difference: < 0.0000005\nReceived difference:   0.010000000000000009"
+          }
+        ]
+      }
+    ],
+    "passed": true
+  },
+  "limits": [
+    "The graph is unrendered: scheduling-policy assertions do not measure PCM output or actual codec playback.",
+    "Raw output logs remain local; generated copied specs and reports are not committed."
+  ],
+  "mergeAuthorized": false,
+  "publicationAuthorized": false
+}
