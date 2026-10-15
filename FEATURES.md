@@ -167,3 +167,5 @@ No install required, no account, no upload. Open in any browser, load your files
 ### Managed review hosts
 
 Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
+
+Malformed host-supplied file payloads report a correlated failure, clear partial loading state, and restore the Pull control. Superseded requests cannot reset a newer comparison. Hosts can supply base64, ArrayBuffers, byte views or byte arrays for 1–4 files.

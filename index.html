@@ -5833,7 +5833,49 @@
             if (!request || !_hostLoadIsCurrent(request.generation) || request.terminal) return;
             request.terminal = true;
             request.status = 'failed';
+            // Retire this request's work before notifying the host. Never let a
+            // failed conversion leave loading chrome or a partly loaded view.
+            _hostLoadAbortController.abort();
+            clearAllMedia(true);
+            _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
             _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
+        }
+
+        function _hostLoadValidateFiles(items, signed) {
+            if (!Array.isArray(items) || items.length < 1 || items.length > 4) {
+                throw new Error('Supply an array of 1–4 media files');
+            }
+            for (const item of items) {
+                if (!item || typeof item.name !== 'string' || !item.name.trim()
+                    || typeof item.contentType !== 'string' || !/^(image|video|audio)\//i.test(item.contentType)
+                    || (item.lastModified !== undefined && !Number.isFinite(item.lastModified))
+                    || (signed && (typeof item.signedUrl !== 'string' || !item.signedUrl.trim()))) {
+                    throw new Error('Invalid media file metadata');
+                }
+            }
+        }
+
+        async function _hostLoadSuppliedFile(item, signal) {
+            let bytes;
+            if (item.base64 !== undefined && item.base64 !== null && item.base64 !== '') {
+                if (typeof item.base64 !== 'string') throw new Error('Invalid base64 media payload');
+                const response = await fetch('data:application/octet-stream;base64,' + item.base64, { signal });
+                if (!response.ok) throw new Error('Could not read base64 media payload');
+                bytes = new Uint8Array(await response.arrayBuffer());
+            } else if (item.buffer instanceof ArrayBuffer || ArrayBuffer.isView(item.buffer)) {
+                bytes = item.buffer;
+            } else if (Array.isArray(item.buffer)) {
+                // Extension JSON transports can supply byte arrays. Do not pass
+                // arbitrary values to Uint8Array: a number is an allocation size.
+                for (const byte of item.buffer) {
+                    if (!Number.isInteger(byte) || byte < 0 || byte > 255) throw new Error('Invalid media byte array');
+                }
+                bytes = new Uint8Array(item.buffer);
+            } else {
+                throw new Error('Missing or invalid media buffer');
+            }
+            if (!bytes.byteLength) throw new Error('Empty media payload');
+            return new File([bytes], item.name, { type: item.contentType, lastModified: item.lastModified });
         }
 
         // Metadata-only invalidation. A host may re-read the native catalog, but receives no
@@ -5867,7 +5909,7 @@
             // Clear the preceding task as soon as the new request is accepted,
             // not after its fetches finish. A failed/slow load must never leave
             // old media visible beneath a new host task.
-            clearAllMedia();
+            clearAllMedia(true);
             const capabilities = event.data && event.data.capabilities;
             _hostCapabilities = Object.freeze({
                 ffmpegTranscode: false, // legacy host flag cannot enable a removed engine
@@ -5922,89 +5964,68 @@
             if ((event.source !== window && event.source !== window.parent) || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
 
             const request = _hostLoadBegin(event);
-            if (_managedReviewActive()) {
-                const count = (event.data.signedItems || event.data.files || []).length;
-                const labels = event.data.slotLabels;
-                const offset = count <= 2 ? 1 : 0;
-                if (count < 1 || count > 4 || !Array.isArray(labels)
-                    || Array.from({length:count}, (_, index) => labels[index + offset])
-                        .some(label => typeof label !== 'string' || !label.trim() || label.length > 200)) {
-                    _hostLoadFailed(request, 'Managed review requires a display label for each media item');
+            try {
+                if (event.data.error) {
+                    _hostLoadFailed(request, String(event.data.error) + ' — try refreshing the IHWA page');
                     return;
                 }
-            }
-
-            if (event.data.error) {
-                _ihwaPullReset(event.data.error + ' — try refreshing the IHWA page', true);
-                _hostLoadFailed(request, event.data.error);
-                return;
-            }
-
-            // Fast path: signed URLs — fetch directly from GCS (no base64 round-trip)
-            if (event.data.signedItems && event.data.signedItems.length > 0) {
-                try {
-                    const t0 = performance.now();
-                    const filePromises = event.data.signedItems.map(async item => {
-                        const resp = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
-                        if (!resp.ok) throw new Error(`${resp.status} fetching ${item.name}`);
-                        const blob = await resp.blob();
-                        return new File([blob], item.name, {
-                            type: item.contentType,
-                            lastModified: item.lastModified
-                        });
-                    });
-                    const files = await Promise.all(filePromises);
-                    if (!_hostLoadIsCurrent(request.generation)) return;
-                    console.log(`[IHWA] Direct fetch: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
-
-                    _ihwaPullReset();
-                    if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
-                        _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                for (const key of ['signedItems', 'files']) {
+                    if (event.data[key] !== undefined && !Array.isArray(event.data[key])) {
+                        throw new Error(key + ' must be an array');
                     }
-                    return;
-                } catch (e) {
-                    if (!_hostLoadIsCurrent(request.generation) || e.name === 'AbortError') return;
-                    // CORS or network error — fall back to base64 via background
-                    console.warn('[IHWA] Direct fetch failed, requesting fallback:', e.message);
-                    // The extension's same-window transport can ask its background
-                    // for base64. Embedded hosts get a correlated terminal failure.
-                    if (event.source === window) {
-                        window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, window.location.origin);
-                    } else {
-                        _hostLoadFailed(request, e && e.message || e);
-                    }
+                }
+                const signed = !!event.data.signedItems?.length;
+                const items = signed ? event.data.signedItems : event.data.files;
+                // Preserve the same-window extension's empty-response retry.
+                if (!items || items.length === 0) {
+                    if (event.source === window) _ihwaPullRetry();
+                    else _hostLoadFailed(request, 'No media files were supplied');
                     return;
                 }
-            }
+                _hostLoadValidateFiles(items, signed);
+                if (_managedReviewActive()) {
+                    const labels = event.data.slotLabels;
+                    const offset = items.length <= 2 ? 1 : 0;
+                    if (!Array.isArray(labels)
+                        || Array.from({length:items.length}, (_, index) => labels[index + offset])
+                            .some(label => typeof label !== 'string' || !label.trim() || label.length > 200)) {
+                        throw new Error('Managed review requires a display label for each media item');
+                    }
+                }
 
-            // Fallback path: base64-encoded files from background
-            if (!event.data.files || event.data.files.length === 0) {
-                if (event.source === window) _ihwaPullRetry();
-                else _hostLoadFailed(request, 'No media files were supplied');
-                return;
-            }
-
-            const t0 = performance.now();
-            const filePromises = event.data.files.map(async f => {
-                let bytes;
-                if (f.base64) {
-                    const resp = await fetch('data:application/octet-stream;base64,' + f.base64);
-                    bytes = new Uint8Array(await resp.arrayBuffer());
+                const t0 = performance.now();
+                let files;
+                if (signed) {
+                    // Only network/conversion errors on this path can request
+                    // the extension's fallback; rejection by the app is terminal.
+                    try {
+                        files = await Promise.all(items.map(async item => {
+                            const response = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
+                            if (!response.ok) throw new Error(`${response.status} fetching ${item.name}`);
+                            const blob = await response.blob();
+                            return new File([blob], item.name, { type: item.contentType, lastModified: item.lastModified });
+                        }));
+                    } catch (error) {
+                        if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                        if (event.source === window) {
+                            _hostLoadAbortController.abort(); // retire sibling fetches awaiting fallback
+                            window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, window.location.origin);
+                            return;
+                        }
+                        throw error;
+                    }
                 } else {
-                    bytes = new Uint8Array(f.buffer);
+                    files = await Promise.all(items.map(item => _hostLoadSuppliedFile(item, request.signal)));
                 }
-                return new File([bytes], f.name, {
-                    type: f.contentType,
-                    lastModified: f.lastModified
-                });
-            });
-            const files = await Promise.all(filePromises);
-            if (!_hostLoadIsCurrent(request.generation)) return;
-            console.log(`[IHWA] Base64 fallback: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
-
-            _ihwaPullReset();
-            if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
-                _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                console.log(`[IHWA] ${signed ? 'Direct fetch' : 'Supplied files'}: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
+                _ihwaPullReset();
+                if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
+                    _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                }
+            } catch (error) {
+                if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                _hostLoadFailed(request, error && error.message || String(error));
             }
         });
 
@@ -10558,7 +10579,15 @@
 
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
-        function clearAllMedia() {
+        function clearAllMedia(preserveHostRequest = false) {
+            // Only host acceptance/failure retain correlation while clearing.
+            // Manual replacement or cancellation silently retires pending host I/O.
+            if (!preserveHostRequest) {
+                if (_hostLoadAbortController) _hostLoadAbortController.abort();
+                _hostLoadRequest = null;
+                _ihwaPullReset();
+            }
+            _viewLoadGeneration = null;
             _clearInfoBarViews(); // retire comparison presentation, retain preferences
             _usage.resetComparison(); // invalidate pending usage readiness → js/usage.js
             _resolveVideoProgressTime(null);
