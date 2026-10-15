@@ -37,6 +37,20 @@
       "expectedFailures": 3,
       "seconds": 13.441532,
       "retries": 0
+    },
+    "protocolRouteCorrection": {
+      "chrome": {
+        "passed": 50,
+        "failed": 0,
+        "seconds": 33.724733
+      },
+      "webkit": {
+        "passed": 103,
+        "failed": 0,
+        "seconds": 76.52458299999999
+      },
+      "retries": 0,
+      "ownership": 872
     }
   },
   "evidenceDirectory": "/Users/jay/Documents/warpdiff/output/media-input-follow-up-2026-10-15-aaaPWt",
@@ -52,6 +66,40 @@
   "retainedFailedAttempts": [
     "Exploratory negative run interrupted after reproducing empty READY; completed pinned replay has three intended failures",
     "Expanded Chrome host run interrupted because its new audio probe patched a retired context; corrected 50-case run passes",
-    "Earlier independent/author failures retained in original verification record"
-  ]
+    "Earlier independent/author failures retained in original verification record",
+    "First hosted run failed: WebKit protocol response interception plus two additional Chromium assertions; retained with no retries"
+  ],
+  "firstHosted": {
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/38813044298",
+    "sha": "eae70cd53e339a8237d7cbebc7deb9fabd5683a8",
+    "attempt": 1,
+    "conclusion": "failure",
+    "chromium": {
+      "total": 490,
+      "passed": 487,
+      "failed": 2,
+      "skipped": 1
+    },
+    "webkit": {
+      "total": 103,
+      "passed": 100,
+      "failed": 3
+    },
+    "publication": "skipped",
+    "protocolFailure": "Three same-window empty-response cases received a real 404 because the service worker bypassed page.route",
+    "otherFailures": [
+      {
+        "test": "dialogue short previews use the same center mix at 44100 Hz",
+        "received": 0.012315439999679567,
+        "required": "> 0.02",
+        "cause": "unestablished"
+      },
+      {
+        "test": "narrow bars show only selected overflow fields and clearing removes stale details",
+        "received": "More button inactive after Escape",
+        "required": "focus restored",
+        "cause": "unestablished"
+      }
+    ]
+  }
 }

@@ -79,7 +79,7 @@ the earlier broader documentation wording has been narrowed accordingly.
 
 - Initial new parser probes: 306 existing checks passed; all eight new early-
   allocation expectations failed against the reviewed source. Corrected: 314 pass.
-- A temporary pinned-source browser run fails exactly the three selected intended
+- A temporary browser run with index.html pinned to the reviewed source fails exactly the three selected intended
   assertions: empty signed image sends READY, corrupt managed image sends READY,
   and descending host timestamps reverse the label/file pairing. Three failures,
   zero retries; this is negative evidence, not a passing suite.
@@ -134,3 +134,37 @@ case passed here; its historical failure remains unexplained.
 
 Hosted and packaged verification will be added after the feature-branch commit.
 See [structured verification](follow-up-verification.json).
+
+## First hosted run and response-interception correction
+
+[Run 38813044298](https://github.com/jayriddle/warpdiff/actions/runs/38813044298)
+at `eae70cd53e339a8237d7cbebc7deb9fabd5683a8`, attempt 1, **failed**. Chrome
+completed its full inventory with 487 passes, two failures and one existing skip.
+WebKit completed 103 cases with 100 passes and three failures. Ownership and
+infrastructure passed; publication was skipped. Raw reports, artifacts/digests
+and traces are retained in `hosted-first/` in the new evidence directory.
+
+The three WebKit failures expected a controlled empty HTTP 200 but received no
+terminal reply. The retained network trace shows an actual HTTP 404 from the
+static server for `/rejected-host-media`; the mock response was bypassed. This is
+the documented Playwright service-worker interception limitation (also described
+in the installed playwright-core type reference). The app therefore correctly
+requested network fallback rather than treating the body as an empty application
+payload. The protocol spec now blocks service workers and explicitly requires
+its controlled response handler to run before checking terminal behavior. The
+independent packaged smoke still tests installed service workers and offline use.
+No application code changed for this correction. Local verification: 50 Chrome
+host cases, 103 WebKit-profile cases, and 872 ownership checks pass, zero retries.
+
+Two other existing Chromium tests failed outside the protocol/parser probes:
+short-preview center amplitude at 44.1 kHz was 0.01231544, below the required 0.02;
+and More did not retain focus after Escape in a narrow info bar. Their causes are
+not established. Their test bodies and audio/info-bar modules are unchanged; that
+does not prove the branch cannot influence them. They passed in the complete local
+run. Retain these failures, rather than claiming they are repaired or calling the
+first hosted run green. A new hosted run will check the committed fixture fix.
+
+The three negative browser controls pin index.html only; other scripts came from
+the candidate checkout. These selected image cases do not exercise the changed
+audio/video helpers. The parser counterfactual independently pins the parser
+source. The complete hosted runs provide the exact-commit integration checks.

@@ -6,6 +6,10 @@ const image64 = readFileSync(path.join(__dirname, 'fixtures/green.png')).toStrin
 const orderImages = ['green.png','red.png','blue.png','fourth.png'].map(name =>
   ({name,base64:readFileSync(path.join(__dirname,'fixtures',name)).toString('base64')}));
 
+// Route-based protocol probes must own their responses. An installed service
+// worker can bypass page.route and turn a synthetic HTTP 200 into a real 404.
+test.use({serviceWorkers:'block'});
+
 test.beforeEach(async ({page}) => {
   await page.addInitScript(() => {
     const w = window as any;
@@ -26,8 +30,11 @@ for (const sender of ['same window', 'managed parent']) {
   for (const kind of ['empty signed image', 'empty signed video', 'empty signed audio',
     'corrupt supplied image', 'corrupt supplied video', 'corrupt supplied audio', 'corrupt signed image', 'invalid converted MIME']) {
     test(`${sender} rejects ${kind} with one terminal failure`, async ({page}) => {
-      await page.route('**/rejected-host-media', route => route.fulfill({status:200,
-        body:kind.startsWith('empty') ? Buffer.alloc(0) : Buffer.from([1,2,3])}));
+      let served = 0;
+      await page.route('**/rejected-host-media', route => {
+        served++;
+        return route.fulfill({status:200,body:kind.startsWith('empty') ? Buffer.alloc(0) : Buffer.from([1,2,3])});
+      });
       if (sender === 'managed parent') {
         await page.route('**/media-host.html', route => route.fulfill({contentType:'text/html',
           body:'<!doctype html><iframe src="/"></iframe>'}));
@@ -46,6 +53,8 @@ for (const sender of ['same window', 'managed parent']) {
         receiver.postMessage({type:'WARPDIFF_LOAD', requestId:'rejected', taskId:'rejected-task',
           capabilities:{managedReview:sender === 'managed parent'}, slotLabels:['','Candidate','Second'], ...payload}, location.origin);
       }, {kind,sender,base64:image64});
+      if (kind.includes('signed')) await expect.poll(() => served,
+        {message:'The intended HTTP 200 must come from the controlled response'}).toBe(1);
       await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
         expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'rejected',taskId:'rejected-task',error:expect.any(String)}),
       ]);
