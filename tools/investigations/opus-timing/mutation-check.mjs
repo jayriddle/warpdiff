@@ -1,4 +1,5 @@
 // Run from any directory with the existing localhost:8080 test server available.
+// Keep exact mutation targets synchronized with js/opus-sync.js; missing targets fail.
 // Copies the actual test file; only isolated browser responses are mutated.
 // An optional first argument selects a fresh output directory for retained evidence.
 import fs from 'node:fs';
@@ -7,7 +8,7 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 
-const root=fileURLToPath(new URL('../../',import.meta.url));
+const root=fileURLToPath(new URL('../../../',import.meta.url));
 const output=process.argv[2] ? path.resolve(process.argv[2]) : path.join(root,'output/opus-timing-test-2026-10-14/mutations');
 const source=fs.readFileSync(path.join(root,'js/opus-sync.js'),'utf8');
 const spec=fs.readFileSync(path.join(root,'tests/warpdiff.spec.ts'),'utf8');

@@ -20,8 +20,10 @@ exclude:
   - node_modules/
   - scripts/
   - tools/
+  - output/
   - package.json
   - package-lock.json
   - playwright.config.ts
   - playwright.webkit.config.ts
+  - playwright.ci.config.ts
   - start.sh

@@ -2,6 +2,7 @@ name: WarpDiff checks
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -10,15 +11,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: warpdiff-checks-${{ github.ref }}
+  group: warpdiff-checks-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  chromium:
-    name: Chromium and ownership
+  ownership:
+    name: Ownership and infrastructure
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install fixture tools
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm run test:fixtures
+      - run: npm run test:infra
+      - run: npm run test:ownership
+
+  chromium-shards:
+    name: Chromium shard ${{ matrix.shard }}/3
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       WARPDIFF_BROWSER_CHANNEL: chrome
+      PLAYWRIGHT_JSON_OUTPUT_FILE: output/chromium-${{ matrix.shard }}.json
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -30,24 +55,60 @@ jobs:
           cache: npm
       - name: Install fixture tools
         run: sudo apt-get update && sudo apt-get install -y ffmpeg zsh
-      - name: Install test dependencies
-        run: npm ci
+      - run: npm ci
       - name: Install Chrome for native media codecs
         run: npx playwright install --with-deps chrome
-      - name: Generate media fixtures
-        run: npm run test:fixtures
-      - name: Check ownership
-        run: npm run test:ownership
-      - name: Run complete Chromium suite
-        run: npm run test:ci
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24)
+      - run: npm run test:fixtures
+      - name: Run Chromium shard
+        run: npm run test:ci -- --shard=${{ matrix.shard }}/3 --reporter=line,json,html
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
-          name: chromium-results
+          name: chromium-${{ matrix.shard }}
+          if-no-files-found: error
+          path: output/chromium-${{ matrix.shard }}.json
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: chromium-${{ matrix.shard }}-diagnostics
           path: |
             playwright-report/
             test-results/
           retention-days: 14
+
+  chromium:
+    # Preserve the existing required protection context; never accept partial CI.
+    name: Chromium and ownership
+    needs: [ownership, chromium-shards]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Require every dependency to succeed
+        env:
+          OWNERSHIP_RESULT: ${{ needs.ownership.result }}
+          CHROMIUM_RESULT: ${{ needs.chromium-shards.result }}
+        run: test "$OWNERSHIP_RESULT" = success && test "$CHROMIUM_RESULT" = success
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: List the complete Chromium inventory
+        run: |
+          mkdir -p output
+          npx playwright test --config=playwright.ci.config.ts --project=chromium --list --reporter=json > output/inventory.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: chromium-?
+          merge-multiple: true
+          path: output/reports
+      - name: Require complete, disjoint, zero-retry results
+        run: node scripts/verify-test-reports.mjs output/inventory.json output/reports
 
   webkit:
     name: WebKit preparation workflow
@@ -64,15 +125,11 @@ jobs:
       - name: Install fixture tools
         run: |
           if ! command -v ffmpeg >/dev/null; then brew install ffmpeg; fi
-      - name: Install test dependencies
-        run: npm ci
-      - name: Install WebKit
-        run: npx playwright install webkit
-      - name: Generate media fixtures
-        run: npm run test:fixtures
-      - name: Run WebKit workflow checks
-        run: npm run test:webkit
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (Node 24)
+      - run: npm ci
+      - run: npx playwright install webkit
+      - run: npm run test:fixtures
+      - run: npm run test:webkit
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: webkit-results
@@ -80,3 +137,39 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
+
+  pages-artifact:
+    name: Stage public files
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - run: node scripts/stage-pages.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pages-manifest
+          path: output/pages-manifest.json
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: output/pages
+
+  deploy:
+    name: Publish verified main
+    needs: [chromium, webkit, pages-artifact]
+    if: ${{ success() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        id: deployment

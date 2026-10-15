@@ -1,6 +1,8 @@
 node_modules/
 test-results/
 playwright-report/
+blob-report/
+output/
 .DS_Store
 .claude/
 extension/
