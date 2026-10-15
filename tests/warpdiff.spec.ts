@@ -2815,29 +2815,57 @@ test.describe('Audio viz rendering (W panel) + load hygiene', () => {
   });
 });
 
+type OpusTestClock = {advance: (seconds: number) => void};
+
 test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
   // Drives _startOpusSyncAudio/_stopOpusSyncAudio/_updateOpusSyncRate through
   // __testAPI.opus with a synthetic silent AudioBuffer — the invariants under
   // test are scheduling math, not codec behavior, so no Opus fixture is needed.
-  // Each scenario runs inside ONE page.evaluate so the whole sequence executes
-  // within a single JS task (the deferred-start window is only ~15 ms wide),
-  // and assertions compare captured ctx times with tolerances so they hold
-  // whether the AudioContext is running or suspended (headless autoplay).
+  // Real offline Web Audio nodes validate graph/automation calls, while an
+  // explicit clock drives the production scheduling math. Audio-thread time
+  // can advance inside one JS task, so task boundaries cannot protect a 15 ms
+  // pending window. The offline graph never renders or produces sound.
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await page.evaluate(() => {
+      const w = window as any;
+      w.pauseAllMedia();
+      w.__withOpusClock = (scenario: (clock: OpusTestClock) => unknown) => {
+        const original = w.getAudioContext;
+        const context = new OfflineAudioContext(2, 48000, 48000);
+        let now = 1;
+        Object.defineProperty(context, 'currentTime', {get: () => now});
+        // Production starts resume a suspended context. Keep this test graph
+        // unrendered; its observed clock advances only through advance().
+        context.resume = () => Promise.resolve();
+        w.getAudioContext = () => context;
+        try {
+          // Scenarios stay synchronous so unrelated app callbacks cannot use
+          // this temporary context before the original getter is restored.
+          return scenario({advance(seconds) {
+            if (!Number.isFinite(seconds) || seconds < 0) throw new Error('Clock must advance monotonically');
+            now += seconds;
+          }});
+        } finally {
+          try { w.__testAPI.opus.stop('editA'); }
+          finally { w.getAudioContext = original; }
+        }
+      };
+    });
   });
 
   test('replacing an audible source defers the new start until the fade-out is silent', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock((clock: OpusTestClock) => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2);
       opus.start('editA', 0.5);            // nothing fading → starts immediately
       const first = opus.state('editA');
+      clock.advance(0.005);
       const tBefore = opus.ctxTime();
       opus.start('editA', 0.6);            // replaces audible source → must wait out its fade
       return { first, tBefore, second: opus.state('editA'), fade: opus.fade() };
-    });
+    }));
     // The stop inside the second start stamps fadeUntil = stopTime + fade;
     // the new source must be scheduled at (not before) that moment.
     expect(r.second.fadeUntil).toBeGreaterThanOrEqual(r.tBefore + r.fade - 0.001);
@@ -2847,87 +2875,126 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
   });
 
   test('deferred start compensates the buffer offset so audio meets the video at startTime', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock((clock: OpusTestClock) => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2);
       opus.start('editA', 0.5);
+      clock.advance(0.005);
       const tBefore = opus.ctxTime();
       opus.start('editA', 0.6);            // deferred by ~fade
       return { tBefore, second: opus.state('editA') };
-    });
+    }));
     // startVideo must be fromTime advanced by (startCtx − now)·rate, not raw
     // fromTime — raw fromTime would bake a permanent ~15 ms lag into the anchors.
     const expected = 0.6 + (r.second.startCtx - r.tBefore) * r.second.rate;
-    expect(Math.abs(r.second.startVideo - expected)).toBeLessThan(0.005);
+    expect(r.second.startVideo, 'Deferred start compensates the media offset').toBeCloseTo(expected, 6);
     expect(r.second.startVideo).toBeGreaterThan(0.6 + 0.005); // clearly compensated, not raw fromTime
   });
 
   test('leading timeline silence delays the source instead of playing sample zero early', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock(() => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2, 0.166);
       const before = opus.ctxTime();
       opus.start('editA', 0);
       return { before, state: opus.state('editA') };
-    });
+    }));
     expect(r.state.hasSource).toBe(true);
     expect(r.state.startCtx - r.before).toBeGreaterThan(0.15);
     expect(r.state.startVideo).toBeCloseTo(0.166, 3);
   });
 
   test('rate change during leading silence reschedules the delayed soundtrack start', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock((clock: OpusTestClock) => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2, 0.166);
       opus.start('editA', 0);
       const first = opus.state('editA');
+      clock.advance(0.01);
       const video = document.querySelector('#layerEditA video') as HTMLVideoElement;
+      video.currentTime = 0;
       video.playbackRate = 2;
+      const videoTime = video.currentTime;
       const before = opus.ctxTime();
       opus.updateRate(2);
-      return { first, before, second: opus.state('editA') };
-    });
+      return { first, before, videoTime, second: opus.state('editA') };
+    }));
     expect(r.second.rate).toBe(2);
     expect(r.second.startVideo).toBeCloseTo(0.166, 3);
-    expect(r.second.startCtx - r.before).toBeGreaterThan(0.07);
-    expect(r.second.startCtx - r.before).toBeLessThan(0.1);
+    expect(r.second.startCtx - r.before).toBeCloseTo((0.166 - r.videoTime) / 2, 6);
     expect(r.second.startCtx).toBeLessThan(r.first.startCtx - 0.05);
   });
 
   test('stopping a pending source cancels silently without extending fadeUntil', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock((clock: OpusTestClock) => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2);
+      const tBefore = opus.ctxTime();
       opus.start('editA', 0.5);            // audible
       opus.start('editA', 0.6);            // pending (deferred behind the fade)
       const pending = opus.state('editA');
+      // A nonzero advance keeps the source pending but makes an incorrect
+      // audible fade observably extend the deadline. A fully frozen clock
+      // would stamp the same deadline and could conceal that regression.
+      clock.advance(opus.fade() / 3);
       const tStop = opus.ctxTime();
       opus.stop('editA');                  // must cancel outright — nothing audible yet
       const afterStop = opus.state('editA');
       opus.start('editA', 0.7);            // must NOT wait an extra fade
-      return { pending, tStop, afterStop, third: opus.state('editA') };
-    });
-    expect(r.pending.startCtx).toBeGreaterThan(r.tStop - 0.001);  // was genuinely pending
+      return { pending, tBefore, tStop, afterStop, third: opus.state('editA') };
+    }));
+    expect(r.pending.startCtx).toBeGreaterThan(r.tStop);  // genuinely pending
+    expect(r.tStop).toBeGreaterThan(r.tBefore);
     expect(r.afterStop.hasSource).toBe(false);
     // A silent cancel leaves the old stamp; the audible-fade branch would have
     // re-stamped fadeUntil ≈ tStop + fade, pushing the next start out further.
-    expect(r.afterStop.fadeUntil).toBeLessThanOrEqual(r.pending.fadeUntil + 1e-6);
-    expect(r.third.startCtx).toBeLessThanOrEqual(r.pending.fadeUntil + 0.002);
+    expect(r.afterStop.fadeUntil, 'Pending cancellation preserves the previous fade deadline').toBeCloseTo(r.pending.fadeUntil, 6);
+    expect(r.third.startCtx).toBeCloseTo(r.pending.fadeUntil, 6);
   });
 
+  for (const [position, elapsed] of [['at', 0], ['after', 0.005]] as const) {
+    test(`stopping ${position} the scheduled start fades the audible source before replacement`, async ({ page }) => {
+      const r = await page.evaluate(elapsed => (window as any).__withOpusClock((clock: OpusTestClock) => {
+        const opus = (window as any).__testAPI.opus;
+        opus.installTestBuffer('editA', 2);
+        opus.start('editA', 0.5);
+        // Make the first source unambiguously audible even if the pending
+        // comparison regresses from > to >= at the later start boundary.
+        clock.advance(0.005);
+        opus.start('editA', 0.6);
+        const scheduled = opus.state('editA');
+        const scheduledAt = opus.ctxTime();
+        clock.advance(scheduled.startCtx - scheduledAt + elapsed);
+        const tStop = opus.ctxTime();
+        opus.stop('editA');
+        const afterStop = opus.state('editA');
+        opus.start('editA', 0.7);
+        return {scheduled, scheduledAt, tStop, afterStop, third: opus.state('editA'), fade: opus.fade()};
+      }), elapsed);
+      expect(r.scheduled.startCtx, 'Replacement starts in the future').toBeGreaterThan(r.scheduledAt);
+      expect(r.tStop - r.scheduled.startCtx, 'Stop reaches the recorded start boundary').toBeCloseTo(elapsed, 6);
+      expect(r.afterStop.hasSource).toBe(false);
+      expect(r.afterStop.fadeUntil, 'An audible stop extends the fade deadline').toBeCloseTo(r.tStop + r.fade, 6);
+      expect(r.third.startCtx).toBeCloseTo(r.afterStop.fadeUntil, 6);
+    });
+  }
+
   test('rate change during the pending window applies the rate without re-anchoring', async ({ page }) => {
-    const r = await page.evaluate(() => {
+    const r = await page.evaluate(() => (window as any).__withOpusClock((clock: OpusTestClock) => {
       const opus = (window as any).__testAPI.opus;
       opus.installTestBuffer('editA', 2);
       opus.start('editA', 0.5);            // audible
       opus.start('editA', 0.6);            // pending
+      clock.advance(opus.fade() / 3);
       const before = opus.state('editA');
+      const tUpdate = opus.ctxTime();
       opus.updateRate(2);
-      return { before, after: opus.state('editA') };
-    });
+      return { before, tUpdate, after: opus.state('editA') };
+    }));
     // Re-anchoring with negative elapsed would drag startVideo backward and
     // detach startCtx from the scheduled start — both must be untouched.
-    expect(r.after.startVideo).toBeCloseTo(r.before.startVideo, 6);
+    expect(r.before.startCtx).toBeGreaterThan(r.tUpdate);
+    expect(r.after.startVideo, 'Pending rate change preserves the media anchor').toBeCloseTo(r.before.startVideo, 6);
     expect(r.after.startCtx).toBeCloseTo(r.before.startCtx, 6);
     expect(r.after.rate).toBe(2);
   });
