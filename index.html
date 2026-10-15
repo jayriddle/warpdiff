@@ -6005,7 +6005,7 @@
                 const items = signed ? event.data.signedItems : event.data.files;
                 // Preserve the same-window extension's empty-response retry.
                 if (!items || items.length === 0) {
-                    if (event.source === window) _ihwaPullRetry();
+                    if (event.source === window && !_managedReviewActive()) _ihwaPullRetry();
                     else _hostLoadFailed(request, 'No media files were supplied');
                     return;
                 }

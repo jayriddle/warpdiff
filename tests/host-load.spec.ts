@@ -190,3 +190,18 @@ test('same-window signed URL failure still requests and accepts extension fallba
   ]);
   await expect(page.locator('.asset-layer img')).toHaveCount(1);
 });
+
+test('empty managed-host input fails immediately while standalone extension input retries', async ({page}) => {
+  await page.evaluate(()=>{
+    (window as any).pullFromIHWA();
+    window.postMessage({type:'WARPDIFF_LOAD', requestId:'empty-extension', files:[]}, location.origin);
+  });
+  await expect.poll(()=>page.evaluate(()=>(window as any).eval('_ihwaPullRetries'))).toBe(1);
+  expect(await page.evaluate(()=>(window as any).hostReplies)).toEqual([]);
+  await page.evaluate(()=>window.postMessage({type:'WARPDIFF_LOAD', requestId:'empty-managed', taskId:'managed',
+    capabilities:{managedReview:true}, files:[],slotLabels:[]}, location.origin));
+  await expect.poll(()=>page.evaluate(()=>(window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'empty-managed',taskId:'managed'}),
+  ]);
+  expect(await page.evaluate(()=>(window as any).eval('_ihwaPullTimer'))).toBeNull();
+});
