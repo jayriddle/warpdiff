@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.4 (prepared October 15, 2026; unpublished)
+
+- Published runtime URLs and offline caches are pinned to the deployed commit. A new install checks its full bundle, and open comparisons retain their existing version.
+- Missing or mismatched required scripts stop startup with a retry notice; failed installs preserve the previous complete offline copy. Local source serving still needs no build.
+- This quiet maintenance slice retains the prior What's New announcement. Verification: [reliable updates](coherent-updates-2026-10-15/README.md).
+
 ## v3.19.3 (prepared October 15, 2026)
 
 - Damaged saved shortcuts, rotations, colors and ordinary settings recover without preventing startup or comparison loading. Valid settings and structured entries are retained.

@@ -17,7 +17,7 @@ function _computeAudioAnalysis(audioBuffer, buckets, isCurrent = () => true) {
 }
 
 async function _runAudioAnalysisWorker(job) {
-    const worker = new Worker('js/audio-analysis-worker.js');
+    const worker = new Worker(_appBackgroundScriptUrl('js/audio-analysis-worker.js'));
     let pending = null;
     let failure = null;
     job.cancel = () => {

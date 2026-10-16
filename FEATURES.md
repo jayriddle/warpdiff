@@ -159,7 +159,7 @@ Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Es
 
 ## Installable
 
-WarpDiff is a Progressive Web App. Install it from Chrome, Edge, or Safari for a standalone window experience. Offline-capable via service worker with network-first caching — works without an internet connection after first load.
+WarpDiff is a Progressive Web App. Install it from Chrome, Edge, or Safari for a standalone window experience. Offline use starts after a complete app version downloads and remains subject to browser storage. Published runtime files are pinned to their release, so an update does not reload or mix files into an open comparison. Incomplete installs preserve the previous complete offline copy.
 
 ## Works instantly
 

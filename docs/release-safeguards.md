@@ -3,8 +3,9 @@
 The protected GitHub checks remain **Chromium and ownership** and
 **WebKit preparation workflow**. Main protections were activated October 14,
 2026; their API readbacks are retained in the activation and publication
-records. This infrastructure revision is proposed on a feature branch. It
-must not be merged, activate Pages settings, or publish without Jay's review.
+records. GitHub Actions publishing was activated with PR #46 on October 15.
+Each new feature slice still needs its own release authorization.
+
 
 ## Check triggers and coverage
 
@@ -56,11 +57,29 @@ shipped, downloaded or run by the browser.
 `scripts/stage-pages.mjs` packages only the service worker's runtime assets,
 `sw.js`, the landing logo and the Signalsmith notice. It rejects untracked,
 non-regular or unexpected public files and refuses to overwrite an existing
-stage directory. Everything is copied byte-for-byte except `version.json`,
-which becomes JSON identifying the exact checked-out workflow commit. The
-source file retains its Jekyll template for compatibility with the existing
-legacy publishing mode. No Jekyll compilation or runtime build step is needed
-for the proposed artifact. A SHA-256 manifest is retained separately.
+stage directory. The staging step pins runtime files under `releases/<commit>/`.
+JavaScript and vendored engine files retain their source bytes. The public HTML
+adds a relative base URL, script integrity checks, a first-load retry notice and
+a small document-owned bundle of the three lazy audio entry points. The analysis
+worker's embedded copy imports the exact analysis source through a data URL;
+canonical worker/worklet files remain unchanged. This keeps managed frames and
+open pages independent of later deployments for those lazy scripts.
+
+The staged service worker contains the exact bundle's integrity manifest. It
+bypasses the HTTP cache when installing and activates only after every entry
+passes. Scope-specific caches keep referenced releases; unidentified legacy
+clients conservatively preserve prior app caches. An older controller cannot
+retire a newer installation. Navigations revalidate online and use the installed
+complete document offline, including query settings. Updates never reload an
+open comparison. Browser storage restrictions and eviction remain limitations.
+
+`version.json` is a plain empty placeholder in the checkout and is stamped with
+the exact workflow SHA in the artifact. The pinned manifest preserves the app's
+root installation identity. A separate SHA-256 manifest describes every public
+file. Root HTML, worker and version data are expected transformations; compare
+JavaScript and vendored files with source, and validate all artifact hashes.
+Local source serving still needs no build step. The staged release guarantees
+apply to the Pages artifact, not arbitrary manually assembled source copies.
 
 Docs, tests, tools, local evidence, dependencies and retired FFmpeg files are
 not in that artifact. `output/` and `blob-report/` are ignored by Git; `output/`
@@ -75,37 +94,27 @@ cannot qualify; PRs and manual dispatch cannot publish. A cancelled main run
 cannot start a later deployment job. A deployment already underway cannot be
 recalled by cancelling an Actions run; verify the served SHA after publication.
 
-## Activation after review
+## Release review and verification
 
-**The feature-branch work does not change live Pages settings.** The current
-legacy `main` / root publishing mode still deploys independently of post-merge
-checks. Adding this workflow alone does not intercept that legacy path.
+A feature branch or pull request cannot publish. After approval of the exact
+candidate and explicit authorization to merge and publish:
 
-After Jay approves the exact candidate and explicitly authorizes activation,
-merge and publication:
+1. Read back protections, the approved PR head and both required checks. Keep
+   strict freshness, the PR rule, administrator enforcement, conversation
+   resolution and force-push/deletion restrictions.
+2. Confirm Pages remains configured for **GitHub Actions**. Do not re-enable the
+   old branch/root publishing path or bypass the normal merge gate.
+3. Merge normally. The main-push workflow checks and packages that exact commit;
+   a failed check must retain the existing published site.
+4. Verify the complete public manifest, generated release identity and successful
+   exact-main jobs. Smoke-test the live app and its installed offline copy. For
+   loader changes, also verify an upgrade from a warmed previous installation.
+5. Check excluded tooling/evidence paths still return 404. Preserve failed runs
+   and limitations in the release record.
 
-1. Re-read main protection, the approved PR head and required checks. Preserve
-   the two existing app-scoped required check names, freshness, PR rule,
-   administrator enforcement, conversation resolution and force-push/deletion
-   restrictions.
-2. Before merging, switch the repository's Pages publishing source from
-   **Deploy from a branch** to **GitHub Actions**. This disables the independent
-   legacy publication path while leaving the last successful site available.
-   Do not merge first and leave a window in which legacy Pages can publish
-   before the checks finish.
-3. Merge the approved PR normally. Its main-push workflow runs the complete
-   checks and publishes only on success. If checks fail, retain the existing
-   published site, fix on a feature branch and repeat review.
-4. Confirm the Pages artifact's commit, successful exact-main checks, live
-   `version.json`, source hashes, service worker installation and a short
-   browser smoke check. Expand live testing when the runtime change warrants it.
-5. The old registered preview workflow can be disabled separately after review;
-   no workflow registration or repository setting is changed by this branch.
-
-The deployment itself cannot be end-to-end verified while publication is on
-hold. Local policy tests and a hosted manual run can prove gating, packaging
-and test execution; actual Pages activation and publication remain release
-verification steps. Historical FFmpeg distributions require separate work.
+Feature-branch tests establish packaging and behavior locally and in hosted
+browsers. Actual Pages publication remains a separate verification step after
+release authorization. Historical FFmpeg distributions require separate work.
 
 ## Local checks and reproduction
 

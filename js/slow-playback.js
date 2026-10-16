@@ -7,7 +7,7 @@ const _slowPlayback = (() => {
     let selected = null, revision = 0, timer = null, queued = false, pending = false;
     let status = 'idle', notice = false, suppressed = false;
     let retiring = Promise.resolve(true);
-    const engine = WarpPlaybackAudio.create({workletUrl:'js/signalsmith-worklet.js', maxBufferBytes:64 * 1024 * 1024,
+    const engine = WarpPlaybackAudio.create({workletUrl:_appBackgroundScriptUrl('js/signalsmith-worklet.js'), maxBufferBytes:64 * 1024 * 1024,
         onError:message => { fallback(message); }});
     function branch(route, slow, at = route.ctx.currentTime) {
         if (!route.slowGain) return;

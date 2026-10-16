@@ -232,11 +232,11 @@ test('service worker installs without FFmpeg and retires only owned legacy cache
   let claimed = false;
   let currentCache = '';
   const source = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
-  const context = vm.createContext({URL, Set, Promise,
+  const context = vm.createContext({URL, Set, Promise, Request, Response, MessageChannel, setTimeout, clearTimeout,
     self:{registration:{scope:'https://example.test/warpdiff/'},
       addEventListener:(type:string, fn:(event:any) => void) => {listeners[type] = fn;},
-      skipWaiting:() => {}, clients:{claim:() => {claimed = true;}}},
-    caches:{open:async () => ({addAll:async (assets:string[]) => {installed = assets;}}),
+      skipWaiting:() => {}, clients:{claim:async () => {claimed = true;}, matchAll:async () => []}},
+    caches:{open:async () => ({addAll:async (assets:string[]) => {installed = assets.map((request:any) => request.url);},put:async()=>{},match:async()=>null}),
       keys:async () => ['warpdiff-v0.0.0', 'warpdiff-v0.0.1', currentCache, 'warpdiff-ffmpeg', 'host-cache', 'host-ffmpeg'],
       delete:async (name:string) => {deleted.push(name); return true;}}});
   vm.runInContext(source, context);

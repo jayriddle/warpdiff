@@ -308,32 +308,18 @@ function extractFn(name, src = SRC) {
         (missing.length ? ` (missing: ${missing.join(', ')})` : ''),
         missing.length === 0);
 
-  // version.json: the deployed-commit-hash mechanism. The file must carry
-  // Jekyll front matter and the build_revision Liquid tag (GitHub Pages
-  // substitutes the served SHA at deploy time — the only way to identify the
-  // served build with no local build step), the app must fetch it, and it must
-  // be SW-precached so the hash shows offline too. NOTE: a .nojekyll file
-  // appearing in the repo root would silently kill the substitution.
-  const VJ = readFileSync(new URL('version.json', ROOT), 'utf8');
-  check('version-hash: version.json has Jekyll front matter + build_revision tag',
-        VJ.startsWith('---') && VJ.includes('{{ site.github.build_revision }}'));
+  // Staging owns release identity; the checked-out app also runs without staging.
+  const VJ = JSON.parse(readFileSync(new URL('version.json', ROOT), 'utf8'));
+  check('version-hash: checkout has a plain empty revision placeholder', VJ.sha === null);
   check('version-hash: index.html fetches version.json and appends the short SHA',
         HTML.includes("fetch('version.json')") && HTML.includes('j.sha.slice(0, 7)'));
-  check('version-hash: version.json is in sw.js ASSETS',
-        SW.includes("'version.json'"));
-  check('version-hash: no .nojekyll (it would disable the Pages-side substitution)',
-        !existsSync(new URL('.nojekyll', ROOT)));
-
-  // Embedded consumers own their host lifecycle. WarpDiff may register its PWA
-  // worker only as a top-level app, and that worker may delete/cache only its
-  // explicitly owned namespace and runtime allowlist.
+  check('version-hash: version.json is in sw.js ASSETS', SW.includes("'version.json'"));
   check('service-worker: registration is top-level-only',
-        /if \(!_inIframe && 'serviceWorker' in navigator\)/.test(HTML));
-  check('service-worker: activation retires app versions and the exact legacy FFmpeg cache',
-        SW.includes("k.startsWith('warpdiff-v') && k !== CACHE_NAME") &&
-        SW.includes("k === 'warpdiff-ffmpeg'"));
-  check('service-worker: fetch caching is restricted to the explicit runtime allowlist',
-        SW.includes('RUNTIME_URLS.has(url.href)') && !SW.includes("if (url.origin !== self.location.origin) return;"));
+        /if \(!_inIframe && 'serviceWorker' in navigator\)/.test(HTML) && HTML.includes('_registerAppServiceWorker();'));
+  check('service-worker: exact legacy FFmpeg cache and referenced releases have explicit retirement',
+        SW.includes("name === 'warpdiff-ffmpeg'") && SW.includes('releases.includes(match[1])'));
+  check('service-worker: stable and pinned fetches use explicit asset allowlists',
+        SW.includes('RUNTIME_URLS.has(url.href)') && SW.includes('RELEASE_ASSETS.has(match[2])'));
 
   // _config.yml must keep .md files out of the Pages build: themed .md pages
   // pull {% seo %} → jekyll-github-metadata → a GitHub API call at build time,

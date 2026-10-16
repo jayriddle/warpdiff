@@ -93,7 +93,7 @@ function _setScrubPreviewOutput(mode, ctx = audioContext) {
     return output.destination;
 }
 const _continuousScrubEngine = WarpScrubAudio.create({
-    workletUrl:'js/scrub-worklet.js',
+    workletUrl:_appBackgroundScriptUrl('js/scrub-worklet.js'),
     matchSourceLevel:true,
     maxBufferBytes:_SCRUB_PREVIEW_MAX_BYTES,
     onError:error => {

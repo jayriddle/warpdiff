@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   projects: [
+    {name:'webkit-updates', testMatch:'app-updates.spec.ts', grepInvert:/predecessor negative control/, use:{browserName:'webkit'}},
     {name:'webkit-preferences', testMatch:'preferences.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-host-load', testMatch:'host-load.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-info-focus', testMatch:'info-bar.spec.ts', grep:/queued fits preserve focus/, use:{browserName:'webkit'}},
