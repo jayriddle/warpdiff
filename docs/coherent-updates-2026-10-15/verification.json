@@ -33,7 +33,14 @@
     "browserRetries": 0,
     "oneWorkerPerRun": true,
     "fullChromiumSeconds": 655.0828100000001,
-    "fullWebkitSeconds": 134.771106
+    "fullWebkitSeconds": 134.771106,
+    "packageSmoke": {
+      "feature": "dc8e31e43fa8773eb9dfb41777780e9af39f93e9",
+      "checks": 10,
+      "responseHashes": 117,
+      "chromium": "offline emulation passed",
+      "webkit": "server transport loss passed; browser offline emulation has an independently reproduced upstream limitation"
+    }
   },
   "sourceDifferencesAfterCompleteChromium": [
     "js/app-updates.js",
@@ -51,7 +58,7 @@
     "playwright.webkit.config.ts": "0020f39b4ae4fa844882f5525056025d0ee24116adb65293970d27739008d536",
     "scripts/stage-pages.mjs": "b27fa0b67ff9aeaf7dd731a2c228ad7afd88e159568fed652182b948a1d97871",
     "sw.js": "f102b8d0b633234858ebb9aeba8103f1881daad3aec20b0b01467656504c87b8",
-    "tests/app-updates.spec.ts": "6752552d3a83a8ecdaf20191a30bc3fe35bb4c64a7d755e5de9d479548d48526",
+    "tests/app-updates.spec.ts": "70c7eb30b56d2b3b63667abd56871ddad22e738a9be0d5b9ffdf332574d5ebfd",
     "tests/external-preparation.spec.ts": "c9910a653872c28828d9243946a09bbc84e81e39469f90221083b7fc7d32e849",
     "tests/ownership.test.mjs": "0c8b589e4884706722173aef66a8069778acd1c0fb7c4a23b847cbde36ce526c",
     "tests/release-infrastructure.test.mjs": "621277e78df85079fb66993557b40c352b11039dfa7a9493a1eb43607edba241",
@@ -64,7 +71,32 @@
     "canonicalRuntimeCopiesUnchanged": true
   },
   "hosted": {
-    "status": "pending pull-request checks; final receipts will be linked in the PR and ignored handoff record"
+    "initial": {
+      "runId": 38856399310,
+      "feature": "dc8e31e43fa8773eb9dfb41777780e9af39f93e9",
+      "conclusion": "failure",
+      "chromium1": "download failed before execution",
+      "chromium2": "passed",
+      "chromium3": "passed",
+      "webkit": {
+        "passed": 141,
+        "failed": 1,
+        "issue": "Retry-test evaluation raced asynchronous same-URL reload"
+      },
+      "publication": "skipped"
+    },
+    "followup": {
+      "productionChanges": false,
+      "webkitRetryScenario": {
+        "passed": 25,
+        "retries": 0
+      },
+      "chromiumFocused": {
+        "passed": 8,
+        "retries": 0
+      },
+      "status": "Fresh full hosted verification required after test-only correction"
+    }
   },
   "rawEvidence": "output/coherent-updates-2026-10-15-6xmxbP",
   "limits": [

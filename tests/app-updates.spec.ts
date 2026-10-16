@@ -151,7 +151,12 @@ test('first-load script mismatch stops startup with a usable retry message', asy
     f.set(A,'',true);await page.goto(f.url);
     await expect(page.locator('#appUpdateFailure')).toContainText('could not load this update completely');
     expect(await page.evaluate(()=>typeof (window as any).__testAPI)).toBe('undefined');
-    f.set(A,'/js/usage.js');await page.locator('#appUpdateFailure button').click();
+    f.set(A,'/js/usage.js');
+    // The click starts asynchronous refetches before reloading this same URL.
+    // Observe that new document before evaluating its globals.
+    const reloaded = page.waitForEvent('framenavigated', frame=>frame === page.mainFrame());
+    await page.locator('#appUpdateFailure button').click();
+    await reloaded;await page.waitForLoadState('load');
     await expect.poll(()=>page.evaluate(()=>(window as any)._fixtureRelease)).toBe(A);
     await expect.poll(()=>page.evaluate(()=>typeof (window as any).__testAPI)).toBe('object');
     await expect(page.locator('#appUpdateFailure')).toHaveCount(0);
