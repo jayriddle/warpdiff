@@ -245,13 +245,14 @@ function _infoBarFit(record) {
     root.classList.toggle('info-compact',root.classList.contains('asset-info-bar') && root.clientWidth < 180);
     const spans = [...left.children,...right.children];
     spans.forEach(span => {span.hidden = false;span.style.marginInlineStart = '';if (span.dataset.infoKind === 'spacer') span.style.width = span.dataset.width+'px';});
-    more.hidden = true;
     const width = span => span.getBoundingClientRect().width + (parseFloat(getComputedStyle(span).marginInlineStart) || 0);
     const sectionGap = left.children.length && right.children.length ? 8 : 0;
     const total = () => spans.reduce((sum,span) => sum + width(span),0) + sectionGap;
     if (total() > items.clientWidth) spans.filter(span => span.dataset.infoKind === 'spacer').forEach(span => span.style.width = '12px');
-    if (total() > items.clientWidth) {
-        more.hidden = false;
+    // Decide final visibility before writing it. Hiding a focused More during
+    // measurement blurs it in Chrome even if this same fit shows it again.
+    more.hidden = total() <= items.clientWidth;
+    if (!more.hidden) {
         let remaining = Math.max(0,items.clientWidth - width(more) - (parseFloat(getComputedStyle(more).marginInlineEnd) || 0));
         // Preserve the far-right fields first, then the left prefix. Fit groups in
         // their own direction so no spacer survives at either visible edge.

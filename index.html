@@ -3849,7 +3849,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.1';
+        const APP_VERSION = '3.19.2';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.1';
@@ -5104,6 +5104,8 @@
 
         // ── WebCodecs scrub overlay (Chrome smooth-scrub, see js/scrub-video.js) ──
         let _scrubVideoSessions = {};    // { slot: session | 'failed' | Promise<session|null> }
+        const _scrubVideoInputBudget = _createScrubVideoInputBudget(); // encoded bytes, including pending reads
+        let _scrubVideoInputNotice = false;
         let _scrubSessionGen = 0;        // bumped by clearAllMedia/_invalidateScrubSession to cancel in-flight session init
         let _scrubOverlayLive = {};      // { slot: session } — sessions painting this drag
         let _scrubOverlayCanvases = {};  // { slot: canvas } — reused across drags
@@ -5132,30 +5134,54 @@
             if (cached) return Promise.resolve(cached);
             const md = mediaData[slot];
             if (!md || md.type !== 'video') return Promise.resolve(null);
+            // File.size is known before any encoded-video read. Over-budget or
+            // unknown-sized inputs keep the native seek path without fetching.
+            const input = _scrubVideoInputBudget.reserve(md.size);
+            if (!input) {
+                _scrubVideoSessions[slot] = 'failed';
+                if (!_scrubVideoInputNotice) {
+                    _scrubVideoInputNotice = true;
+                    showLoadToast('Using native video scrubbing to limit memory.', false, 6000);
+                }
+                return Promise.resolve(null);
+            }
             // Capture the session generation; clearAllMedia / _invalidateScrubSession
             // bump it. If it changes while we're initializing, the media was cleared
             // or replaced and the session we're building belongs to a stale file.
             const gen = _scrubSessionGen;
-            const p = fetch(md.src)
-                .then(r => r.arrayBuffer())
-                .then(buf => {
-                    const session = _createScrubVideoSession(new Uint8Array(buf));
+            let session = null, retained = false;
+            const p = Promise.resolve().then(async () => {
+                    if (input.retired) return null;
+                    const response = await fetch(md.src, { signal: input.controller.signal });
+                    const bytes = await _readScrubVideoInput(response, input.bytes, input.controller.signal);
+                    if (gen !== _scrubSessionGen || input.retired) return null;
+                    session = _createScrubVideoSession(bytes);
                     if (!session) throw new Error('not scrubbable');
-                    return session.ready.then(ok => {
-                        if (!ok) { session.close(); throw new Error('unsupported codec'); }
-                        // Stale: close the session (releasing its VideoDecoder and the
-                        // retained file bytes) and do NOT publish it into the live map,
-                        // where it would leak and be painted for the NEW file's frames.
-                        if (gen !== _scrubSessionGen) { session.close(); return null; }
-                        _scrubVideoSessions[slot] = session;
-                        // Init outlived the drag (quick tap): don't leave a live
-                        // decoder configured while playback may be running —
-                        // suspend now; the next drag's request() resumes it.
-                        if (!isDragging) session.suspend();
-                        return session;
-                    });
+                    const close = session.close.bind(session);
+                    session.close = () => { try { close(); } finally { _scrubVideoInputBudget.release(input); } };
+                    const ok = await session.ready;
+                    if (!ok) throw new Error('unsupported codec');
+                    // Stale: close the session before it can publish for a new file.
+                    if (gen !== _scrubSessionGen || input.retired) { session.close(); return null; }
+                    _scrubVideoSessions[slot] = session;
+                    retained = true;
+                    // A quick tap may finish before initialization. Retain the
+                    // admitted bytes/cache, but release its idle decoder.
+                    if (!isDragging) session.suspend();
+                    return session;
                 })
-                .catch(() => { if (gen === _scrubSessionGen) _scrubVideoSessions[slot] = 'failed'; return null; });
+                .catch(() => {
+                    if (session) session.close();
+                    if (gen === _scrubSessionGen) _scrubVideoSessions[slot] = 'failed';
+                    return null;
+                })
+                .finally(() => {
+                    _scrubVideoInputBudget.settle(input);
+                    if (!retained) _scrubVideoInputBudget.release(input);
+                });
+            // The existing release/invalidate sweep can now cancel pending I/O
+            // and a session awaiting configuration, as well as retained sessions.
+            p.close = () => { _scrubVideoInputBudget.release(input); if (session) session.close(); };
             _scrubVideoSessions[slot] = p;
             return p;
         }
@@ -5195,6 +5221,7 @@
             }
             _scrubSessionGen++;   // invalidate any in-flight session init (see _scrubOverlayGetSession)
             _scrubVideoSessions = {};
+            _scrubVideoInputNotice = false;
         }
 
         // The video slots the overlay should engage for this drag: all visible
@@ -5823,17 +5850,165 @@
         }
 
         function _hostLoadReady(generation) {
-            if (!_hostLoadIsCurrent(generation) || _hostLoadRequest.terminal) return;
+            if (!_hostLoadBatchReady(generation) || _hostLoadRequest.terminal) return;
             _hostLoadRequest.terminal = true;
             _hostLoadRequest.status = 'ready';
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
+        }
+
+        function _hostLoadBatchReady(generation) {
+            return _hostLoadIsCurrent(generation) && !!_hostLoadRequest.slots?.size
+                && [..._hostLoadRequest.slots.values()].every(state => state.media && state.analysis);
+        }
+
+        // One host readiness owner. Media events retain the loading token that
+        // created their element; a retired event cannot settle a newer request.
+        // Audio-only comparisons need both native playback and decoded waveforms.
+        function _hostLoadSlotUpdate(slot, loadingToken, state, error) {
+            if (loadingToken !== _loadingProgressToken || !_hostLoadIsCurrent(_viewLoadGeneration)
+                || _hostLoadRequest.terminal || !_hostLoadRequest.slots?.has(slot)) return false;
+            if (state === 'failed') _hostLoadFailed(_hostLoadRequest, error);
+            else _hostLoadRequest.slots.get(slot)[state] = true;
+            return true;
+        }
+
+        function _hostVideoFrameAvailable(video, context) {
+            // drawImage is a no-op when a video has no decoded frame, even when
+            // loadeddata/dimensions say otherwise. Two different backgrounds
+            // distinguish that no-op from any real pixel, including transparent
+            // or black video. Copy compositing preserves transparent pixels.
+            try {
+                context.globalCompositeOperation = 'copy';
+                for (const [color, expected] of [['#ff0000', [255,0,0,255]], ['#00ff00', [0,255,0,255]]]) {
+                    context.fillStyle = color;
+                    context.fillRect(0, 0, 1, 1);
+                    context.drawImage(video, 0, 0, 1, 1);
+                    const pixel = context.getImageData(0, 0, 1, 1).data;
+                    if (pixel.some((value, index) => value !== expected[index])) return true;
+                }
+            } catch (_) { /* A frame may not be available yet. */ }
+            return false;
+        }
+
+        function _hostLoadVerifyVideo(slot, video, loadingToken) {
+            if (!_hostLoadIsCurrent(_viewLoadGeneration)) return;
+            const request = _hostLoadRequest;
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 1;
+            const context = canvas.getContext('2d', {willReadFrequently:true});
+            const deadline = performance.now() + 10000;
+            const failure = 'Could not decode first video frame of ' + mediaData[slot].name;
+            let timer = null, probe = null, done = false;
+            function current() {
+                return loadingToken === _loadingProgressToken && _hostLoadRequest === request
+                    && !request.terminal && !request.signal.aborted;
+            }
+            function cleanup() {
+                done = true;
+                clearTimeout(timer);
+                request.signal.removeEventListener('abort', cleanup);
+                if (probe) {
+                    probe.pause();
+                    probe.removeAttribute('src');
+                    probe.load();
+                    probe.remove();
+                    probe = null;
+                }
+                canvas.width = canvas.height = 0;
+            }
+            function finish(error) {
+                if (done) return;
+                const accepted = current();
+                cleanup();
+                if (!accepted) return;
+                if (error) _hostLoadSlotUpdate(slot, loadingToken, 'failed', error);
+                else {
+                    _setLoadingSlotState(slot, 'Ready', 'ready');
+                    _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                    checkAllLoaded();
+                }
+            }
+            function check() {
+                if (done) return;
+                if (!current()) { cleanup(); return; }
+                if (video.readyState >= 2 && video.videoWidth && video.videoHeight) {
+                    if (_hostVideoFrameAvailable(video, context)
+                        || (probe && _hostVideoFrameAvailable(probe, context))) { finish(); return; }
+                    if (!probe) {
+                        // Some browsers do not materialize a paused frame. A
+                        // separate muted element verifies decoding without moving
+                        // the comparison's clock or touching its audio routing.
+                        probe = document.createElement('video');
+                        probe.muted = true;
+                        probe.playsInline = true;
+                        probe.preload = 'auto';
+                        probe.dataset.hostVideoProbe = '';
+                        probe.setAttribute('aria-hidden', 'true');
+                        probe.tabIndex = -1;
+                        probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
+                        probe.addEventListener('error', () => finish(failure));
+                        probe.src = video.src;
+                        document.body.appendChild(probe);
+                        try {
+                            probe.play().catch(() => finish(failure));
+                        } catch (_) { finish(failure); }
+                        if (done) return;
+                    }
+                }
+                if (performance.now() >= deadline) { finish(failure); return; }
+                timer = setTimeout(check, 50);
+            }
+            request.signal.addEventListener('abort', cleanup, {once:true});
+            check();
         }
 
         function _hostLoadFailed(request, error) {
             if (!request || !_hostLoadIsCurrent(request.generation) || request.terminal) return;
             request.terminal = true;
             request.status = 'failed';
+            // Retire this request's work before notifying the host. Never let a
+            // failed conversion leave loading chrome or a partly loaded view.
+            _hostLoadAbortController.abort();
+            clearAllMedia(true);
+            _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
             _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
+        }
+
+        function _hostLoadValidateFiles(items, signed) {
+            if (!Array.isArray(items) || items.length < 1 || items.length > 4) {
+                throw new Error('Supply an array of 1–4 media files');
+            }
+            for (const item of items) {
+                if (!item || typeof item.name !== 'string' || !item.name.trim()
+                    || typeof item.contentType !== 'string' || !/^(image|video|audio)\//i.test(item.contentType)
+                    || (item.lastModified !== undefined && !Number.isFinite(item.lastModified))
+                    || (signed && (typeof item.signedUrl !== 'string' || !item.signedUrl.trim()))) {
+                    throw new Error('Invalid media file metadata');
+                }
+            }
+        }
+
+        async function _hostLoadSuppliedFile(item, signal) {
+            let bytes;
+            if (item.base64 !== undefined && item.base64 !== null && item.base64 !== '') {
+                if (typeof item.base64 !== 'string') throw new Error('Invalid base64 media payload');
+                const response = await fetch('data:application/octet-stream;base64,' + item.base64, { signal });
+                if (!response.ok) throw new Error('Could not read base64 media payload');
+                bytes = new Uint8Array(await response.arrayBuffer());
+            } else if (item.buffer instanceof ArrayBuffer || ArrayBuffer.isView(item.buffer)) {
+                bytes = item.buffer;
+            } else if (Array.isArray(item.buffer)) {
+                // Extension JSON transports can supply byte arrays. Do not pass
+                // arbitrary values to Uint8Array: a number is an allocation size.
+                for (const byte of item.buffer) {
+                    if (!Number.isInteger(byte) || byte < 0 || byte > 255) throw new Error('Invalid media byte array');
+                }
+                bytes = new Uint8Array(item.buffer);
+            } else {
+                throw new Error('Missing or invalid media buffer');
+            }
+            if (!bytes.byteLength) throw new Error('Empty media payload');
+            return new File([bytes], item.name, { type: item.contentType, lastModified: item.lastModified });
         }
 
         // Metadata-only invalidation. A host may re-read the native catalog, but receives no
@@ -5867,7 +6042,7 @@
             // Clear the preceding task as soon as the new request is accepted,
             // not after its fetches finish. A failed/slow load must never leave
             // old media visible beneath a new host task.
-            clearAllMedia();
+            clearAllMedia(true);
             const capabilities = event.data && event.data.capabilities;
             _hostCapabilities = Object.freeze({
                 ffmpegTranscode: false, // legacy host flag cannot enable a removed engine
@@ -5922,89 +6097,76 @@
             if ((event.source !== window && event.source !== window.parent) || !event.data || event.data.type !== 'WARPDIFF_LOAD') return;
 
             const request = _hostLoadBegin(event);
-            if (_managedReviewActive()) {
-                const count = (event.data.signedItems || event.data.files || []).length;
-                const labels = event.data.slotLabels;
-                const offset = count <= 2 ? 1 : 0;
-                if (count < 1 || count > 4 || !Array.isArray(labels)
-                    || Array.from({length:count}, (_, index) => labels[index + offset])
-                        .some(label => typeof label !== 'string' || !label.trim() || label.length > 200)) {
-                    _hostLoadFailed(request, 'Managed review requires a display label for each media item');
+            try {
+                if (event.data.error) {
+                    _hostLoadFailed(request, String(event.data.error) + ' — try refreshing the IHWA page');
                     return;
                 }
-            }
-
-            if (event.data.error) {
-                _ihwaPullReset(event.data.error + ' — try refreshing the IHWA page', true);
-                _hostLoadFailed(request, event.data.error);
-                return;
-            }
-
-            // Fast path: signed URLs — fetch directly from GCS (no base64 round-trip)
-            if (event.data.signedItems && event.data.signedItems.length > 0) {
-                try {
-                    const t0 = performance.now();
-                    const filePromises = event.data.signedItems.map(async item => {
-                        const resp = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
-                        if (!resp.ok) throw new Error(`${resp.status} fetching ${item.name}`);
-                        const blob = await resp.blob();
-                        return new File([blob], item.name, {
-                            type: item.contentType,
-                            lastModified: item.lastModified
-                        });
-                    });
-                    const files = await Promise.all(filePromises);
-                    if (!_hostLoadIsCurrent(request.generation)) return;
-                    console.log(`[IHWA] Direct fetch: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
-
-                    _ihwaPullReset();
-                    if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
-                        _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                for (const key of ['signedItems', 'files']) {
+                    if (event.data[key] !== undefined && !Array.isArray(event.data[key])) {
+                        throw new Error(key + ' must be an array');
                     }
-                    return;
-                } catch (e) {
-                    if (!_hostLoadIsCurrent(request.generation) || e.name === 'AbortError') return;
-                    // CORS or network error — fall back to base64 via background
-                    console.warn('[IHWA] Direct fetch failed, requesting fallback:', e.message);
-                    // The extension's same-window transport can ask its background
-                    // for base64. Embedded hosts get a correlated terminal failure.
-                    if (event.source === window) {
-                        window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, window.location.origin);
-                    } else {
-                        _hostLoadFailed(request, e && e.message || e);
-                    }
+                }
+                const signed = !!event.data.signedItems?.length;
+                const items = signed ? event.data.signedItems : event.data.files;
+                // Preserve the same-window extension's empty-response retry.
+                if (!items || items.length === 0) {
+                    if (event.source === window && !_managedReviewActive()) _ihwaPullRetry();
+                    else _hostLoadFailed(request, 'No media files were supplied');
                     return;
                 }
-            }
+                _hostLoadValidateFiles(items, signed);
+                if (_managedReviewActive()) {
+                    const labels = event.data.slotLabels;
+                    const offset = items.length <= 2 ? 1 : 0;
+                    if (!Array.isArray(labels)
+                        || Array.from({length:items.length}, (_, index) => labels[index + offset])
+                            .some(label => typeof label !== 'string' || !label.trim() || label.length > 200)) {
+                        throw new Error('Managed review requires a display label for each media item');
+                    }
+                }
 
-            // Fallback path: base64-encoded files from background
-            if (!event.data.files || event.data.files.length === 0) {
-                if (event.source === window) _ihwaPullRetry();
-                else _hostLoadFailed(request, 'No media files were supplied');
-                return;
-            }
-
-            const t0 = performance.now();
-            const filePromises = event.data.files.map(async f => {
-                let bytes;
-                if (f.base64) {
-                    const resp = await fetch('data:application/octet-stream;base64,' + f.base64);
-                    bytes = new Uint8Array(await resp.arrayBuffer());
+                const t0 = performance.now();
+                let files;
+                if (signed) {
+                    // Only network/conversion errors on this path can request
+                    // the extension's fallback; rejection by the app is terminal.
+                    try {
+                        files = await Promise.all(items.map(async item => {
+                            const response = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
+                            if (!response.ok) throw new Error(`${response.status} fetching ${item.name}`);
+                            const blob = await response.blob();
+                            return new File([blob], item.name, { type: item.contentType, lastModified: item.lastModified });
+                        }));
+                    } catch (error) {
+                        if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                        if (event.source === window) {
+                            _hostLoadAbortController.abort(); // retire sibling fetches awaiting fallback
+                            window.postMessage({ type: 'WARPDIFF_PULL_FALLBACK' }, window.location.origin);
+                            return;
+                        }
+                        throw error;
+                    }
                 } else {
-                    bytes = new Uint8Array(f.buffer);
+                    files = await Promise.all(items.map(item => _hostLoadSuppliedFile(item, request.signal)));
                 }
-                return new File([bytes], f.name, {
-                    type: f.contentType,
-                    lastModified: f.lastModified
-                });
-            });
-            const files = await Promise.all(filePromises);
-            if (!_hostLoadIsCurrent(request.generation)) return;
-            console.log(`[IHWA] Base64 fallback: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
-
-            _ihwaPullReset();
-            if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
-                _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                // Validate the converted batch for both transports. File can
+                // normalize invalid MIME strings to empty; silently filtering one
+                // item would move host labels onto different media. Empty HTTP
+                // 200 bodies are application failures, never network fallbacks.
+                if (files.length !== items.length || files.some(file => !file.size
+                    || !/^(image|video|audio)\//.test(file.type))) {
+                    throw new Error('Empty or invalid supplied media file');
+                }
+                console.log(`[IHWA] ${signed ? 'Direct fetch' : 'Supplied files'}: ${files.length} files in ${Math.round(performance.now() - t0)}ms`);
+                _ihwaPullReset();
+                if (!handleMultipleFiles(files, { skipToast: true, taskType: event.data.taskType, slotLabels: event.data.slotLabels || null, loadGeneration: request.generation, alreadyCleared: true })) {
+                    _hostLoadFailed(request, 'WarpDiff rejected the supplied media set');
+                }
+            } catch (error) {
+                if (!_hostLoadIsCurrent(request.generation) || request.terminal) return;
+                _hostLoadFailed(request, error && error.message || String(error));
             }
         });
 
@@ -6043,8 +6205,10 @@
             // hiding a not-yet-loaded layer and activating the wrong Grid geometry.
             expectedFileCount = mediaFiles.length;
 
-            // Sort by lastModified timestamp (oldest to newest)
-            const sortedFiles = mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
+            // Host labels correspond to the host's array order. Only standalone
+            // loads infer comparison order from oldest-to-newest timestamps.
+            const sortedFiles = opts && opts.loadGeneration ? mediaFiles
+                : mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
             const loadSlots = {
                 1: ['editA'],
                 2: ['editA', 'editB'],
@@ -6053,6 +6217,10 @@
             };
             const assignedSlots = loadSlots[sortedFiles.length];
             const assignments = sortedFiles.map((file, i) => ({ slot: assignedSlots[i], file }));
+            if (opts && _hostLoadIsCurrent(opts.loadGeneration)) {
+                _hostLoadRequest.slots = new Map(assignments.map(({slot,file}) =>
+                    [slot, {media:false, analysis:!file.type.startsWith('audio/')} ]));
+            }
             if (!(opts && (opts.loadGeneration || opts.skipToast))) _usage.enterStandalone();
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
 
@@ -8151,6 +8319,12 @@
             audio.addEventListener('error', function() {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not open', 'error');
+                _hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not play ' + file.name);
+            }, { once: true });
+            audio.addEventListener('loadeddata', function() {
+                if (loadingToken !== _loadingProgressToken) return;
+                _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                checkAllLoaded();
             }, { once: true });
 
             hasAudios = true;
@@ -8194,6 +8368,7 @@
             _reader.onerror = () => {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not read', 'error');
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not read ' + file.name)) return;
                 showLoadToast(`Failed to read ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
@@ -8234,7 +8409,10 @@
                     // valid video dimensions (audio-only or unsupported codec).
                     // Mark as failed so checkAllLoaded doesn't wait for dimensions
                     // that will never arrive from this source.
-                    if (!video.videoWidth) mediaData[slot]._videoLoadFailed = true;
+                    if (!video.videoWidth || !video.videoHeight) {
+                        mediaData[slot]._videoLoadFailed = true;
+                        if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
+                    }
                 }
                 updateResolutionDisplay(slot, video.videoWidth, video.videoHeight);
                 updateDurationDisplay(slot, video.duration);
@@ -8247,7 +8425,11 @@
             });
             video.addEventListener('loadeddata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
-                _setLoadingSlotState(slot, 'Ready', 'ready');
+                if (!video.videoWidth || !video.videoHeight) {
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
+                }
+                if (!_hostLoadIsCurrent(_viewLoadGeneration)) _setLoadingSlotState(slot, 'Ready', 'ready');
+                checkAllLoaded();
             }, { once: true });
 
             // If the browser can't load the file at all (unsupported container/codec),
@@ -8256,6 +8438,7 @@
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                 checkAllLoaded();
             });
 
@@ -8276,6 +8459,7 @@
 
             // Store File for lazy audio decode (read on demand, not upfront)
             audioFileBuffers[slot] = file;
+            _hostLoadVerifyVideo(slot, video, loadingToken);
         }
 
         // ── loadImageFile ────────────────────────────────────────────────
@@ -8303,8 +8487,12 @@
                     await img.decode();
                 } catch (e) {
                     console.warn('Image decode error:', e);
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 }
                 if (loadingToken !== _loadingProgressToken) return;
+                if (!img.naturalWidth || !img.naturalHeight) {
+                    if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
+                } else _hostLoadSlotUpdate(slot, loadingToken, 'media');
 
                 if (mediaData[slot]) { mediaData[slot].w = img.naturalWidth; mediaData[slot].h = img.naturalHeight; }
                 _setLoadingSlotState(slot, 'Ready', 'ready');
@@ -8319,6 +8507,7 @@
             img.onerror = function() {
                 if (loadingToken !== _loadingProgressToken) return;
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
+                if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 showLoadToast(`Failed to load ${file.name}`, true, 5000);
                 checkAllLoaded();
             };
@@ -10558,7 +10747,15 @@
 
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
-        function clearAllMedia() {
+        function clearAllMedia(preserveHostRequest = false) {
+            // Only host acceptance/failure retain correlation while clearing.
+            // Manual replacement or cancellation silently retires pending host I/O.
+            if (!preserveHostRequest) {
+                if (_hostLoadAbortController) _hostLoadAbortController.abort();
+                _hostLoadRequest = null;
+                _ihwaPullReset();
+            }
+            _viewLoadGeneration = null;
             _clearInfoBarViews(); // retire comparison presentation, retain preferences
             _usage.resetComparison(); // invalidate pending usage readiness → js/usage.js
             _resolveVideoProgressTime(null);
@@ -12403,6 +12600,9 @@
 
         // Update checkAllLoaded to show view mode buttons
         function checkAllLoaded() {
+            // Registering mediaData is not evidence that a host asset decoded.
+            // Standalone loads retain their existing partial-failure presentation.
+            if (_hostLoadIsCurrent(_viewLoadGeneration) && !_hostLoadBatchReady(_viewLoadGeneration)) return;
             const loadedCount = getLoadedSlotCount();
             
             // Wait until all expected files are loaded before activating the view.
@@ -13666,18 +13866,19 @@
             // lacks VideoDecoder or can't decode the slot's codec.
             scrubVideo: {
                 supported() { return _scrubVideoSupported(); },
+                inputBudget() { return _scrubVideoInputBudget.state; },
                 sessionState(slot) {
                     const s = _scrubVideoSessions[slot];
                     if (!s) return 'none';
                     if (s === 'failed') return 'failed';
-                    if (typeof s.close !== 'function') return 'pending';
+                    if (typeof s.then === 'function') return 'pending';
                     return s.suspended ? 'suspended' : 'ready';
                 },
                 overlayLive() { return Object.keys(_scrubOverlayLive).length > 0; },
                 overlayCount() { return Object.keys(_scrubOverlayLive).length; },
                 cacheStats(slot) {
                     const s = _scrubVideoSessions[slot];
-                    return (s && typeof s.close === 'function') ? s.cacheStats : null;
+                    return (s && typeof s.then !== 'function' && typeof s.close === 'function') ? s.cacheStats : null;
                 },
                 async dispatchProbe(targets) {
                     if (isDragging || _scrubOverlayDispatchRaf) return null;
@@ -13795,7 +13996,7 @@
                 <li>2 files → assigned to <strong>A</strong> and <strong>B</strong></li>
                 <li>3 files → assigned to <strong>Ref</strong>, <strong>A</strong>, and <strong>B</strong> by default; audio labels the reference <strong>GT</strong></li>
                 <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
-                <li>Files are automatically sorted oldest → newest by last-modified timestamp</li>
+                <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
             <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
@@ -13909,7 +14110,7 @@
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
             <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
-            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position.</p>
+            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>

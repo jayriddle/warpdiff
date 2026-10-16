@@ -8,6 +8,9 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   projects: [
+    {name:'webkit-host-load', testMatch:'host-load.spec.ts', use:{browserName:'webkit'}},
+    {name:'webkit-info-focus', testMatch:'info-bar.spec.ts', grep:/queued fits preserve focus/, use:{browserName:'webkit'}},
+    {name:'webkit-scrub-input', testMatch:'scrub-input.spec.ts', grep:/native seek|clearing pending|overlong response/, use:{browserName:'webkit'}},
     {name:'webkit-workflow', testMatch:['ffmpeg-command.spec.ts', 'external-preparation.spec.ts'],
       use:{browserName:'webkit'}},
     {name:'webkit-reload', testMatch:'audio-format.spec.ts', grep:/source format changes only/,

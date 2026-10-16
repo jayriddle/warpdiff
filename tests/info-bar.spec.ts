@@ -181,6 +181,32 @@ test('narrow bars show only selected overflow fields and clearing removes stale 
   await expect(page.locator('.info-custom')).toHaveCount(0);
 });
 
+test('queued fits preserve focus on a More button that remains visible', async ({page}) => {
+  await page.setViewportSize({width:640,height:760});
+  await load(page, ['landscape_a.mp4','landscape_b.mp4','portrait.mp4','side_lr.mp4']);
+  await open(page, 'video'); await page.locator('#infoEditorPreset').selectOption('all');
+  await page.locator('#infoEditorAudio').uncheck(); await close(page);
+  // Native dialog close is queued; wait for its focus restoration before choosing More.
+  await expect(page.locator('#infoEditorButton')).toHaveAttribute('aria-expanded','false');
+  const more = page.locator('.asset-info-bar.info-custom .info-more').first();
+  await expect(more).toBeVisible();
+  await more.focus();
+  await expect(more).toBeFocused();
+  const states = await more.evaluate(async button => {
+    const states = [];
+    for (let i=0;i<3;i++) {
+      (window as any)._queueInfoBarRefresh();
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      states.push({focused:document.activeElement === button, visible:button.getClientRects().length > 0});
+    }
+    return states;
+  });
+  expect(states, 'A queued fit must keep focus while More remains visible').toEqual(
+    Array.from({length:3}, () => ({focused:true,visible:true})));
+  await more.click(); await page.keyboard.press('Escape');
+  await expect(more).toBeFocused();
+});
+
 test('editor keyboard controls stay local, native focus is contained and Escape restores focus', async ({ page }) => {
   await load(page, ['landscape_a.mp4','landscape_b.mp4']);
   const before = await page.evaluate(() => (window as any).__testAPI.isGridMode);

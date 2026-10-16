@@ -1,0 +1,170 @@
+{
+  "branch": "codex/media-input-hardening",
+  "pr": "https://github.com/jayriddle/warpdiff/pull/47",
+  "baseline": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+  "reviewedFeature": "a625b7b3b4754096d05b218d759a4b5a5d768062",
+  "testedMerge": "a24f76d77e915b57dfba237f841cbac6e968f87a",
+  "hosted": {
+    "feature": "a625b7b3b4754096d05b218d759a4b5a5d768062",
+    "testedMerge": "a24f76d77e915b57dfba237f841cbac6e968f87a",
+    "identicalTree": "7bf2d65a8b66991c990529976ee412565972419d",
+    "runId": 38841981228,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/38841981228",
+    "event": "pull_request",
+    "attempt": 1,
+    "conclusion": "success",
+    "chromium": {
+      "total": 499,
+      "passed": 498,
+      "skipped": 1,
+      "reports": 3
+    },
+    "webkit": {
+      "total": 112,
+      "passed": 112,
+      "skipped": 0,
+      "retries": 0,
+      "complete": true
+    },
+    "ownership": 870,
+    "infrastructure": 18,
+    "seconds": 504,
+    "publication": "skipped",
+    "publicArtifact": {
+      "sha": "a24f76d77e915b57dfba237f841cbac6e968f87a",
+      "files": 35,
+      "allHashesVerified": true,
+      "allSourceBytesVerified": true
+    },
+    "jobs": [
+      {
+        "name": "Chromium shard 3/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 2/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "WebKit preparation workflow",
+        "conclusion": "success"
+      },
+      {
+        "name": "Stage public files",
+        "conclusion": "success"
+      },
+      {
+        "name": "Ownership and infrastructure",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 1/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium and ownership",
+        "conclusion": "success"
+      },
+      {
+        "name": "Publish verified main",
+        "conclusion": "skipped"
+      }
+    ],
+    "digestChecks": [
+      {
+        "name": "webkit-results",
+        "digest": "sha256:f07d7b1423513f19dd16db210a2c82091733b611fdc1749cfd80f435b3c9a2c2",
+        "verified": true
+      },
+      {
+        "name": "chromium-2",
+        "digest": "sha256:af353cb37e48f2791ca68595b157a13cdaa8bc58d7c6472fd9d44ec316992357",
+        "verified": true
+      },
+      {
+        "name": "chromium-1",
+        "digest": "sha256:2548f148d513fd847ce9cb12348877569e47cdb49c0c567ae99ba46bad70bd75",
+        "verified": true
+      },
+      {
+        "name": "github-pages",
+        "digest": "sha256:5a9b6bda285cfbd836692ab4ea1d874cb638c26fe989fcb12678a1901379d3be",
+        "verified": true
+      },
+      {
+        "name": "pages-manifest",
+        "digest": "sha256:96771113140dceab55cf8649164116d16f2537b14320a136d76f39cd91f17891",
+        "verified": true
+      },
+      {
+        "name": "chromium-3",
+        "digest": "sha256:0dd5a5a237fb7e105f20a94e12f7471b6236bb9cbe12b603c02bfe6fe3643e24",
+        "verified": true
+      }
+    ]
+  },
+  "review": {
+    "finding": "P2 regression-test setup race with queued native dialog close",
+    "runtimeFindings": [],
+    "initialFocused": {
+      "chrome": {
+        "passed": 8,
+        "failed": 1
+      },
+      "webkit": {
+        "passed": 9,
+        "failed": 0
+      }
+    },
+    "supplementalPerEngine": 5,
+    "realDeadlineMs": {
+      "chrome": 10053.5,
+      "webkit": 10052
+    },
+    "sourceCorrectionApproved": true,
+    "preservationEntries": 5520,
+    "preservationBytes": 424714645,
+    "notes": "Independent review excluded the orchestration directory and .git; it did not compare atime/mtime."
+  },
+  "correction": {
+    "files": [
+      "tests/info-bar.spec.ts"
+    ],
+    "addedLines": 3,
+    "productionChanged": false,
+    "testSha256": "3c808afd5eb964db26644a194055ed0b511b663a73fcb799128e4583bdbaa0a6",
+    "verification": {
+      "positive": [
+        {
+          "browser": "chrome",
+          "passed": 20,
+          "retries": 0,
+          "seconds": 68.51257100000001
+        },
+        {
+          "browser": "webkit",
+          "passed": 20,
+          "retries": 0,
+          "seconds": 69.49930599999999
+        }
+      ],
+      "negative": {
+        "baseline": "9da778005bc61898f0ba64b5e708248575356343",
+        "expectedFailures": 1,
+        "errorCount": 1,
+        "intendedMessage": "A queued fit must keep focus while More remains visible",
+        "file": "/Users/jay/Documents/warpdiff/output/media-input-pr-2026-10-15-jwn0fF/focus-negative/info-bar-negative.spec.ts",
+        "line": 206,
+        "setupPassed": true,
+        "retries": 0
+      }
+    },
+    "ownership": 872,
+    "infrastructure": 18,
+    "whitespace": "passed"
+  },
+  "nextHostedRun": "Pending for corrective commit at summary commit time; final SHA-specific result recorded in PR and local receipt.",
+  "merge": "on hold",
+  "publication": "on hold",
+  "rawEvidence": "/Users/jay/Documents/warpdiff/output/media-input-pr-2026-10-15-jwn0fF/"
+}

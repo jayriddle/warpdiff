@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.1
+**Current version:** 3.19.2
 
 ---
 
@@ -39,6 +39,8 @@ See the [playhead implementation and before/after measurements](docs/playhead-mo
 After scrubbing, Play and Restart (`R`) restore the selected playback scope and loop range. Restart also suspends the idle scrub decoder while retaining cached frames for the next drag. See the [restart verification record](docs/restart-playback-2026-09-15.md).
 
 Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long keyframe gaps can still delay an uncached seek. See the [scrubbing investigation](docs/playback-lag-investigation-2026-10-05.md).
+
+Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking. See the [input hardening record](docs/media-input-hardening-2026-10-15/README.md) for the limits and verification.
 
 Waveform, spectrogram, and loudness analysis run in the background while files prepare, keeping playback and controls responsive with the same original-audio calculations. See the [playback investigation and verification record](docs/video-stutter-2026-09-15.md).
 
@@ -125,7 +127,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 3. Use **Stack / Grid** buttons to switch views
 4. Press **H** to see all keyboard shortcuts
 
-Files auto-sort oldest → newest by timestamp. Four-item reviews use media-aware labels—**Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**—and visual media opens in a 2×2 Inline grid. See [MANUAL.md](MANUAL.md) for full documentation.
+Manually loaded files auto-sort oldest → newest by timestamp; host loads retain the supplied order. Four-item reviews use media-aware labels—**Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**—and visual media opens in a 2×2 Inline grid. See [MANUAL.md](MANUAL.md) for full documentation.
 
 ---
 
@@ -202,3 +204,5 @@ Jay Riddle — [GitHub](https://github.com/jayriddle)
 ### Managed review hosts
 
 Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
+
+Host loads retain the supplied file order so display labels stay with their media. Empty files, invalid converted types and initial media decoding failures report one correlated failure, clear the partial comparison, and restore the Pull control. READY waits for every image to decode, every video to supply a usable decoded frame, and audio-only files to become playable with decoded waveforms. Initial video verification has a 10-second limit and fails the batch if no frame becomes available. When necessary, a temporary muted decoder verifies the video without starting or seeking the comparison. This checks initial usability, not whole-file integrity. Superseded requests cannot reset a newer comparison. Hosts can supply base64, ArrayBuffers, byte views or byte arrays for 1–4 files.

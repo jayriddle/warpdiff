@@ -1,0 +1,295 @@
+{
+  "reviewedStartingPoint": "40154668bdef6fdcbde5d108b217b7e89348d954",
+  "releasedBaseline": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+  "branch": "codex/media-input-hardening",
+  "candidateVersion": "3.19.2",
+  "local": {
+    "chromium": {
+      "total": 490,
+      "passed": 489,
+      "skipped": 1,
+      "reports": 1,
+      "seconds": 470.896987,
+      "retries": 0
+    },
+    "webkit": {
+      "total": 103,
+      "passed": 103,
+      "skipped": 0,
+      "reports": 1,
+      "seconds": 81.04351299999999,
+      "retries": 0
+    },
+    "hostChrome": {
+      "passed": 50,
+      "seconds": 33.23549,
+      "retries": 0
+    },
+    "ownership": 872,
+    "infrastructure": 18,
+    "parser": {
+      "passed": 314,
+      "newAllocationChecks": 8,
+      "counterfactualFailures": 8,
+      "identicalFixtures": 16
+    },
+    "negativeBrowser": {
+      "expectedFailures": 3,
+      "seconds": 13.441532,
+      "retries": 0
+    },
+    "protocolRouteCorrection": {
+      "chrome": {
+        "passed": 50,
+        "failed": 0,
+        "seconds": 33.724733
+      },
+      "webkit": {
+        "passed": 103,
+        "failed": 0,
+        "seconds": 76.52458299999999
+      },
+      "retries": 0,
+      "ownership": 872
+    }
+  },
+  "evidenceDirectory": "/Users/jay/Documents/warpdiff/output/media-input-follow-up-2026-10-15-aaaPWt",
+  "merge": "held",
+  "publication": "held",
+  "hosted": {
+    "sha": "976423bd40f7168dcca34cbf000fc169ae36e187",
+    "runId": 38814474872,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/38814474872",
+    "attempt": 1,
+    "conclusion": "success",
+    "chromium": {
+      "total": 490,
+      "passed": 489,
+      "skipped": 1,
+      "reports": 3
+    },
+    "webkit": 103,
+    "ownership": 870,
+    "infra": 18,
+    "seconds": 423,
+    "publication": "skipped",
+    "publicArtifact": {
+      "sha": "976423bd40f7168dcca34cbf000fc169ae36e187",
+      "files": 35,
+      "allHashesVerified": true,
+      "allSourceBytesVerified": true
+    },
+    "jobs": [
+      {
+        "name": "Chromium shard 2/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 3/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium shard 1/3",
+        "conclusion": "success"
+      },
+      {
+        "name": "Ownership and infrastructure",
+        "conclusion": "success"
+      },
+      {
+        "name": "WebKit preparation workflow",
+        "conclusion": "success"
+      },
+      {
+        "name": "Stage public files",
+        "conclusion": "success"
+      },
+      {
+        "name": "Chromium and ownership",
+        "conclusion": "success"
+      },
+      {
+        "name": "Publish verified main",
+        "conclusion": "skipped"
+      }
+    ],
+    "sourceCommit": "976423bd40f7168dcca34cbf000fc169ae36e187",
+    "digestChecks": [
+      {
+        "name": "chromium-1",
+        "digest": "sha256:940e339984c2365c861c75d35a9a1e8a2c059393203478459bcaa96143ec1a8a",
+        "verified": true
+      },
+      {
+        "name": "pages-manifest",
+        "digest": "sha256:b51560d5bc3174bad559e69fb1ec259f66c0c6c4a2c32b5ff3c37df2f64f7e77",
+        "verified": true
+      },
+      {
+        "name": "github-pages",
+        "digest": "sha256:3ddb7671decdd2fb9f79fbb2856a61ab67be486eef116b01c4264dda89af0945",
+        "verified": true
+      },
+      {
+        "name": "chromium-2",
+        "digest": "sha256:3ba935dc47cb83f9e871dfc25dd586cda81924f404b8cea0c9bf0f78be61562a",
+        "verified": true
+      },
+      {
+        "name": "webkit-results",
+        "digest": "sha256:bd423d5ab787d072017f93e2097c778dfa92f0484d48f9f685030d39b97607fe",
+        "verified": true
+      },
+      {
+        "name": "chromium-3",
+        "digest": "sha256:3ab7518f14c3dc796b3042624700f4cc42a0aef23b84913b09f36ec069e300f6",
+        "verified": true
+      }
+    ],
+    "webkitValidation": {
+      "total": 103,
+      "passed": 103,
+      "skipped": 0,
+      "retries": 0,
+      "complete": true
+    }
+  },
+  "limitations": [
+    "Encoded-input budgets and metadata caps do not cap total browser memory",
+    "No complete AVC/HEVC bitstream validation",
+    "Focused WebKit profile, no physical Safari listening or loudness/true-peak conformance",
+    "Historical Grid failure remains unexplained"
+  ],
+  "retainedFailedAttempts": [
+    "Exploratory negative run interrupted after reproducing empty READY; completed pinned replay has three intended failures",
+    "Expanded Chrome host run interrupted because its new audio probe patched a retired context; corrected 50-case run passes",
+    "Earlier independent/author failures retained in original verification record",
+    "First hosted run failed: WebKit protocol response interception plus two additional Chromium assertions; retained with no retries"
+  ],
+  "firstHosted": {
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/38813044298",
+    "sha": "eae70cd53e339a8237d7cbebc7deb9fabd5683a8",
+    "attempt": 1,
+    "conclusion": "failure",
+    "chromium": {
+      "total": 490,
+      "passed": 487,
+      "failed": 2,
+      "skipped": 1
+    },
+    "webkit": {
+      "total": 103,
+      "passed": 100,
+      "failed": 3
+    },
+    "publication": "skipped",
+    "protocolFailure": "Three same-window empty-response cases received a real 404 because the service worker bypassed page.route",
+    "otherFailures": [
+      {
+        "test": "dialogue short previews use the same center mix at 44100 Hz",
+        "received": 0.012315439999679567,
+        "required": "> 0.02",
+        "cause": "unestablished"
+      },
+      {
+        "test": "narrow bars show only selected overflow fields and clearing removes stale details",
+        "received": "More button inactive after Escape",
+        "required": "focus restored",
+        "cause": "unestablished"
+      }
+    ]
+  },
+  "testedCommit": "976423bd40f7168dcca34cbf000fc169ae36e187",
+  "productionChangeCommit": "eae70cd53e339a8237d7cbebc7deb9fabd5683a8",
+  "packaged": {
+    "sha": "976423bd40f7168dcca34cbf000fc169ae36e187",
+    "url": "http://127.0.0.1:62230/",
+    "results": [
+      {
+        "browser": "chromium",
+        "version": "v3.19.2 · 976423b",
+        "serviceWorker": true,
+        "imageComparison": true,
+        "stackGrid": true,
+        "videoPlaybackPauseStep": true,
+        "audioLoadVisualization": true,
+        "hostDecodeFailure": true,
+        "hostOrder": true,
+        "uncaughtErrors": [],
+        "analyticsRequests": [],
+        "offlineReloadAndImages": true
+      },
+      {
+        "browser": "webkit",
+        "version": "v3.19.2 · 976423b",
+        "serviceWorker": true,
+        "imageComparison": true,
+        "stackGrid": true,
+        "videoPlaybackPauseStep": true,
+        "audioLoadVisualization": true,
+        "hostDecodeFailure": true,
+        "hostOrder": true,
+        "uncaughtErrors": [],
+        "analyticsRequests": []
+      }
+    ]
+  },
+  "testOnlyCorrection": {
+    "productionCommit": "eae70cd53e339a8237d7cbebc7deb9fabd5683a8",
+    "fixtureCorrectionCommit": "976423bd40f7168dcca34cbf000fc169ae36e187",
+    "changedFiles": [
+      "docs/media-input-hardening-2026-10-15/follow-up-verification.json",
+      "docs/media-input-hardening-2026-10-15/follow-up.md",
+      "tests/host-load.spec.ts"
+    ],
+    "publicAssets": 35,
+    "changedPublicAssets": [
+      "version.json"
+    ],
+    "identicalRuntimeAssets": 34
+  },
+  "mainAndLive": {
+    "baseline": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+    "remoteMain": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f",
+    "liveVersion": {
+      "status": 200,
+      "body": {
+        "sha": "c2454a53cfab6c863e78fc0d07adc52b2235fa7f"
+      }
+    },
+    "live": [
+      {
+        "file": "index.html",
+        "status": 200,
+        "matchesReleasedBaseline": true
+      },
+      {
+        "file": "js/audio-decode.js",
+        "status": 200,
+        "matchesReleasedBaseline": true
+      },
+      {
+        "file": "js/mp4-demux.js",
+        "status": 200,
+        "matchesReleasedBaseline": true
+      }
+    ],
+    "protectionsUnchanged": true,
+    "pagesSettingsUnchanged": true
+  },
+  "preservation": {
+    "existingFiles": 4252,
+    "existingSymlinks": 7,
+    "existingBytes": 312308492,
+    "unrelatedChanges": [],
+    "missing": [],
+    "unexpectedNew": [],
+    "preexistingUntrackedUnchanged": true,
+    "preserved": true
+  },
+  "historicalObservations": [
+    "Historical Grid topGap=-899 has no established cause or repair",
+    "First hosted short-preview amplitude and info-bar focus failures passed in the final hosted run; their causes and repair remain unestablished"
+  ],
+  "notes": "Final verification notes follow the hosted-tested commit; application and test contents remain identical to the hosted target."
+}

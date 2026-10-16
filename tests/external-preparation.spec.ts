@@ -230,15 +230,18 @@ test('service worker installs without FFmpeg and retires only owned legacy cache
   const deleted: string[] = [];
   let installed: string[] = [];
   let claimed = false;
+  let currentCache = '';
   const source = fs.readFileSync(path.join(__dirname, '../sw.js'), 'utf8');
   const context = vm.createContext({URL, Set, Promise,
     self:{registration:{scope:'https://example.test/warpdiff/'},
       addEventListener:(type:string, fn:(event:any) => void) => {listeners[type] = fn;},
       skipWaiting:() => {}, clients:{claim:() => {claimed = true;}}},
     caches:{open:async () => ({addAll:async (assets:string[]) => {installed = assets;}}),
-      keys:async () => ['warpdiff-v3.19.0', 'warpdiff-v3.19.1', 'warpdiff-ffmpeg', 'host-cache', 'host-ffmpeg'],
+      keys:async () => ['warpdiff-v0.0.0', 'warpdiff-v0.0.1', currentCache, 'warpdiff-ffmpeg', 'host-cache', 'host-ffmpeg'],
       delete:async (name:string) => {deleted.push(name); return true;}}});
   vm.runInContext(source, context);
+  currentCache = vm.runInContext('CACHE_NAME', context);
+  expect(currentCache).toMatch(/^warpdiff-v\d+\.\d+\.\d+$/);
   let pending!: Promise<void>;
   const event = {waitUntil:(promise:Promise<void>) => {pending = promise;}};
   listeners.install(event);
@@ -247,7 +250,7 @@ test('service worker installs without FFmpeg and retires only owned legacy cache
   expect(installed.some(asset => asset.includes('ffmpeg'))).toBe(false);
   listeners.activate(event);
   await pending;
-  expect(deleted).toEqual(['warpdiff-v3.19.0', 'warpdiff-ffmpeg']);
+  expect(deleted).toEqual(['warpdiff-v0.0.0', 'warpdiff-v0.0.1', 'warpdiff-ffmpeg']);
   expect(claimed).toBe(true);
   for (const url of ['https://example.test/warpdiff/ffmpeg/ffmpeg-core.wasm', 'https://example.test/host-file.mp4']) {
     let intercepted = false;

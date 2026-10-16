@@ -20,6 +20,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { runInNewContext } from 'node:vm';
 import { runScrubVideoChecks } from './scrub-video-regression.mjs';
+import { runMalformedVideoChecks } from './mp4-video-malformed.mjs';
+import { runScrubInputChecks } from './scrub-input-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -2339,5 +2341,7 @@ function extractFn(name, src = SRC) {
 
 // ── summary ───────────────────────────────────────────────────────────────────
 await runScrubVideoChecks(check);
+runMalformedVideoChecks(check);
+await runScrubInputChecks(check);
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

@@ -2,6 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.2 (prepared October 15, 2026; unpublished)
+
+- Empty or decode-rejected host media now reports one correlated failure and restores loading controls. Host file order and display labels stay paired, independently of timestamps. Superseded requests and manual replacements retire pending host work.
+- Host video readiness now checks for a usable decoded frame with a bounded failure path, including files whose metadata loads despite missing video samples. Routine info-bar refreshes retain keyboard focus on More when it remains visible.
+- Video scrubbing rejects malformed MP4 headers, short configuration headers and inconsistent sample maps cleanly; impossible tables are rejected before per-sample allocation. Tables above one million entries use native seeking. Encoded scrub inputs have a 256 MiB per-video and 512 MiB shared budget; larger inputs use native seeking. Pending cancellation remains accounted until settlement.
+- Original audio analysis, playback and frame-cache budgets retain their existing owners. The existing What's New summary is retained for this quiet maintenance update. Verification: [input hardening](media-input-hardening-2026-10-15/README.md).
+
 ## v3.19.1 (interim release prepared October 11, 2026; unpublished)
 
 - Removes the browser FFmpeg wrapper, engine, loader, conversion queue and automatic source replacement. Native decoding and WebCodecs remain available.

@@ -1,0 +1,137 @@
+{
+  "date": "2026-10-15",
+  "branch": "codex/media-input-hardening",
+  "base": "9da778005bc61898f0ba64b5e708248575356343",
+  "state": "local verification snapshot before subsequent authorized commit/PR; merge/publication on hold",
+  "findingsAddressed": [
+    {
+      "priority": "P2",
+      "issue": "Metadata-only video can receive READY",
+      "behavior": "Usable native frame required; cancellable muted verifier when needed; ten-second failure deadline"
+    },
+    {
+      "priority": "P3",
+      "issue": "More loses keyboard focus during fitting",
+      "behavior": "Final visibility is decided before writing hidden"
+    }
+  ],
+  "checks": {
+    "chromium": {
+      "total": 499,
+      "passed": 498,
+      "skipped": 1,
+      "reports": 1,
+      "seconds": 498.095908,
+      "workers": 1,
+      "retries": 0
+    },
+    "webkit": {
+      "total": 112,
+      "passed": 112,
+      "skipped": 0,
+      "reports": 1,
+      "seconds": 114.45329,
+      "workers": 1,
+      "retries": 0
+    },
+    "ownership": {
+      "passed": 872,
+      "failed": 0
+    },
+    "infrastructure": {
+      "passed": 18,
+      "failed": 0
+    },
+    "negativeChrome": {
+      "intendedFailures": 5,
+      "retries": 0,
+      "validation": "negative-location-validation.json"
+    },
+    "negativeWebkit": {
+      "intendedFailures": 4,
+      "retries": 0,
+      "validation": "negative-webkit-validation.json"
+    }
+  },
+  "testedSourceSha256": {
+    "index.html": "31730bb0e99619d802834b5a1ca953cd535c807b59ba8ce5b064b90c65521d75",
+    "js/info-bar.js": "382165b0ffe6b3f9d2756cc6cf8e05f42414330a61851bf2ebb031eb1050231b",
+    "tests/host-load.spec.ts": "7ae320f39a896226bace1e1778437113654723dd47dbd0fd7d324386687ebfc0",
+    "tests/info-bar.spec.ts": "a93b96d44705c209f9e6656f295fdb9cfc811ebfb60449b03520ff1bfb043956",
+    "playwright.webkit.config.ts": "7bf3f9e92e6811097fafe02d614bbec52cd69410110ed637f846686baa7cd336"
+  },
+  "environment": {
+    "node": "v26.4.0",
+    "playwright": "1.58.2",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers"
+  },
+  "retainedFailures": [
+    {
+      "report": "focused-chrome.json",
+      "result": "Two same-window passes; managed-host setup failed because display labels were omitted; run interrupted. Labels corrected."
+    },
+    {
+      "report": "negative-chrome.json",
+      "result": "Intended video failure followed by a test timeout during failure handling; interrupted. Not counted as clean negative verification."
+    },
+    {
+      "report": "negative-chrome-corrected.json",
+      "result": "Intended premature-READY assertion followed by a test timeout during failure handling; interrupted. Exact timeout cause unestablished."
+    }
+  ],
+  "negativeHarness": "Final negative-only configuration disables failure screenshots/traces and excludes unrelated lifecycle setup cases; all selected cases fail once at the intended assertion message, source path and line, with no runner errors, retries or skips.",
+  "limitations": [
+    "Initial usability is not whole-file integrity validation.",
+    "If the browser blocks necessary muted verification, the current host batch fails.",
+    "Black/transparent pixel branches use canvas source controls; no arbitrary codec conformance is claimed.",
+    "No physical Safari listening or loudness/true-peak conformance check.",
+    "Historical Grid and 44.1 kHz short-preview observations remain unresolved.",
+    "During this local verification phase, no hosted workflow, packaged smoke, commit, push, PR or publication action was performed. Subsequent commit/PR/check results are recorded separately."
+  ],
+  "evidenceDirectory": "/Users/jay/Documents/warpdiff/output/media-readiness-fix-2026-10-15-booXAH",
+  "preservationAudit": "/Users/jay/Documents/warpdiff/output/media-readiness-fix-2026-10-15-booXAH/preservation-final.json",
+  "httpSourceVerification": [
+    {
+      "file": "index.html",
+      "status": 200,
+      "sha256": "31730bb0e99619d802834b5a1ca953cd535c807b59ba8ce5b064b90c65521d75"
+    },
+    {
+      "file": "js/info-bar.js",
+      "status": 200,
+      "sha256": "382165b0ffe6b3f9d2756cc6cf8e05f42414330a61851bf2ebb031eb1050231b"
+    }
+  ],
+  "preservation": {
+    "head": "9da778005bc61898f0ba64b5e708248575356343",
+    "branch": "codex/media-input-hardening",
+    "headUnchanged": true,
+    "branchUnchanged": true,
+    "stagedDiffEmpty": true,
+    "existingEntries": 5328,
+    "existingFiles": 5321,
+    "existingSymlinks": 7,
+    "changed": [
+      "AGENTS.md",
+      "FEATURES.md",
+      "MANUAL.md",
+      "README.md",
+      "docs/release-notes-archive.md",
+      "index.html",
+      "js/info-bar.js",
+      "playwright.webkit.config.ts",
+      "tests/host-load.spec.ts",
+      "tests/info-bar.spec.ts"
+    ],
+    "missing": [],
+    "added": [
+      "docs/media-input-hardening-2026-10-15/adversarial-fixes-verification.json",
+      "docs/media-input-hardening-2026-10-15/adversarial-fixes.md"
+    ],
+    "unexpectedChanges": [],
+    "unexpectedAdditions": [],
+    "removedStatusEntries": [],
+    "ok": true
+  },
+  "temporaryVerificationServer": "Stopped after testing; only the server started for this correction was stopped."
+}

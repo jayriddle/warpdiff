@@ -43,7 +43,7 @@ The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.
 - 2 files → assigned to **A** and **B**
 - 3 files → assigned to **Ref**, **A**, and **B** by default; the reference is labeled **GT** for audio, and connected review tasks may supply more specific labels such as Source or Response
 - 4 files → assigned in oldest-to-newest order and labeled by type: **Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**
-- Files are automatically sorted oldest → newest by last-modified timestamp
+- Manually loaded files are automatically sorted oldest → newest by last-modified timestamp; host loads retain the supplied order
 
 **Loading progress:** While WarpDiff prepares a comparison, it lists every assigned slot and filename with live states for opening the file, reading metadata, decoding the first visible frame, and readiness. Completed files are checked off while slower files continue to animate. When one video finishes first, the message identifies which file is still being prepared and explains that WarpDiff is waiting to reveal the complete comparison together. A longer wait adds a reminder about large or complex files. Click **Cancel** to stop a manual load and return to the landing screen.
 
@@ -235,6 +235,8 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
 Chrome scrubbing preserves decoding that can still reach the requested frame when you change direction, and reuses cached frames. Software-decoded High 4:4:4 H.264 keeps more full-resolution preview frames within the existing cache budget. Very long gaps between keyframes can still delay a first seek to an uncached position.
+
+Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking. This budget counts retained files and pending reads, including cancellation until it finishes; it does not cap total browser memory or audio analysis. Unknown input sizes also use native scrubbing.
 
 In Safari, video drag seeks wait for the preceding seek to finish and paint before following the latest pointer position. Returning to the tab refreshes its video surfaces. A drag interrupted by changing tabs ends paused; press Play to continue. Scrub preview uses native sound output to avoid silent previews; Continuous processing, listening controls and short-preview fallback still apply. A new scrub gesture also wakes the separate processing engine after Safari suspends or interrupts it. Desktop mono/stereo video keeps Safari's native audio output to reduce picture stalls after seeking. Surround audio still uses the shared listening mix and may retain Safari's brief playback-start delay.
 
@@ -500,6 +502,8 @@ Press **?** or click the **Help** button in the header to reopen the Getting Sta
 ### Managed review hosts
 
 Hosts may request `capabilities.managedReview` for assigned comparisons. This hides standalone branding, file management and native help, retains the original Grid/Stack icons with explanatory tooltips and accessible labels, and keeps view controls, inspection icons and media details in their native toolbar positions. WarpDiff retains playback and inspection ownership; the host owns tasks and supplies display labels through `slotLabels`, including audio-source selectors. Without that capability, standalone behavior remains available.
+
+Host loads retain the supplied file order so display labels stay with their media. Empty files, invalid converted types and initial media decoding failures report one correlated failure, clear the partial comparison, and restore the Pull control. READY waits for every image to decode, every video to supply a usable decoded frame, and audio-only files to become playable with decoded waveforms. Initial video verification has a 10-second limit and fails the batch if no frame becomes available. When necessary, a temporary muted decoder verifies the video without starting or seeking the comparison. This checks initial usability, not whole-file integrity. Superseded requests cannot reset a newer comparison. Hosts can supply base64, ArrayBuffers, byte views or byte arrays for 1–4 files.
 
 ## Scrub audio
 
