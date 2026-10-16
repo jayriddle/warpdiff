@@ -1,0 +1,92 @@
+{
+  "scope": "saved-settings reliability (F3)",
+  "baseline": "acde748321b7912addaf751335d988c35eea82f7",
+  "branch": "codex/settings-reliability",
+  "version": "3.19.3",
+  "local": {
+    "chromium": {
+      "total": 128,
+      "passed": 128,
+      "skipped": 0,
+      "retries": 0,
+      "runnerErrors": 0,
+      "seconds": 155.67395299999998
+    },
+    "webkit": {
+      "total": 136,
+      "passed": 136,
+      "skipped": 0,
+      "retries": 0,
+      "runnerErrors": 0,
+      "seconds": 130.595321
+    },
+    "ownership": 912,
+    "infrastructure": 18
+  },
+  "baselineNegativeControls": {
+    "baseline": "acde748321b7912addaf751335d988c35eea82f7",
+    "passed": true,
+    "checks": [
+      {
+        "title": "invalid hotkeys recover without discarding valid preferences: {broken",
+        "intendedFailure": "Stored settings must not prevent app startup",
+        "line": 35,
+        "exactLocation": true,
+        "retries": 0
+      },
+      {
+        "title": "invalid rotation preference cannot abort startup: \"{broken\"",
+        "intendedFailure": "Stored settings must not prevent app startup",
+        "line": 35,
+        "exactLocation": true,
+        "retries": 0
+      },
+      {
+        "title": "storage getter failures leave loading and settings controls usable",
+        "intendedFailure": "Stored settings must not prevent app startup",
+        "line": 35,
+        "exactLocation": true,
+        "retries": 0
+      },
+      {
+        "title": "storage read failures leave loading and settings controls usable",
+        "intendedFailure": "Stored settings must not prevent app startup",
+        "line": 35,
+        "exactLocation": true,
+        "retries": 0
+      },
+      {
+        "title": "storage write failures leave loading and settings controls usable",
+        "intendedFailure": "Settings failures must not prevent comparison loading",
+        "line": 40,
+        "exactLocation": true,
+        "retries": 0
+      }
+    ]
+  },
+  "sourceSha256": {
+    "index.html": "04d35b5273a670bcf86228fd7722b0472bed6e1e61102b1f60ee2df138f5b74c",
+    "sw.js": "e797b84e6ecd0e458906cb2bc683a4a90326bb7f57f77fc17aaaf9ece7ca6952",
+    "js/preferences.js": "f4554bcbd7e7aa8521c7cef24161e1c8b2b9d1ffe411c02a77be4bfe31e99269",
+    "js/hotkeys.js": "36ef5c77853d7f6230d29c50759870e839351bd85eb96acdaa6cf2513fec54d5",
+    "js/appearance.js": "e7a6c54b01c13104a254dfdbc1bead319a47f80137f9c87c2dab8e66e8a150ae",
+    "playwright.webkit.config.ts": "20162a1f3ced773b5d833e409ae1c0b6ffa3708072c6aff3fa050ecff1b6be8f",
+    "tests/ownership.test.mjs": "ad86281321cbb54e59d69ab114d2aab27c8e52255d6b4e6a25fe71903d4aae5e",
+    "tests/preferences-regression.mjs": "c0381a9057d9bb32105c7d75f21fd9a9ccb03a5fa0afca309d1688089f2384bd",
+    "tests/preferences.spec.ts": "11f4723bd6e1b793bb8c0bba45d46fd0e457c17fb264f520afbf7084c0739325",
+    "tests/info-bar.spec.ts": "eb078d7d8420202019cf11d9549afa97b2a0a609ffb9e150f35e7f57355fc075"
+  },
+  "analytics": {
+    "adapterUnchanged": true,
+    "integrity": "sha256-TnipocZqA5CuAUe6IyZF8EsFzuxvopwb/npCZfLmh1I=",
+    "strictReadAndWriteFailuresPreserved": true
+  },
+  "review": "Author second pass; no new independent review claimed",
+  "hosted": "Required full Chromium and WebKit checks run on the PR and main before publication. Final receipts retained in ignored work log and PR.",
+  "limits": [
+    "Visit-only ordinary fallback is not durable persistence",
+    "No physical Safari test",
+    "Historical Grid failure is unexplained",
+    "Initial Python-server startup observation and earlier touch failures retained in README"
+  ]
+}

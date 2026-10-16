@@ -4,7 +4,7 @@ const _APPEARANCES = { original: 'Original', starfield: 'Starfield', solar: 'Sol
 function _setAppearance(value, persist = true) {
     const name = Object.hasOwn(_APPEARANCES, value) ? value : 'original';
     document.body.dataset.appearance = name;
-    if (persist) { try { _prefs.save('appearance', name); } catch (_) {} }
+    if (persist) _prefs.trySave('appearance', name);
     document.getElementById('appearanceLabel').textContent = _APPEARANCES[name];
     document.querySelectorAll('[data-appearance-choice]').forEach(button => {
         button.setAttribute('aria-pressed', String(button.dataset.appearanceChoice === name));
@@ -23,11 +23,11 @@ function _setupAppearance() {
     try {
         saved = _prefs.load('appearance', 'original');
         // Preserve the old Easter egg only when no different appearance was selected.
-        if (saved === 'original' && localStorage.getItem('starfieldOn') === '1') {
+        if (saved === 'original' && _prefs.readRaw('starfieldOn') === '1') {
             saved = 'starfield';
-            _prefs.save('appearance', saved);
+            _prefs.trySave('appearance', saved);
         }
-        localStorage.removeItem('starfieldOn');
+        _prefs.removeRaw('starfieldOn');
     } catch (_) {}
     _setAppearance(saved, false);
     // Resolve the motion path in each plane's local coordinates on layout changes.

@@ -11,6 +11,15 @@ const _KEY_DISPLAY = {
     '+': '+', '-': '−', '=': '=', '_': '_',
 };
 const _isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+function _loadCustomKeys() {
+    const saved = _prefs.loadJSONRaw('customHotkeys', {}, value =>
+        value !== null && typeof value === 'object' && !Array.isArray(value));
+    const keys = Object.create(null);
+    for (const [id, key] of Object.entries(saved)) {
+        if (!['__proto__','constructor','prototype'].includes(id) && typeof key === 'string' && key.length <= 64) keys[id] = key;
+    }
+    return keys;
+}
 function _keyDisplay(key, shift, alt) {
     const altStr = alt ? (_isMac ? '⌥' : 'Alt+') : '';
     const shiftStr = shift ? '⇧' : '';
@@ -144,7 +153,7 @@ function _reassignKey(actionId, newKey) {
     } else {
         _customKeys[actionId] = newKey;
     }
-    localStorage.setItem('customHotkeys', JSON.stringify(_customKeys));
+    _prefs.writeRaw('customHotkeys', JSON.stringify(_customKeys));
     _buildKeymap();
     _renderShortcutsList();
     return true;
@@ -153,13 +162,13 @@ function _reassignKey(actionId, newKey) {
 // Reset one or all hotkeys
 function _resetHotkey(actionId) {
     delete _customKeys[actionId];
-    localStorage.setItem('customHotkeys', JSON.stringify(_customKeys));
+    _prefs.writeRaw('customHotkeys', JSON.stringify(_customKeys));
     _buildKeymap();
     _renderShortcutsList();
 }
 function _resetAllHotkeys() {
     _customKeys = {};
-    localStorage.setItem('customHotkeys', '{}');
+    _prefs.writeRaw('customHotkeys', '{}');
     _buildKeymap();
     _renderShortcutsList();
     showToast('All hotkeys reset to defaults');
@@ -341,7 +350,7 @@ function _renderShortcutsList() {
 
         // Persist on close — _slotColors already up-to-date from input events
         picker.addEventListener('change', () => {
-            localStorage.setItem('slotColors', JSON.stringify(_slotColors));
+            _applySlotColors(_slotColors, true);
         });
 
         swatch.appendChild(dot);

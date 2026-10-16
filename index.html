@@ -3829,6 +3829,7 @@
     <script src="js/usage.js" integrity="sha256-TnipocZqA5CuAUe6IyZF8EsFzuxvopwb/npCZfLmh1I="></script>
     <script src="js/appearance.js"></script>
     <script src="js/info-bar.js"></script>
+    <script src="js/preferences.js"></script>
     <script src="js/audio-viz.js"></script>
     <script src="js/audio-analysis.js"></script>
     <script src="js/scopes.js"></script>
@@ -3849,7 +3850,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.2';
+        const APP_VERSION = '3.19.3';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.1';
@@ -3885,26 +3886,13 @@
         });
 
         // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
-        let gridInlineMode = (localStorage.getItem('gridInlineMode') ?? localStorage.getItem('gridLayout3Col')) === 'true';
+        let gridInlineMode = (_prefs.readRaw('gridInlineMode') ?? _prefs.readRaw('gridLayout3Col')) === 'true';
 
         // ── Persistent user preferences ─────────────────────────────────
-        const _prefs = {
-            load(key, fallback) {
-                const v = localStorage.getItem('pref_' + key);
-                if (v === null) return fallback;
-                try {
-                    return JSON.parse(v);
-                } catch (_) {
-                    // One damaged value must not abort the entire classic-script
-                    // startup. Recover only the key whose value is invalid.
-                    localStorage.removeItem('pref_' + key);
-                    return fallback;
-                }
-            },
-            save(key, value) {
-                localStorage.setItem('pref_' + key, JSON.stringify(value));
-            }
-        };
+        // Storage validation and visit-only fallback → js/preferences.js
+        window.addEventListener('warpdiff-preferences-unsaved', () => {
+            queueMicrotask(() => showToast('Changes work for this visit, but this browser could not save them.', 4000));
+        }, {once:true});
 
         // SVG icon templates for volume controls
         // ── Icon constants ──
@@ -3962,7 +3950,7 @@
             if (isQuadMode()) return; // four-input Inline is the fixed 2×2 layout
             if (gridInlineMode) return;
             gridInlineMode = true;
-            localStorage.setItem('gridInlineMode', gridInlineMode);
+            _prefs.writeRaw('gridInlineMode', gridInlineMode);
             splitStepZoom = 1.0;
             _swapGridSubLayout();
         });
@@ -3970,7 +3958,7 @@
             if (hasAudios) { showToast('Offset layout not available in audio mode'); return; }
             if (!gridInlineMode) return;
             gridInlineMode = false;
-            localStorage.setItem('gridInlineMode', gridInlineMode);
+            _prefs.writeRaw('gridInlineMode', gridInlineMode);
             splitStepZoom = 1.0;
             _swapGridSubLayout();
         });
@@ -4435,7 +4423,7 @@
                 btn.className = 'tc-fmt-btn' + (fmt === opt.key ? ' active' : '');
                 btn.innerHTML = '<strong>' + opt.label + '</strong><span>' + opt.desc + '</span>';
                 btn.addEventListener('click', () => {
-                    _prefs.save('timecopyFmt', opt.key);
+                    _prefs.trySave('timecopyFmt', opt.key);
                     _refreshTimecodeDisplay();
                     _notifyFrameFmtAudioFallback(opt.key);
                     _renderTimecopyPanel();
@@ -4458,7 +4446,7 @@
                 btn.className = 'tc-chip' + (sep === chip.value ? ' active' : '');
                 btn.textContent = chip.label;
                 btn.addEventListener('click', () => {
-                    _prefs.save('timecopySep', chip.value);
+                    _prefs.trySave('timecopySep', chip.value);
                     input.value = chip.value;
                     chipBtns.forEach((b, i) => b.classList.toggle('active', sepChips[i].value === chip.value));
                     _updateTcPreview(body);
@@ -4468,7 +4456,7 @@
             });
             sepRow.appendChild(input);
             input.addEventListener('input', () => {
-                _prefs.save('timecopySep', input.value);
+                _prefs.trySave('timecopySep', input.value);
                 chipBtns.forEach((b, i) => b.classList.toggle('active', sepChips[i].value === input.value));
                 _updateTcPreview(body);
             });
@@ -4535,7 +4523,7 @@
                 const chk = document.createElement('span'); chk.className = 'tc-chooser-check'; chk.textContent = opt.key === curFmt ? '\u2713' : '';
                 row.appendChild(fmtSpan); row.appendChild(valSpan); row.appendChild(chk);
                 row.addEventListener('click', () => {
-                    _prefs.save('timecopyFmt', opt.key);
+                    _prefs.trySave('timecopyFmt', opt.key);
                     _refreshTimecodeDisplay();
                     _notifyFrameFmtAudioFallback(opt.key);
                     _hideTcChooser();
@@ -4730,7 +4718,7 @@
                 // Resize all canvases (main + overlay)
                 el.querySelectorAll('canvas').forEach(c => { c.width = magnifierSize; c.height = magnifierSize; });
             });
-            _prefs.save('magnifierSize', magnifierSize);
+            _prefs.trySave('magnifierSize', magnifierSize);
             if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
         }
 
@@ -5421,8 +5409,8 @@
         let timecodeMode = _prefs.load('timecodeMode', 'time'); // 'time', 'frames', or 'seconds'
         // Migrate legacy timecodeMode pref → timecopyFmt (one-time, only if timecopyFmt not yet set)
         if (!_prefs.load('timecopyFmt', null)) {
-            if (timecodeMode === 'frames')  _prefs.save('timecopyFmt', 'hmsf');
-            else if (timecodeMode === 'seconds') _prefs.save('timecopyFmt', 's');
+            if (timecodeMode === 'frames')  _prefs.trySave('timecopyFmt', 'hmsf');
+            else if (timecodeMode === 'seconds') _prefs.trySave('timecopyFmt', 's');
         }
         let _stackZoomMode = _prefs.load('stackZoomMode', 'fit') === 'balance' ? 'balance' : 'fit'; // 'fit' or 'balance'
         let _stackCanPan = false; // set by applyZoom(); true when any asset overflows viewport
@@ -5437,7 +5425,7 @@
         let audioVizVisible = _prefs.load('audioVizVisible', false);   // W key toggle
         let _audioVizHeight = _prefs.load('audioVizHeight', 200);     // combined row px (waveform + spectrogram)
         let _audioVizSplit  = _prefs.load('audioVizSplit',  0.40);    // fraction for waveform row (default 80/200)
-        let _slotRotation = JSON.parse(_prefs.load('slotRotation', '{"original":0,"editA":0,"editB":0,"editC":0}'));
+        let _slotRotation = _loadSlotRotations();
                                                                        // per-slot rotation in degrees (0/90/180/270)
         const _AUDIO_VIZ_SPLITTER_H    = 5;
         const _AUDIO_VIZ_RESIZE_H      = 6;
@@ -6254,6 +6242,7 @@
 
         // fft, buildPalette, spectrogramPalettes, paletteNames → js/audio-viz.js
         let currentPaletteIndex = _prefs.load('paletteIndex', paletteNames.indexOf('inferno'));
+        if (!paletteNames[currentPaletteIndex]) currentPaletteIndex = paletteNames.indexOf('inferno');
         let spectrogramPalette = spectrogramPalettes[paletteNames[currentPaletteIndex]] || spectrogramPalettes.viridis;
         let audioVizLevelMode = _prefs.load('audioVizLevelMode', 'fit');
         if (audioVizLevelMode !== 'fit' && audioVizLevelMode !== 'ref') audioVizLevelMode = 'fit';
@@ -6273,7 +6262,7 @@
         function setAudioVizLevelMode(mode) {
             if (mode !== 'fit' && mode !== 'ref') return;
             audioVizLevelMode = mode;
-            _prefs.save('audioVizLevelMode', mode);
+            _prefs.trySave('audioVizLevelMode', mode);
             _syncAudioVizLevelButtons();
             if (audioVizVisible) {
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -6888,7 +6877,7 @@
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
                     if (panel) panel.classList.remove('dragging');
-                    _prefs.save('audioVizHeight', _audioVizHeight);
+                    _prefs.trySave('audioVizHeight', _audioVizHeight);
                     _applyAudioVizLayout(true);
                     animateRelayout(0);
                 };
@@ -6916,7 +6905,7 @@
                     document.removeEventListener('mousemove', onMove);
                     document.removeEventListener('mouseup', onUp);
                     if (panel) panel.classList.remove('dragging');
-                    _prefs.save('audioVizSplit', _audioVizSplit);
+                    _prefs.trySave('audioVizSplit', _audioVizSplit);
                     _applyAudioVizLayout(true);
                 };
                 document.addEventListener('mousemove', onMove);
@@ -6946,7 +6935,7 @@
                 if (panel) panel.classList.remove('active');
                 if (controls) controls.classList.remove('audio-viz-active');
             }
-            _prefs.save('audioVizVisible', audioVizVisible);
+            _prefs.trySave('audioVizVisible', audioVizVisible);
 
             if (audioVizVisible) {
                 const slot = currentAudioSource || assetOrder[currentAssetIndex];
@@ -7247,7 +7236,7 @@
 
         function toggleSpectrogramScale() {
             spectrogramLogScale = !spectrogramLogScale;
-            _prefs.save('spectrogramLogScale', spectrogramLogScale);
+            _prefs.trySave('spectrogramLogScale', spectrogramLogScale);
             const btn = document.getElementById('spectrogramScaleToggle');
             if (btn) btn.textContent = spectrogramLogScale ? 'LOG' : 'LIN';
             if (audioVizVisible) {
@@ -7260,7 +7249,7 @@
 
         function cycleSpectrogramPalette() {
             currentPaletteIndex = (currentPaletteIndex + 1) % paletteNames.length;
-            _prefs.save('paletteIndex', currentPaletteIndex);
+            _prefs.trySave('paletteIndex', currentPaletteIndex);
             const name = paletteNames[currentPaletteIndex];
             spectrogramPalette = spectrogramPalettes[name];
             const btn = document.getElementById('spectrogramPaletteToggle');
@@ -7475,14 +7464,14 @@
 
         function _setTileCheckView(view) {
             _tileCheckView = view === 'offset' ? 'offset' : 'repeat';
-            _prefs.save('tileCheckView', _tileCheckView);
+            _prefs.trySave('tileCheckView', _tileCheckView);
             _syncTileCheckControls();
             _scheduleTileCheckRender();
         }
 
         function _toggleTileHeatmap() {
             _tileCheckHeatmap = !_tileCheckHeatmap;
-            _prefs.save('tileCheckHeatmap', _tileCheckHeatmap);
+            _prefs.trySave('tileCheckHeatmap', _tileCheckHeatmap);
             _syncTileCheckControls();
             _scheduleTileCheckRender();
         }
@@ -7722,7 +7711,7 @@
         function toggleVideoScopes() {
             videoScopesVisible = !videoScopesVisible;
             if (videoScopesVisible) _usage.feature('scopes');
-            _prefs.save('videoScopesVisible', videoScopesVisible);
+            _prefs.trySave('videoScopesVisible', videoScopesVisible);
             const panel = document.getElementById('scopesPanel');
             if (panel) panel.classList.toggle('active', videoScopesVisible);
             // Ensure video controls bar is visible (images don't show it by default)
@@ -8889,7 +8878,7 @@
             document.querySelectorAll('.asset-layer video, .asset-layer audio').forEach(v => {
                 _setMediaVolume(v, volume);
             });
-            _prefs.save('volume', Number(value));
+            _prefs.trySave('volume', Number(value));
             _updateOpusSyncGains();
         }
 
@@ -8953,7 +8942,7 @@
             const order = ['hms', 'hmsf', 's', 'sf', 'f'];
             const cur   = _prefs.load('timecopyFmt', 'hms');
             const next  = order[(order.indexOf(cur) + 1) % order.length];
-            _prefs.save('timecopyFmt', next);
+            _prefs.trySave('timecopyFmt', next);
             const fmtLabels = { hms: 'h:mm:ss.xxx', hmsf: 'h:mm:ss:ff', s: 'ss.xxx', sf: 'ss:ff', f: 'F + integer' };
             showToast('Timecode: ' + fmtLabels[next]);
             _notifyFrameFmtAudioFallback(next);
@@ -8988,7 +8977,7 @@
             if (popup.classList.contains('show')) {
                 popup.classList.remove('show');
                 backdrop.classList.remove('show');
-                localStorage.setItem('lastSeenVersion', APP_VERSION);
+                _prefs.writeRaw('lastSeenVersion', APP_VERSION);
             } else {
                 popup.classList.add('show');
                 backdrop.classList.add('show');
@@ -8998,7 +8987,7 @@
         function dismissChangelog() {
             document.getElementById('changelogPopup').classList.remove('show');
             document.getElementById('changelogBackdrop').classList.remove('show');
-            localStorage.setItem('lastSeenVersion', APP_VERSION);
+            _prefs.writeRaw('lastSeenVersion', APP_VERSION);
         }
 
         // Dismiss Help/Changelog popup when clicking backdrop
@@ -9008,7 +8997,7 @@
             if (backdrop && e.target === backdrop) {
                 popup.classList.remove('show');
                 backdrop.classList.remove('show');
-                localStorage.setItem('lastSeenVersion', APP_VERSION);
+                _prefs.writeRaw('lastSeenVersion', APP_VERSION);
             }
             const changelogBackdrop = document.getElementById('changelogBackdrop');
             if (changelogBackdrop && e.target === changelogBackdrop) {
@@ -9864,7 +9853,7 @@
             if (!mediaData[slot]) { showToast('Nothing loaded in that slot'); return; }
             if (mediaData[slot].type === 'audio') { showToast('Rotation not available for audio'); return; }
             _slotRotation[slot] = ((_slotRotation[slot] || 0) + delta + 360) % 360;
-            _prefs.save('slotRotation', JSON.stringify(_slotRotation));
+            _prefs.trySave('slotRotation', JSON.stringify(_slotRotation));
             // Update info bar (resolution/AR) to reflect effective rotated dims
             _refreshResolutionDisplay(slot);
             panOffsetX = 0;
@@ -10211,7 +10200,7 @@
                 }
             }
             _stackZoomMode = _stackZoomMode === 'fit' ? 'balance' : 'fit';
-            _prefs.save('stackZoomMode', _stackZoomMode);
+            _prefs.trySave('stackZoomMode', _stackZoomMode);
             applyZoom();
             _updateStackSubOptions();
             showToast(_stackZoomMode === 'fit' ? 'Fit' : 'Balance');
@@ -12679,7 +12668,7 @@
                 document.getElementById('quickStartBackdrop').classList.remove('show');
                 document.getElementById('changelogPopup').classList.remove('show');
                 document.getElementById('changelogBackdrop').classList.remove('show');
-                localStorage.setItem('lastSeenVersion', APP_VERSION);
+                _prefs.writeRaw('lastSeenVersion', APP_VERSION);
 
                 document.getElementById('comparisonView').classList.add('active');
                 document.getElementById('landingCta').classList.add('hidden');
@@ -12766,7 +12755,7 @@
                     // Respect the user's stored equal-vs-L-shaped preference (written by '3' key).
                     // If no preference has ever been stored, default to equal layout.
                     // The rows-vs-columns sub-choice is always auto-picked by aspect ratio inside setViewMode.
-                    if (localStorage.getItem('gridInlineMode') === null) {
+                    if (_prefs.readRaw('gridInlineMode') === null) {
                         gridInlineMode = true; // first-ever use: default to equal
                     }
                     // else: gridInlineMode already holds the restored preference from startup
@@ -12950,7 +12939,7 @@
 
         function toggleMute() {
             isMuted = !isMuted;
-            _prefs.save('muted', isMuted);   // sticky across loads AND sessions
+            _prefs.trySave('muted', isMuted);   // sticky across loads AND sessions
             _applyMuteState();
         }
 
@@ -13081,7 +13070,9 @@
         function _applySlotColors(colors, save) {
             const root = document.documentElement.style;
             for (const slot of assetOrder) {
-                const hex = (colors[slot] || _SLOT_COLOR_DEFAULTS[slot]).toLowerCase();
+                const candidate = colors?.[slot];
+                const hex = typeof candidate === 'string' && /^#[0-9a-f]{6}$/i.test(candidate)
+                    ? candidate.toLowerCase() : _SLOT_COLOR_DEFAULTS[slot];
                 const [r, g, b] = _hexToRgb(hex);
                 const txt = _slotTextColor(r, g, b);
                 const { bar, hi } = _slotDerivedColors(hex);
@@ -13091,13 +13082,14 @@
                 root.setProperty(`--slot-${slot}-hi`,  hi);
                 _slotColors[slot] = hex;
             }
-            if (save) localStorage.setItem('slotColors', JSON.stringify(_slotColors));
+            if (save) _prefs.writeRaw('slotColors', JSON.stringify(_slotColors));
         }
 
         // Restore saved colors on startup (before first paint)
         (function () {
             try {
-                const saved = JSON.parse(localStorage.getItem('slotColors') || 'null');
+                const saved = _prefs.loadJSONRaw('slotColors', null, value =>
+                    value !== null && typeof value === 'object' && !Array.isArray(value));
                 if (saved && typeof saved === 'object') _applySlotColors(saved, false);
             } catch (_) {}
         })();
@@ -13106,7 +13098,7 @@
         // Infrastructure (keymap engine, reassignment, panel rendering) in js/hotkeys.js
 
         // Mutable state — referenced by functions in js/hotkeys.js
-        let _customKeys = JSON.parse(localStorage.getItem('customHotkeys') || '{}');
+        let _customKeys = _loadCustomKeys();
 
         // Action registry — each entry defines an assignable hotkey action.
         // Fields: id, defaultKey, shift (optional), label, section (for grouping),
@@ -13149,7 +13141,7 @@
                   const isAnyTripartiteNow = isTripartiteMode();
                   if (isGridMode && isAnyTripartiteNow) {
                       gridInlineMode = !gridInlineMode;
-                      localStorage.setItem('gridInlineMode', gridInlineMode);
+                      _prefs.writeRaw('gridInlineMode', gridInlineMode);
                       splitStepZoom = 1.0;
                       _swapGridSubLayout();
                   }
@@ -13198,7 +13190,7 @@
               fn: () => {
                   if (magnifierEnabled) {
                       magnifierZoom = Math.min(magnifierZoom * 2, MAGNIFIER_ZOOM_MAX);
-                      _prefs.save('magnifierZoom', magnifierZoom);
+                      _prefs.trySave('magnifierZoom', magnifierZoom);
                       showToast('Zoom ' + magnifierZoom + '×');
                       if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
                   } else { zoomIn(); }
@@ -13207,7 +13199,7 @@
               fn: () => {
                   if (magnifierEnabled) {
                       magnifierZoom = Math.max(magnifierZoom / 2, MAGNIFIER_ZOOM_MIN);
-                      _prefs.save('magnifierZoom', magnifierZoom);
+                      _prefs.trySave('magnifierZoom', magnifierZoom);
                       showToast('Zoom ' + magnifierZoom + '×');
                       if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
                   } else { zoomOut(); }
@@ -13221,7 +13213,7 @@
               fn: () => {
                   if (hasAudios) return;
                   magnifierLinked = !magnifierLinked;
-                  _prefs.save('magnifierLinked', magnifierLinked);
+                  _prefs.trySave('magnifierLinked', magnifierLinked);
                   showToast('Linked zoom ' + (magnifierLinked ? 'ON' : 'OFF'));
                   if (_lastMouseEvent) updateMagnifier(_lastMouseEvent);
               } },
@@ -13557,7 +13549,7 @@
             });
 
             // Welcome new users; announce only important notes they haven't seen.
-            const lastSeen = localStorage.getItem('lastSeenVersion');
+            const lastSeen = _prefs.readRaw('lastSeenVersion');
             if (!_managedReviewActive() && !lastSeen) {
                 document.getElementById('quickStartPopup').classList.add('show');
                 document.getElementById('quickStartBackdrop').classList.add('show');
@@ -14179,7 +14171,7 @@
             <p>If Continuous is unavailable or exceeds its memory limit, a notice explains the automatic short-preview fallback. Long clips may use filtered, lower-rate preview audio. If no useful preview fits, normal playback and analysis remain available. Each video listening copy and the selected Continuous stream have separate 64 MiB limits; decoding and analysis use additional memory. Continuous can soften sharp sounds; use normal playback for final defect inspection.</p>
 
             <h2>Preferences</h2>
-            <p>The following settings are saved to your browser and persist across sessions and page reloads:</p>
+            <p>The following settings are saved to your browser and persist across sessions and page reloads when browser storage is available:</p>
             <ul>
                 <li>Zoom loupe size and magnification level</li>
                 <li>Linked zoom on/off</li>
@@ -14193,6 +14185,8 @@
                 <li>Timecode display/copy format and custom hotkeys</li>
                 <li>Separate image, video and audio info bar profiles</li>
             </ul>
+
+            <p>Damaged settings recover individually, preserving valid preferences and shortcut entries. If browser storage is blocked or full, ordinary changes still work for this visit and a notice explains failed saves. Reloading may restore an older value or the default. Unreadable usage permission keeps sharing off; privacy and info-bar saves retain their own warnings.</p>
 
             <h2>Info Bar</h2>
             <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
@@ -14281,7 +14275,7 @@
             <ul>
                 <li><kbd>?</kbd> this help screen, <kbd>H</kbd> all hotkeys</li>
                 <li><kbd>+</kbd> <kbd>−</kbd> zoom, <kbd>0</kbd> fit screen, <kbd>1</kbd> native pixels</li>
-                <li>Your preferences persist across sessions</li>
+                <li>Your preferences persist when browser storage is available; failed saves keep ordinary settings for this visit and show a notice</li>
                 <li>Remap any hotkey from the <kbd>H</kbd> panel</li>
             </ul>
 

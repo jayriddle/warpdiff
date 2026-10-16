@@ -429,7 +429,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 
 ## Preferences
 
-The following settings are saved to your browser and persist across sessions and page reloads:
+The following settings are saved to your browser and persist across sessions and page reloads when browser storage is available:
 
 - Zoom loupe size and magnification level
 - Linked zoom on/off
@@ -441,6 +441,8 @@ The following settings are saved to your browser and persist across sessions and
 - Tile Check preview type and heatmap visibility
 - Timecode display and copy format
 - Custom hotkey bindings
+
+Damaged settings recover individually, preserving valid preferences and custom shortcut entries. If browser storage is blocked or full, ordinary setting changes still work for the current visit. A notice explains when a change could not be saved; reloading may restore an older saved value or the default. Unreadable usage-sharing permission keeps sharing off. The privacy and info-bar panels retain their own save warnings.
 
 ---
 

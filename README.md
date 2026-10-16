@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.2
+**Current version:** 3.19.3
 
 ---
 
@@ -114,7 +114,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Every action has a hotkey — press `?` for help, `H` for all hotkeys
 - Reassign any hotkey from the hotkeys panel (click a key to rebind)
 - Zoom, pan, and navigate without touching the mouse
-- Preferences (loupe, volume, Fit / Ref audio scaling, spectrogram settings, custom hotkeys) persist across sessions
+- Preferences (loupe, volume, Fit / Ref audio scaling, spectrogram settings, custom hotkeys) persist when browser storage is available. Damaged settings recover individually. If saving fails, ordinary settings still work for the current visit and a notice explains they could not be saved.
 
 **Installable**
 - Install as a standalone app from Chrome, Edge, or Safari
