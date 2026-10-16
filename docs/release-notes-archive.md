@@ -2,7 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.2 (prepared October 15, 2026; unpublished)
+## v3.19.3 (prepared October 15, 2026)
+
+- Damaged saved shortcuts, rotations, colors and ordinary settings recover without preventing startup or comparison loading. Valid settings and structured entries are retained.
+- Blocked or full browser storage leaves ordinary controls usable for the current visit and explains failed saves. Usage permission and daily claims retain their strict persistence policy; unreadable permission keeps sharing off. Info-bar saves retain their existing warning.
+- Keeps existing storage formats and the previous What’s New summary. Verification: [settings reliability](settings-reliability-2026-10-15/README.md).
+
+## v3.19.2 (released October 15, 2026)
 
 - Empty or decode-rejected host media now reports one correlated failure and restores loading controls. Host file order and display labels stay paired, independently of timestamps. Superseded requests and manual replacements retire pending host work.
 - Host video readiness now checks for a usable decoded frame with a bounded failure path, including files whose metadata loads despite missing video samples. Routine info-bar refreshes retain keyboard focus on More when it remains visible.

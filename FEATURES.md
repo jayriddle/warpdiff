@@ -155,7 +155,7 @@ Spectrogram scale and palette controls (`Shift+W`, `P`) apply to all audio slots
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions.
+Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions when browser storage is available. Damaged saved preferences recover individually; valid shortcut entries remain usable. Ordinary settings still work for the current visit if saving fails, with a notice that they could not be saved. Unreadable usage-sharing permission keeps sharing off.
 
 ## Installable
 

@@ -22,6 +22,7 @@ import { runInNewContext } from 'node:vm';
 import { runScrubVideoChecks } from './scrub-video-regression.mjs';
 import { runMalformedVideoChecks } from './mp4-video-malformed.mjs';
 import { runScrubInputChecks } from './scrub-input-regression.mjs';
+import { runPreferenceChecks } from './preferences-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -47,7 +48,7 @@ function check(name, cond) { if (cond) { pass++; } else { fail++; console.error(
   check('starfield: the appearance replaces the hidden X action',
     !HTML.includes("id: 'toggleStarfield'") &&
     readFileSync(new URL('js/starfield.js', ROOT), 'utf8').includes("dataset.appearance === 'starfield'") &&
-    appearance.includes("localStorage.removeItem('starfieldOn')"));
+    appearance.includes("_prefs.removeRaw('starfieldOn')"));
   check('nebula: one setup owns a cancellable, visibility-gated frame chain',
     SRC.split('_setupNebulaGalaxy();').length === 2 &&
     appearance.includes("dataset.appearance === 'nebula' && !document.hidden") &&
@@ -363,12 +364,8 @@ function extractFn(name, src = SRC) {
         !/WARPDIFF_LOAD_(?:READY|FAILED)'[^\n]*\}, '\*'/.test(SRC));
 }
 
-// One corrupt preference must recover only that key and let startup continue.
-{
-  const b = (HTML.match(/const _prefs = \{[\s\S]*?\n        \};/) || [''])[0];
-  check('preferences: load catches malformed JSON and removes only the corrupt key',
-        b.includes('try') && b.includes('catch') && b.includes("localStorage.removeItem('pref_' + key)"));
-}
+// Fault-injected persistence tests run the actual shipped preference factory.
+runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf8'));
 
 // Audio visualization scaling belongs beside the content it changes. Video gets
 // one control in the waveform utility rail; audio-only review gets one shared
@@ -1054,7 +1051,7 @@ function extractFn(name, src = SRC) {
         countOf(SRC, 'isMuted = ') === 2);
   const tgl = extractFn('toggleMute');
   check('one-owner[mute]: toggleMute persists the preference then applies it',
-        tgl.includes("_prefs.save('muted', isMuted)") && tgl.includes('_applyMuteState()'));
+        tgl.includes("_prefs.trySave('muted', isMuted)") && tgl.includes('_applyMuteState()'));
 
   // BUG-FREEZER: clearAllMedia used to reset isMuted — exactly the "audio resets
   // on every upload" complaint this release fixes. Global mute must stay sticky.

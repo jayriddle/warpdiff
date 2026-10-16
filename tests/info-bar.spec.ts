@@ -500,6 +500,15 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
     const rect=row.getBoundingClientRect(), bounds=document.getElementById('infoEditorDialog')!.getBoundingClientRect();
     return rect.top>=bounds.top+40 && rect.bottom<=bounds.bottom-40;
   })).toBe(true);
+  // Stop the held-edge scroll before measuring a drop target. CDP touch
+  // delivery is asynchronous; a measured row can otherwise move under it.
+  const interior = {x:bounds!.x+bounds!.width/2,y:bounds!.y+bounds!.height/2};
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...interior,id:1}]});
+  await page.waitForFunction(({x,y})=>{
+    const pointer=eval('_infoEditorPointer');
+    return pointer && Math.abs(pointer.currentX-x)<1 && Math.abs(pointer.currentY-y)<1;
+  },interior);
+  await expect.poll(()=>page.evaluate(()=>eval('_infoEditorScrollRaf'))).toBeNull();
   const target = await page.locator('[data-element-id="zoom"]').boundingBox();
   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:target!.x+60,y:target!.y+3,id:1}]});
   await expect(page.locator('[data-element-id="zoom"]')).toHaveClass(/info-drop-before/);
