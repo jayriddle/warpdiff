@@ -186,9 +186,12 @@ test('queued fits preserve focus on a More button that remains visible', async (
   await load(page, ['landscape_a.mp4','landscape_b.mp4','portrait.mp4','side_lr.mp4']);
   await open(page, 'video'); await page.locator('#infoEditorPreset').selectOption('all');
   await page.locator('#infoEditorAudio').uncheck(); await close(page);
+  // Native dialog close is queued; wait for its focus restoration before choosing More.
+  await expect(page.locator('#infoEditorButton')).toHaveAttribute('aria-expanded','false');
   const more = page.locator('.asset-info-bar.info-custom .info-more').first();
   await expect(more).toBeVisible();
   await more.focus();
+  await expect(more).toBeFocused();
   const states = await more.evaluate(async button => {
     const states = [];
     for (let i=0;i<3;i++) {
