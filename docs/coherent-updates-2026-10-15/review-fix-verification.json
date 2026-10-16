@@ -1,0 +1,64 @@
+{
+  "baseline": "342e9bc7ac6fb7d4e6115e9c3078eaa197ec8012",
+  "reviewedParent": "9cdb8493a9f35543338ba93e947a82fc5416825c",
+  "branch": "codex/coherent-updates",
+  "version": "3.19.4",
+  "mergeAndPublication": "on hold",
+  "local": {
+    "chromium": {
+      "total": 11,
+      "passed": 11,
+      "skipped": 0,
+      "reports": 1
+    },
+    "webkit": {
+      "total": 9,
+      "passed": 9,
+      "skipped": 0,
+      "reports": 1
+    },
+    "ownership": 911,
+    "infrastructure": 25,
+    "negativeControls": 6,
+    "workersPerBrowserRun": 1,
+    "retries": 0,
+    "runnerErrors": 0
+  },
+  "sourceHashes": {
+    "scripts/stage-pages.mjs": "2aa60b61805a8e9b3f8bc42415825c80671342ad46a779af5284a5e7926f3e59",
+    "tests/app-updates.spec.ts": "110864266ab8e772069ecf2129c65b4ad22bc8352ace75d191657d46e9bf1978",
+    "tests/release-infrastructure.test.mjs": "91f8c4599bbb9e438422017c240e53c683738946b37700c0df6404cde22420ad"
+  },
+  "unchangedFromReleasedBaseline": [
+    "js/audio-viz.js",
+    "js/audio-analysis-worker.js",
+    "js/scrub-audio-core.js",
+    "js/scrub-worklet.js",
+    "js/playback-audio-core.js",
+    "js/signalsmith-worklet.js",
+    "js/SCRUB_AUDIO_LOCK.json",
+    "js/PLAYBACK_AUDIO_LOCK.json",
+    "js/usage.js",
+    "manifest.json"
+  ],
+  "verificationStrategy": "Focused browser checks and isolated negative controls locally; complete required hosted checks once after push, avoiding duplicate full local suites.",
+  "hosted": {
+    "status": "pending at commit time",
+    "finalReceipts": "PR #49 and output/pr49-review-fix-2026-10-16-td4CV6/handoff.md"
+  },
+  "rawEvidence": "output/pr49-review-fix-2026-10-16-td4CV6/",
+  "retainedAttempts": [
+    "baseline-gaps: original gaps plus teardown timeouts; not clean negative evidence",
+    "negative-manifest-chromium: extra timeout with tracing; rejected",
+    "negative-manifest-debug: trace-disabled diagnostic closed context and server promptly",
+    "mutations-final/v3: runner location guards corrected for browser-evaluated exceptions and WebKit stack shape",
+    "mutations-v4 legacy control passed: initial network-first predecessor fixture did not exercise modern retention; runner rejected it, and final fixture retains an unknown old client under a current worker"
+  ],
+  "limits": [
+    "Chrome processed manifest identities verified; WebKit raw manifest/start/scope and startup only",
+    "No OS installation/migration UI or physical Safari offline/listening certification",
+    "WebKit offline-emulation limitation remains as documented",
+    "Historical Grid, 44.1 kHz amplitude and broader 7.1 WebKit observations remain unresolved",
+    "No canonical algorithm, vendored engine, lock, consent adapter or source manifest change"
+  ]
+}

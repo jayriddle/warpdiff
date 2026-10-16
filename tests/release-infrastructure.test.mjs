@@ -147,7 +147,9 @@ test('public staging pins and verifies runtime bytes, includes notices and exclu
     for (const file of pageFiles(root).filter(f => !['sw.js','index.html','manifest.json','version.json'].includes(f))) {
       assert.deepEqual(fs.readFileSync(path.join(output, prefix + file)), fs.readFileSync(path.join(root, file)));
     }
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(output, prefix + 'manifest.json'))).start_url, '../../');
+    const manifest = JSON.parse(fs.readFileSync(path.join(output, prefix + 'manifest.json')));
+    assert.equal(manifest.start_url, '../../');assert.equal(manifest.scope, '../../');
+    assert(!Object.hasOwn(manifest, 'id'), 'Preserve the released start-URL-derived application identity');
     assert(result.files['js/signalsmith-LICENSE.txt']);
     for (const file of ['output', 'tests', 'docs', 'tools', 'ffmpeg', 'package.json', '.github']) {
       assert(!fs.existsSync(path.join(output, file)), file + ' must not be published');

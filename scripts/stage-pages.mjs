@@ -72,8 +72,21 @@ export function stagePages({root, output, sha}) {
             retry.addEventListener('click', async () => {
                 retry.disabled = true;
                 try {
-                    await Promise.all([...document.scripts].filter(script => script.src && !script.src.endsWith('/js/usage.js')).map(script =>
-                        fetch(script.src, {cache:'reload', integrity:script.integrity}).then(response => {if (!response.ok) throw Error('Unavailable');})));
+                    // The failed document's release directory may have disappeared.
+                    // Refresh the stable document first, then its own required scripts.
+                    const documentUrl = new URL(location.href);
+                    // A query also bypasses predecessor workers' exact stable-URL caches.
+                    documentUrl.searchParams.set('_warpdiffReload', '1');
+                    const response = await fetch(documentUrl, {cache:'reload'});
+                    if (!response.ok) throw Error('App document unavailable');
+                    const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const base = new URL(fresh.querySelector('base[href]')?.getAttribute('href') || './', response.url);
+                    const scripts = [...fresh.scripts].filter(script => script.hasAttribute('src')).map(script => ({
+                        url:new URL(script.getAttribute('src'), base), integrity:script.integrity
+                    })).filter(script => !script.url.pathname.endsWith('/js/usage.js'));
+                    if (!scripts.length) throw Error('App scripts unavailable');
+                    await Promise.all(scripts.map(script =>
+                        fetch(script.url, {cache:'reload', integrity:script.integrity}).then(result => {if (!result.ok) throw Error('Unavailable');})));
                     location.reload();
                 } catch {retry.disabled = false; retry.textContent = 'Try again when online';}
             }); notice.append(retry); document.body.append(notice);
@@ -90,7 +103,9 @@ export function stagePages({root, output, sha}) {
     if (file === 'index.html' || file === 'sw.js') continue;
     let pinned = value;
     if (file === 'manifest.json') pinned = Buffer.from(JSON.stringify({
-      ...JSON.parse(value), id:'../../', start_url:'../../', scope:'../../'
+      // Without an explicit id, browsers preserve the released start-URL identity.
+      // Unlike start_url/scope, a manifest id resolves against the origin root.
+      ...JSON.parse(value), start_url:'../../', scope:'../../'
     }) + '\n');
     bytes.set(releaseRoot + file, pinned);
   }
