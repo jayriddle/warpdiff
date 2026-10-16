@@ -1,0 +1,109 @@
+{
+  "baseline": "342e9bc7ac6fb7d4e6115e9c3078eaa197ec8012",
+  "branch": "codex/coherent-updates",
+  "version": "3.19.4",
+  "mergeAndPublication": "on hold",
+  "local": {
+    "chromium": {
+      "total": 530,
+      "passed": 529,
+      "skipped": 1,
+      "reports": 1
+    },
+    "webkit": {
+      "total": 142,
+      "passed": 142,
+      "skipped": 0,
+      "reports": 1
+    },
+    "finalChrome": {
+      "total": 8,
+      "passed": 8,
+      "skipped": 0,
+      "reports": 1
+    },
+    "finalWebkit": {
+      "total": 6,
+      "passed": 6,
+      "skipped": 0,
+      "reports": 1
+    },
+    "ownership": 911,
+    "infrastructure": 25,
+    "browserRetries": 0,
+    "oneWorkerPerRun": true,
+    "fullChromiumSeconds": 655.0828100000001,
+    "fullWebkitSeconds": 134.771106,
+    "packageSmoke": {
+      "feature": "dc8e31e43fa8773eb9dfb41777780e9af39f93e9",
+      "checks": 10,
+      "responseHashes": 117,
+      "chromium": "offline emulation passed",
+      "webkit": "server transport loss passed; browser offline emulation has an independently reproduced upstream limitation"
+    }
+  },
+  "sourceDifferencesAfterCompleteChromium": [
+    "js/app-updates.js",
+    "sw.js",
+    "tests/app-updates.spec.ts",
+    "tests/release-infrastructure.test.mjs"
+  ],
+  "qualification": "Full Chromium preceded monotonic cache order and optional-API containment. Full WebKit includes cache order but precedes optional-API containment. The final focused runs cover those corrections; Chromium was followed by indentation-only formatting. Hosted full checks must verify the committed candidate.",
+  "sourceHashes": {
+    "index.html": "679c3f730d7082f3bcad040a4588690154d509c8f991515cd9a07ebeed9983b4",
+    "js/app-updates.js": "095a2ff0e9fb711aa6b5d4fdc35dca479786ec4b21a097e61798520ae8585e1b",
+    "js/audio-analysis.js": "c0db3c1eb02f96e225a738a38255d1a94c6951fb9a58b8580c0d51e9b440704e",
+    "js/scrub-audio.js": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
+    "js/slow-playback.js": "825d44485fdfdb9be718100921eeebab75f9b2adf2c3e454f87aebc4674e9dc0",
+    "playwright.webkit.config.ts": "0020f39b4ae4fa844882f5525056025d0ee24116adb65293970d27739008d536",
+    "scripts/stage-pages.mjs": "b27fa0b67ff9aeaf7dd731a2c228ad7afd88e159568fed652182b948a1d97871",
+    "sw.js": "f102b8d0b633234858ebb9aeba8103f1881daad3aec20b0b01467656504c87b8",
+    "tests/app-updates.spec.ts": "70c7eb30b56d2b3b63667abd56871ddad22e738a9be0d5b9ffdf332574d5ebfd",
+    "tests/external-preparation.spec.ts": "c9910a653872c28828d9243946a09bbc84e81e39469f90221083b7fc7d32e849",
+    "tests/ownership.test.mjs": "0c8b589e4884706722173aef66a8069778acd1c0fb7c4a23b847cbde36ce526c",
+    "tests/release-infrastructure.test.mjs": "621277e78df85079fb66993557b40c352b11039dfa7a9493a1eb43607edba241",
+    "version.json": "f638d07bd0f13192a8336cb243b70ef4d3386ac50a920bbaaa39beb2a539496b"
+  },
+  "unchangedNumericalAlgorithmsCanonicalEnginesLocksAndConsentAdapter": true,
+  "publicArtifact": {
+    "files": 72,
+    "generatedIdentityAndIntegrity": true,
+    "canonicalRuntimeCopiesUnchanged": true
+  },
+  "hosted": {
+    "initial": {
+      "runId": 38856399310,
+      "feature": "dc8e31e43fa8773eb9dfb41777780e9af39f93e9",
+      "conclusion": "failure",
+      "chromium1": "download failed before execution",
+      "chromium2": "passed",
+      "chromium3": "passed",
+      "webkit": {
+        "passed": 141,
+        "failed": 1,
+        "issue": "Retry-test evaluation raced asynchronous same-URL reload"
+      },
+      "publication": "skipped"
+    },
+    "followup": {
+      "productionChanges": false,
+      "webkitRetryScenario": {
+        "passed": 25,
+        "retries": 0
+      },
+      "chromiumFocused": {
+        "passed": 8,
+        "retries": 0
+      },
+      "status": "Fresh full hosted verification required after test-only correction"
+    }
+  },
+  "rawEvidence": "output/coherent-updates-2026-10-15-6xmxbP",
+  "limits": [
+    "Storage denial/eviction",
+    "Unidentified legacy clients defer old-cache retirement",
+    "Source-only serving lacks staged release guarantees",
+    "No physical Safari listening or audio conformance certification",
+    "Historical Grid uncertainty and broader WebKit surround capability limits remain open"
+  ]
+}

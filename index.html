@@ -3827,6 +3827,7 @@
         });
     </script>
     <script src="js/usage.js" integrity="sha256-TnipocZqA5CuAUe6IyZF8EsFzuxvopwb/npCZfLmh1I="></script>
+    <script src="js/app-updates.js"></script>
     <script src="js/appearance.js"></script>
     <script src="js/info-bar.js"></script>
     <script src="js/preferences.js"></script>
@@ -3850,7 +3851,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.3';
+        const APP_VERSION = '3.19.4';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.1';
@@ -3864,12 +3865,8 @@
         const _inIframe = window !== window.top;
         if (_inIframe) document.getElementById('landingCta').classList.add('in-iframe');
         document.getElementById('appVersion').textContent = 'v' + APP_VERSION;
-        // Append the deployed commit hash. version.json carries Jekyll front
-        // matter, so GitHub Pages substitutes {{ site.github.build_revision }}
-        // (the SHA the site was built from) at deploy time — the ONLY way to
-        // know the served commit with no build step (a commit can't contain its
-        // own hash). Local dev / offline-cache-miss serve the raw file (front
-        // matter intact → JSON.parse throws → catch) and show the bare version.
+        // Staging writes the deployed SHA beside this release’s runtime files.
+        // Local development has no SHA; offline use keeps the cached release identity.
         fetch('version.json')
             .then(r => r.json())
             .then(j => {
@@ -6121,7 +6118,7 @@
                     // the extension's fallback; rejection by the app is terminal.
                     try {
                         files = await Promise.all(items.map(async item => {
-                            const response = await fetch(item.signedUrl, { credentials: 'omit', signal: request.signal });
+                            const response = await fetch(new URL(item.signedUrl, location.href), { credentials: 'omit', signal: request.signal });
                             if (!response.ok) throw new Error(`${response.status} fetching ${item.name}`);
                             const blob = await response.blob();
                             return new File([blob], item.name, { type: item.contentType, lastModified: item.lastModified });
@@ -13565,7 +13562,7 @@
 
             // Register service worker for PWA / offline caching
             if (!_inIframe && 'serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js');
+                _registerAppServiceWorker();
             }
         });
 
@@ -14220,6 +14217,8 @@
                 <li>Chrome / Edge / Island: click install icon in address bar,<br>or ⋮ (three-dot menu in upper right) ▸ "Install WarpDiff"</li>
                 <li>Safari: Share ▸ "Add to Dock"</li>
             </ul>
+
+            <p>After a complete app version downloads, it can reopen offline. Updates do not reload an open comparison. If an update cannot load completely, use its Reload notice when online.</p>
 
             <h3>Getting Started</h3>
             <ul>

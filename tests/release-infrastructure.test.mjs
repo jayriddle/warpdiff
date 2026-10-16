@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
+import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {parse} from 'yaml';
@@ -107,15 +108,48 @@ test('report gate accepts only the documented pre-existing dynamic skip', () => 
   assert.throws(() => verifyReports(expected, [actual]));
 });
 
-test('public staging preserves runtime bytes, includes notices and excludes tooling', () => {
+test('public staging pins and verifies runtime bytes, includes notices and excludes tooling', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'warpdiff-pages-test-'));
   try {
     const sha = 'a'.repeat(40), output = path.join(directory, 'site');
     const result = stagePages({root, output, sha});
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(output, 'version.json'))), {sha});
-    for (const file of Object.keys(result.files).filter(f => f !== 'version.json')) {
+    for (const file of pageFiles(root).filter(f => !['version.json','index.html','sw.js'].includes(f))) {
       assert.deepEqual(fs.readFileSync(path.join(output, file)), fs.readFileSync(path.join(root, file)));
     }
+    const prefix = 'releases/' + sha + '/';
+    const html = fs.readFileSync(path.join(output, 'index.html'), 'utf8');
+    assert(html.includes('<base href="./' + prefix + '">'));
+    const background = JSON.parse(html.match(/<script id="warpdiff-background-scripts" type="application\/json">([^<]+)<\/script>/)[1]);
+    assert.deepEqual(Object.keys(background).sort(), ['js/audio-analysis-worker.js','js/scrub-worklet.js','js/signalsmith-worklet.js']);
+    for (const file of ['js/scrub-worklet.js','js/signalsmith-worklet.js']) {
+      assert.deepEqual(Buffer.from(background[file],'base64'),fs.readFileSync(path.join(root,file)));
+    }
+    const workerSource = Buffer.from(background['js/audio-analysis-worker.js'],'base64').toString();
+    const embeddedAlgorithm = workerSource.match(/importScripts\('data:text\/javascript;base64,([^']+)'\);/)[1];
+    assert.deepEqual(Buffer.from(embeddedAlgorithm,'base64'),fs.readFileSync(path.join(root,'js/audio-viz.js')));
+    assert.equal(workerSource.replace(/importScripts\('data:text\/javascript;base64,[^']+'\);/, "importScripts('audio-viz.js');"),
+      fs.readFileSync(path.join(root,'js/audio-analysis-worker.js'),'utf8'));
+    const worker = fs.readFileSync(path.join(output, 'sw.js'), 'utf8');
+    const release = vm.runInNewContext(worker + '\nRELEASE', {URL, Set,
+      self:{registration:{scope:'https://example.test/warpdiff/'},addEventListener(){}}});
+    assert.equal(release.sha, sha);
+    const integrity = bytes => 'sha256-' + createHash('sha256').update(bytes).digest('base64');
+    for (const [file, hash] of Object.entries(release.files)) {
+      assert.equal(integrity(fs.readFileSync(path.join(output, file))), hash);
+    }
+    const scriptTags = [...html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/g)];
+    assert.equal(scriptTags.length, [...fs.readFileSync(path.join(root,'index.html'),'utf8').matchAll(/<script\b[^>]*\bsrc=/g)].length);
+    for (const tag of scriptTags) assert.match(tag[0], /integrity="sha256-[^"]+"/, 'Every runtime script must be pinned');
+    for (const match of html.matchAll(/<script src="([^"]+)" integrity="([^"]+)"/g)) {
+      assert.equal(integrity(fs.readFileSync(path.join(output, prefix + match[1]))), match[2]);
+    }
+    for (const file of pageFiles(root).filter(f => !['sw.js','index.html','manifest.json','version.json'].includes(f))) {
+      assert.deepEqual(fs.readFileSync(path.join(output, prefix + file)), fs.readFileSync(path.join(root, file)));
+    }
+    const manifest = JSON.parse(fs.readFileSync(path.join(output, prefix + 'manifest.json')));
+    assert.equal(manifest.start_url, '../../');assert.equal(manifest.scope, '../../');
+    assert(!Object.hasOwn(manifest, 'id'), 'Preserve the released start-URL-derived application identity');
     assert(result.files['js/signalsmith-LICENSE.txt']);
     for (const file of ['output', 'tests', 'docs', 'tools', 'ffmpeg', 'package.json', '.github']) {
       assert(!fs.existsSync(path.join(output, file)), file + ' must not be published');
@@ -148,4 +182,59 @@ test('generated evidence is ignored by Git and excluded from legacy Pages', () =
     assert.equal(execFileSync('git', ['check-ignore', file], {cwd: root}).toString().trim(), file);
   }
   assert(parse(fs.readFileSync(path.join(root, '_config.yml'), 'utf8')).exclude.includes('output/'));
+});
+
+function updateWorker({failInstall=false, clientSha, unknown=false, existing=false}={}) {
+  const listeners={}, deleted=[], added=[], stamps=new Map();let skipped=false;
+  const sha='b'.repeat(40), scope='https://example.test/app/';
+  const source=fs.readFileSync(path.join(root,'sw.js'),'utf8').replace('const RELEASE = null;',
+    'const RELEASE = '+JSON.stringify({sha,files:{'index.html':'sha256-'+Buffer.alloc(32).toString('base64')}})+';');
+  const metadata = new Map();
+  const caches={keys:async()=>[...stamps.keys()],delete:async name=>{deleted.push(name);stamps.delete(name);return true;},
+    open:async name=>({addAll:async requests=>{added.push(...requests);if(failInstall)throw Error('Bad bundle');},
+      put:async(url,response)=>{metadata.set(name,await response.json());stamps.set(name,true);},
+      match:async()=>metadata.has(name)?new Response(JSON.stringify(metadata.get(name))):undefined})};
+  const client={url:scope,postMessage:(_,ports)=>{if(!unknown)ports[0].postMessage({sha:clientSha});}};
+  const context=vm.createContext({URL,Set,Map,Promise,Request,Response,MessageChannel,setTimeout,clearTimeout,
+    Date:class {static now(){throw Error('The wall clock must not order caches');}},
+    self:{registration:{scope},addEventListener:(name,fn)=>listeners[name]=fn,skipWaiting:async()=>{skipped=true;},
+      clients:{claim:async()=>{},matchAll:async()=>clientSha||unknown?[client]:[]}},caches});
+  vm.runInContext(source,context); const name=vm.runInContext('RELEASE_CACHE',context);
+  if(existing){stamps.set(name,true);metadata.set(name,{sequence:20});}
+  return {name,added,deleted,stamps,metadata,skipped:()=>skipped,
+    add:(name,time)=>{stamps.set(name,true);if(time!==null)metadata.set(name,{sequence:time});},
+    run:async type=>{let pending;listeners[type]({waitUntil:p=>pending=p});await pending;}};
+}
+
+test('verified install bypasses the HTTP cache and activates only after all assets pass', async()=>{
+  const worker=updateWorker();await worker.run('install');
+  assert(worker.skipped());assert.equal(worker.added.length,1);
+  assert.equal(worker.added[0].cache,'reload');assert.match(worker.added[0].integrity,/^sha256-/);
+});
+for(const existing of [false,true]) test('failed install '+(existing?'preserves an existing bundle':'removes its incomplete cache'),async()=>{
+  const worker=updateWorker({failInstall:true,existing});await assert.rejects(worker.run('install'),/Bad bundle/);
+  assert(!worker.skipped());assert.deepEqual(worker.deleted,existing?[]:[worker.name]);
+});
+
+test('an older controller cannot retire a newer installation or another app scope',async()=>{
+  const worker=updateWorker({existing:true});
+  const older=worker.name.replace('b'.repeat(40),'a'.repeat(40));
+  const newer=worker.name.replace('b'.repeat(40),'c'.repeat(40));
+  const sibling=older.replace('%2Fapp%2F','%2Fsibling%2F');
+  worker.add(older,10);worker.add(newer,30);worker.add(sibling,5);worker.add('host-cache',null);worker.add('warpdiff-ffmpeg',null);
+  await worker.run('activate');assert.deepEqual(worker.deleted.sort(),[older,'warpdiff-ffmpeg'].sort());
+});
+test('open comparisons retain their release cache',async()=>{
+  const worker=updateWorker({existing:true,clientSha:'a'.repeat(40)});
+  const older=worker.name.replace('b'.repeat(40),'a'.repeat(40));worker.add(older,10);
+  await worker.run('activate');assert.deepEqual(worker.deleted,[]);
+});
+test('unidentified legacy clients conservatively preserve previous app caches',async()=>{
+  const worker=updateWorker({existing:true,unknown:true});worker.add('warpdiff-v3.19.3',null);
+  await worker.run('activate');assert.deepEqual(worker.deleted,[]);
+});
+
+test('installation ordering advances beyond retained generations without consulting the wall clock',async()=>{
+  const worker=updateWorker();worker.add(worker.name.replace('b'.repeat(40),'a'.repeat(40)),30);
+  await worker.run('install');assert(worker.metadata.get(worker.name).sequence>30);assert(worker.skipped());
 });

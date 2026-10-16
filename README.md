@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.3
+**Current version:** 3.19.4
 
 ---
 
@@ -136,7 +136,7 @@ Manually loaded files auto-sort oldest → newest by timestamp; host loads retai
 ### Architecture
 
 - **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, image wipe, transport, the info bar editor, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
-- **PWA** — `manifest.json` + `sw.js` provide install + offline support. `CACHE_NAME` is kept in sync with `APP_VERSION` on every release (enforced by the ownership test harness, which also checks every `js/*.js` is in the service-worker precache).
+- **PWA** — `manifest.json` + `sw.js` provide install + offline support. Published pages pin runtime files to their commit-specific directory. Offline installation checks the entire bundle before activation; an open comparison keeps its original files through an update. `CACHE_NAME` and `APP_VERSION` remain synchronized.
 - **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
 - **Two test layers** — a Playwright suite (real headless Chromium) covering transport, difference and wipe modes, pan/zoom, hotkey reassignment, layouts, and audio visualization; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, documentation/build/version hygiene, and pure-function logic without a browser.
 
@@ -172,11 +172,11 @@ Pull requests and pushes to `main` run the complete Chromium suite across three
 isolated jobs, ownership/infrastructure checks, and the focused WebKit profile.
 Feature branches use explicit manual dispatch before a PR, avoiding duplicate
 push/PR runs. Native FFmpeg generates fixtures; it is not shipped with the app.
-The proposed Pages workflow stages only public assets and waits for successful
-checks before publishing a `main` push. Activating that workflow requires a
-separately approved Pages setting change; the live site retains its current
-publishing configuration until review. See [release safeguards](docs/release-safeguards.md)
-for commands, coverage limits, and activation instructions.
+The Pages workflow stages only public assets and waits for successful checks before
+publishing a `main` push. Staging adds commit-specific runtime URLs and integrity
+checks; local development still serves the source directly with no build step.
+See [release safeguards](docs/release-safeguards.md) for commands and coverage limits.
+
 
 ---
 

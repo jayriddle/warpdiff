@@ -480,7 +480,7 @@ Video timecode displays as SS:FF or M:SS:FF. Audio timecode displays as S.cc or 
 
 ## PWA & Offline
 
-WarpDiff is a Progressive Web App — install it from Chrome, Edge, or Safari for a standalone window experience. After the first load, it works offline via a service worker with network-first caching.
+WarpDiff is a Progressive Web App — install it from Chrome, Edge, or Safari for a standalone window experience. Once a complete app version has downloaded, it can reopen offline, including links with query settings. Updates do not reload an open comparison. Newly opened pages can use the newer version while existing comparisons keep their original files. If an update is incomplete, WarpDiff keeps the previous complete offline copy. If a required file fails on the first visit, use the Reload notice when online. Browser storage restrictions or eviction can prevent offline use.
 
 ---
 
