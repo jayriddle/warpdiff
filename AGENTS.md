@@ -38,6 +38,8 @@ A/B comparison tool for images, video, and audio. Hosted on GitHub Pages.
 
 Host loads retain input order and validate every converted file after either transport, outside signed-network fallback. `_hostLoadSlotUpdate` owns per-request media/analysis readiness using the captured loading token. READY requires decoded images, first video frames, and playable/analysed audio-only slots; initial slot failure routes through `_hostLoadFailed`. Manual loading keeps timestamp sorting and partial-failure behavior.
 
+`_hostLoadVerifyVideo` owns bounded initial-frame verification (10 seconds) and its cancellation. `loadeddata`/dimensions alone cannot authorize video READY. A 1×1 canvas copy probe distinguishes an actual frame, including black/transparent pixels, from a no-op draw. When the comparison's paused element has no drawable frame, a separate muted inline element verifies native decoding without touching comparison playback or routing. Success, failure and request abort retire the timer, native element and canvas. This verifies initial usability, not complete-file integrity. Info-bar fitting writes More's final visibility once, preserving focus when overflow remains.
+
 ## Key Technical Patterns
 
 ### Frame & timecode

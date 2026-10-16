@@ -1,5 +1,6 @@
 import {test, expect} from '@playwright/test';
-import {readFileSync} from 'node:fs';
+import {readFileSync, mkdirSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import path from 'node:path';
 
 const image64 = readFileSync(path.join(__dirname, 'fixtures/green.png')).toString('base64');
@@ -164,6 +165,136 @@ test('valid signed host video reaches a decoded first frame before READY', async
   ]);
   const video = page.locator('.asset-layer video').first();
   expect(await video.evaluate((v:HTMLVideoElement) => v.readyState >= 2 && v.videoWidth > 0 && v.videoHeight > 0)).toBe(true);
+});
+
+for (const managed of [false,true]) for (const signed of [false,true]) {
+  test(`first-frame verification rejects metadata-only video after a valid control (${managed ? 'parent' : 'window'}, ${signed ? 'signed' : 'bytes'})`, async ({page}, testInfo) => {
+    const directory = testInfo.outputPath('faststart'); mkdirSync(directory, {recursive:true});
+    const filename = path.join(directory, 'control.mp4');
+    execFileSync('ffmpeg', ['-v','error','-i',path.join(__dirname,'fixtures/landscape_a.mp4'),
+      '-c','copy','-movflags','+faststart',filename]);
+    const full = readFileSync(filename), end = full.indexOf(Buffer.from('mdat')) + 4;
+    expect(end).toBeGreaterThan(8); expect(end).toBeLessThan(full.length);
+    let served = 0;
+    await page.route('**/first-frame-*.mp4', route => {
+      served++;
+      return route.fulfill({status:200,contentType:'video/mp4',body:route.request().url().endsWith('full.mp4') ? full : full.subarray(0,end)});
+    });
+    if (managed) {
+      await page.route('**/first-frame-host.html', route => route.fulfill({contentType:'text/html',body:'<!doctype html><iframe src="/"></iframe>'}));
+      await page.goto('/first-frame-host.html');
+    }
+    const app = managed ? page.frames().find(frame => frame.parentFrame())! : page;
+    await app.waitForFunction(() => typeof (window as any).handleMultipleFiles === 'function');
+    const firstSample = await app.evaluate(bytes => (window as any)._demuxMP4Video(new Uint8Array(bytes))?.samples[0], Array.from(full));
+    expect(firstSample?.offset, 'The prefix must end before every video sample').toBeGreaterThanOrEqual(end);
+    expect(firstSample?.size).toBeGreaterThan(0);
+    async function send(kind:'full'|'empty') {
+      await page.evaluate(({managed,signed,kind,base64}) => {
+        const receiver = managed ? document.querySelector('iframe')!.contentWindow! : window;
+        const item = {name:kind+'.mp4',contentType:'video/mp4',...(signed ? {signedUrl:'/first-frame-'+kind+'.mp4'} : {base64})};
+        receiver.postMessage({type:'WARPDIFF_LOAD',requestId:kind,taskId:'first-frame',slotLabels:['','Candidate'],capabilities:{managedReview:managed},
+          ...(signed ? {signedItems:[item]} : {files:[item]})},location.origin);
+      }, {managed,signed,kind,base64:(kind === 'full' ? full : full.subarray(0,end)).toString('base64')});
+    }
+    await send('full');
+    await expect.poll(() => page.evaluate(() => (window as any).hostReplies), {timeout:15000}).toEqual([
+      expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'full',taskId:'first-frame'}),
+    ]);
+    expect(await app.locator('.asset-layer video').evaluate((v:HTMLVideoElement) => ({paused:v.paused,time:v.currentTime})))
+      .toEqual({paused:true,time:0});
+    await expect(app.locator('[data-host-video-probe]')).toHaveCount(0);
+    await page.clock.install();
+    await send('empty');
+    await expect.poll(() => app.locator('.asset-layer video').evaluate((v:HTMLVideoElement) => v.readyState), {timeout:10000}).toBeGreaterThanOrEqual(2);
+    if (signed) expect(served, 'Both controlled responses must execute').toBe(2);
+    await page.waitForTimeout(550);
+    expect(await page.evaluate(() => (window as any).hostReplies),
+      'A video without a usable frame must not receive READY').toEqual([
+      expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'full'}),
+    ]);
+    await page.clock.fastForward(11000);
+    await expect.poll(() => page.evaluate(() => (window as any).hostReplies),
+      {message:'Metadata without a usable frame must fail, never receive READY'}).toEqual([
+      expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'full'}),
+      expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'empty',taskId:'first-frame'}),
+    ]);
+    await expect(app.locator('.asset-layer video, [data-host-video-probe]')).toHaveCount(0);
+    await expect(app.locator('#comparisonView')).not.toHaveClass(/active/);
+    await expect(app.locator('#landingCta')).not.toHaveClass(/loading/);
+    await expect(app.locator('#ihwaPullBtn')).toBeEnabled();
+    expect(await page.evaluate(() => (window as any).hostFallbacks)).toBe(0);
+    await page.clock.fastForward(20000);
+    expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(2);
+  });
+}
+
+test('frame availability accepts black, solid sentinel colors and transparent source pixels', async ({page}) => {
+  expect(await page.evaluate(() => {
+    const source=document.createElement('canvas'), target=document.createElement('canvas');
+    source.width=source.height=target.width=target.height=1;
+    const ctx=source.getContext('2d')!, targetCtx=target.getContext('2d')!;
+    return ['#000000','#ff0000','#00ff00','transparent'].map(color => {
+      ctx.clearRect(0,0,1,1);ctx.fillStyle=color;ctx.fillRect(0,0,1,1);
+      return (window as any)._hostVideoFrameAvailable(source,targetCtx);
+    });
+  })).toEqual([true,true,true,true]);
+});
+
+test('replacing a pending first-frame verification retires its probe and deadline', async ({page}) => {
+  await page.evaluate(() => {
+    (window as any)._hostVideoFrameAvailable = () => false;
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'held-video',signedItems:[
+      {name:'held.mp4',contentType:'video/mp4',signedUrl:'/tests/fixtures/landscape_a.mp4'},
+    ]}, location.origin);
+  });
+  await expect(page.locator('[data-host-video-probe]')).toHaveCount(1);
+  await page.clock.install();
+  await page.evaluate(base64 => window.postMessage({type:'WARPDIFF_LOAD',requestId:'replacement',files:[
+    {name:'replacement.png',contentType:'image/png',base64},
+  ]},location.origin),image64);
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'replacement'}),
+  ]);
+  await page.clock.fastForward(20000);
+  await expect(page.locator('[data-host-video-probe]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(1);
+  expect(await page.evaluate(() => (window as any).eval('mediaData.editA.name'))).toBe('replacement.png');
+});
+
+test('clearing pending first-frame verification retires its probe without a terminal reply', async ({page}) => {
+  await page.evaluate(() => {
+    (window as any)._hostVideoFrameAvailable = () => false;
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'cleared-video',signedItems:[
+      {name:'held.mp4',contentType:'video/mp4',signedUrl:'/tests/fixtures/landscape_a.mp4'},
+    ]}, location.origin);
+  });
+  await expect(page.locator('[data-host-video-probe]')).toHaveCount(1);
+  await page.clock.install();
+  await page.evaluate(() => (window as any).clearAllMedia());
+  await page.clock.fastForward(20000);
+  await expect(page.locator('[data-host-video-probe]')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toEqual([]);
+  await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);
+});
+
+test('a rejected verification play promise fails once and retires its probe', async ({page}) => {
+  await page.evaluate(() => {
+    (window as any)._hostVideoFrameAvailable = () => false;
+    const original = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function() {
+      return this.hasAttribute('data-host-video-probe') ? Promise.reject(new DOMException('Blocked probe','NotAllowedError')) : original.call(this);
+    };
+    window.postMessage({type:'WARPDIFF_LOAD',requestId:'blocked-verifier',signedItems:[
+      {name:'valid.mp4',contentType:'video/mp4',signedUrl:'/tests/fixtures/landscape_a.mp4'},
+    ]}, location.origin);
+  });
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+    expect.objectContaining({type:'WARPDIFF_LOAD_FAILED',requestId:'blocked-verifier'}),
+  ]);
+  await expect(page.locator('[data-host-video-probe], .asset-layer video')).toHaveCount(0);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => (window as any).hostReplies)).toHaveLength(1);
 });
 
 test('standalone manual loads retain timestamp ordering', async ({page}) => {

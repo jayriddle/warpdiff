@@ -5872,6 +5872,96 @@
             return true;
         }
 
+        function _hostVideoFrameAvailable(video, context) {
+            // drawImage is a no-op when a video has no decoded frame, even when
+            // loadeddata/dimensions say otherwise. Two different backgrounds
+            // distinguish that no-op from any real pixel, including transparent
+            // or black video. Copy compositing preserves transparent pixels.
+            try {
+                context.globalCompositeOperation = 'copy';
+                for (const [color, expected] of [['#ff0000', [255,0,0,255]], ['#00ff00', [0,255,0,255]]]) {
+                    context.fillStyle = color;
+                    context.fillRect(0, 0, 1, 1);
+                    context.drawImage(video, 0, 0, 1, 1);
+                    const pixel = context.getImageData(0, 0, 1, 1).data;
+                    if (pixel.some((value, index) => value !== expected[index])) return true;
+                }
+            } catch (_) { /* A frame may not be available yet. */ }
+            return false;
+        }
+
+        function _hostLoadVerifyVideo(slot, video, loadingToken) {
+            if (!_hostLoadIsCurrent(_viewLoadGeneration)) return;
+            const request = _hostLoadRequest;
+            const canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 1;
+            const context = canvas.getContext('2d', {willReadFrequently:true});
+            const deadline = performance.now() + 10000;
+            const failure = 'Could not decode first video frame of ' + mediaData[slot].name;
+            let timer = null, probe = null, done = false;
+            function current() {
+                return loadingToken === _loadingProgressToken && _hostLoadRequest === request
+                    && !request.terminal && !request.signal.aborted;
+            }
+            function cleanup() {
+                done = true;
+                clearTimeout(timer);
+                request.signal.removeEventListener('abort', cleanup);
+                if (probe) {
+                    probe.pause();
+                    probe.removeAttribute('src');
+                    probe.load();
+                    probe.remove();
+                    probe = null;
+                }
+                canvas.width = canvas.height = 0;
+            }
+            function finish(error) {
+                if (done) return;
+                const accepted = current();
+                cleanup();
+                if (!accepted) return;
+                if (error) _hostLoadSlotUpdate(slot, loadingToken, 'failed', error);
+                else {
+                    _setLoadingSlotState(slot, 'Ready', 'ready');
+                    _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                    checkAllLoaded();
+                }
+            }
+            function check() {
+                if (done) return;
+                if (!current()) { cleanup(); return; }
+                if (video.readyState >= 2 && video.videoWidth && video.videoHeight) {
+                    if (_hostVideoFrameAvailable(video, context)
+                        || (probe && _hostVideoFrameAvailable(probe, context))) { finish(); return; }
+                    if (!probe) {
+                        // Some browsers do not materialize a paused frame. A
+                        // separate muted element verifies decoding without moving
+                        // the comparison's clock or touching its audio routing.
+                        probe = document.createElement('video');
+                        probe.muted = true;
+                        probe.playsInline = true;
+                        probe.preload = 'auto';
+                        probe.dataset.hostVideoProbe = '';
+                        probe.setAttribute('aria-hidden', 'true');
+                        probe.tabIndex = -1;
+                        probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
+                        probe.addEventListener('error', () => finish(failure));
+                        probe.src = video.src;
+                        document.body.appendChild(probe);
+                        try {
+                            probe.play().catch(() => finish(failure));
+                        } catch (_) { finish(failure); }
+                        if (done) return;
+                    }
+                }
+                if (performance.now() >= deadline) { finish(failure); return; }
+                timer = setTimeout(check, 50);
+            }
+            request.signal.addEventListener('abort', cleanup, {once:true});
+            check();
+        }
+
         function _hostLoadFailed(request, error) {
             if (!request || !_hostLoadIsCurrent(request.generation) || request.terminal) return;
             request.terminal = true;
@@ -8337,8 +8427,8 @@
                 if (loadingToken !== _loadingProgressToken) return;
                 if (!video.videoWidth || !video.videoHeight) {
                     if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
-                } else _hostLoadSlotUpdate(slot, loadingToken, 'media');
-                _setLoadingSlotState(slot, 'Ready', 'ready');
+                }
+                if (!_hostLoadIsCurrent(_viewLoadGeneration)) _setLoadingSlotState(slot, 'Ready', 'ready');
                 checkAllLoaded();
             }, { once: true });
 
@@ -8369,6 +8459,7 @@
 
             // Store File for lazy audio decode (read on demand, not upfront)
             audioFileBuffers[slot] = file;
+            _hostLoadVerifyVideo(slot, video, loadingToken);
         }
 
         // ── loadImageFile ────────────────────────────────────────────────
