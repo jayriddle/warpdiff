@@ -1,0 +1,239 @@
+{
+  "baseline": "91665d99c4ee33331d2c34c975b2dc2ddd43b759",
+  "initialReviewTarget": "4949b85059999d2fb7189686de798aa71e349340",
+  "candidateVersion": "3.19.7",
+  "authorization": "Feature implementation, tests, independent review and PR only. No merge/publication.",
+  "local": {
+    "ownership": {
+      "passed": 1353,
+      "failed": 0
+    },
+    "infrastructure": {
+      "passed": 26,
+      "failed": 0
+    },
+    "externalPreparation": {
+      "passed": 23,
+      "failed": 0
+    },
+    "browser": {
+      "summary": {
+        "total": 98,
+        "passed": 98,
+        "skipped": 0,
+        "reports": 1
+      },
+      "workers": 1,
+      "projects": {
+        "chrome": 49,
+        "webkit": 49
+      },
+      "retries": 0,
+      "runnerErrors": []
+    },
+    "packageSmoke": {
+      "url": "http://127.0.0.1:63291/output/prepared-package-import-2026-10-17-RyF7Mb/local-package/",
+      "sha": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "scope": "Exact committed local staged package, fresh serial browser contexts. Chrome offline emulation only.",
+      "results": [
+        {
+          "name": "chrome",
+          "version": "155.0.8059.82",
+          "release": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+          "packagedStartup": true,
+          "inspectionPreservesComparison": true,
+          "sourceBinding": "matched",
+          "inputCancelPreservedForm": true,
+          "normalHandoffAndAnalysis": true,
+          "preparedProfile": "not-validated",
+          "offline": {
+            "condition": "Chrome offline emulation",
+            "reload": true,
+            "inspection": true,
+            "normalLoadAndAnalysis": true
+          },
+          "errors": []
+        },
+        {
+          "name": "webkit",
+          "version": "26.0",
+          "release": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+          "packagedStartup": true,
+          "inspectionPreservesComparison": true,
+          "sourceBinding": "matched",
+          "inputCancelPreservedForm": true,
+          "normalHandoffAndAnalysis": true,
+          "preparedProfile": "not-validated",
+          "offline": null,
+          "errors": []
+        }
+      ]
+    },
+    "publicSourceParity": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "files": 42,
+      "gitDiskHTTPMatch": true
+    },
+    "staging": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "files": 82
+    },
+    "releaseNotes": {
+      "summary": {
+        "total": 22,
+        "passed": 22,
+        "skipped": 0,
+        "reports": 1
+      },
+      "workers": 1,
+      "retries": 0,
+      "runnerErrors": [],
+      "fixtureWritesSuppressed": true,
+      "seconds": 11
+    }
+  },
+  "independentReview": {
+    "record": "output/prepared-import-adversarial-2026-10-17-y7jGyo/README.md",
+    "acceptedFindings": [
+      {
+        "priority": "P2",
+        "finding": "Bubbling file-input cancel retired the entire form",
+        "fix": "Only dialog-target cancellation resets the modal"
+      },
+      {
+        "priority": "P2",
+        "finding": "Appearance captured the package dialog Escape",
+        "fix": "Close Appearance through its existing owner before opening"
+      }
+    ],
+    "focusHardening": "Plain Tab/Shift+Tab cycles visible enabled controls; Ctrl/Meta/Alt navigation preserved.",
+    "correctionFollowUp": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "record": "output/prepared-import-adversarial-followup-2026-10-17-0knDCN/README.md",
+      "passed": 28,
+      "projects": {
+        "chromium": 14,
+        "webkit": 14
+      },
+      "workers": 1,
+      "retries": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "runnerErrors": 0,
+      "pageErrors": 0,
+      "seconds": 13,
+      "findings": "Both P2 findings closed; no new concrete issue in examined scope",
+      "runtimeFilesMatchedGitDiskHTTP": 12
+    },
+    "announcementCorrection": {
+      "record": "output/prepared-import-announcement-review-2026-10-17-r9BiBf/README.md",
+      "type": "Independent static/data review; no browser execution",
+      "testSHA256": "c2260bcc65bf542a148e30ec7e2aef58732afa120c0fb26fb4e6c59614f9e838",
+      "findings": [],
+      "policyCasesPassed": 11,
+      "hostedFailuresClassified": 10
+    }
+  },
+  "sourceHashes": {
+    "AGENTS.md": "31262a462de819598a8513682f7d70bb6b317cd6a3ae93b279958e1847d57300",
+    "CLAUDE.md": "c1b08d7f806c26c227e1777ec552c2cddc4754cb6e1fe8339e2cc59e962a8cd4",
+    "FEATURES.md": "f1bb0b5e199ad1ea5f0b7ec0c592a90d3f37ca807546c9b0e1423838e40fb983",
+    "MANUAL.md": "96cb2a4eb8da5be1ae81dde71e2c9ddd1ce6f49c70e846311e6ad3b2fe9fb8a5",
+    "README.md": "57835e80f30338e8299adfcab3f4d241a846fe04b263aad4f473c5643fec0d75",
+    "docs/media-input-architecture.md": "27d431f887c83079a5eb98cfe39f23ba6d4c767077815587bae248aa75b43aac",
+    "docs/release-notes-archive.md": "4efb6ca232bedb01cedb8f8d3cbc43676a36cb6e4cdad5457ca1eae4315b1058",
+    "index.html": "ac4604132edcdd5b1a3b4e53892d074d055357f6b0b5cc74a6387fa7e81c156c",
+    "js/managed-review.js": "9fdf973d4108e4d9120d472c4608e2b830fd930d9c2b0dde2999536f0a5b2bf2",
+    "js/prepared-import.js": "22f84bddb47cd69152c510f0dd54983d46ffd6dc447d88390aceac131a767826",
+    "playwright.webkit.config.ts": "e935a28dda80e273d4202f9abf62e80c03af6239f44b9fcfc42c29c9c8fd2f4e",
+    "sw.js": "deaae6550d3af710fc4dba58989292e5570cd32c2092fdd2d769f8f26731ea32",
+    "tests/prepared-import.spec.ts": "718374b76a19198e5d718bd1f476e1cb76de86aa95c8609d21e22d96c8d61a7b",
+    "tools/media-prepare/README.md": "db746ecb891d35aa499894205d41530a8307922df47d6e0c2800a9098685dbc1",
+    "tests/warpdiff.spec.ts": "c2260bcc65bf542a148e30ec7e2aef58732afa120c0fb26fb4e6c59614f9e838"
+  },
+  "limitations": [
+    "Not a strict prepared-media profile",
+    "No full decoding/CFR/sync/channel fidelity/measurement/source derivation certification",
+    "Standalone picker only; managed hosts retain their channel",
+    "Synthetic file-input cancellation event shapes tested; physical OS picker UI not exercised",
+    "Physical Safari/audio listening not verified"
+  ],
+  "failedAttempts": [
+    {
+      "kind": "ownership",
+      "passed": 1352,
+      "failed": 1,
+      "cause": "README version not yet updated"
+    },
+    {
+      "kind": "infrastructure",
+      "passed": 25,
+      "failed": 1,
+      "cause": "New public source was not yet tracked; staging correctly refused it"
+    },
+    {
+      "kind": "browser",
+      "passed": 0,
+      "failed": 2,
+      "notRun": 34,
+      "cause": "Test helper read null slots; interrupted"
+    },
+    {
+      "kind": "browser",
+      "passed": 1,
+      "failed": 1,
+      "notRun": 34,
+      "cause": "Test expected picture evidence for an initially hidden video"
+    },
+    {
+      "kind": "browser",
+      "passed": 9,
+      "failed": 1,
+      "notRun": 26,
+      "cause": "Managed fixture omitted mandatory labels"
+    },
+    {
+      "kind": "browser",
+      "passed": 15,
+      "failed": 1,
+      "notRun": 20,
+      "cause": "Test expected ordinary manual loading to declare malformed AVC unavailable rather than unknown"
+    },
+    {
+      "kind": "browser",
+      "passed": 36,
+      "failed": 1,
+      "notRun": 3,
+      "cause": "Boundary-only Tab cycle missed WebKit platform policy"
+    }
+  ],
+  "rawEvidence": "output/prepared-package-import-2026-10-17-RyF7Mb",
+  "finalNotes": "Runtime and importer tests remain identical to independently reviewed/package-tested e7c10c9. After notes-only375f25b, only the existing release-note matrix and these two verification records change. Required checks of corrected PR head pending.",
+  "initialHosted": {
+    "run": 39062652514,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/39062652514",
+    "head": "375f25b7d33bc52357010c5a8b7e94422107c091",
+    "conclusion": "failure",
+    "chromium": {
+      "passed": 583,
+      "failed": 10,
+      "skipped": 1,
+      "inventoryCompleteAndUnique": true,
+      "retries": 0,
+      "runnerErrors": 0
+    },
+    "webkit": {
+      "run": 39062652514,
+      "head": "375f25b7d33bc52357010c5a8b7e94422107c091",
+      "passed": 204,
+      "skipped": 0,
+      "retries": 0,
+      "runnerErrors": 0,
+      "inventoryCompleteAndUnique": true,
+      "archiveDigest": "sha256:cbb682c1cfdf74d113d74b0d6e7b163e1a3a00d7863a36a39acaad95a1ca91a7",
+      "publication": "skipped"
+    },
+    "cause": "Existing release-note expectations retained3.19.6; corrected to3.19.7 with prior-version announcement and current-version silence controls.",
+    "publication": "skipped"
+  }
+}

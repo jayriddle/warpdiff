@@ -3483,6 +3483,23 @@
         #mediaStatusContent dl { margin: 0; }
         #mediaStatusContent dt { font-weight: 600; margin-top: 10px; }
         #mediaStatusContent dd { margin-left: 0; color: #bbb; overflow-wrap: anywhere; }
+        #preparedImportDialog { width: min(660px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; margin: auto; padding: 20px; border: 1px solid #555; border-radius: 8px; background: #202020; color: #ddd; font-size: 13px; }
+        #preparedImportDialog::backdrop { background: #0009; }
+        #preparedImportDialog h2 { margin: 0 0 12px; font-size: 18px; }
+        #preparedImportDialog p { line-height: 1.5; }
+        .prepared-import-fields { display: grid; gap: 14px; margin: 18px 0; }
+        .prepared-import-fields label { display: grid; gap: 6px; font-weight: 600; }
+        .prepared-import-fields input { width: 100%; min-width: 0; font: inherit; font-weight: 400; color: #ccc; }
+        #preparedImportSummary h3 { font-size: 14px; }
+        #preparedImportSummary dt { font-weight: 600; margin-top: 10px; }
+        #preparedImportSummary dd { margin: 3px 0 0; color: #bbb; overflow-wrap: anywhere; }
+        #preparedImportStatus { overflow-wrap: anywhere; min-height: 1.5em; }
+        .prepared-import-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+        .prepared-import-actions button { font: inherit; color: #ddd; background: #333; border: 1px solid #777; border-radius: 4px; padding: 7px 12px; }
+        .prepared-import-actions button:disabled { opacity: .45; }
+        #preparedPackageBtn { gap: 4px; }
+        body.managed-review #preparedPackageBtn { display: none !important; }
+        @media (max-width: 650px) { .prepared-import-label { display: none; } }
     </style>
 </head>
 <body>
@@ -3493,6 +3510,7 @@
                 <span class="header-brand-mark" aria-hidden="true"></span><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
                 <button class="analysis-btn" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" title="Load files (L)" style="margin-left: 12px;"></button>
                 <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <button type="button" class="analysis-btn" id="preparedPackageBtn" title="Load prepared package" aria-label="Load prepared package"><svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 6 10 2l8 4v9l-8 4-8-4Z M2 6l8 4 8-4 M10 10v9 M6 4l8 4"/></svg><span class="prepared-import-label">Package</span></button>
                 <button type="button" class="analysis-btn warn" id="externalAudioBtn" hidden onclick="toggleFfmpegPanel(this)" title="Prepare unsupported audio externally">Prepare audio</button>
                 <button type="button" class="analysis-btn" id="mediaStatusBtn" hidden title="Inspect available media tools and timing evidence">Media status</button>
                 <button class="analysis-btn" onclick="resetAll()" style="display: none;" id="resetBtn" title="Reset"></button>
@@ -3832,6 +3850,20 @@
         <div id="infoOverflowValues"></div>
     </aside>
 
+    <dialog id="preparedImportDialog" aria-labelledby="preparedImportTitle" aria-describedby="preparedImportDescription">
+        <h2 id="preparedImportTitle">Load prepared package</h2>
+        <p id="preparedImportDescription">Select files produced by the optional <a href="https://github.com/jayriddle/warpdiff/tree/main/tools/media-prepare" target="_blank" rel="noopener">external preparation tool</a>. Checking a package leaves your current comparison in place. Nothing is uploaded or converted here.</p>
+        <p>Manifest: up to 16 KiB. Prepared MP4 and optional original: up to 64 MiB each.</p>
+        <div class="prepared-import-fields">
+            <label>Package manifest<input id="preparedImportManifest" type="file" accept=".json,application/json"></label>
+            <label>Prepared MP4<input id="preparedImportMedia" type="file" accept=".mp4,video/mp4"></label>
+            <label>Original file (optional, for matching only)<input id="preparedImportSource" type="file" accept=".mp4,.mov,.m4v,video/*"></label>
+            <label>Other comparison files (optional, up to three)<input id="preparedImportOthers" type="file" multiple accept="image/*,video/*"></label>
+        </div>
+        <div id="preparedImportSummary"></div>
+        <p id="preparedImportStatus" role="status" aria-live="polite"></p>
+        <div class="prepared-import-actions"><button type="button" id="preparedImportCancel">Cancel</button><button type="button" id="preparedImportCheck" disabled>Check package</button><button type="button" id="preparedImportLoad" disabled>Load comparison</button></div>
+    </dialog>
     <dialog id="mediaStatusDialog" aria-labelledby="mediaStatusTitle">
         <div class="media-status-heading"><h2 id="mediaStatusTitle">Media status</h2><button type="button" id="mediaStatusRefresh">Refresh</button><button type="button" id="mediaStatusClose" aria-label="Close media status">Close</button></div>
         <p>Capabilities describe this loaded file. Refresh checks available frames without starting playback. Original-source fidelity and complete A/V synchronization are not certified.</p>
@@ -3867,6 +3899,7 @@
     <script src="js/media-admission.js"></script>
     <script src="js/mp4-demux.js"></script>
     <script src="js/prepared-media.js"></script>
+    <script src="js/prepared-import.js"></script>
     <script src="js/scrub-video.js"></script>
     <script src="js/timecode.js"></script>
     <script src="js/wipe.js"></script>
@@ -3881,10 +3914,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.6';
+        const APP_VERSION = '3.19.7';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.6';
+        const _CHANGELOG_VERSION = '3.19.7';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -10774,6 +10807,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia(preserveHostRequest = false) {
+            _resetPreparedImport(); // retire explicit package inspection → js/prepared-import.js
             _mediaInputClear();
             _mediaPreparationProviders.cancel();
             // Only host acceptance/failure retain correlation while clearing.
@@ -13447,7 +13481,7 @@
 
         // Listen for the reassignment key press
         document.addEventListener('keydown', function _reassignListener(e) {
-            if (document.getElementById('mediaStatusDialog').open) return;
+            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open) return;
             if (!_reassigningActionId) return;
             e.preventDefault();
             e.stopPropagation();
@@ -13486,7 +13520,7 @@
 
         // Keyboard navigation (lookup-based dispatcher)
         document.addEventListener('keydown', (e) => {
-            if (document.getElementById('mediaStatusDialog').open) return;
+            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open) return;
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
             const preparationPanel = document.getElementById('ffmpegPanel');
@@ -14035,6 +14069,7 @@
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>Prepared packages:</strong> Open <strong>Package</strong> (Load prepared package) in the header. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check package</strong> leaves the current comparison in place. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
             <p><strong>Media status:</strong> Open <strong>Media status</strong> in the header after loading to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>
             <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
@@ -14270,6 +14305,7 @@
             <p>After a complete app version downloads, it can reopen offline. Updates do not reload an open comparison. If an update cannot load completely, use its Reload notice when online.</p>
 
             <h3>Getting Started</h3>
+            <p>For an externally prepared package, use <strong>Package</strong> in the header to check the manifest and MP4 before starting a new comparison. Ordinary Load/drop still works for media files.</p>
             <ul>
                 <li>Save assets from the review tool: right-click ▸ Open in New Tab (auto-saves to Downloads on macOS) or right-click ▸ Save</li>
                 <li>Drop 1–4 image, video, or audio files onto this window, or click the load icon (file+) in the header</li>
@@ -14370,8 +14406,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li>Open Media status after loading to inspect available picture and audio tools, reported timing, and what still needs verification.</li>
-                <li>Unavailable audio tools explain when a compatible single-track copy is needed. Direct loading and the external preparation workflow remain available.</li>
+                <li>Use Package in the header to check a prepared MP4 and manifest before loading a new comparison, with optional companion files.</li>
+                <li>Review file matching, stereo preparation and unverified claims before loading. Failed or cancelled package checks keep your current comparison.</li>
             </ul>
         </div>
     </div>
