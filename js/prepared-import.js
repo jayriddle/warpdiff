@@ -28,6 +28,7 @@ function _setPreparedImportOpen(open, opener = null) {
     if (open) {
         if (_managedReviewActive() || dialog.open) return;
         _setFfmpegPanelOpen(false);
+        _closeAppearancePanel(); // its capture-phase keyboard owner must retire before this modal opens
         _preparedImportOpener = opener || document.activeElement;
         _preparedImportInvalidate();
         dialog.showModal();
@@ -121,7 +122,25 @@ document.getElementById('preparedImportCancel').addEventListener('click', _reset
 document.getElementById('preparedImportCheck').addEventListener('click', _checkPreparedImport);
 document.getElementById('preparedImportLoad').addEventListener('click', _loadPreparedImport);
 for (const id of ['Manifest', 'Media', 'Source', 'Others']) document.getElementById('preparedImport' + id).addEventListener('change', _preparedImportInvalidate);
-document.getElementById('preparedImportDialog').addEventListener('cancel', event => { event.preventDefault(); _resetPreparedImport(); });
+document.getElementById('preparedImportDialog').addEventListener('cancel', event => {
+    // File inputs also emit bubbling cancel events when a chooser is dismissed.
+    // Only cancellation of the dialog itself retires the package form.
+    if (event.target !== event.currentTarget) return;
+    event.preventDefault(); _resetPreparedImport();
+});
+document.getElementById('preparedImportDialog').addEventListener('keydown', event => {
+    if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
+    const dialog = event.currentTarget;
+    const controls = [...dialog.querySelectorAll('a[href], input:not(:disabled), button:not(:disabled)')]
+        .filter(control => control.tabIndex >= 0 && control.getClientRects().length);
+    if (!controls.length) return;
+    // WebKit's platform Tab policy can skip buttons despite tabIndex === 0.
+    // Cycle the dialog's controls explicitly so both directions include them.
+    const current = controls.indexOf(document.activeElement);
+    const next = current < 0 ? (event.shiftKey ? controls.length - 1 : 0)
+        : (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+    event.preventDefault(); controls[next].focus();
+});
 document.getElementById('preparedImportDialog').addEventListener('close', () => {
     // Ignore an older queued close event if the dialog has already reopened.
     if (!document.getElementById('preparedImportDialog').open && _preparedImportOpener) _resetPreparedImport();

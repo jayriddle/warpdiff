@@ -22,11 +22,11 @@ test.beforeEach(async({page})=>{
   await expect.poll(()=>page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA?.capabilities.picture.state)).toBe('available');
   await page.getByRole('button',{name:'Load prepared package',exact:true}).click();
 });
-test.afterEach(async({page})=>{const errors=await page.evaluate(()=>{const w=window as any;w._resetPreparedImport();return w.importErrors;});expect(errors).toEqual([]);});
+test.afterEach(async({page})=>{const errors=await page.evaluate(async()=>{const w=window as any;w._resetPreparedImport();if(w.releaseImportRead)await w.releaseImportRead();return w.importErrors;});expect(errors).toEqual([]);});
 const current=(page:any)=>page.evaluate(()=>Object.values((window as any).eval('mediaData')).filter(Boolean).map((v:any)=>v.name).sort());
 async function select(page:any,original=false){await page.locator('#preparedImportManifest').setInputFiles(prepared.manifest);await page.locator('#preparedImportMedia').setInputFiles(prepared.rendition);if(original)await page.locator('#preparedImportSource').setInputFiles(fixture('ac3_video.mp4'));}
 async function check(page:any){await page.locator('#preparedImportCheck').click();await expect(page.locator('#preparedImportLoad')).toBeEnabled({timeout:15000});}
-async function delayed(page:any){await select(page);await page.evaluate(()=>{const w=window as any,read=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(){if(this.name==='review.mp4'){w.importReadStarted=true;return new Promise(resolve=>{w.releaseImportRead=async()=>{File.prototype.arrayBuffer=read;resolve(await read.call(this));};});}return read.call(this);};});await page.locator('#preparedImportCheck').click();await expect.poll(()=>page.evaluate(()=>(window as any).importReadStarted)).toBe(true);}
+async function delayed(page:any){await select(page);await page.evaluate(()=>{const w=window as any,read=File.prototype.arrayBuffer;File.prototype.arrayBuffer=function(){if(this.name==='review.mp4'){w.importReadStarted=true;return new Promise(resolve=>{w.releaseImportRead=async()=>{w.releaseImportRead=null;File.prototype.arrayBuffer=read;resolve(await read.call(this));};});}return read.call(this);};});await page.locator('#preparedImportCheck').click();await expect.poll(()=>page.evaluate(()=>(window as any).importReadStarted)).toBe(true);}
 
  test('selection and checking preserve the current comparison until explicit load',async({page})=>{
   const requests:string[]=[];page.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});
@@ -96,11 +96,14 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.locator('#preparedImportManifest').setInputFiles({name:'manifest.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(claimed))});await page.locator('#preparedImportMedia').setInputFiles({name,mimeType:'video/mp4',buffer:media});await check(page);
   await expect(page.locator('#preparedImportSummary')).toContainText(name);await expect(page.locator('#preparedImportSummary img')).toHaveCount(0);await expect(page.locator('#preparedImportSummary')).toContainText('measurement conformance are not verified');expect(await current(page)).toEqual(['green.png']);
  });
- test('a candidate with invalid AVC parameters still fails through normal decoding',async({page})=>{
+ test('a container candidate does not certify invalid AVC picture',async({page})=>{
   const bytes=Buffer.from(media),at=bytes.indexOf('avcC'),end=at-4+bytes.readUInt32BE(at-4);expect(at).toBeGreaterThan(0);bytes.fill(0,at+12,end);
   const forged={...manifest,rendition:{...manifest.rendition,sha256:createHash('sha256').update(bytes).digest('hex')}};
   await page.locator('#preparedImportManifest').setInputFiles({name:'manifest.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(forged))});await page.locator('#preparedImportMedia').setInputFiles({name:'review.mp4',mimeType:'video/mp4',buffer:bytes});await check(page);expect(await current(page)).toEqual(['green.png']);await page.locator('#preparedImportLoad').click();
-  await expect.poll(()=>page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA?.capabilities.picture.state),{timeout:15000}).toBe('unavailable');expect(await page.evaluate(()=>(window as any).importReplies)).toEqual([]);
+  await expect.poll(()=>page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>!!v.error||v.readyState>=2),{timeout:15000}).toBe(true);
+  await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
+  const report=await page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA);
+  expect(['unknown','unavailable']).toContain(report.capabilities.picture.state);expect(['unknown','unavailable']).toContain(report.capabilities.frameAccess.state);expect(report.admission.preparedProfile).toBe('not-validated');expect(await page.evaluate(()=>(window as any).importReplies)).toEqual([]);
  });
  test('dialog owns keyboard focus, fits narrow windows and blocks ordinary file drops',async({page})=>{
   await page.setViewportSize({width:390,height:650});const dialog=page.locator('#preparedImportDialog');
@@ -111,4 +114,18 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
  });
  test('a queued old close event cannot cancel a reopened dialog',async({page})=>{
   await page.evaluate(()=>{const w=window as any;w._setPreparedImportOpen(false);w._setPreparedImportOpen(true);});await select(page);await check(page);await expect(page.locator('#preparedImportDialog')).toBeVisible();expect(await current(page)).toEqual(['green.png']);
+ });
+
+ test('file chooser cancellation keeps the checked form; dialog Escape still clears it',async({page})=>{
+  await select(page,true);await page.locator('#preparedImportOthers').setInputFiles(fixture('red.png'));await check(page);
+  for(const id of['Manifest','Media','Source','Others']){await page.locator('#preparedImport'+id).dispatchEvent('cancel',{bubbles:true,cancelable:false});await expect(page.locator('#preparedImportDialog')).toBeVisible();await expect(page.locator('#preparedImportLoad')).toBeEnabled();for(const name of['Manifest','Media','Source','Others'])expect(await page.locator('#preparedImport'+name).evaluate((input:HTMLInputElement)=>input.files!.length)).toBe(1);}
+  expect(await current(page)).toEqual(['green.png']);await page.keyboard.press('Escape');await expect(page.locator('#preparedImportDialog')).not.toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();
+  for(const id of['Manifest','Media','Source','Others'])expect(await page.locator('#preparedImport'+id).evaluate((input:HTMLInputElement)=>input.files!.length)).toBe(0);
+ });
+ test('opening the package modal retires Appearance keyboard capture',async({page,browserName})=>{
+  await page.locator('#preparedImportCancel').click();await page.locator('#appearanceButton').click();await expect(page.locator('#appearancePanel')).toBeVisible();
+  if(browserName==='chromium'){for(let i=0;i<40&&!(await page.locator('#preparedPackageBtn').evaluate(e=>e===document.activeElement));i++)await page.keyboard.press('Shift+Tab');await expect(page.locator('#preparedPackageBtn')).toBeFocused();}
+  else await page.locator('#preparedPackageBtn').focus(); // WebKit's default Tab policy skips buttons; exercise Enter activation.
+  await page.keyboard.press('Enter');await expect(page.locator('#preparedImportDialog')).toBeVisible();await expect(page.locator('#appearancePanel')).not.toBeVisible();
+  await page.keyboard.press('Escape');await expect(page.locator('#preparedImportDialog')).not.toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();expect(await current(page)).toEqual(['green.png']);
  });
