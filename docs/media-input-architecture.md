@@ -1,17 +1,17 @@
 # Media input contracts and preparation adapters
 
-Status: first implementation slice on `codex/media-input-contract`, based on released 3.19.5 (`19ec134`). Candidate 3.19.6 is unpublished. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Merge and publication remain on hold.
+Status: foundation and capability-report slices implemented locally on `codex/media-input-contract`, based on released 3.19.5 (`19ec134`). Candidate 3.19.6 is unpublished. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Merge and publication remain on hold.
 
 ## Migration slices
 
 WarpDiff's comparison core should consume media whose usable capabilities and timing are known. Preparation providers should repair or convert media outside that core. Container recognition, provider success and verified admission are different evidence.
 
-1. **Contract and adapter foundation — this slice.** Extract the existing MP4 audio-selection policy into immutable versioned assessments. Describe the existing compatibility recipe with a versioned preparation request. Route the manual command through an adapter. Add an explicit trusted-code file-provider interface, cancellation and unverified results. Preserve visible loading behavior.
-2. **Capability inventory and admission report.** Extend bounded probes to picture, audio and timing, with explicit known/unknown/unsupported states. Distinguish playback, frame access, listening and original-source analysis. Retain actual first-frame/audio checks and explain unavailable tools. MIME labels, extensions and sidecars cannot certify decoding.
+1. **Contract and adapter foundation — implemented.** Extract the existing MP4 audio-selection policy into immutable versioned assessments. Describe the existing compatibility recipe with a versioned preparation request. Route the manual command through an adapter. Add an explicit trusted-code file-provider interface, cancellation and unverified results. Preserve visible loading behavior.
+2. **Capability inventory and admission report — implemented conservatively.** Observe existing picture/audio decoding and metadata, with explicit available/unavailable/unknown/not-applicable states. Distinguish playback, frame access, listening and original-source analysis. Retain actual first-frame/audio checks and explain unavailable tools. MIME labels, extensions and sidecars cannot certify decoding. Exact CFR, full synchronization and original-source fidelity stay unverified.
 3. **Prepared package and first real processor.** Validate a review rendition plus source/provenance metadata, then implement one separately installed local tool or managed-host adapter end-to-end. Choose one concrete transport. Returned files re-enter normal admission. Validate timeline, duration, leading silence, frame mapping and channel identity with independent fixtures before offering a strict mode.
 4. **Separate compatibility from the comparison core.** Introduce a deliberately selected prepared-media mode; move legacy direct-loading support behind its own boundary. Retire each workaround only after the prepared profile replaces it with measured cross-browser evidence. Keep standalone direct loading until an explicit product decision changes that policy.
 
-The first slice does not remove Opus replacement, edit-list handling, native/WebCodecs fallbacks or channel matrices. It delivers no native helper, upload service, strict prepared-only mode or new host protocol.
+Neither implemented slice removes Opus replacement, edit-list handling, native/WebCodecs fallbacks or channel matrices. They deliver no native helper, upload service, strict prepared-only mode or new host message protocol.
 
 ## MP4 audio-selection contract
 
@@ -30,6 +30,29 @@ The first slice does not remove Opus replacement, edit-list handling, native/Web
 Eligible permits the existing owner to try decoding; it does not mean READY, synchronized, conformant or fully playable. A readable zero-track inventory stays eligible so the existing no-audio owner can classify it. Missing/invalid inventories or more than the parser's 64 tracks produce `audio-inventory-unverified`. Multiple tracks produce `audio-track-selection-required`. Both withhold decoded tools while native playback remains browser-managed where supported.
 
 `_mp4AudioAnalysisIssue` delegates to this report. Existing video/lazy, audio-only and container owners retain their generation checks and failure handling. Managed audio-only requires playable analyzed audio; usable managed video may proceed without decoded audio tools. The contract does not choose the browser's playback track.
+
+## Direct capability report v1
+
+`WarpMediaInput.assessCapabilities(facts)` is pure policy for profile `direct-capabilities-v1`. It returns a deeply immutable report with `contract: 'warpdiff.media-input'`, `version: 1`, kind/container, known track count, admission, capabilities, timing and structured issues. A report contains no filenames, URLs, credentials or source bytes. The dialog adds the current filename with `textContent` only.
+
+`js/media-admission.js` owns observation, compact evidence and presentation. The existing loader, decode generations, analysis results, timeline-confidence flags and listening buffers remain authoritative. Per-slot facts are bound to the current media object and loading token; clear/replacement drops them. MP4/WebM metadata is reused from existing parsing, without an extra file read or demux pass. Unknown formats are not classified by extension. Reports do not create a second decoding/readiness state machine.
+
+The report distinguishes:
+
+- **Picture:** a successfully decoded image or actual initial video frame. Dimensions/metadata alone are insufficient. Managed video uses the existing bounded first-frame verifier; a separate verification element can establish source decoding while the comparison element's pixel access remains unknown.
+- **Pixel access:** the current comparison element supplied readable pixels. Refresh uses the existing sentinel-based helper on one temporary 1×1 canvas per current image/video, at most two draws each; it creates no timers, decoders or media elements and never plays/seeks media. A paused element without drawable pixels stays unknown until a later explicit Refresh or existing load observation.
+- **Native playback:** actual native media data, plus verified picture for video. This establishes initial readiness, not every soundtrack or complete-file integrity. Images do not need this capability.
+- **Audio decoding, loaded-file analysis and scrub audio:** successful sample decoding, completed existing analysis aggregates and an existing listening buffer are separate evidence. Track-selection policy can withhold decoded tools while native picture remains usable. Preview budget failure need not invalidate completed analysis. Verified absence of audio differs from a failed/heuristic no-audio result.
+- **Original-source analysis:** not certified by decode or loaded-file metrics. A prepared/downmixed file can provide analysis of that copy without proving original channel fidelity or professional loudness/true-peak conformance.
+- **Timing:** finite positive native duration is labeled reported metadata. An audio start needs an explicit existing confidence flag or parsed container timestamp; numeric fallback zero stays unknown. Exact frame rate/CFR and full A/V synchronization remain unverified even when a start is known.
+
+`admission.state` is a snapshot of the existing loader decision (`pending`, `admitted`, or an observed media failure), with `authority: 'existing-loader'` and `preparedProfile: 'not-validated'`. The report does not drive `WARPDIFF_LOAD_READY`, promote a provider claim or certify a prepared recipe. No new host acceptance message is added.
+
+Users open **Media status** from the header after loading. Refresh performs the bounded frame check, and decode milestones coalesce updates only while the native modal dialog is open. The dialog owns keyboard input while open and restores focus on close; clear hides it and retires previous reports. There is no polling loop or background report probe.
+
+Same-origin hosts may discover `WarpDiffHostAPI.capabilities.mediaInputReportVersion === 1` and call `WarpDiffHostAPI.readMediaInputReports()`. It returns a frozen slot-keyed snapshot, empty after clear. This additive metadata getter cannot load media, run preparation, dispatch commands or authorize READY. Existing command-catalog and host-load protocols retain their owners.
+
+This is evidence inventory for ordinary direct loading. It is not prepared-profile conformance validation. Full timeline/frame/channel/provenance verification belongs to slice 3 and must precede a strict mode or retirement of compatibility workarounds.
 
 ## Preparation request v1
 
@@ -75,6 +98,6 @@ Standalone and managed users should share assessments and requests. A real host 
 
 ## Verification and ownership
 
-Pure fault-injection checks in `tests/media-input-regression.mjs` run through ownership. Browser checks in `tests/media-input.spec.ts` cover the real panel adapter, explicit invocation, corrupt output revalidation and clear cancellation in Chrome and WebKit. Existing command, external conversion, host and MP4 suites cover preserved behavior. Both runtime files belong in `sw.js` ASSETS for release-pinned/offline packaging.
+Pure fault-injection checks in `tests/media-input-regression.mjs` and `tests/media-admission-regression.mjs` run through ownership. Browser checks in `tests/media-input.spec.ts` cover the real panel adapter, explicit invocation, corrupt output revalidation and clear cancellation in Chrome and WebKit. `tests/media-admission.spec.ts` adds actual decoded capability reports, timing uncertainty, multi-track withholding, first-frame rejection, owner retirement and dialog keyboard/focus/layout checks in both engines. Existing command, external conversion, host and MP4 suites cover preserved behavior. All three boundary/adapter runtime files belong in `sw.js` ASSETS for release-pinned/offline packaging.
 
-The first-slice [work record](media-input-contract-2026-10-17/README.md) records measured results and limitations. The remaining slices are planned work, not completed capabilities.
+The [foundation work record](media-input-contract-2026-10-17/README.md) and [capability-report work record](media-admission-report-2026-10-17/README.md) record measured results and limitations. Slices 3 and 4 are planned work, not completed capabilities.

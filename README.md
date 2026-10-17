@@ -68,6 +68,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
 
 **Loading feedback**
+- **Media status** shows observed picture, pixel access, native playback, decoded-audio analysis and scrub-audio availability for each loaded input. It distinguishes reported timing from unverified frame-rate, synchronization and original-source fidelity claims. Refresh checks current frames without starting playback or preparation. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)
 - Each assigned slot and filename reports **Opening**, **Reading metadata**, **Decoding first frame**, or **Ready** while a comparison is prepared
 - Ready files are checked off while WarpDiff identifies the slower file, explains that every asset will appear together, and offers **Cancel** for manual loads
 

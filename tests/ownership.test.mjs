@@ -25,6 +25,7 @@ import { runMalformedAudioChecks } from './mp4-audio-malformed.mjs';
 import { runScrubInputChecks } from './scrub-input-regression.mjs';
 import { runPreferenceChecks } from './preferences-regression.mjs';
 import { runMediaInputChecks } from './media-input-regression.mjs';
+import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -355,6 +356,7 @@ function extractFn(name, src = SRC) {
 // Fault-injected persistence tests run the actual shipped preference factory.
 runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf8'));
 await runMediaInputChecks(check);
+runMediaAdmissionChecks(check);
 
 // Audio visualization scaling belongs beside the content it changes. Video gets
 // one control in the waveform utility rail; audio-only review gets one shared

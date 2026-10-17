@@ -49,6 +49,8 @@ The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.
 
 **Timestamp warning:** If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable — check that the right file landed in the right slot.
 
+**Media status:** After loading, open **Media status** in the header to inspect each input's picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Unavailable tools include an explanation; **Not verified** means there is insufficient evidence. The report separates the player's reported duration and known container audio start from exact frame rate/CFR, full A/V synchronization and original-source fidelity or measurement conformance, which it does not certify. **Refresh** checks the current comparison frames without starting playback or preparing a file. Escape or **Close** returns focus to the opener. Clear/reload retires the previous reports.
+
 **Duplicate detection:** If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears at the top of the screen.
 
 **Audio timing warning:** If a video's container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. WarpDiff does not shift native playback; the warning applies to decoded-audio views and tools using a fallback timeline. Videos whose containers explicitly report a start at 0 do not trigger it.

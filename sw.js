@@ -6,6 +6,7 @@ const ASSETS = ['./', 'index.html', 'js/app-updates.js', 'js/preferences.js', 'j
   'js/managed-review.js', 'js/mp4-demux.js', 'js/scrub-video.js', 'js/timecode.js', 'js/wipe.js', 'js/tile-check.js', 'js/audio-routing.js', 'js/audio-monitor.js', 'js/scrub-audio.js', 'js/scrub-audio-core.js', 'js/scrub-worklet.js', 'js/opus-sync.js', 'js/audio-decode.js', 'js/transport.js', 'js/starfield.js', 'version.json', 'favicon-32.png', 'icon-192.png', 'icon-512.png', 'manifest.json'];
 ASSETS.push('js/playback-audio-core.js', 'js/slow-playback.js', 'js/signalsmith-worklet.js');
 ASSETS.push('js/media-input-contract.js', 'js/media-preparation.js');
+ASSETS.push('js/media-admission.js');
 const SCOPE = self.registration.scope;
 const RUNTIME_URLS = new Set(ASSETS.map(asset => new URL(asset, SCOPE).href));
 const SCOPE_SUFFIX = '-' + encodeURIComponent(new URL(SCOPE).pathname);

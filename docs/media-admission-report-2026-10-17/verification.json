@@ -1,0 +1,294 @@
+{
+  "date": "2026-10-17",
+  "branch": "codex/media-input-contract",
+  "startingHead": "9d6175032bcd96ebc16bf9473334b53f825d32d0",
+  "releasedBaseline": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+  "candidateVersion": "3.19.6",
+  "scope": "Slice 2: immutable direct capability reports and Media status UI. Local feature work only.",
+  "publication": {
+    "pushed": false,
+    "pullRequestCreated": false,
+    "merged": false,
+    "published": false,
+    "settingsChanged": false,
+    "hold": true
+  },
+  "tests": {
+    "ownership": {
+      "passed": 1287,
+      "failed": 0
+    },
+    "infrastructure": {
+      "passed": 25,
+      "failed": 0
+    },
+    "newPureChecks": {
+      "passed": 49,
+      "throughOwnership": true
+    },
+    "selectedBrowserMatrix": {
+      "passed": 272,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "durationSeconds": 218.10881799999999,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "projects": {
+        "chrome": 126,
+        "webkit": 126,
+        "chrome-announcements": 10,
+        "webkit-announcements": 10
+      },
+      "revisionScope": "Working-tree state before final in-app Manual, dialog centering and loading-label changes. Includes twenty exact copied announcement assertions, without the parent spec fixture-writing hook. Not a full CI suite or exact-commit run."
+    },
+    "manualUpdateFeatureRun": {
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "durationSeconds": 27.060842,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "projects": {
+        "chrome": 10,
+        "webkit": 10
+      },
+      "revisionScope": "After in-app Manual paragraph; before visual centering correction."
+    },
+    "finalFeatureRun": {
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "durationSeconds": 29.118768,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "projects": {
+        "chrome": 10,
+        "webkit": 10
+      },
+      "revisionScope": "Final runtime and new report-spec bytes, including centering/scroll assertions."
+    },
+    "negativeControls": {
+      "baseline": {
+        "passed": 49,
+        "failed": 0
+      },
+      "mutations": [
+        {
+          "id": "metadata-is-picture",
+          "intended": "media-admission: metadata alone cannot establish a picture",
+          "detected": true,
+          "positiveControlPassed": true,
+          "failedAssertions": [
+            "media-admission: metadata alone cannot establish a picture",
+            "media-admission: metadata alone cannot establish playable video"
+          ],
+          "checkCount": 49,
+          "harnessError": null
+        },
+        {
+          "id": "fallback-zero-is-known",
+          "intended": "media-admission: numeric fallback zero without confidence stays unknown",
+          "detected": true,
+          "positiveControlPassed": true,
+          "failedAssertions": [
+            "media-admission: numeric fallback zero without confidence stays unknown"
+          ],
+          "checkCount": 49,
+          "harnessError": null
+        },
+        {
+          "id": "decoded-is-original",
+          "intended": "media-admission: decoded analysis does not certify original fidelity",
+          "detected": true,
+          "positiveControlPassed": true,
+          "failedAssertions": [
+            "media-admission: decoded analysis does not certify original fidelity"
+          ],
+          "checkCount": 49,
+          "harnessError": null
+        },
+        {
+          "id": "accept-retired-owner",
+          "intended": "media-admission: replacement owner rejects old observations",
+          "detected": true,
+          "positiveControlPassed": true,
+          "failedAssertions": [
+            "media-admission: replacement owner rejects old observations"
+          ],
+          "checkCount": 49,
+          "harnessError": null
+        }
+      ]
+    }
+  },
+  "package": {
+    "sourceResponses": 40,
+    "allSourceBytesMatched": true,
+    "files": 78,
+    "syntheticIdentity": "dddddddddddddddddddddddddddddddddddddddd",
+    "notGitRevision": true,
+    "notDeployment": true,
+    "engines": [
+      {
+        "name": "chrome",
+        "version": "155.0.8059.82",
+        "startup": true,
+        "controller": true,
+        "newRuntimeCached": true,
+        "dialogBounds": {
+          "x": 19,
+          "y": 20,
+          "width": 352,
+          "height": 804
+        },
+        "errors": [],
+        "offline": {
+          "condition": "Chromium offline emulation",
+          "startup": true,
+          "report": true
+        }
+      },
+      {
+        "name": "webkit",
+        "version": "26.0",
+        "startup": true,
+        "controller": true,
+        "newRuntimeCached": true,
+        "dialogBounds": {
+          "x": 19,
+          "y": 20,
+          "width": 352,
+          "height": 803.984375
+        },
+        "errors": [],
+        "offline": null
+      }
+    ],
+    "visualInspection": {
+      "desktop": {
+        "width": 1280,
+        "height": 800
+      },
+      "narrow": {
+        "width": 390,
+        "height": 844
+      },
+      "engines": [
+        "chrome",
+        "webkit"
+      ],
+      "beforeAfterRetained": true
+    }
+  },
+  "unchangedImplementations": [
+    {
+      "file": "js/mp4-demux.js",
+      "sha256": "09fa3de458a2859a020ba610017b1076a1e0044ed3d7a801f82d7574dad01fd6",
+      "unchanged": true
+    },
+    {
+      "file": "js/transport.js",
+      "sha256": "2fe79b27cd50c95ad442fb008131eb0ed7e741361cf4e604465de91e4eb778af",
+      "unchanged": true
+    },
+    {
+      "file": "js/opus-sync.js",
+      "sha256": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-viz.js",
+      "sha256": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-analysis.js",
+      "sha256": "c0db3c1eb02f96e225a738a38255d1a94c6951fb9a58b8580c0d51e9b440704e",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-analysis-worker.js",
+      "sha256": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-routing.js",
+      "sha256": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-monitor.js",
+      "sha256": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-video.js",
+      "sha256": "4ec52cb97fd116cc5abad04f0c9e683d891d46b00a1ef4d0625bd399010d1c51",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-audio.js",
+      "sha256": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-audio-core.js",
+      "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-worklet.js",
+      "sha256": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+      "unchanged": true
+    },
+    {
+      "file": "js/media-preparation.js",
+      "sha256": "6ca5a9c1909652f2ab17049760957a14b7ee15745f18ec397f01646ef1da393d",
+      "unchanged": true
+    }
+  ],
+  "retainedFailures": {
+    "firstFocusedAttempt": {
+      "passed": 6,
+      "failed": 1,
+      "notRun": 11,
+      "firstFailure": "Shared analysis-btn CSS overrode hidden; explicit mediaStatusBtn[hidden] rule fixed visibility.",
+      "additionalError": "The same failed result contains a 60-second teardown timeout; its independent cause was not established.",
+      "runnerMessage": "Stopped after configured first failure; this attempt was not green."
+    },
+    "sourceReviewCorrection": "Global keyboard handlers defer while the dialog is open; active-loop Escape and Grid stability tested.",
+    "visualCorrection": "Global margin reset placed dialog top-left; margin:auto and centering/scroll assertions added."
+  },
+  "limits": [
+    "No complete Chromium CI inventory, complete focused WebKit profile or hosted run for this slice.",
+    "No physical Safari listening, OS PWA migration, rendered PCM or loudness/true-peak conformance proof.",
+    "Prepared recipe, provenance/channel/timeline/CFR conformance and real external provider transport remain slice 3.",
+    "Existing Opus, edit-list, routing and browser compatibility owners remain.",
+    "Historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate."
+  ],
+  "evidenceDirectory": "output/media-admission-report-2026-10-17-0oZaZh/",
+  "preservation": {
+    "initialEntries": 11979,
+    "preCommitEntries": 11985,
+    "plannedFiles": 19,
+    "newDocumentationDirectory": 1,
+    "unexpectedDifferences": 0,
+    "preExistingSymlinksPreserved": 7,
+    "fixtureBytesAndModificationTimesPreserved": true,
+    "unrelatedFilesPreserved": true,
+    "ownedServerRetired": true,
+    "ownedPortVerifiedClosed": true,
+    "userPort8080Touched": false,
+    "finalReceipt": "output/media-admission-report-2026-10-17-0oZaZh/commit-receipt.json"
+  },
+  "remoteReadOnlyCheck": {
+    "main": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+    "featureBranchExists": false
+  }
+}

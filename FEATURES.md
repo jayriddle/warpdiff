@@ -70,6 +70,8 @@ Playback controls wrap when a desktop window or embedded pane has limited width,
 
 Loading a new comparison immediately clears the previous waveform and spectrogram, even if their panel is closed. The graphs remain blank while the new audio analysis prepares.
 
+**Media status** reports each loaded input's observed picture, pixel access, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Known duration/audio-start evidence is separate from unverified exact frame rate/CFR, full synchronization and original-source fidelity or measurement conformance. Unavailable tools explain their limitations; Refresh checks current frames without starting playback or preparation. Clearing or reloading retires the reports. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)
+
 Both Play and Restart (`R`) restore looping after a scrub, follow the selected Sync/Solo scope and loop range, and retain cached frames for the next drag.
 
 Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long gaps between keyframes can still delay an uncached seek; scrubbing does not transcode the original video.

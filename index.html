@@ -3472,6 +3472,17 @@
         @media (prefers-reduced-motion: reduce) {
             .solar-body, .landing-dropzone::before, .landing-cta.loading .landing-logo { animation: none; }
         }
+        #mediaStatusDialog { width: min(680px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); box-sizing: border-box; margin: auto; color: #ddd; background: #202020; border: 1px solid #555; border-radius: 8px; padding: 18px; }
+        #mediaStatusBtn[hidden] { display: none; }
+        #mediaStatusDialog::backdrop { background: #0009; }
+        .media-status-heading { display: flex; align-items: center; gap: 12px; }
+        .media-status-heading h2 { flex: 1; margin: 0; font-size: 17px; }
+        #mediaStatusDialog button { background: #333; color: #ddd; border: 1px solid #777; border-radius: 4px; padding: 5px 9px; cursor: pointer; }
+        #mediaStatusContent h3 { font-size: 14px; overflow-wrap: anywhere; margin: 20px 0 8px; }
+        #mediaStatusDialog p, #mediaStatusDialog dl { font-size: 12px; line-height: 1.5; }
+        #mediaStatusContent dl { margin: 0; }
+        #mediaStatusContent dt { font-weight: 600; margin-top: 10px; }
+        #mediaStatusContent dd { margin-left: 0; color: #bbb; overflow-wrap: anywhere; }
     </style>
 </head>
 <body>
@@ -3483,6 +3494,7 @@
                 <button class="analysis-btn" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" title="Load files (L)" style="margin-left: 12px;"></button>
                 <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
                 <button type="button" class="analysis-btn warn" id="externalAudioBtn" hidden onclick="toggleFfmpegPanel(this)" title="Prepare unsupported audio externally">Prepare audio</button>
+                <button type="button" class="analysis-btn" id="mediaStatusBtn" hidden title="Inspect available media tools and timing evidence">Media status</button>
                 <button class="analysis-btn" onclick="resetAll()" style="display: none;" id="resetBtn" title="Reset"></button>
                 <button class="analysis-btn" onclick="pullFromIHWA(); this.blur();" id="ihwaPullBtn" title="Pull Assets" style="display:none;"></button>
                 <button class="analysis-btn" onclick="toggleQuickStart()" title="Help (?)" id="helpBtn"></button>
@@ -3820,6 +3832,11 @@
         <div id="infoOverflowValues"></div>
     </aside>
 
+    <dialog id="mediaStatusDialog" aria-labelledby="mediaStatusTitle">
+        <div class="media-status-heading"><h2 id="mediaStatusTitle">Media status</h2><button type="button" id="mediaStatusRefresh">Refresh</button><button type="button" id="mediaStatusClose" aria-label="Close media status">Close</button></div>
+        <p>Capabilities describe this loaded file. Refresh checks available frames without starting playback. Original-source fidelity and complete A/V synchronization are not certified.</p>
+        <div id="mediaStatusContent"></div>
+    </dialog>
     <script>
         // Bind this document's disclosure to its exact collector. If loading or
         // integrity validation fails, the rest of WarpDiff keeps working quietly.
@@ -3847,6 +3864,7 @@
     <script src="js/managed-review.js"></script>
     <script src="js/media-input-contract.js"></script>
     <script src="js/media-preparation.js"></script>
+    <script src="js/media-admission.js"></script>
     <script src="js/mp4-demux.js"></script>
     <script src="js/scrub-video.js"></script>
     <script src="js/timecode.js"></script>
@@ -3865,7 +3883,7 @@
         const APP_VERSION = '3.19.6';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.1';
+        const _CHANGELOG_VERSION = '3.19.6';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5760,6 +5778,7 @@
         }
 
         function _setLoadingSlotState(slot, state, kind = 'working') {
+            _mediaInputStatusChanged();
             _usage.slotState(slot, kind);
             const item = _loadingProgressItems.find(entry => entry.slot === slot);
             if (!item) return;
@@ -5849,6 +5868,7 @@
             if (!_hostLoadBatchReady(generation) || _hostLoadRequest.terminal) return;
             _hostLoadRequest.terminal = true;
             _hostLoadRequest.status = 'ready';
+            _mediaInputStatusChanged();
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
         }
 
@@ -5928,8 +5948,11 @@
                 if (done) return;
                 if (!current()) { cleanup(); return; }
                 if (video.readyState >= 2 && video.videoWidth && video.videoHeight) {
-                    if (_hostVideoFrameAvailable(video, context)
-                        || (probe && _hostVideoFrameAvailable(probe, context))) { finish(); return; }
+                    const comparisonFrame = _hostVideoFrameAvailable(video, context);
+                    if (comparisonFrame || (probe && _hostVideoFrameAvailable(probe, context))) {
+                        _mediaInputObserve(slot, loadingToken, {pictureDecoded: true, frameAccess: comparisonFrame});
+                        finish(); return;
+                    }
                     if (!probe) {
                         // Some browsers do not materialize a paused frame. A
                         // separate muted element verifies decoding without moving
@@ -6702,6 +6725,7 @@
         // Populate .asset-lufs / .asset-lra / .asset-tp / .asset-plr in whichever info bar
         // the slot has. Works for both audio-only and video slots.
         function _updateMetricSpans(slot) {
+            _mediaInputStatusChanged();
             const layer = getLayer(slot);
             if (!layer) return;
             const infoBar = layer.querySelector('.asset-info-bar');
@@ -8270,6 +8294,7 @@
                 w: 1920,
                 h: 480
             };
+            _mediaInputBegin(slot);
 
             const { layer, mediaContainer } = prepareLayer(slot);
 
@@ -8292,6 +8317,7 @@
 
             audio.addEventListener('loadedmetadata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputStatusChanged();
                 updateDurationDisplay(slot, audio.duration);
                 const pc = document.getElementById('videoProgressContainer');
                 if (pc) { pc.setAttribute('aria-valuemax', audio.duration); pc.setAttribute('aria-valuenow', '0'); }
@@ -8300,11 +8326,13 @@
             });
             audio.addEventListener('error', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not open', 'error');
                 _hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not play ' + file.name);
             }, { once: true });
             audio.addEventListener('loadeddata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {nativeDataReady: true});
                 _hostLoadSlotUpdate(slot, loadingToken, 'media');
                 checkAllLoaded();
             }, { once: true });
@@ -8349,6 +8377,7 @@
             };
             _reader.onerror = () => {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {audioDecodeFailed: true});
                 _setLoadingSlotState(slot, 'Could not read', 'error');
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not read ' + file.name)) return;
                 showLoadToast(`Failed to read ${file.name}`, true, 5000);
@@ -8372,6 +8401,7 @@
                 size: file.size,
                 lastModified: file.lastModified
             };
+            _mediaInputBegin(slot);
 
             const { layer, mediaContainer } = prepareLayer(slot);
 
@@ -8383,6 +8413,7 @@
 
             video.addEventListener('loadedmetadata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputStatusChanged();
                 _setLoadingSlotState(slot, 'Decoding first frame…');
                 if (mediaData[slot]) {
                     mediaData[slot].w = video.videoWidth;
@@ -8392,6 +8423,7 @@
                     // Mark as failed so checkAllLoaded doesn't wait for dimensions
                     // that will never arrive from this source.
                     if (!video.videoWidth || !video.videoHeight) {
+                        _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                         mediaData[slot]._videoLoadFailed = true;
                         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                     }
@@ -8407,6 +8439,8 @@
             });
             video.addEventListener('loadeddata', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {nativeDataReady: true});
+                if (!_hostLoadIsCurrent(_viewLoadGeneration)) _mediaInputProbeFrame(slot, video, loadingToken);
                 if (!video.videoWidth || !video.videoHeight) {
                     if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                 }
@@ -8418,6 +8452,7 @@
             // mark the slot so checkAllLoaded() doesn't block on videoWidth > 0 forever.
             video.addEventListener('error', function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
@@ -8460,6 +8495,7 @@
                 size: file.size,
                 lastModified: file.lastModified
             };
+            _mediaInputBegin(slot);
 
             const { layer, mediaContainer } = prepareLayer(slot);
 
@@ -8469,12 +8505,18 @@
                     await img.decode();
                 } catch (e) {
                     console.warn('Image decode error:', e);
+                    _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                     if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 }
                 if (loadingToken !== _loadingProgressToken) return;
                 if (!img.naturalWidth || !img.naturalHeight) {
+                    _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                     if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
-                } else _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                } else {
+                    _mediaInputObserve(slot, loadingToken, {pictureDecoded: true});
+                    _mediaInputProbeFrame(slot, img, loadingToken);
+                    _hostLoadSlotUpdate(slot, loadingToken, 'media');
+                }
 
                 if (mediaData[slot]) { mediaData[slot].w = img.naturalWidth; mediaData[slot].h = img.naturalHeight; }
                 _setLoadingSlotState(slot, 'Ready', 'ready');
@@ -8488,6 +8530,7 @@
             });
             img.onerror = function() {
                 if (loadingToken !== _loadingProgressToken) return;
+                _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
                 showLoadToast(`Failed to load ${file.name}`, true, 5000);
@@ -10730,6 +10773,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia(preserveHostRequest = false) {
+            _mediaInputClear();
             _mediaPreparationProviders.cancel();
             // Only host acceptance/failure retain correlation while clearing.
             // Manual replacement or cancellation silently retires pending host I/O.
@@ -13389,8 +13433,9 @@
         // Explicit metadata-only capability for same-origin hosts. The child keeps keyboard
         // dispatch and remapping authority; hosts receive no callback or command-execution port.
         window.WarpDiffHostAPI = Object.freeze({
-            capabilities: Object.freeze({ commandCatalogVersion: 1 }),
+            capabilities: Object.freeze({ commandCatalogVersion: 1, mediaInputReportVersion: 1 }),
             readCommandCatalog: _readHostCommandCatalog,
+            readMediaInputReports: _getMediaInputReports,
         });
 
         // Alert user if any new action's default key conflicts with their custom mappings
@@ -13401,6 +13446,7 @@
 
         // Listen for the reassignment key press
         document.addEventListener('keydown', function _reassignListener(e) {
+            if (document.getElementById('mediaStatusDialog').open) return;
             if (!_reassigningActionId) return;
             e.preventDefault();
             e.stopPropagation();
@@ -13439,6 +13485,7 @@
 
         // Keyboard navigation (lookup-based dispatcher)
         document.addEventListener('keydown', (e) => {
+            if (document.getElementById('mediaStatusDialog').open) return;
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
             const preparationPanel = document.getElementById('ffmpegPanel');
@@ -13670,6 +13717,7 @@
 
         // Expose read-only test API for Playwright (avoids brittle eval of let-scoped vars)
         window.__testAPI = {
+            get mediaInputReports() { return _getMediaInputReports(); },
             get infoBarProfiles() { return _infoBarProfiles ? structuredClone(_infoBarProfiles) : null; },
             get zoomLevel() { return zoomLevel; },
             get fitZoom() { return fitZoom; },
@@ -13986,6 +14034,7 @@
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>Media status:</strong> Open <strong>Media status</strong> in the header after loading to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>
             <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
@@ -14319,9 +14368,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li>Customize the info bar: choose, order and style the details you want, including audio information.</li>
-                <li>Use presets, Left and Right sections, and spacers to arrange your details across Stack and Grid.</li>
-                <li>Unsupported soundtracks now use a safe external conversion command and reload workflow. Browser FFmpeg conversion has been removed.</li>
+                <li>Open Media status after loading to inspect available picture and audio tools, reported timing, and what still needs verification.</li>
+                <li>Unavailable audio tools explain when a compatible single-track copy is needed. Direct loading and the external preparation workflow remain available.</li>
             </ul>
         </div>
     </div>
