@@ -33,6 +33,7 @@ jobs:
       - run: npm run test:fixtures
       - run: npm run test:infra
       - run: npm run test:ownership
+      - run: npm run test:preparation
 
   chromium-shards:
     name: Chromium shard ${{ matrix.shard }}/3

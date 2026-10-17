@@ -98,9 +98,7 @@ function _renderAudioTimelineAlert() {
 // Native players do not consistently expose their selected MP4 audio track.
 // Keep listening native and withhold decoded tools when that identity is ambiguous.
 function _mp4AudioAnalysisIssue(metadata) {
-    if (!metadata) return 'The MP4 audio track could not be verified. Analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback stays browser-managed.';
-    return metadata.audioTracks.length > 1
-        ? 'Multiple MP4 audio tracks: analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback uses the browser’s track choice.' : '';
+    return WarpMediaInput.assessMP4Audio(metadata).message;
 }
 
 let _audioTrackIssues = Object.create(null);
@@ -117,6 +115,7 @@ function _setAudioTrackIssue(slot, message) {
 }
 
 async function decodeAndComputeAudioViz(slot, source) {
+    const loadingToken = _loadingProgressToken;
     // Generation guard: a reload/clear during the async decode below must not
     // let a stale completion write this slot's viz/metrics/Opus state (or mute
     // the *new* video). Mirrors the audio-only decodeAndComputeAudioSlotViz; the
@@ -141,12 +140,13 @@ async function decodeAndComputeAudioViz(slot, source) {
     let timelineStart = null;
     let audioTracks = null;
     let mp4Metadata = null;
+    let sourceMetadata = null;
     // Audio-only files also enter this lazy W-panel path. Both decode owners
     // must read the same layout so a later panel decode cannot disable center.
     let channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
     if (isMP4) {
         try {
-            const timing = mp4Metadata = _demuxMP4Audio(bytes, true);
+            const timing = sourceMetadata = mp4Metadata = _demuxMP4Audio(bytes, true);
             audioTracks = timing?.audioTracks || null;
             if (timing && Number.isFinite(timing.timelineStart)) timelineStart = timing.timelineStart;
             channelLayout = timing && timing.channelLayout;
@@ -154,10 +154,11 @@ async function decodeAndComputeAudioViz(slot, source) {
             console.warn('[audio-timeline] MP4 timing parse failed for', slot, e);
         }
     } else if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
-        try { audioTracks = _demuxWebMAudio(bytes, true)?.audioTracks || null; }
+        try { sourceMetadata = _demuxWebMAudio(bytes, true); audioTracks = sourceMetadata?.audioTracks || null; }
         catch (e) { console.warn('[audio-format] WebM metadata parse failed for', slot, e); }
     }
     _setVideoAudioFormat(slot, audioTracks, gen);
+    _mediaInputAudioMetadata(slot, loadingToken, isMP4 ? 'mp4' : sourceMetadata ? 'webm' : 'unknown', sourceMetadata);
     const trackIssue = isMP4 ? _mp4AudioAnalysisIssue(mp4Metadata) : '';
     if (trackIssue) {
         _setAudioTrackIssue(slot, trackIssue);
@@ -292,6 +293,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
     if (gen === undefined) gen = _videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration();
+    _mediaInputObserve(slot, _loadingProgressToken, {audioDecoded: audioBuffer.length > 0});
     const layerForOutput = getLayer(slot);
     _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('video, audio'), audioBuffer.numberOfChannels);
     _setAudioTimelineMetadata(slot, timelineStart);
@@ -361,6 +363,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     }
 
     // Draw if this is the currently active/visible slot
+    _mediaInputStatusChanged();
     const activeSlot = assetOrder[currentAssetIndex];
     if (slot === activeSlot || slot === currentAudioSource) {
         updateAudioVisForSlot(slot);
@@ -598,7 +601,9 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
     _setAudioTrackIssue(slot, '');
     const bytes = new Uint8Array(arrayBuffer);
     const isMP4 = _isMP4AudioContainer(bytes);
-    const trackIssue = isMP4 ? _mp4AudioAnalysisIssue(_demuxMP4Audio(bytes, true)) : '';
+    const metadata = isMP4 ? _demuxMP4Audio(bytes, true) : null;
+    _mediaInputAudioMetadata(slot, loadingToken, isMP4 ? 'mp4' : 'unknown', metadata);
+    const trackIssue = isMP4 ? _mp4AudioAnalysisIssue(metadata) : '';
     if (trackIssue) {
         _setAudioTrackIssue(slot, trackIssue);
         delete audioFileBuffers[slot];
@@ -612,6 +617,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
     ctx.decodeAudioData(arrayBuffer.slice(0)).then(async audioBuffer => {
         if (_audioDecodeGen[slot] !== gen) return;
         const layerForOutput = getLayer(slot);
+        _mediaInputObserve(slot, loadingToken, {audioDecoded: audioBuffer.length > 0});
         _prepareNativeAudio(layerForOutput && layerForOutput.querySelector('audio'), audioBuffer.numberOfChannels);
         updateLoadingStatus('Computing waveforms…');
         const dpr = window.devicePixelRatio || 1;
@@ -659,6 +665,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         if (!viewActivating) checkAllLoaded();
     }).catch(err => {
         if (_audioDecodeGen[slot] !== gen) return;
+        _mediaInputObserve(slot, loadingToken, {audioDecodeFailed: true});
         _setLoadingSlotState(slot, 'Could not decode', 'error');
         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode audio ' + mediaData[slot]?.name)) return;
         console.error('Audio decode error for slot ' + slot + ':', err);

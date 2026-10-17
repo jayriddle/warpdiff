@@ -69,6 +69,15 @@ test('publication requires successful checks and staging on a main push only', (
   }
 });
 
+test('real external-preparation checks are part of the protected ownership job', () => {
+  const commands=workflow.jobs.ownership.steps.map(step=>step.run);
+  assert(commands.includes('npm run test:preparation'));
+  assert(commands.indexOf('npm run test:preparation')>commands.indexOf('npm run test:fixtures'));
+  const metadata=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
+  assert.equal(metadata.scripts['test:preparation'],'node --test --test-concurrency=1 tests/media-prepare.test.mjs');
+  assert(!pageFiles(root).some(file=>file.startsWith('tools/')||file.includes('ffmpeg')));
+});
+
 test('report gate accepts a complete disjoint inventory', () => {
   assert.deepEqual(verifyReports(report([spec('one'), spec('two')]), [report([spec('one')]), report([spec('two')])]),
     {total: 2, passed: 2, skipped: 0, reports: 2});

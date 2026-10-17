@@ -1,0 +1,421 @@
+{
+  "date": "2026-10-17",
+  "branch": "codex/media-input-contract",
+  "startingHead": "f7ccde5cb2d8c5b883b09432e6cc714fa161f2d1",
+  "releasedBaseline": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+  "candidateVersion": "3.19.6",
+  "scope": "Initial slice-3 offline file package + external Node processor, not complete prepared-profile conformance.",
+  "publication": {
+    "pushed": false,
+    "pullRequest": false,
+    "merged": false,
+    "published": false,
+    "settingsChanged": false,
+    "hold": true
+  },
+  "limits": {
+    "manifestBytes": 16384,
+    "fileBytes": 67108864,
+    "activeInspections": 1,
+    "countsUnsettledCancelledWork": true,
+    "wholeBrowserMemoryBound": false
+  },
+  "verification": {
+    "ownership": {
+      "passed": 1347,
+      "failed": 0,
+      "newPackageChecks": 54,
+      "newSummaryChecks": 6
+    },
+    "infrastructure": {
+      "passed": 26,
+      "failed": 0,
+      "newProtectedHelperCheckWiring": true
+    },
+    "externalHelper": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "concurrency": 1,
+      "measurements": [
+        {
+          "decodedFrames": 12,
+          "allFrameHashesIdentical": true
+        },
+        {
+          "selectedAudioStream": 2,
+          "activeWindowSeconds": [
+            0.2,
+            0.6
+          ],
+          "frequencyHz": 1235
+        },
+        {
+          "sourceOnset": 0.16539583333333333,
+          "preparedOnset": 0.16472916666666668,
+          "differenceSeconds": 0.0006666666666666488,
+          "limitSeconds": 0.021333333333333333
+        },
+        {
+          "sourceDuration": 3.023031,
+          "preparedDuration": 3.023031,
+          "allDecodedFrameHashesIdentical": true
+        }
+      ]
+    },
+    "finalFocusedHelper": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "retries": 0,
+      "workers": 1,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "durationSeconds": 7.141096999999999,
+      "projects": {
+        "chrome": 6,
+        "webkit": 6
+      }
+    },
+    "selectedBeforeFinalClockGuard": {
+      "passed": 264,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "retries": 0,
+      "workers": 1,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "durationSeconds": 197.41217600000002,
+      "projects": {
+        "chrome": 132,
+        "webkit": 132
+      }
+    },
+    "finalSelectedMatrix": {
+      "passed": 264,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "retries": 0,
+      "workers": 1,
+      "runnerErrors": 0,
+      "completeUniqueSelectedInventory": true,
+      "durationSeconds": 192.327373,
+      "projects": {
+        "chrome": 132,
+        "webkit": 132
+      },
+      "scope": "Final public runtime; before the external-only protocol restriction. Final focused helper cases reran afterward."
+    },
+    "packageNegativeControls": {
+      "baseline": {
+        "passed": 54,
+        "failed": 0
+      },
+      "mutations": [
+        {
+          "id": "skip-byte-binding",
+          "intended": "prepared-package: same-name changed original rejects",
+          "detected": true,
+          "positiveControlPassed": true,
+          "checkCount": 54,
+          "harnessError": null,
+          "failures": [
+            "prepared-package: same-name changed original rejects",
+            "prepared-package: same-name changed rendition rejects",
+            "prepared-package: hash mismatches never reach container parsing"
+          ]
+        },
+        {
+          "id": "accept-mono-audio",
+          "intended": "prepared-package: actual audio/inventory mismatch {\"channels\":1} rejects",
+          "detected": true,
+          "positiveControlPassed": true,
+          "checkCount": 54,
+          "harnessError": null,
+          "failures": [
+            "prepared-package: actual audio/inventory mismatch {\"channels\":1} rejects"
+          ]
+        },
+        {
+          "id": "ignore-cancellation",
+          "intended": "prepared-package: late read completion cannot publish after cancellation",
+          "detected": true,
+          "positiveControlPassed": true,
+          "checkCount": 54,
+          "harnessError": null,
+          "failures": [
+            "prepared-package: pre-aborted inspection rejects without parsing",
+            "prepared-package: late read completion cannot publish after cancellation"
+          ]
+        },
+        {
+          "id": "certify-source-derivation",
+          "intended": "prepared-package: container inspection never certifies timing/fidelity/decoding",
+          "detected": true,
+          "positiveControlPassed": true,
+          "checkCount": 54,
+          "harnessError": null,
+          "failures": [
+            "prepared-package: container inspection never certifies timing/fidelity/decoding"
+          ]
+        }
+      ]
+    },
+    "movieClockNegativeControl": {
+      "baseline": {
+        "passed": 290,
+        "failed": 0
+      },
+      "mutation": {
+        "id": "accept-fallback-movie-clock",
+        "intended": "demux[package-summary]: missing movie clock cannot publish a default timestamp while legacy extraction stays compatible",
+        "detected": true,
+        "positiveControlPassed": true,
+        "checkCount": 290,
+        "harnessError": null,
+        "failures": [
+          "demux[package-summary]: missing movie clock cannot publish a default timestamp while legacy extraction stays compatible"
+        ]
+      }
+    },
+    "legacyModeParity": {
+      "fixtures": 16,
+      "comparisons": 32,
+      "identical": true
+    }
+  },
+  "package": {
+    "sourceResponses": 41,
+    "allResponseBytesMatchCheckout": true,
+    "stagedFiles": 80,
+    "syntheticIdentity": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "notGitRevision": true,
+    "notDeployment": true,
+    "helperAndFFmpegExcluded": true,
+    "smoke": [
+      {
+        "name": "chrome",
+        "version": "155.0.8059.82",
+        "startup": true,
+        "pinnedModuleCached": true,
+        "report": {
+          "contract": "warpdiff.prepared-media-report",
+          "version": 1,
+          "recipe": "video-audio-compatibility-v1",
+          "status": "candidate",
+          "renditionBinding": "matched",
+          "sourceBinding": "matched",
+          "container": {
+            "videoCodec": "avc1.42c00a",
+            "width": 128,
+            "height": 72,
+            "audioCodec": "mp4a.40.2",
+            "channels": 2,
+            "sampleRate": 48000,
+            "audioStart": 0
+          },
+          "analysisBasis": "prepared-copy",
+          "validation": "normal-load-required",
+          "conformance": {
+            "fullFileDecoding": "not-verified",
+            "sourceDerivation": "not-verified",
+            "frameMapping": "not-verified",
+            "synchronization": "not-verified",
+            "channelFidelity": "not-verified",
+            "measurement": "not-verified"
+          }
+        },
+        "offline": {
+          "condition": "Chrome offline emulation",
+          "startup": true,
+          "packageInspection": true
+        },
+        "errors": []
+      },
+      {
+        "name": "webkit",
+        "version": "26.0",
+        "startup": true,
+        "pinnedModuleCached": true,
+        "report": {
+          "contract": "warpdiff.prepared-media-report",
+          "version": 1,
+          "recipe": "video-audio-compatibility-v1",
+          "status": "candidate",
+          "renditionBinding": "matched",
+          "sourceBinding": "matched",
+          "container": {
+            "videoCodec": "avc1.42c00a",
+            "width": 128,
+            "height": 72,
+            "audioCodec": "mp4a.40.2",
+            "channels": 2,
+            "sampleRate": 48000,
+            "audioStart": 0
+          },
+          "analysisBasis": "prepared-copy",
+          "validation": "normal-load-required",
+          "conformance": {
+            "fullFileDecoding": "not-verified",
+            "sourceDerivation": "not-verified",
+            "frameMapping": "not-verified",
+            "synchronization": "not-verified",
+            "channelFidelity": "not-verified",
+            "measurement": "not-verified"
+          }
+        },
+        "offline": null,
+        "errors": []
+      }
+    ]
+  },
+  "unchangedImplementations": [
+    {
+      "file": "js/transport.js",
+      "sha256": "2fe79b27cd50c95ad442fb008131eb0ed7e741361cf4e604465de91e4eb778af",
+      "unchanged": true
+    },
+    {
+      "file": "js/opus-sync.js",
+      "sha256": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-viz.js",
+      "sha256": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-analysis.js",
+      "sha256": "c0db3c1eb02f96e225a738a38255d1a94c6951fb9a58b8580c0d51e9b440704e",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-analysis-worker.js",
+      "sha256": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-routing.js",
+      "sha256": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-monitor.js",
+      "sha256": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+      "unchanged": true
+    },
+    {
+      "file": "js/audio-decode.js",
+      "sha256": "810847c89a0b472602baecacc1cbc8f6e65b28d60abea0473fbf8e70217afd70",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-video.js",
+      "sha256": "4ec52cb97fd116cc5abad04f0c9e683d891d46b00a1ef4d0625bd399010d1c51",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-audio.js",
+      "sha256": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-audio-core.js",
+      "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+      "unchanged": true
+    },
+    {
+      "file": "js/scrub-worklet.js",
+      "sha256": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+      "unchanged": true
+    },
+    {
+      "file": "js/media-input-contract.js",
+      "sha256": "446a534e0e8c8769eded42a24902054d6b83538b831a8b96c5859163072c9113",
+      "unchanged": true
+    },
+    {
+      "file": "js/media-preparation.js",
+      "sha256": "6ca5a9c1909652f2ab17049760957a14b7ee15745f18ec397f01646ef1da393d",
+      "unchanged": true
+    },
+    {
+      "file": "js/media-admission.js",
+      "sha256": "f342e6325dec91d23bab980d0a3a62ad485a1740a2128a04f502b910c476dcbb",
+      "unchanged": true
+    }
+  ],
+  "retainedFailures": {
+    "initialHelper": {
+      "passed": 14,
+      "failed": 1,
+      "issue": "Tone assertion averaged across padded silence. Corrected to the 0.2–0.6 s active window, without changing track selection."
+    },
+    "initialBrowserDiscovery": {
+      "testsExecuted": 0,
+      "issue": "Playwright CJS/ESM import failed; tests now launch the external CLI process."
+    },
+    "initialFocusedBrowser": {
+      "passed": 2,
+      "failed": 1,
+      "notRun": 9,
+      "issue": "Nonexistent asset-filename selector; now reads existing media-state owner.",
+      "additionalError": "Same result has a 60-second teardown timeout; independent cause unestablished.",
+      "runnerMessage": "Stopped after configured first failure."
+    },
+    "implementationCorrection": "Package-only summary rejects absent mvhd instead of inheriting the legacy default movie clock; legacy behavior is retained and compared.",
+    "orchestration": [
+      "One atomic patch context mismatch applied no edits.",
+      "System python3 refused due Xcode license; Node edited documentation. No acceptance or machine change."
+    ]
+  },
+  "remaining": [
+    "No user package-import picker or automatic manifest import.",
+    "No strict profile, complete AVC config validation, complete browser decode proof, CFR/frame mapping, source-derivation authentication, channel-preserving sidecar, verified downmix or measurement conformance.",
+    "Normal loading retains READY/FAILED authority; provider status is candidate and validation required.",
+    "Direct loading and compatibility engines remain.",
+    "No complete Chromium CI/focused-WebKit inventory, hosted run, physical Safari listening or OS PWA migration.",
+    "Historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate."
+  ],
+  "evidenceDirectory": "output/prepared-package-2026-10-17-WqTQVX/",
+  "preservation": {
+    "entriesBefore": 12429,
+    "entriesAfter": 12439,
+    "plannedFiles": 24,
+    "changedEntries": 26,
+    "unexpectedDifferences": 0,
+    "preExistingSymlinksPreserved": 7,
+    "fixtureBytesAndModificationTimesPreserved": true,
+    "unrelatedEntriesPreserved": true,
+    "finalReceipt": "output/prepared-package-2026-10-17-WqTQVX/commit-receipt.json",
+    "ownedServerRetired": true,
+    "ownedPortVerifiedClosed": true,
+    "userPort8080Touched": false
+  },
+  "externalTool": {
+    "container": "MP4/MOV",
+    "protocolAllowlist": [
+      "file"
+    ],
+    "networkPlaylistProbe": {
+      "passed": true,
+      "requests": 0
+    },
+    "notDeployed": true
+  },
+  "ownedServer": {
+    "pid": 34621,
+    "command": "node output/prepared-package-2026-10-17-WqTQVX/server.mjs",
+    "baseURL": "http://127.0.0.1:52095",
+    "closed": true,
+    "userPort8080Touched": false
+  },
+  "remoteReadOnlyCheck": {
+    "main": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+    "featureBranchExists": false
+  }
+}

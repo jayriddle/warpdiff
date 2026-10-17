@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.5
+**Current version:** 3.19.6
 
 ---
 
@@ -68,6 +68,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
 
 **Loading feedback**
+- **Media status** shows observed picture, pixel access, native playback, decoded-audio analysis and scrub-audio availability for each loaded input. It distinguishes reported timing from unverified frame-rate, synchronization and original-source fidelity claims. Refresh checks current frames without starting playback or preparation. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)
 - Each assigned slot and filename reports **Opening**, **Reading metadata**, **Decoding first frame**, or **Ready** while a comparison is prepared
 - Ready files are checked off while WarpDiff identifies the slower file, explains that every asset will appear together, and offers **Cancel** for manual loads
 
@@ -151,6 +152,10 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 - **Color-correct by default.** Magnifier uses cloned `<video>` elements to stay on the hardware compositor path, because `drawImage(video, canvas)` produces incorrect colors on macOS P3 displays.
 
 ### Going deeper
+
+- **[Optional local preparation tool](tools/media-prepare/README.md)** — separately invokes your installed FFmpeg/ffprobe to create an AVC/stereo-AAC review copy plus a byte-bound manifest. The offline file adapter checks selected bytes and container tables before normal loading. Initial limits are 64 MiB per file; full timing/fidelity conformance remains unverified. No converter or helper is deployed with the browser app.
+
+- **[Media input contracts and preparation adapters](docs/media-input-architecture.md)** — migration slices, versioned policy/provider interfaces and current limits. Direct loading and manual external preparation remain available; no processor is bundled.
 
 - **[CLAUDE.md](CLAUDE.md)** — project conventions, architecture patterns, naming, and the specific technical decisions worth knowing about (frame stepping math, Stack zoom modes, equal-area grid layout, scope rendering strategy).
 - **[memory.md](memory.md)** — memory-management patterns: buffer caching, audio downsampling, AudioContext lifecycle, stale-decode guards, magnifier clone handling, and GC pressure avoidance.

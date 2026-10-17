@@ -1,0 +1,65 @@
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+
+export async function runMediaInputChecks(check, sources={}) {
+  const policy=runInNewContext((sources.policy??readFileSync(new URL('../js/media-input-contract.js',import.meta.url),'utf8'))+'\nWarpMediaInput');
+  const prep=runInNewContext((sources.preparation??readFileSync(new URL('../js/media-preparation.js',import.meta.url),'utf8'))+'\nWarpMediaPreparation',{File,AbortController});
+  const test=(name,ok)=>check('media-boundary: '+name,ok);
+  const throws=fn=>{try{fn();return false;}catch{return true;}};
+  const rejects=async(fn,name)=>{try{await fn();return false;}catch(e){return !name||e.name===name;}};
+  const promptly=promise=>Promise.race([promise,new Promise(resolve=>setTimeout(()=>resolve(false),100))]);
+  const request=(id='test')=>prep.createRequest({id,filename:"clip's.mp4",codec:'ac-3'});
+  const input=new File([new Uint8Array([1,2,3])],"clip's.mp4",{type:'video/mp4'});
+  const output=new File([new Uint8Array([4,5,6])],'prepared.mp4',{type:'video/mp4'});
+  test('unreadable inventory withholds decoded tools',policy.assessMP4Audio(null).code==='audio-inventory-unverified');
+  test('invalid inventory shape is unverified',policy.assessMP4Audio({audioTracks:'one'}).decodedAudio==='withheld');
+  test('oversized inventory is unverified',policy.assessMP4Audio({audioTracks:Array(65).fill({})}).audioTrackCount===null);
+  test('multiple tracks require explicit selection',policy.assessMP4Audio({audioTracks:[{},{}]}).code==='audio-track-selection-required');
+  for(const tracks of [[],[{}]]){const r=policy.assessMP4Audio({audioTracks:tracks});test('known '+tracks.length+' tracks remain eligible, never certified ready',r.status==='eligible'&&r.playback==='browser-managed'&&r.evidence==='container-metadata'&&r.audioTrackCount===tracks.length&&Object.isFrozen(r));}
+  const r=request();
+  test('request and nested choices are immutable',Object.isFrozen(r)&&Object.isFrozen(r.source)&&Object.isFrozen(r.reason)&&Object.isFrozen(r.output));
+  test('lossy compatibility output is explicitly a prepared copy',r.output.channels===2&&r.output.sampleRate===48000&&r.output.analysisBasis==='prepared-copy'&&r.output.preservesOriginal===true);
+  test('request contains no media bytes or network destination',!JSON.stringify(r).includes('signedUrl')&&!('input'in r)&&!('url'in r.source));
+  test('missing request identity rejects',throws(()=>prep.createRequest({filename:'x.mp4'})));
+  const registry=prep.createRegistry();registry.register(prep.manualFFmpegProvider());
+  test('duplicate providers reject',throws(()=>registry.register(prep.manualFFmpegProvider())));
+  test('incompatible provider versions reject',throws(()=>registry.register({id:'wrong',version:2,mode:'files',supports:()=>true,prepare(){}})));
+  test('provider IDs must be strings, not coercible objects',throws(()=>registry.register({id:{toString:()=> 'object-id'},version:1,mode:'files',supports:()=>true,prepare(){}})));
+  test('unknown contract versions reject',throws(()=>registry.plan('manual-ffmpeg',{...r,version:2})));
+  test('unknown recipes reject',throws(()=>registry.plan('manual-ffmpeg',{...r,recipe:'future'})));
+  const plan=registry.plan('manual-ffmpeg',r);
+  test('manual provider returns instructions without execution',plan.kind==='instructions'&&plan.providerId==='manual-ffmpeg'&&plan.requestId==='test'&&plan.command.includes("'./clip'\\''s.mp4'")&&plan.command.includes('-af apad -shortest'));
+  test('unsafe terminal characters still refuse a command',registry.plan('manual-ffmpeg',prep.createRequest({id:'bad',filename:'clip\n.mp4'})).command===null);
+  test('other containers retain explicit preparation guidance',registry.plan('manual-ffmpeg',prep.createRequest({id:'other',filename:'clip.mkv'})).command===null);
+  test('caller cannot replace the recipe with a surround claim',registry.plan('manual-ffmpeg',{...r,output:{channels:8}}).command.includes('-ac 2 '));
+  let calls=0;const provider={id:'test-files',version:1,mode:'files',supports:()=>true,prepare(req,ctx){calls++;test('provider receives exact selected File and abort signal',ctx.input===input&&ctx.signal instanceof AbortSignal);return {kind:'files',files:[output],ready:true,validated:true};}};
+  registry.register(provider);registry.describe(r);
+  test('registration and discovery never invoke a file provider',calls===0);
+  const result=await registry.prepare('test-files',r,input);
+  test('provider output always requires normal-load validation',result.validation==='required'&&!('ready'in result)&&!('validated'in result)&&result.files[0]===output);
+  test('result envelope and file list are immutable',Object.isFrozen(result)&&Object.isFrozen(result.files));
+  test('original File bytes are untouched',Array.from(new Uint8Array(await input.arrayBuffer())).join(',')==='1,2,3');
+  const mutableFiles=[output],copied=prep.createRegistry();copied.register({id:'copied',version:1,mode:'files',supports:()=>true,prepare:()=>({kind:'files',files:mutableFiles})});
+  const stable=await copied.prepare('copied',r,input);mutableFiles.length=0;
+  test('provider cannot rewrite the returned file list later',stable.files.length===1&&stable.files[0]===output);
+  test('instructions cannot be executed as a file provider',await rejects(()=>registry.prepare('manual-ffmpeg',r,input)));
+  test('mismatched explicit source rejects',await rejects(()=>registry.prepare('test-files',r,new File(['x'],'different.mp4'))));
+  test('empty explicit source rejects',await rejects(()=>registry.prepare('test-files',r,new File([],input.name))));
+  const invalid=[null,{kind:'files',files:[]},{kind:'files',files:['https://example.invalid/output.mp4']},{kind:'files',files:[new File([],'empty.mp4')]},{kind:'files',files:Array(5).fill(output)},{kind:'ready',files:[output]}];
+  for(let i=0;i<invalid.length;i++){const b=prep.createRegistry();b.register({id:'invalid',version:1,mode:'files',supports:()=>true,prepare:()=>invalid[i]});test('invalid output '+i+' rejects without acceptance',await rejects(()=>b.prepare('invalid',r,input)));}
+  const failure=prep.createRegistry();let fail=true;failure.register({id:'recover',version:1,mode:'files',supports:()=>true,prepare(){if(fail)throw Error('provider failed');return {kind:'files',files:[output]};}});
+  test('provider errors propagate',await rejects(()=>failure.prepare('recover',r,input)));fail=false;
+  test('provider failure does not poison a later request',(await failure.prepare('recover',request('recovered'),input)).validation==='required');
+  let started=0;const early=prep.createRegistry();early.register({id:'early',version:1,mode:'files',supports:()=>true,prepare(){started++;return {kind:'files',files:[output]};}});
+  const cancelled=early.prepare('early',r,input).then(()=>false,e=>e.name==='AbortError');early.cancel();
+  test('cancel before invocation prevents execution',await cancelled&&started===0);
+  let release,signal;const late=prep.createRegistry();late.register({id:'late',version:1,mode:'files',supports:()=>true,prepare(req,ctx){signal=ctx.signal;return new Promise(resolve=>release=resolve);}});
+  const pending=late.prepare('late',r,input).then(()=>false,e=>e.name==='AbortError');await Promise.resolve();late.cancel();
+  test('cancel settles even if provider ignores the signal',await promptly(pending)&&signal.aborted);release({kind:'files',files:[output]});await Promise.resolve();
+  test('late provider completion cannot turn cancellation into success',await pending);
+  const pendingJobs=new Map(),replacement=prep.createRegistry();replacement.register({id:'replace',version:1,mode:'files',supports:()=>true,prepare(req,ctx){return new Promise(resolve=>pendingJobs.set(req.id,{resolve,signal:ctx.signal}));}});
+  const old=replacement.prepare('replace',request('old'),input).then(()=>false,e=>e.name==='AbortError');await Promise.resolve();const next=replacement.prepare('replace',request('new'),input);await Promise.resolve();
+  test('new request aborts superseded work',await promptly(old)&&pendingJobs.get('old').signal.aborted);
+  pendingJobs.get('old').resolve({kind:'files',files:[output]});await Promise.resolve();pendingJobs.get('new').resolve({kind:'files',files:[output]});
+  test('old cleanup cannot retire the newer result',(await next).requestId==='new');
+}

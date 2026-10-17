@@ -24,6 +24,9 @@ import { runMalformedVideoChecks } from './mp4-video-malformed.mjs';
 import { runMalformedAudioChecks } from './mp4-audio-malformed.mjs';
 import { runScrubInputChecks } from './scrub-input-regression.mjs';
 import { runPreferenceChecks } from './preferences-regression.mjs';
+import { runMediaInputChecks } from './media-input-regression.mjs';
+import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
+import { runPreparedMediaChecks } from './prepared-media-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -353,6 +356,8 @@ function extractFn(name, src = SRC) {
 
 // Fault-injected persistence tests run the actual shipped preference factory.
 runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf8'));
+await runMediaInputChecks(check);
+runMediaAdmissionChecks(check);
 
 // Audio visualization scaling belongs beside the content it changes. Video gets
 // one control in the waveform utility rail; audio-only review gets one shared
@@ -1604,7 +1609,8 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
 }
 
 {
-  const issue=new Function(extractFn('_mp4AudioAnalysisIssue')+'\nreturn _mp4AudioAnalysisIssue;')();
+  const contract=runInNewContext(readFileSync(new URL('js/media-input-contract.js',ROOT),'utf8')+'\nWarpMediaInput');
+  const issue=new Function('WarpMediaInput',extractFn('_mp4AudioAnalysisIssue')+'\nreturn _mp4AudioAnalysisIssue;')(contract);
   check('audio-track-policy: ambiguous MP4 tracks cannot silently select analysis',/Multiple MP4 audio tracks/.test(issue({audioTracks:[{},{}]})));
   check('audio-track-policy: unreadable inventory remains distinct from no audio',/could not be verified/.test(issue(null)));
   check('audio-track-policy: known single and absent audio inventories retain normal handling',issue({audioTracks:[{}]})===''&&issue({audioTracks:[]})==='');
@@ -2331,6 +2337,7 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────
+await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);
 runMalformedAudioChecks(check);

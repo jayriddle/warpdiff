@@ -2,7 +2,15 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.5 (prepared October 16, 2026; unpublished)
+## v3.19.6 (prepared October 17, 2026; unpublished)
+
+- Adds versioned MP4 audio-selection assessments and an explicit preparation-provider boundary. The existing manual command is the only built-in adapter; direct loading stays available.
+- File-provider outputs require normal-load verification, and clear/replacement retires pending preparation. No native helper, upload service or browser converter is included.
+- Adds **Media status** for per-input picture, pixel access, playback, decoded-audio analysis and scrub-audio availability. Reported duration and known audio start remain separate from unverified CFR, full synchronization and original-source fidelity.
+- The unpublished foundation and capability-report slices share this candidate version. The new visible report advances What's New to two concise bullets for 3.19.6; the foundation alone retained the prior summary. Scope and remaining slices: [media input architecture](media-input-architecture.md).
+- Adds an optional repository-only Node preparation tool and explicit offline file adapter. User-installed FFmpeg creates a stereo compatibility copy plus a byte-bound manifest. Bounded container inspection still requires normal loading; full prepared-media conformance remains unverified. No helper or converter is deployed with the app.
+
+## v3.19.5 (released October 17, 2026)
 
 - MP4 audio tables and timing are scoped to one track. Malformed or oversized packet maps are rejected before packet copies.
 - Multiple or unreadable MP4 audio tracks retain browser-managed playback with a notice; decoded tools require a prepared single-track file.

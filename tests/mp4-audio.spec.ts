@@ -107,7 +107,7 @@ test('a stale multi-track read cannot block a replacement single-track compariso
 test('track and timing notices remain readable together in a narrow comparison',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.locator('#multiFileInput').setInputFiles([files.multi,files.single]);
-  await expect.poll(()=>page.evaluate(()=>(window as any).eval('Object.keys(audioMetrics).length'))).toBe(1);
+  await expect.poll(()=>page.evaluate(()=>(window as any).eval('Object.keys(audioMetrics).length')),{timeout:15000}).toBe(1);
   await page.evaluate(()=>(window as any).eval("_setAudioTimelineMetadata(assetOrder.find(s=>mediaData[s]?.name==='one-audio.mp4'),null)"));
   const timing=page.locator('#audioTimingAlert'),track=page.locator('#audioTrackAlert');
   await expect(timing).toBeVisible();await expect(track).toBeVisible();
@@ -117,10 +117,18 @@ test('track and timing notices remain readable together in a narrow comparison',
   await test.info().attach('stacked-audio-notices',{body:await page.screenshot(),contentType:'image/png'});
 });
 
+async function expectHostTerminal(page:any,requestId:string,type:string,timeout:number) {
+  const replies=()=>page.evaluate((id:string)=>(window as any).replies.filter((reply:any)=>reply.requestId===id),requestId);
+  // The video verifier owns a 10-second deadline. Await its terminal decision,
+  // then assert the exact result without polling through an incorrect FAILED.
+  await expect.poll(async()=>(await replies()).length,{timeout}).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>(window as any).replies)).toEqual([expect.objectContaining({requestId,type})]);
+}
+
 for(const kind of['video','audio'])test('host '+kind+' readiness respects the single-track analysis boundary',async({page})=>{
   const file=kind==='video'?files.multi:files.audio;
   await page.evaluate(({name,type,base64})=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'multi-audio',files:[{name,contentType:type,base64}]},location.origin),{name:path.basename(file),type:kind==='video'?'video/mp4':'audio/mp4',base64:fs.readFileSync(file).toString('base64')});
-  await expect.poll(()=>page.evaluate(()=>(window as any).replies)).toEqual([expect.objectContaining({requestId:'multi-audio',type:kind==='video'?'WARPDIFF_LOAD_READY':'WARPDIFF_LOAD_FAILED'})]);
+  await expectHostTerminal(page,'multi-audio',kind==='video'?'WARPDIFF_LOAD_READY':'WARPDIFF_LOAD_FAILED',kind==='video'?15000:5000);
   if(kind==='audio') {await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);await expect(page.locator('#audioTrackAlert')).toBeHidden();}
   else {await expect(page.locator('#audioTrackAlert')).toBeVisible();await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('2 audio tracks');}
   expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
@@ -139,7 +147,7 @@ for(const kind of['video','audio'])test('leading MP4 padding cannot bypass the '
 for(const kind of['video','audio'])test('host readiness applies the same track policy after leading MP4 padding for '+kind,async({page})=>{
   const file=kind==='video'?files.paddedMulti:files.paddedAudio;
   await page.evaluate(({name,type,base64})=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'padded-multi',files:[{name,contentType:type,base64}]},location.origin),{name:path.basename(file),type:kind==='video'?'video/mp4':'audio/mp4',base64:fs.readFileSync(file).toString('base64')});
-  await expect.poll(()=>page.evaluate(()=>(window as any).replies),'Padding must retain correlated single-track readiness policy').toEqual([expect.objectContaining({requestId:'padded-multi',type:kind==='video'?'WARPDIFF_LOAD_READY':'WARPDIFF_LOAD_FAILED'})]);
+  await expectHostTerminal(page,'padded-multi',kind==='video'?'WARPDIFF_LOAD_READY':'WARPDIFF_LOAD_FAILED',kind==='video'?15000:5000);
   if(kind==='video') {
     await expect(page.locator('#audioTrackAlert')).toContainText('Multiple MP4 audio tracks');
     expect(await page.evaluate(()=>(window as any).eval('!!audioMetrics.editA || !!_videoAudioBuffers.editA'))).toBe(false);
