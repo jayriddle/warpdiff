@@ -1,504 +1,343 @@
 // MP4 / WebM audio demuxers — extracted from index.html (no app-state dependencies).
 // Pure: each takes a Uint8Array container and returns
 //   { chunks:[{timestamp,data}], sampleRate, channels, codec, description,
-//     preSkip, maxSamples, timelineStart }
+//     preSkip, maxSamples, timelineStart, trackId }
 // (WebM returns a subset). Used by the audio decode pipeline to feed WebCodecs AudioDecoder.
-// See CLAUDE.md "MP4 audio demuxer" for the per-track mdhd.timescale scoping invariant.
+// See CLAUDE.md "MP4 audio demuxer" for track isolation and bounded extraction.
+
+// Recognize top-level ISO-BMFF boxes rather than assuming ftyp is first. This
+// only chooses the metadata/track-policy path; _demuxMP4Audio validates it.
+// Padding, broken identified headers and an exhausted plausible prefix remain
+// candidates, so an inconclusive bounded scan cannot enable native analysis.
+function _isMP4AudioContainer(data) {
+    if (!ArrayBuffer.isView(data) || data.BYTES_PER_ELEMENT !== 1) return false;
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    let at = 0, candidate = false;
+    for (let boxes = 0; boxes < 64; boxes++) {
+        if (data.length - at < 8) return candidate;
+        const type = String.fromCharCode(data[at + 4], data[at + 5], data[at + 6], data[at + 7]);
+        if (type === 'ftyp' || type === 'moov' || type === 'mdat') return true;
+        if (type === 'free' || type === 'skip' || type === 'wide') candidate = true;
+        let size = view.getUint32(at), header = 8;
+        if (size === 1) {
+            if (data.length - at < 16) return candidate;
+            size = view.getUint32(at + 8) * 0x100000000 + view.getUint32(at + 12);
+            header = 16;
+        } else if (size === 0) size = data.length - at;
+        if (!Number.isSafeInteger(size) || size < header || size > data.length - at) return candidate;
+        at += size;
+        if (at === data.length) return candidate;
+    }
+    return true; // Plausible prefix exceeded recognition budget: require verification.
+}
 
 // --- MP4 demuxer ---
-function _demuxMP4Audio(data, metadataOnly = false) {
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    let sampleRate = 48000, channels = 2;
-    let codecPrivate = null;
-    let preSkip = 0;
-    let audioCodec = 'opus'; // updated from stsd entry type
-    let audioTrackId = -1;
-    let timescale = 1;
-    let mediaStartTime = -1; // from edit list, in timescale units
-    let segmentDuration = -1; // from edit list, in movie timescale units
-    let timelineStartDuration = 0; // leading empty edits, in movie timescale units
-    let movieTimescale = 1000; // from mvhd, used to interpret segmentDuration
-    let foundAudioTrack = false;
-    let audioTrackCount = 0, channelLayout = null;
-    let foundMovie = false, metadataValid = true, trackFormat = null;
-    const audioTracks = []; // source metadata only; never derived from playback PCM
-    const sampleTable = { sizes: [], offsets: [], durations: [] };
-    const chunks = [];
-
-    function readStr(off, len) {
-        let s = '';
-        for (let i = 0; i < len; i++) s += String.fromCharCode(data[off + i]);
-        return s;
-    }
-
-    // Walk MP4 boxes. containerEnd bounds the current container.
-    function walkBoxes(start, end, path) {
-        let off = start;
-        while (off + 8 <= end) {
-            let size = view.getUint32(off);
-            const type = readStr(off + 4, 4);
-            let headerLen = 8;
-            if (size === 1 && off + 16 <= end) {
-                // 64-bit extended size
-                size = Number(view.getBigUint64(off + 8));
-                headerLen = 16;
-            } else if (size === 0) {
-                size = end - off; // box extends to end
-            }
-            if (size < headerLen || off + size > end) { metadataValid = false; break; }
-
-            const boxStart = off + headerLen;
-            const boxEnd = off + size;
-            const fullPath = path + '/' + type;
-            if (type === 'moov' && path === '') foundMovie = true;
-
-            // Container boxes — recurse
-            if (type === 'moov' || type === 'trak' || type === 'mdia' ||
-                type === 'minf' || type === 'stbl' || type === 'udta' ||
-                type === 'edts') {
-                walkBoxes(boxStart, boxEnd, fullPath);
-            } else if (type === 'mvhd') {
-                parseMvhd(boxStart, boxEnd);
-            } else if (type === 'mdhd') {
-                parseMdhd(boxStart, boxEnd);
-            } else if (type === 'hdlr') {
-                parseHdlr(boxStart, boxEnd);
-            } else if (type === 'stsd') {
-                parseStsd(boxStart, boxEnd);
-            } else if (type === 'stsz' && !metadataOnly) {
-                parseStsz(boxStart, boxEnd);
-            } else if (type === 'stco' && !metadataOnly) {
-                parseStco(boxStart, boxEnd);
-            } else if (type === 'co64' && !metadataOnly) {
-                parseCo64(boxStart, boxEnd);
-            } else if (type === 'stsc' && !metadataOnly) {
-                parseStsc(boxStart, boxEnd);
-            } else if (type === 'stts' && !metadataOnly) {
-                parseStts(boxStart, boxEnd);
-            } else if (type === 'tkhd') {
-                parseTkhd(boxStart, boxEnd);
-            } else if (type === 'elst') {
-                parseElst(boxStart, boxEnd);
-            }
-
-            off = boxEnd;
+function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
+    // Keep encoded tables as views. No packet copies or per-sample objects are
+    // made until every selected-track count, clock and media range is feasible.
+    try {
+        if (!ArrayBuffer.isView(data) || data.BYTES_PER_ELEMENT !== 1) return null;
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        const maxSamples = 1000000, maxPacketBytes = 256 * 1024 * 1024;
+        const tracks = [], mediaRanges = [];
+        let movieTimescale = 1000, foundMovie = false, foundMovieHeader = false, boxes = 0;
+        const str = (at, n) => String.fromCharCode(...data.subarray(at, at + n));
+        const uint64 = at => { const n = view.getBigUint64(at); return n <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(n) : NaN; };
+        function header(at, end) {
+            if (end - at < 8) return null;
+            let size = view.getUint32(at), length = 8;
+            if (size === 1) { if (end - at < 16) return null; size = uint64(at + 8); length = 16; }
+            else if (!size) size = end - at;
+            if (!Number.isSafeInteger(size) || size < length || size > end - at) return null;
+            return {type:str(at + 4, 4), start:at + length, end:at + size};
         }
-    }
-
-    let _currentTrackIsAudio = false;
-    let _stscEntries = [];
-    let _lastElstMediaTime = -1; // elst from current trak, resolved after hdlr
-    let _lastElstSegDuration = -1;
-    let _lastElstTimelineStartDuration = 0;
-    let _lastMdhdTimescale = 0;  // mdhd from current trak; promoted to `timescale`
-                                 // only when hdlr confirms this trak is audio.
-                                 // Without per-track scoping, the data/subtitle
-                                 // track's mdhd (often 1000) overwrites the audio
-                                 // track's mdhd (usually = sample rate, e.g. 48000)
-                                 // and corrupts the elst skipSamples calculation.
-
-    function parseTkhd(start, end) {
-        if (end - start < 8) return;
-        _lastElstMediaTime = -1; // reset for each new trak
-        _lastElstSegDuration = -1;
-        _lastElstTimelineStartDuration = 0;
-        _lastMdhdTimescale = 0; // also reset per-track — see parseMdhd
-        _currentTrackIsAudio = false;
-        const version = data[start];
-        audioTrackId = version === 1
-            ? view.getUint32(start + 20)
-            : view.getUint32(start + 12);
-    }
-
-    function parseElst(start, end) {
-        // Edit list — tells us where in the media timeline playback starts
-        // and how long the segment lasts.
-        // Stored temporarily; assigned when hdlr confirms audio.
-        if (end - start < 8) return;
-        const version = data[start];
-        const entryCount = view.getUint32(start + 4);
-        let off = start + 8;
-        for (let i = 0; i < entryCount; i++) {
-            if (version === 1) {
-                if (off + 20 > end) break;
-                const sd = Number(view.getBigUint64(off));
-                const mt = Number(view.getBigInt64(off + 8));
-                if (mt === -1) _lastElstTimelineStartDuration += sd;
-                if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
-                off += 20;
-            } else {
-                if (off + 12 > end) break;
-                const sd = view.getUint32(off);
-                const mt = view.getInt32(off + 4);
-                if (mt === -1) _lastElstTimelineStartDuration += sd;
-                if (mt >= 0) { _lastElstMediaTime = mt; _lastElstSegDuration = sd; return; }
-                off += 12;
-            }
+        function save(track, name, start, end) {
+            if (track[name]) return false;
+            track[name] = {start, end};
+            return true;
         }
-    }
-
-    function parseMvhd(start, end) {
-        if (end - start < 4) return;
-        const version = data[start];
-        // version 0: timescale at offset 12; version 1: at offset 20
-        if (version === 1 && end - start >= 24) {
-            movieTimescale = view.getUint32(start + 20);
-        } else if (end - start >= 16) {
-            movieTimescale = view.getUint32(start + 12);
-        }
-    }
-
-    function parseMdhd(start, end) {
-        if (end - start < 4) return;
-        const version = data[start];
-        // Store the timescale locally; promote to the audio-track-scoped
-        // `timescale` only when parseHdlr confirms this trak is audio.
-        if (version === 1 && end - start >= 28) {
-            _lastMdhdTimescale = view.getUint32(start + 20);
-        } else if (end - start >= 16) {
-            _lastMdhdTimescale = view.getUint32(start + 12);
-        }
-    }
-
-    function parseHdlr(start, end) {
-        // version(4) + predefined(4) + handler_type(4)
-        if (end - start < 12) return;
-        const handlerType = readStr(start + 8, 4);
-        _currentTrackIsAudio = (handlerType === 'soun');
-        if (_currentTrackIsAudio) {
-            foundAudioTrack = true;
-            audioTrackCount++;
-            channelLayout = null;
-            trackFormat = { codec: null, channels: null, sampleRate: null, channelLayout: null };
-            audioTracks.push(trackFormat);
-            // Promote this trak's mdhd timescale to the demuxer-wide variable.
-            // Previously the global `timescale` was overwritten by every track,
-            // so a data/subtitle track parsed after the audio track (with
-            // timescale=1000) would corrupt the audio elst calculation, making
-            // 16512-sample (=344ms) priming offsets look like 16.5-second skips.
-            if (_lastMdhdTimescale > 0) timescale = _lastMdhdTimescale;
-            if (_lastElstMediaTime >= 0) {
-                mediaStartTime = _lastElstMediaTime;
-                segmentDuration = _lastElstSegDuration;
-            }
-            timelineStartDuration = _lastElstTimelineStartDuration;
-        }
-    }
-
-    function parseStsd(start, end) {
-        if (!_currentTrackIsAudio) return;
-        // version(1) + flags(3) + entry_count(4)
-        if (end - start < 8) return;
-        const entryStart = start + 8;
-        if (entryStart + 8 > end) return;
-        let entrySize = view.getUint32(entryStart);
-        if (entrySize < 36 || entryStart + entrySize > end) return;
-        const entryType = readStr(entryStart + 4, 4);
-
-        // AudioSampleEntry layout after 8-byte box header:
-        //   6 reserved + 2 data_ref_index = 8 bytes
-        //   8 reserved
-        //   2 channel_count (offset +16 from entry data start)
-        //   2 sample_size
-        //   2 compression_id + 2 packet_size
-        //   4 sample_rate (16.16 fixed point)
-        // Total: 28 bytes, sub-boxes start after
-        const entryDataStart = entryStart + 8; // past box header
-        const audioStart = entryDataStart + 28; // sub-boxes start here
-        // Map stsd entry type to WebCodecs codec string
-        if (entryType === 'Opus') audioCodec = 'opus';
-        else if (entryType === 'mp4a') audioCodec = 'mp4a.40.2';
-        else audioCodec = entryType;
-        if (entryDataStart + 28 <= end) {
-            channels = view.getUint16(entryDataStart + 16);
-            sampleRate = view.getUint16(entryDataStart + 24); // upper 16 bits of fixed-point
-        }
-        // Sample-entry channel counts are placeholders for codecs such as AAC.
-        // Keep display metadata separate from the existing decoder configuration.
-        trackFormat.codec = entryType;
-        if (['sowt', 'twos', 'lpcm', 'in24', 'in32', 'fl32', 'fl64', 'raw '].includes(entryType)
-            && view.getUint16(entryDataStart + 8) === 0) {
-            trackFormat.channels = channels;
-            trackFormat.sampleRate = sampleRate;
-        }
-
-        // Look for 'dOps' (Opus) or 'Opus' sub-boxes inside the sample entry
-        if (audioStart < entryStart + entrySize) {
-            let bOff = audioStart;
-            const bEnd = entryStart + entrySize;
-            while (bOff + 8 <= bEnd) {
-                const bSize = view.getUint32(bOff);
-                const bType = readStr(bOff + 4, 4);
-                if (bSize < 8 || bOff + bSize > bEnd) break;
-                if (bType === 'dOps') {
-                    // dOps box: version(1) + outputChannelCount(1) + preSkip(2) +
-                    //           inputSampleRate(4) + outputGain(2) + mappingFamily(1) ...
-                    codecPrivate = data.slice(bOff + 8, bOff + bSize);
-                    if (codecPrivate.length >= 2) {
-                        channels = codecPrivate[1]; // outputChannelCount — authoritative
-                        trackFormat.channels = channels;
-                        trackFormat.sampleRate = 48000; // Opus decode clock, not inputSampleRate
+        function walk(start, end, parent = '', track = null, depth = 0) {
+            if (depth > 8) return false;
+            let at = start;
+            while (at < end) {
+                if (++boxes > 100000) return false;
+                const b = header(at, end); if (!b) return false;
+                const {type, start:s, end:e} = b;
+                if (type === 'moov') {
+                    if (parent || foundMovie) return false;
+                    foundMovie = true; if (!walk(s, e, type, null, depth + 1)) return false;
+                } else if (type === 'trak') {
+                    if (parent !== 'moov' || track || tracks.length >= 64) return false;
+                    const next = {id:null, handler:null, timescale:0, mediaStart:-1, segmentDuration:-1, timelineDuration:0};
+                    tracks.push(next); if (!walk(s, e, type, next, depth + 1)) return false;
+                } else if (type === 'mdia' || type === 'minf' || type === 'stbl' || type === 'edts') {
+                    const expected = {mdia:'trak', minf:'mdia', stbl:'minf', edts:'trak'}[type];
+                    if (!track || parent !== expected || !save(track, type, s, e) || !walk(s, e, type, track, depth + 1)) return false;
+                } else if (type === 'mdat' && !parent) mediaRanges.push([s, e]);
+                else if (type === 'mvhd' && parent === 'moov') {
+                    if (foundMovieHeader) return false;
+                    foundMovieHeader = true;
+                    if (e - s < 1 || data[s] > 1 || e - s < (data[s] ? 24 : 16)) return false;
+                    movieTimescale = view.getUint32(s + (data[s] ? 20 : 12)); if (!movieTimescale) return false;
+                } else if (track && type === 'tkhd' && parent === 'trak') {
+                    if (!save(track, type, s, e) || e - s < 1 || data[s] > 1 || e - s < (data[s] ? 24 : 16)) return false;
+                    track.id = view.getUint32(s + (data[s] ? 20 : 12));
+                } else if (track && type === 'mdhd' && parent === 'mdia') {
+                    if (!save(track, type, s, e) || e - s < 1 || data[s] > 1 || e - s < (data[s] ? 24 : 16)) return false;
+                    track.timescale = view.getUint32(s + (data[s] ? 20 : 12)); if (!track.timescale) return false;
+                } else if (track && type === 'hdlr' && parent === 'mdia') {
+                    if (!save(track, type, s, e) || e - s < 12 || data[s] !== 0) return false;
+                    track.handler = str(s + 8, 4);
+                } else if (track && type === 'elst' && parent === 'edts') {
+                    if (!save(track, type, s, e) || e - s < 8 || data[s] > 1) return false;
+                    const stride = data[s] ? 20 : 12, count = view.getUint32(s + 4);
+                    if (count > Math.floor((e - s - 8) / stride)) return false;
+                    for (let i = 0; i < count; i++) {
+                        const p = s + 8 + i * stride;
+                        const duration = data[s] ? uint64(p) : view.getUint32(p);
+                        const time = data[s] ? Number(view.getBigInt64(p + 8)) : view.getInt32(p + 4);
+                        if (!Number.isSafeInteger(duration) || !Number.isSafeInteger(time) || time < -1) return false;
+                        if (time === -1) track.timelineDuration += duration;
+                        else { track.mediaStart = time; track.segmentDuration = duration; break; }
+                        if (!Number.isSafeInteger(track.timelineDuration)) return false;
                     }
-                    if (codecPrivate.length >= 4) {
-                        preSkip = (codecPrivate[2] << 8) | codecPrivate[3]; // big-endian in dOps
+                } else if (track && parent === 'stbl' && ['stsd','stsz','stsc','stco','co64','stts'].includes(type)) {
+                    if (!save(track, type === 'co64' || type === 'stco' ? 'offsets' : type, s, e)) return false;
+                    if (type === 'co64' || type === 'stco') track.offsetWidth = type === 'co64' ? 8 : 4;
+                }
+                at = e;
+            }
+            return at === end;
+        }
+        function format(track) {
+            const b = track.stsd;
+            if (!b || b.end - b.start < 8 || data[b.start] !== 0 || view.getUint32(b.start + 4) !== 1) return false;
+            const entry = header(b.start + 8, b.end);
+            if (!entry || entry.end !== b.end || entry.end - entry.start < 28) return false;
+            const at = entry.start, version = view.getUint16(at + 8);
+            // QuickTime v1 adds four packet fields. V2 needs its own rate/layout
+            // interpretation; do not read its fields using the v0 offsets.
+            if (version > 1 || entry.end - at < (version ? 44 : 28)) return false;
+            const f = track.format = {trackId:track.id, codec:entry.type, channels:null, sampleRate:null, channelLayout:null};
+            track.codec = entry.type === 'Opus' ? 'opus' : entry.type;
+            track.channels = view.getUint16(at + 16);
+            track.sampleRate = view.getUint32(at + 24) / 65536;
+            track.description = null; track.preSkip = 0;
+            if (['sowt','twos','lpcm','in24','in32','fl32','fl64','raw '].includes(entry.type) && !version) {
+                f.channels = track.channels; f.sampleRate = track.sampleRate;
+            }
+            let p = at + (version ? 44 : 28), customLayout = false;
+            const configurations = new Set();
+            while (p < entry.end) {
+                if (++boxes > 100000) return false;
+                const child = header(p, entry.end); if (!child) return false;
+                const {start:s, end:e, type} = child;
+                if (['dOps','esds','dfLa'].includes(type)) {
+                    if (configurations.has(type)) return false;
+                    configurations.add(type);
+                }
+                if (e - s > 65536 && ['dOps','esds','dfLa'].includes(type)) return false;
+                if (type === 'dOps' && entry.type === 'Opus') {
+                    if (track.description || e - s < 11 || data[s] !== 0) return false;
+                    const channels = data[s + 1], family = data[s + 10];
+                    if (!channels || (family === 0 && (channels > 2 || e - s !== 11))) return false;
+                    if (family !== 0) {
+                        if (family !== 1 || e - s !== 13 + channels) return false;
+                        const streams = data[s + 11], coupled = data[s + 12];
+                        if (!streams || coupled > streams || streams + coupled > channels) return false;
+                        if (!data.subarray(s + 13, e).every(n => n === 255 || n < streams + coupled)) return false;
                     }
-                    if (codecPrivate.length >= 13 + channels && codecPrivate[10] === 1 &&
-                        codecPrivate[11] > 0 && codecPrivate[12] <= codecPrivate[11] &&
-                        codecPrivate[11] + codecPrivate[12] <= channels &&
-                        codecPrivate.subarray(13,13+channels).every(value => value === 255 || value < codecPrivate[11]+codecPrivate[12])) {
-                        channelLayout = channels === 6 ? '5.1' : channels === 8 ? '7.1' : null;
+                    track.description = data.subarray(s, e);
+                    track.channels = f.channels = channels; track.sampleRate = f.sampleRate = 48000;
+                    track.preSkip = view.getUint16(s + 2);
+                    if (family === 1) f.channelLayout = channels === 6 ? '5.1' : channels === 8 ? '7.1' : null;
+                } else if (type === 'dfLa' && entry.type === 'fLaC') {
+                    if (e - s < 42 || (data[s + 4] & 127) !== 0 || view.getUint32(s + 4) % 0x1000000 !== 34) return false;
+                    const si = s + 8;
+                    f.sampleRate = (data[si + 10] << 12) | (data[si + 11] << 4) | (data[si + 12] >> 4);
+                    f.channels = ((data[si + 12] >> 1) & 7) + 1;
+                    if (typeof WarpScrubAudio !== 'undefined') f.channelLayout = WarpScrubAudio.monitor.flacLayout(data.subarray(s + 4, e));
+                } else if (type === 'esds' && entry.type === 'mp4a') {
+                    if (e - s < 4) return false;
+                    parseEsdsFormat(s + 4, e, f, 0, track);
+                    if (f.codec === 'aac') {
+                        if (!track.description) track.codec = 'mp4a.40.2';
+                    } else if (f.codec && f.codec !== 'mp4a') track.codec = f.codec;
+                    if (typeof WarpScrubAudio !== 'undefined') f.channelLayout = WarpScrubAudio.monitor.aacLayout(data.subarray(s, e));
+                } else if (type === 'chan') customLayout = true;
+                p = e;
+            }
+            if (f.channels) track.channels = f.channels;
+            if (f.sampleRate) track.sampleRate = f.sampleRate;
+            if (customLayout) f.channelLayout = null;
+            if (entry.type === 'Opus' && !track.description) return false;
+            return true;
+        }
+        function parseEsdsFormat(start, end, format, depth = 0, decoder = null) {
+            if (depth > 3) return;
+            for (let at = start; at < end;) {
+                const tag = data[at++];
+                let length = 0, complete = false;
+                for (let i = 0; i < 4 && at < end; i++) {
+                    const value = data[at++]; length = length * 128 + (value & 127);
+                    if (!(value & 128)) { complete = true; break; }
+                }
+                if (!complete || at + length > end) return;
+                const limit = at + length;
+                if (tag === 3 && length >= 3) {
+                    let child = at + 3;
+                    const flags = data[at + 2];
+                    if (flags & 128) child += 2;
+                    if (flags & 64) child += 1 + data[child];
+                    if (flags & 32) child += 2;
+                    parseEsdsFormat(child, limit, format, depth + 1, decoder);
+                } else if (tag === 4 && length >= 13) {
+                    format.codec = ({64:'aac', 102:'aac', 103:'aac', 104:'aac', 105:'mp3', 107:'mp3',
+                        165:'ac-3', 166:'ec-3', 169:'dtsc', 170:'dtsh', 171:'dtsh', 172:'dtse'})[data[at]] || 'mp4a';
+                    parseEsdsFormat(at + 13, limit, format, depth + 1, decoder);
+                } else if (tag === 5 && format.codec === 'aac' && length >= 2) {
+                    let bit = at * 8;
+                    const read = n => {
+                        if (bit + n > limit * 8) throw new Error('Truncated AudioSpecificConfig');
+                        let value = 0;
+                        for (let i = 0; i < n; i++, bit++) value = value * 2 + ((data[bit >> 3] >> (7 - (bit & 7))) & 1);
+                        return value;
+                    };
+                    const objectType = () => { const type = read(5); return type === 31 ? 32 + read(6) : type; };
+                    const frequency = () => {
+                        const index = read(4);
+                        return index === 15 ? read(24) : [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350][index];
+                    };
+                    const type = objectType();
+                    if (decoder) { decoder.codec = 'mp4a.40.' + type; decoder.description = data.subarray(at, limit); }
+                    let rate = frequency(), configuration = read(4);
+                    let stereoExtension = type === 29;
+                    if (type === 5 || type === 29) { rate = frequency(); objectType(); }
+                    // Backward-compatible HE-AAC may declare SBR/parametric stereo
+                    // in a sync extension instead of the initial object type.
+                    if (type !== 5 && type !== 29 && length <= 64) {
+                        for (let probe = bit; probe + 21 <= limit * 8; probe++) {
+                            bit = probe;
+                            if (read(11) !== 0x2b7 || objectType() !== 5 || !read(1)) continue;
+                            rate = frequency();
+                            if (bit + 12 <= limit * 8 && read(11) === 0x548) stereoExtension = !!read(1);
+                            break;
+                        }
+                    }
+                    // Program Config Elements/custom configurations need their own parser.
+                    if ([1,2,3,4,5,29].includes(type)) {
+                        format.sampleRate = rate || null;
+                        format.channels = stereoExtension ? 2 : [null,1,2,3,4,5,6,8][configuration] || null;
                     }
                 }
-                if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 50
-                    && (data[bOff + 12] & 127) === 0
-                    && view.getUint32(bOff + 12) % 0x1000000 === 34) {
-                    const si = bOff + 16; // STREAMINFO after FullBox + metadata header
-                    trackFormat.sampleRate = (data[si + 10] << 12) | (data[si + 11] << 4) | (data[si + 12] >> 4);
-                    trackFormat.channels = ((data[si + 12] >> 1) & 7) + 1;
-                }
-                if (bType === 'esds' && entryType === 'mp4a') {
-                    try { parseEsdsFormat(bOff + 12, bOff + bSize, trackFormat); } catch (_) { /* retain only verified fields */ }
-                }
-                if (typeof WarpScrubAudio !== 'undefined') {
-                    if (bType === 'dfLa' && entryType === 'fLaC' && bSize >= 12)
-                        channelLayout = WarpScrubAudio.monitor.flacLayout(data.subarray(bOff+12,bOff+bSize));
-                    if (bType === 'esds' && entryType === 'mp4a')
-                        channelLayout = WarpScrubAudio.monitor.aacLayout(data.subarray(bOff+8,bOff+bSize));
-                }
-                bOff += bSize;
-            }
-            // An explicit custom channel-description box needs its own mapping;
-            // never override it with an inferred codec default.
-            for (let at=audioStart; at+8<=bEnd;) {
-                const size=view.getUint32(at);if(size<8||at+size>bEnd)break;
-                if(readStr(at+4,4)==='chan')channelLayout=null;
-                at+=size;
-            }
-        }
-        trackFormat.channelLayout = channelLayout;
-    }
-
-    function parseEsdsFormat(start, end, format, depth = 0) {
-        if (depth > 3) return;
-        for (let at = start; at < end;) {
-            const tag = data[at++];
-            let length = 0, complete = false;
-            for (let i = 0; i < 4 && at < end; i++) {
-                const value = data[at++]; length = length * 128 + (value & 127);
-                if (!(value & 128)) { complete = true; break; }
-            }
-            if (!complete || at + length > end) return;
-            const limit = at + length;
-            if (tag === 3 && length >= 3) {
-                let child = at + 3;
-                const flags = data[at + 2];
-                if (flags & 128) child += 2;
-                if (flags & 64) child += 1 + data[child];
-                if (flags & 32) child += 2;
-                parseEsdsFormat(child, limit, format, depth + 1);
-            } else if (tag === 4 && length >= 13) {
-                format.codec = ({64:'aac', 102:'aac', 103:'aac', 104:'aac', 105:'mp3', 107:'mp3',
-                    165:'ac-3', 166:'ec-3', 169:'dtsc', 170:'dtsh', 171:'dtsh', 172:'dtse'})[data[at]] || 'mp4a';
-                parseEsdsFormat(at + 13, limit, format, depth + 1);
-            } else if (tag === 5 && format.codec === 'aac' && length >= 2) {
-                let bit = at * 8;
-                const read = n => {
-                    if (bit + n > limit * 8) throw new Error('Truncated AudioSpecificConfig');
-                    let value = 0;
-                    for (let i = 0; i < n; i++, bit++) value = value * 2 + ((data[bit >> 3] >> (7 - (bit & 7))) & 1);
-                    return value;
-                };
-                const objectType = () => { const type = read(5); return type === 31 ? 32 + read(6) : type; };
-                const frequency = () => {
-                    const index = read(4);
-                    return index === 15 ? read(24) : [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350][index];
-                };
-                const type = objectType();
-                let rate = frequency(), configuration = read(4);
-                let stereoExtension = type === 29;
-                if (type === 5 || type === 29) { rate = frequency(); objectType(); }
-                // Backward-compatible HE-AAC may declare SBR/parametric stereo
-                // in a sync extension instead of the initial object type.
-                if (type !== 5 && type !== 29 && length <= 64) {
-                    for (let probe = bit; probe + 21 <= limit * 8; probe++) {
-                        bit = probe;
-                        if (read(11) !== 0x2b7 || objectType() !== 5 || !read(1)) continue;
-                        rate = frequency();
-                        if (bit + 12 <= limit * 8 && read(11) === 0x548) stereoExtension = !!read(1);
-                        break;
-                    }
-                }
-                // Program Config Elements/custom configurations need their own parser.
-                if ([1,2,3,4,5,29].includes(type)) {
-                    format.sampleRate = rate || null;
-                    format.channels = stereoExtension ? 2 : [null,1,2,3,4,5,6,8][configuration] || null;
-                }
-            }
-            at = limit;
-        }
-    }
-
-    function parseStsz(start, end) {
-        if (!_currentTrackIsAudio || end - start < 12) return;
-        const defaultSize = view.getUint32(start + 4);
-        const count = view.getUint32(start + 8);
-        if (defaultSize > 0) {
-            // Clamp: a valid file can't declare more samples than it has bytes.
-            // Without this, sample_count = 0xFFFFFFFF fills a ~4.3B-entry array
-            // (OOM / main-thread hang) from a tiny crafted file.
-            const n = Math.min(count, data.length);
-            for (let i = 0; i < n; i++) sampleTable.sizes.push(defaultSize);
-        } else {
-            for (let i = 0; i < count && start + 12 + i * 4 + 4 <= end; i++) {
-                sampleTable.sizes.push(view.getUint32(start + 12 + i * 4));
-            }
-        }
-    }
-
-    function parseStco(start, end) {
-        if (!_currentTrackIsAudio || end - start < 8) return;
-        const count = view.getUint32(start + 4);
-        for (let i = 0; i < count && start + 8 + i * 4 + 4 <= end; i++) {
-            sampleTable.offsets.push(view.getUint32(start + 8 + i * 4));
-        }
-    }
-
-    function parseCo64(start, end) {
-        if (!_currentTrackIsAudio || end - start < 8) return;
-        const count = view.getUint32(start + 4);
-        for (let i = 0; i < count && start + 8 + i * 8 + 8 <= end; i++) {
-            sampleTable.offsets.push(Number(view.getBigUint64(start + 8 + i * 8)));
-        }
-    }
-
-    function parseStsc(start, end) {
-        if (!_currentTrackIsAudio || end - start < 8) return;
-        const count = view.getUint32(start + 4);
-        _stscEntries = [];
-        for (let i = 0; i < count && start + 8 + i * 12 + 12 <= end; i++) {
-            _stscEntries.push({
-                firstChunk: view.getUint32(start + 8 + i * 12),
-                samplesPerChunk: view.getUint32(start + 8 + i * 12 + 4),
-                descIdx: view.getUint32(start + 8 + i * 12 + 8)
-            });
-        }
-    }
-
-    function parseStts(start, end) {
-        if (!_currentTrackIsAudio || end - start < 8) return;
-        const count = view.getUint32(start + 4);
-        for (let i = 0; i < count && start + 8 + i * 8 + 8 <= end; i++) {
-            const sampleCount = view.getUint32(start + 8 + i * 8);
-            const sampleDelta = view.getUint32(start + 8 + i * 8 + 4);
-            sampleTable.durations.push({ count: sampleCount, delta: sampleDelta });
-        }
-    }
-
-    // Parse
-    walkBoxes(0, data.length, '');
-
-    const timelineStart = (timelineStartDuration > 0 && movieTimescale > 0)
-        ? timelineStartDuration / movieTimescale
-        : 0;
-    // decodeAudioData handles the compressed samples itself; callers use this
-    // lightweight mode for source format and edit-list placement on the video
-    // timeline. Do not build or copy the packet table in that path.
-    if (audioTrackCount !== 1) channelLayout = null;
-    if (metadataOnly) return foundMovie && metadataValid ? { timelineStart, channelLayout, audioTracks } : null;
-
-    if (sampleTable.sizes.length === 0 || sampleTable.offsets.length === 0) {
-        console.warn('[mp4-parse] no audio samples found');
-        return null;
-    }
-
-    // Build sample-to-offset mapping using stsc (sample-to-chunk) + stco (chunk offsets)
-    // stsc tells us how many samples are in each chunk
-    const numSamples = sampleTable.sizes.length;
-    const sampleOffsets = new Array(numSamples);
-    let sampleIdx = 0;
-
-    for (let chunkIdx = 0; chunkIdx < sampleTable.offsets.length && sampleIdx < numSamples; chunkIdx++) {
-        // Find how many samples in this chunk from stsc
-        let samplesInChunk = 1;
-        const chunkNum = chunkIdx + 1; // 1-based
-        for (let s = _stscEntries.length - 1; s >= 0; s--) {
-            if (chunkNum >= _stscEntries[s].firstChunk) {
-                samplesInChunk = _stscEntries[s].samplesPerChunk;
-                break;
+                at = limit;
             }
         }
 
-        let offset = sampleTable.offsets[chunkIdx];
-        for (let s = 0; s < samplesInChunk && sampleIdx < numSamples; s++) {
-            sampleOffsets[sampleIdx] = offset;
-            offset += sampleTable.sizes[sampleIdx];
-            sampleIdx++;
+        if (!walk(0, data.length) || !foundMovie) return null;
+        const audio = tracks.filter(t => t.handler === 'soun');
+        for (const track of audio) {
+            track.valid = !!track.timescale && format(track);
+            if (!track.valid) track.format = {trackId:track.id, codec:null, channels:null, sampleRate:null, channelLayout:null};
         }
-    }
-
-    // Build timestamps from stts (time-to-sample)
-    let ts = 0;
-    let tsIdx = 0;
-    for (const entry of sampleTable.durations) {
-        for (let i = 0; i < entry.count && tsIdx < numSamples; i++) {
-            const timestampUs = Math.round(ts * 1000000 / timescale);
-            const sampleSize = sampleTable.sizes[tsIdx];
-            const sampleOff = sampleOffsets[tsIdx];
-            if (sampleOff !== undefined && sampleOff + sampleSize <= data.length) {
-                chunks.push({
-                    timestamp: timestampUs,
-                    data: data.slice(sampleOff, sampleOff + sampleSize)
-                });
+        const ids = audio.map(t => t.id);
+        const chosen = selectedTrackId === null ? audio.length === 1 ? audio[0] : null
+            : Number.isInteger(selectedTrackId) ? audio.find(t => t.id === selectedTrackId) : null;
+        const selection = chosen ? 'single' : audio.length ? 'ambiguous' : 'none';
+        const timelineStart = chosen?.valid ? chosen.timelineDuration / movieTimescale : null;
+        if (metadataOnly) return {timelineStart, channelLayout:chosen?.format.channelLayout || null,
+            audioTracks:audio.map(t => t.format), selection, trackId:chosen?.id ?? null};
+        if (!chosen?.valid || new Set(ids).size !== ids.length) return null;
+        const t = chosen;
+        const table = (b, width) => {
+            if (!b || b.end - b.start < 8 || data[b.start] !== 0) return null;
+            const count = view.getUint32(b.start + 4);
+            if (!count || count > maxSamples || count > Math.floor((b.end - b.start - 8) / width)) return null;
+            return {start:b.start + 8, count};
+        };
+        const sizes = t.stsz;
+        if (!sizes || sizes.end - sizes.start < 12 || data[sizes.start] !== 0) return null;
+        const uniform = view.getUint32(sizes.start + 4), count = view.getUint32(sizes.start + 8);
+        if (!count || count > maxSamples || count > data.length) return null;
+        if (!uniform && count > Math.floor((sizes.end - sizes.start - 12) / 4)) return null;
+        if (uniform && count > Math.floor(Math.min(data.length, maxPacketBytes) / uniform)) return null;
+        const sizeAt = i => uniform || view.getUint32(sizes.start + 12 + i * 4);
+        let packetBytes = 0;
+        for (let i = 0; i < count; i++) {
+            const size = sizeAt(i);
+            if (!size || size > Math.min(data.length, maxPacketBytes) - packetBytes) return null;
+            packetBytes += size;
+        }
+        const offsets = table(t.offsets, t.offsetWidth), mapping = table(t.stsc, 12), timing = table(t.stts, 8);
+        if (!offsets || !mapping || !timing || offsets.count > count || mapping.count > offsets.count || timing.count > count) return null;
+        const firstChunk = i => view.getUint32(mapping.start + i * 12);
+        const perChunk = i => view.getUint32(mapping.start + i * 12 + 4);
+        if (firstChunk(0) !== 1) return null;
+        let mapped = 0;
+        for (let i = 0; i < mapping.count; i++) {
+            const first = firstChunk(i), next = i + 1 < mapping.count ? firstChunk(i + 1) : offsets.count + 1;
+            const per = perChunk(i), span = next - first;
+            if (!per || next <= first || first > offsets.count || next > offsets.count + 1
+                || view.getUint32(mapping.start + i * 12 + 8) !== 1 || per > Math.floor((count - mapped) / span)) return null;
+            mapped += per * span;
+        }
+        if (mapped !== count) return null;
+        let timed = 0, ticks = 0;
+        for (let i = 0; i < timing.count; i++) {
+            const n = view.getUint32(timing.start + i * 8), delta = view.getUint32(timing.start + i * 8 + 4);
+            if (!n || !delta || n > count - timed || delta > Math.floor((Number.MAX_SAFE_INTEGER - ticks) / n)) return null;
+            timed += n; ticks += n * delta;
+        }
+        if (timed !== count || ticks / t.timescale > Number.MAX_SAFE_INTEGER / 1000000) return null;
+        const offsetAt = i => t.offsetWidth === 8 ? uint64(offsets.start + i * 8) : view.getUint32(offsets.start + i * 4);
+        function rangeEnd(pos) {
+            let lo = 0, hi = mediaRanges.length - 1;
+            while (lo <= hi) { const mid = (lo + hi) >>> 1, range = mediaRanges[mid];
+                if (pos < range[0]) hi = mid - 1;
+                else if (pos >= range[1]) lo = mid + 1;
+                else return range[1];
             }
-            ts += entry.delta;
-            tsIdx++;
+            return -1;
         }
-    }
-
-    // Edit list media_time supersedes preSkip (it includes encoder delay).
-    // Convert to samples at the audio sample rate.
-    const skipSamples = mediaStartTime >= 0
-        ? Math.round(mediaStartTime * sampleRate / timescale)
-        : preSkip;
-
-    // segmentDuration (in movie timescale) tells us how long to play.
-    // Convert to samples to trim trailing audio past the video end.
-    const maxSamples = (segmentDuration > 0 && movieTimescale > 0)
-        ? Math.round(segmentDuration / movieTimescale * sampleRate)
-        : 0; // 0 = no limit
-
-    console.log('[mp4-parse] ' + chunks.length + ' audio samples, timescale=' + timescale +
-        ', rate=' + sampleRate + ', ch=' + channels +
-        ', elst_media_time=' + mediaStartTime + ', skipSamples=' + skipSamples +
-        ', timelineStart=' + timelineStart +
-        ', segDur=' + segmentDuration + ', movieTs=' + movieTimescale +
-        ', maxSamples=' + maxSamples);
-
-    // WebCodecs expects an OpusHead identification header, not the MP4 dOps
-    // payload. dOps uses big-endian numbers and omits the eight-byte signature.
-    // Passing it through can silently configure a stereo decoder for surround.
-    if (audioCodec === 'opus' && codecPrivate && codecPrivate.length >= 11) {
-        const dops = codecPrivate;
-        const head = new Uint8Array(dops.length + 8);
-        head.set([79,112,117,115,72,101,97,100,1,dops[1]]);
-        head[10]=dops[3]; head[11]=dops[2];
-        head[12]=dops[7]; head[13]=dops[6]; head[14]=dops[5]; head[15]=dops[4];
-        head[16]=dops[9]; head[17]=dops[8];
-        head.set(dops.subarray(10),18);
-        codecPrivate = head;
-    }
-
-    return {
-        chunks: chunks,
-        sampleRate: sampleRate,
-        channels: channels,
-        codec: audioCodec,
-        description: codecPrivate,
-        preSkip: skipSamples,
-        maxSamples: maxSamples,
-        timelineStart: timelineStart,
-        channelLayout: channelLayout
-    };
+        let sample = 0, map = 0;
+        for (let i = 0; i < offsets.count; i++) {
+            while (map + 1 < mapping.count && firstChunk(map + 1) <= i + 1) map++;
+            let pos = offsetAt(i); if (!Number.isSafeInteger(pos)) return null;
+            const end = rangeEnd(pos), n = perChunk(map);
+            if (end < pos) return null;
+            for (let j = 0; j < n; j++, sample++) { const size = sizeAt(sample); if (size > end - pos) return null; pos += size; }
+        }
+        if (!Number.isFinite(t.sampleRate) || t.sampleRate <= 0 || t.sampleRate > 1048575 || !t.channels || t.channels > 256) return null;
+        const preSkip = t.mediaStart >= 0 ? Math.round(t.mediaStart * t.sampleRate / t.timescale) : t.preSkip;
+        const maxFrames = t.segmentDuration > 0 ? Math.round(t.segmentDuration / movieTimescale * t.sampleRate) : 0;
+        if (!Number.isSafeInteger(preSkip) || !Number.isSafeInteger(maxFrames)) return null;
+        if (t.codec.startsWith('mp4a.40.') && (!t.description || !t.format.channels || !t.format.sampleRate)) return null;
+        // All rejection checks precede packet copies. Build timestamps and offsets
+        // directly from validated compact runs, without expanded helper arrays.
+        const chunks = [];
+        let run = 0, remaining = view.getUint32(timing.start), timestamp = 0;
+        sample = 0; map = 0;
+        for (let i = 0; i < offsets.count; i++) {
+            while (map + 1 < mapping.count && firstChunk(map + 1) <= i + 1) map++;
+            let pos = offsetAt(i);
+            for (let j = 0; j < perChunk(map); j++, sample++) {
+                const size = sizeAt(sample);
+                chunks.push({timestamp:Math.round(timestamp * 1000000 / t.timescale), data:data.slice(pos, pos + size)});
+                pos += size; timestamp += view.getUint32(timing.start + run * 8 + 4);
+                if (--remaining === 0 && run + 1 < timing.count) remaining = view.getUint32(timing.start + (++run) * 8);
+            }
+        }
+        let description = t.description;
+        if (t.codec === 'opus') {
+            const d = description, head = new Uint8Array(d.length + 8);
+            head.set([79,112,117,115,72,101,97,100,1,d[1]]);
+            head[10] = d[3]; head[11] = d[2];
+            head[12] = d[7]; head[13] = d[6]; head[14] = d[5]; head[15] = d[4];
+            head[16] = d[9]; head[17] = d[8]; head.set(d.subarray(10), 18); description = head;
+        } else if (description) description = description.slice();
+        return {chunks, sampleRate:t.sampleRate, channels:t.channels, codec:t.codec, description,
+            preSkip, maxSamples:maxFrames, timelineStart, channelLayout:t.format.channelLayout, trackId:t.id};
+    } catch (_) { return null; } // Malformed input never escapes the pure parser.
 }
 
 // --- WebM demuxer ---

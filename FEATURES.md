@@ -131,6 +131,8 @@ Each video preview and the selected Continuous stream have a 64 MiB PCM limit. O
 
 ## Audio visualization
 
+Recognized MP4 inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. The parser rejects malformed packet maps and bounds packet extraction before copying audio data.
+
 Press `W` to toggle waveform and spectrogram views. The shared **Fit / Ref** control applies to both displays and persists across sessions. **Fit** normalizes each asset's waveform to its own peak and scales its spectrogram to its strongest energy, making quiet detail easy to inspect. **Ref** shows true waveform amplitude against 0 dBFS and maps every spectrogram to the same fixed −70 to 0 dBFS range for direct level comparison. Encoded leading and trailing audio gaps stay blank on the video timeline; decoded audio is never stretched to fill them. Waveform uses dB color coding in Ref — green for normal levels, yellow for caution (>-6dB), red for hot/clipping (>-1dB). Spectrogram supports linear/log frequency scale (`Shift+W`) and multiple color palettes (`P`).
 
 Waveform, spectrogram, and loudness calculations run in a background worker for video and audio-only review, preserving the existing original-channel analysis while playback and controls continue. Preparation is serialized; clearing or replacing media discards obsolete results. Browsers that block workers retain the foreground compatibility path.

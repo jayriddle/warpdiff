@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.4
+**Current version:** 3.19.5
 
 ---
 
@@ -80,6 +80,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Unsupported video audio uses a safe external FFmpeg command and reload workflow. WarpDiff does not bundle or run FFmpeg. The supplied command targets MP4/MOV video (including `.m4v`); other formats require a suitable external command. Install FFmpeg separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Short soundtracks are padded to retain the complete picture. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
 - Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
+- Recognized MP4 inputs need one readable audio track for waveform, spectrogram, loudness and scrub audio. Multiple or unverifiable tracks keep native playback with a preparation notice; export the desired track and reload. WarpDiff does not guess which track the browser plays. [Scope and verification](docs/mp4-audio-hardening-2026-10-16/README.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
 - Adjacent **Playback: Sync/Solo** and **Range: Sync/Full** selectors keep the two playback policies together before the timecode
 - **Solo playback** (`Shift+S`, or the playback-scope button) runs only the selected video; selecting another video hands off at the same absolute time. A shorter target holds paused on its final frame rather than wrapping, while returning to Full Sync preserves the longer timeline and range-limited Sync restarts at its shared in-point

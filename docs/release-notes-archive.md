@@ -2,7 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.4 (prepared October 15, 2026; unpublished)
+## v3.19.5 (prepared October 16, 2026; unpublished)
+
+- MP4 audio tables and timing are scoped to one track. Malformed or oversized packet maps are rejected before packet copies.
+- Multiple or unreadable MP4 audio tracks retain browser-managed playback with a notice; decoded tools require a prepared single-track file.
+- Quiet maintenance release; the prior What’s New summary remains. Verification: [MP4 audio hardening](mp4-audio-hardening-2026-10-16/README.md).
+
+## v3.19.4 (released October 16, 2026)
 
 - Published runtime URLs and offline caches are pinned to the deployed commit. A new install checks its full bundle, and open comparisons retain their existing version.
 - Missing or mismatched required scripts stop startup with a retry notice; failed installs preserve the previous complete offline copy. Local source serving still needs no build.
