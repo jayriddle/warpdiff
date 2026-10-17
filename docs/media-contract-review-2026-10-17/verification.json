@@ -109,7 +109,7 @@
     "applicationChangedForTestCorrection": false
   },
   "hosted": {
-    "status": "pending PR creation",
+    "status": "fresh run pending after test-only correction",
     "expectedChromiumInventory": 574,
     "expectedWebKitInventory": 184,
     "requiredChecks": [
@@ -147,5 +147,52 @@
     "no physical Safari listening or OS PWA migration",
     "no exhaustive hostile same-user filesystem or descendant-process-tree management",
     "historical Grid, 44.1kHz amplitude and broader WebKit7.1 remain separate"
-  ]
+  ],
+  "hostedFirstRun": {
+    "id": 39053153307,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/39053153307",
+    "head": "186fd92b99ed113254fda83aa0ed0554bfec2546",
+    "result": "failure",
+    "chromium": {
+      "passed": 573,
+      "approvedSkip": 1,
+      "runnerErrors": 0,
+      "retries": 0
+    },
+    "webkit": {
+      "passed": 177,
+      "failed": 7,
+      "retries": 0
+    },
+    "ownership": {
+      "passed": 1351
+    },
+    "infrastructure": {
+      "passed": 26
+    },
+    "helper": {
+      "passed": 23
+    },
+    "publicFiles": 80,
+    "archiveDigestsVerified": 5,
+    "publication": "skipped"
+  },
+  "hostedCorrections": {
+    "scope": "test-only",
+    "hostDeadline": "Await correlated terminal up to15s for production10s verifier; incorrect terminal fails immediately; full-array MP4 assertions preserved",
+    "analysisWait": "One asynchronous-metrics assertion15s, completed metrics documented after initial5s miss",
+    "packageParity": "Compare all arrays/scalars in browser; return first-mismatch paths/counts; no foreground substitution; worklet loading retained; <4KiB return",
+    "priorProtocolResultBytes": 61483632,
+    "localCasesPassed": 14,
+    "localRetries": 0,
+    "localRunnerErrors": 0,
+    "independentComparatorChecks": 14,
+    "publicRuntimeFilesUnchanged": 41,
+    "diagnosisRecords": [
+      "output/hosted-media-diagnosis-2026-10-17-0szwL9/REVIEW.md",
+      "output/webkit-package-timeout-review-20261017-bUhq7d/REVIEW.md",
+      "output/compact-analysis-comparator-review-20261017-6D46t1/REVIEW.md"
+    ],
+    "rawEvidence": "output/media-contract-hosted-followup-2026-10-17-iroPau"
+  }
 }

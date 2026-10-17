@@ -44,8 +44,11 @@ async function host(page:any, file:string, id='current', extra={}) {
     {base64:fs.readFileSync(file).toString('base64'),name:path.basename(file),id,extra});
 }
 async function ready(page:any, id='current') {
-  await expect.poll(() => page.evaluate(() => (window as any).admissionReplies))
-    .toContainEqual(expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:id}));
+  // Observe the app's bounded 10-second first-frame decision before asserting
+  // success. A FAILED terminal reply fails immediately, rather than being retried.
+  const replies=()=>page.evaluate((id:string)=>(window as any).admissionReplies.filter((reply:any)=>reply.requestId===id),id);
+  await expect.poll(async()=>(await replies()).length,{timeout:15000}).toBeGreaterThan(0);
+  expect(await replies()).toEqual([expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:id})]);
 }
 
 test('decoded image report is immutable and its dialog preserves focus and literal filenames', async ({page}) => {

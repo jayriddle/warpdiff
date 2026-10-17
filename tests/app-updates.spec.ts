@@ -325,12 +325,32 @@ test('exact candidate packaging analyses audio and loads both canonical worklets
         const scrub=new AudioWorkletNode(ctx,'phase-vocoder-processor');scrub.disconnect();
         await ctx.audioWorklet.addModule(w._appBackgroundScriptUrl('js/signalsmith-worklet.js'));
       } finally {await ctx.close();}
-      const serialize=(value:any):any=>ArrayBuffer.isView(value)?Array.from(value as any):value && typeof value==='object'?Object.fromEntries(Object.entries(value).map(([k,v])=>[k,serialize(v)])):value;
-      return {actual:serialize(actual),fallback:serialize(fallback),expected:serialize(expected),foregroundCalls,blockedWorkerAttempts,
+      // Compare every returned sample/field here. Sending three multi-megabyte
+      // analyses through the browser protocol made this check time out in CI.
+      let comparedValues=0;
+      const difference=(a:any,b:any,path='analysis'):string|null=>{
+        if(Object.is(a,b)){comparedValues++;return null;}
+        if(ArrayBuffer.isView(a)||ArrayBuffer.isView(b)){
+          if(!ArrayBuffer.isView(a)||!ArrayBuffer.isView(b)||a.constructor.name!==b.constructor.name||a.byteLength!==b.byteLength)return path+' type/length';
+          for(let i=0;i<(a as any).length;i++){comparedValues++;if(!Object.is((a as any)[i],(b as any)[i]))return path+'['+i+']';}
+          return null;
+        }
+        if(a&&b&&typeof a==='object'&&typeof b==='object'){
+          if(Array.isArray(a)!==Array.isArray(b))return path+' type';
+          const keys=Object.keys(a);if(keys.length!==Object.keys(b).length)return path+' keys';
+          for(const key of keys){if(!Object.hasOwn(b,key))return path+'.'+key;const mismatch=difference(a[key],b[key],path+'.'+key);if(mismatch)return mismatch;}
+          return null;
+        }
+        return path;
+      };
+      const workerDifference=difference(actual,expected),fallbackDifference=difference(fallback,expected);
+      return {workerDifference,fallbackDifference,comparedValues,foregroundCalls,blockedWorkerAttempts,
         sha:document.querySelector<HTMLMetaElement>('meta[name="warpdiff-release"]')!.content};
     });
-    expect(result.actual).toEqual(result.expected);expect(result.foregroundCalls).toBe(0);
-    expect(result.fallback).toEqual(result.expected);expect(result.blockedWorkerAttempts).toBe(1);
+    expect(result.workerDifference).toBeNull();expect(result.fallbackDifference).toBeNull();expect(result.comparedValues).toBeGreaterThan(0);
+    expect(result.foregroundCalls).toBe(0);expect(result.blockedWorkerAttempts).toBe(1);
     expect(result.sha).toBe(A);expect(errors).toEqual([]);
+    expect(JSON.stringify(result).length).toBeLessThan(4096);
+    await test.info().attach('analysis-parity',{body:Buffer.from(JSON.stringify(result)),contentType:'application/json'});
   } finally {await page.goto('about:blank');await f.close();}
 });
