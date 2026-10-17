@@ -1,0 +1,166 @@
+{
+  "base": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+  "branch": "codex/media-input-contract",
+  "candidateVersion": "3.19.6",
+  "scope": "First contract/provider foundation; working-tree runtime hashes identify measured source before its local commit.",
+  "publication": "hold; no push, PR, merge or deployment",
+  "browser": {
+    "passed": 232,
+    "projects": {
+      "chrome": 116,
+      "webkit": 116
+    },
+    "workers": 1,
+    "retries": 0,
+    "skips": 0,
+    "runnerErrors": 0,
+    "seconds": 230.822117,
+    "files": [
+      "media-input.spec.ts",
+      "mp4-audio.spec.ts",
+      "ffmpeg-command.spec.ts",
+      "external-preparation.spec.ts",
+      "host-load.spec.ts"
+    ],
+    "newCases": 8,
+    "existingCases": 224,
+    "completeSelectedInventory": true
+  },
+  "ownership": {
+    "passed": 1238,
+    "failed": 0,
+    "newBoundaryChecks": 41
+  },
+  "infrastructure": {
+    "passed": 25,
+    "failed": 0
+  },
+  "mutations": {
+    "count": 4,
+    "allIntendedFailures": true,
+    "validSourceControlRetained": true
+  },
+  "runtime": {
+    "at": "2026-10-17T15:23:34.360Z",
+    "served": [
+      {
+        "file": "index.html",
+        "status": 200,
+        "sha256": "1ca29faf6d2ac9397033e3ec4f14583c5bd3d45752ecf93fef253658a5f8e4b2"
+      },
+      {
+        "file": "js/audio-decode.js",
+        "status": 200,
+        "sha256": "975b1e46d9cc788c88ef7f5aeaa2662e7bf8b33902f05b7cfc20c3568ac3d52b"
+      },
+      {
+        "file": "js/mp4-demux.js",
+        "status": 200,
+        "sha256": "09fa3de458a2859a020ba610017b1076a1e0044ed3d7a801f82d7574dad01fd6"
+      },
+      {
+        "file": "js/media-input-contract.js",
+        "status": 200,
+        "sha256": "7e8b835bc5ef20b6af39acb2e1edc120e5a8d01297fb224ba37e036fb19cc059"
+      },
+      {
+        "file": "js/media-preparation.js",
+        "status": 200,
+        "sha256": "6ca5a9c1909652f2ab17049760957a14b7ee15745f18ec397f01646ef1da393d"
+      }
+    ],
+    "runtimeHashes": {
+      "index.html": "1ca29faf6d2ac9397033e3ec4f14583c5bd3d45752ecf93fef253658a5f8e4b2",
+      "sw.js": "dfa2f9bff0874bdbd682be4b4c200b5ca7b5de459811a888796b943fad5aa6e8",
+      "js/app-updates.js": "095a2ff0e9fb711aa6b5d4fdc35dca479786ec4b21a097e61798520ae8585e1b",
+      "js/appearance.js": "e7a6c54b01c13104a254dfdbc1bead319a47f80137f9c87c2dab8e66e8a150ae",
+      "js/audio-analysis-worker.js": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+      "js/audio-analysis.js": "c0db3c1eb02f96e225a738a38255d1a94c6951fb9a58b8580c0d51e9b440704e",
+      "js/audio-decode.js": "975b1e46d9cc788c88ef7f5aeaa2662e7bf8b33902f05b7cfc20c3568ac3d52b",
+      "js/audio-monitor.js": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+      "js/audio-routing.js": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+      "js/audio-viz.js": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+      "js/hotkeys.js": "36ef5c77853d7f6230d29c50759870e839351bd85eb96acdaa6cf2513fec54d5",
+      "js/info-bar.js": "382165b0ffe6b3f9d2756cc6cf8e05f42414330a61851bf2ebb031eb1050231b",
+      "js/managed-review.js": "1150245afc806346a5befa32c9f7d2acb02c82466e6593ec6839d3fbfc4b3f87",
+      "js/media-input-contract.js": "7e8b835bc5ef20b6af39acb2e1edc120e5a8d01297fb224ba37e036fb19cc059",
+      "js/media-preparation.js": "6ca5a9c1909652f2ab17049760957a14b7ee15745f18ec397f01646ef1da393d",
+      "js/mp4-demux.js": "09fa3de458a2859a020ba610017b1076a1e0044ed3d7a801f82d7574dad01fd6",
+      "js/opus-sync.js": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+      "js/playback-audio-core.js": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6",
+      "js/preferences.js": "f4554bcbd7e7aa8521c7cef24161e1c8b2b9d1ffe411c02a77be4bfe31e99269",
+      "js/scopes.js": "5f9336f62ce5b34229ca42ae1f4ae46bcf6bbd07ff3d29cf936f576de74988d0",
+      "js/scrub-audio-core.js": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+      "js/scrub-audio.js": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
+      "js/scrub-video.js": "4ec52cb97fd116cc5abad04f0c9e683d891d46b00a1ef4d0625bd399010d1c51",
+      "js/scrub-worklet.js": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+      "js/signalsmith-worklet.js": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08",
+      "js/slow-playback.js": "825d44485fdfdb9be718100921eeebab75f9b2adf2c3e454f87aebc4674e9dc0",
+      "js/starfield.js": "daadf89dc5f3a0919698b90f4f079a1896aff6a6ee08dc85a97e843748f18cb3",
+      "js/tile-check.js": "8e2369b9ffeae78fda8908e8ec0ac7279da53d6393eb4d6d0132da0108101764",
+      "js/timecode.js": "e3fc970f7721623dbe204b1697d1caa3dbf00ae0c9a398d30bf8db47d9608975",
+      "js/transport.js": "2fe79b27cd50c95ad442fb008131eb0ed7e741361cf4e604465de91e4eb778af",
+      "js/usage.js": "4e78a9a1c66a0390ae0147ba232645f04b05ceec6fa29c1bfe7a4265f2e68752",
+      "js/wipe.js": "83a75c1a000a9aecefa89d2cae0d4f0007ebae8347d0952861f689d8ad96b2ae"
+    },
+    "unchangedFromReleasedBaseline": [
+      {
+        "file": "js/opus-sync.js",
+        "sha256": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90"
+      },
+      {
+        "file": "js/audio-viz.js",
+        "sha256": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d"
+      },
+      {
+        "file": "js/audio-routing.js",
+        "sha256": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573"
+      },
+      {
+        "file": "js/audio-monitor.js",
+        "sha256": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf"
+      },
+      {
+        "file": "js/scrub-audio.js",
+        "sha256": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e"
+      },
+      {
+        "file": "js/mp4-demux.js",
+        "sha256": "09fa3de458a2859a020ba610017b1076a1e0044ed3d7a801f82d7574dad01fd6"
+      },
+      {
+        "file": "js/scrub-audio-core.js",
+        "sha256": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1"
+      },
+      {
+        "file": "js/playback-audio-core.js",
+        "sha256": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6"
+      }
+    ]
+  },
+  "initialFailures": {
+    "staging": "24 pass/1 fail: deliberately refused the two untracked new public assets. Added them to the Git index without weakening the staging boundary; all 25 then passed.",
+    "browser": {
+      "stats": {
+        "startTime": "2026-10-17T15:18:18.081Z",
+        "duration": 186733.826,
+        "expected": 95,
+        "skipped": 135,
+        "unexpected": 2,
+        "flaky": 0
+      },
+      "exitCode": 130,
+      "cause": "Two new assertions counted four empty media slot placeholders as populated media. Corrected all new media occupancy assertions to filter non-null entries. Both failures also recorded 60-second teardown timeouts; their cause remains unestablished. Run was interrupted and is incomplete, not green.",
+      "artifacts": "output/media-input-contract-2026-10-17-FHeizr/browser-initial-artifacts/"
+    }
+  },
+  "limits": [
+    "Only existing MP4 audio-selection policy is an active admission contract; complete picture/audio/timing profile validation is future work.",
+    "File-provider API checks the nonempty File envelope, not recipe conformity, provenance, codec correctness or successful decoding; all results require normal-load validation.",
+    "No real file-processing transport, provider UI, host preparation negotiation, installer or automatic file replacement is implemented.",
+    "Stereo AAC recipe is the existing explicitly requested compatibility copy; original multichannel/measurement preservation is a later profile.",
+    "Existing compatibility and Opus workarounds remain, and all recorded canonical/timing/measurement owners are byte-identical to the released baseline.",
+    "No complete Chromium CI suite, complete focused WebKit profile or hosted checks ran; the selected 232-case local matrix and 25 infrastructure checks are the measured coverage.",
+    "Physical Safari listening, professional loudness/true-peak conformance, historical Grid/44.1kHz/WebKit7.1/readiness observations remain outside this slice."
+  ]
+}

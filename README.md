@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.5
+**Current version:** 3.19.6
 
 ---
 
@@ -151,6 +151,8 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 - **Color-correct by default.** Magnifier uses cloned `<video>` elements to stay on the hardware compositor path, because `drawImage(video, canvas)` produces incorrect colors on macOS P3 displays.
 
 ### Going deeper
+
+- **[Media input contracts and preparation adapters](docs/media-input-architecture.md)** — migration slices, versioned policy/provider interfaces and current limits. Direct loading and manual external preparation remain available; no processor is bundled.
 
 - **[CLAUDE.md](CLAUDE.md)** — project conventions, architecture patterns, naming, and the specific technical decisions worth knowing about (frame stepping math, Stack zoom modes, equal-area grid layout, scope rendering strategy).
 - **[memory.md](memory.md)** — memory-management patterns: buffer caching, audio downsampling, AudioContext lifecycle, stale-decode guards, magnifier clone handling, and GC pressure avoidance.

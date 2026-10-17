@@ -98,9 +98,7 @@ function _renderAudioTimelineAlert() {
 // Native players do not consistently expose their selected MP4 audio track.
 // Keep listening native and withhold decoded tools when that identity is ambiguous.
 function _mp4AudioAnalysisIssue(metadata) {
-    if (!metadata) return 'The MP4 audio track could not be verified. Analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback stays browser-managed.';
-    return metadata.audioTracks.length > 1
-        ? 'Multiple MP4 audio tracks: analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback uses the browser’s track choice.' : '';
+    return WarpMediaInput.assessMP4Audio(metadata).message;
 }
 
 let _audioTrackIssues = Object.create(null);
