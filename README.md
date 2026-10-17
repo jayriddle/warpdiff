@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.6
+**Current version:** 3.19.7
 
 ---
 
@@ -66,6 +66,10 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 - Press either `S` or `G` repeatedly to toggle back and forth between Stack and Grid
 - Mixed orientations use equal-area layout so each asset has the same visual weight
 - `\` toggles Stack between **Fit** (each asset fills the viewport independently) and **Balance** (equal rendered area across assets)
+
+**Prepared packages**
+
+Open **Package** (Load prepared package) in the header, select `warpdiff-package.json` and the prepared MP4, and optionally select the original to check its byte binding. Add up to three companion images or videos. **Check package** verifies the selected bytes and bounded container requirements without replacing the current comparison; **Load comparison** then starts a new comparison through the normal decoder checks. The original is used only for matching and is not added automatically. Loading uses the usual timestamp ordering. Inspection failure or cancellation preserves the current comparison. Nothing is uploaded or converted in the browser. The summary distinguishes inspected stereo format from declared transformations and unverified timing, source fidelity and measurement conformance. See the [optional external tool](tools/media-prepare/README.md).
 
 **Loading feedback**
 - **Media status** shows observed picture, pixel access, native playback, decoded-audio analysis and scrub-audio availability for each loaded input. It distinguishes reported timing from unverified frame-rate, synchronization and original-source fidelity claims. Refresh checks current frames without starting playback or preparation. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)

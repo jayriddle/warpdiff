@@ -2,7 +2,9 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.6 (prepared October 17, 2026; unpublished)
+## v3.19.6 (released October 17, 2026)
+
+Released through PR #51 at `91665d9`. The following notes preserve the development record; [review and verification](media-contract-review-2026-10-17/README.md).
 
 - Adds versioned MP4 audio-selection assessments and an explicit preparation-provider boundary. The existing manual command is the only built-in adapter; direct loading stays available.
 - File-provider outputs require normal-load verification, and clear/replacement retires pending preparation. No native helper, upload service or browser converter is included.
