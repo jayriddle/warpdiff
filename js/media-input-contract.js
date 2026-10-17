@@ -87,7 +87,7 @@ const WarpMediaInput = (() => {
     function createEvidenceStore() {
         const entries = new Map();
         const keys = ['pictureDecoded', 'frameAccess', 'nativeDataReady', 'mediaFailed', 'audioDecoded', 'audioDecodeFailed',
-            'container', 'inventoryKnown', 'audioTrackCount', 'metadataAudioStart'];
+            'container', 'inventoryKnown', 'audioTrackCount', 'metadataAudioStart', 'metadataTimelineVerified'];
         return Object.freeze({
             begin(slot, owner) { entries.set(slot, {owner, facts: Object.freeze({})}); },
             observe(slot, owner, patch) {

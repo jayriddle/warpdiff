@@ -62,7 +62,7 @@ const WarpPreparedMedia = (() => {
             checkSignal(signal);
             const audio = _demuxMP4Audio(bytes, false, null, true);
             if (!audio || audio.trackCount !== 2 || audio.videoTrackCount !== 1 || audio.audioTrackCount !== 1 ||
-                audio.codec !== 'mp4a.40.2' || audio.channels !== 2 || audio.sampleRate !== 48000 ||
+                audio.codec !== 'mp4a.40.2' || audio.aacSbr !== false || audio.channels !== 2 || audio.sampleRate !== 48000 ||
                 !Number.isFinite(audio.timelineStart) || audio.timelineStart < 0) throw new Error('Package requires one video and one readable stereo AAC-LC 48 kHz track');
             const video = _demuxMP4Video(bytes);
             if (!video || !/^avc1\.(42|4d|64)[a-f0-9]{4}$/i.test(video.codec) ||

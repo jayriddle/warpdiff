@@ -3,12 +3,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash, webcrypto} from 'node:crypto';
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
+import {spawn} from 'node:child_process';
 import {runInNewContext} from 'node:vm';
 import {fileURLToPath} from 'node:url';
 
-const execute = promisify(execFile);
 const root = fileURLToPath(new URL('../../', import.meta.url));
 export async function preparedMediaAPI() {
     const sources = await Promise.all(['js/mp4-demux.js', 'js/prepared-media.js'].map(file => fs.readFile(path.join(root, file), 'utf8')));
@@ -16,6 +14,40 @@ export async function preparedMediaAPI() {
 }
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const abort = signal => { if (signal?.aborted) { const e = new Error('Preparation cancelled'); e.name = 'AbortError'; throw e; } };
+// Settle only after close: cancellation must retire the process before callers
+// remove its files. A tool that ignores TERM receives KILL after a bounded grace.
+async function execute(executable, args, {signal, timeout, maxBuffer}) {
+    abort(signal);
+    return new Promise((resolve, reject) => {
+        const child = spawn(executable, args, {stdio:['ignore','pipe','pipe']});
+        const chunks = {stdout:[], stderr:[]}, sizes = {stdout:0, stderr:0};
+        let failure = null, killTimer = null;
+        function retire(error) {
+            if (failure) return;
+            failure = error;
+            child.kill('SIGTERM');
+            killTimer = setTimeout(() => child.kill('SIGKILL'), 500);
+        }
+        const cancelled = () => { const e = new Error('Preparation cancelled'); e.name = 'AbortError'; retire(e); };
+        const timer = setTimeout(() => retire(new Error('External tool timed out')), timeout);
+        signal?.addEventListener('abort', cancelled, {once:true});
+        if (signal?.aborted) cancelled();
+        for (const stream of ['stdout','stderr']) child[stream].on('data', bytes => {
+            if (failure) return;
+            sizes[stream] += bytes.length;
+            if (sizes[stream] > maxBuffer) retire(new Error('External tool output exceeds its buffer limit'));
+            else chunks[stream].push(bytes);
+        });
+        child.on('error', error => { failure ||= error; });
+        child.once('close', (code, killedBy) => {
+            clearTimeout(timer); clearTimeout(killTimer);
+            signal?.removeEventListener('abort', cancelled);
+            const stdout = Buffer.concat(chunks.stdout).toString(), stderr = Buffer.concat(chunks.stderr).toString();
+            if (!failure && code !== 0) failure = new Error('External tool failed (' + (killedBy || code) + '): ' + stderr.trim());
+            if (failure) reject(failure); else resolve({stdout, stderr});
+        });
+    });
+}
 async function probe(file, signal, executable) {
     const {stdout} = await execute(executable, ['-v','error','-protocol_whitelist','file','-f','mov',
         '-show_streams','-show_format','-of','json',file],
@@ -72,13 +104,14 @@ export async function preparePackage({input, output, audioStream, signal, ffmpeg
             '-map','0:v:0','-map','0:a:0','-f','null','-'], {signal, timeout:120000, maxBuffer:2 * 1024 * 1024});
         abort(signal);
         // Exclusive links publish completed files without replacing user paths.
-        await fs.link(partial, rendition); owned.add(rendition);
-        await fs.unlink(partial); owned.delete(partial);
+        await fs.link(partial, rendition); owned.add(rendition); abort(signal);
+        await fs.unlink(partial); owned.delete(partial); abort(signal);
         const manifestPartial = path.join(output, '.manifest.partial.json');
         const manifestHandle = await fs.open(manifestPartial, 'wx'); owned.add(manifestPartial);
-        try { await manifestHandle.writeFile(manifestText); } finally { await manifestHandle.close(); }
-        await fs.link(manifestPartial, manifestPath); owned.add(manifestPath);
-        await fs.unlink(manifestPartial); owned.delete(manifestPartial);
+        try { abort(signal); await manifestHandle.writeFile(manifestText); } finally { await manifestHandle.close(); }
+        abort(signal);
+        await fs.link(manifestPartial, manifestPath); owned.add(manifestPath); abort(signal);
+        await fs.unlink(manifestPartial); owned.delete(manifestPartial); abort(signal);
         return {output, manifest:manifestPath, rendition, report};
     } catch (error) {
         for (const file of owned) await fs.unlink(file).catch(() => {});

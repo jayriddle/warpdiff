@@ -1,0 +1,151 @@
+{
+  "baseline": "19ec1346fbf4f20f96417280bb89ba63b697081c",
+  "reviewedTarget": "0127f0f738d7d8e92b675ae84fb88e3f82d52f4e",
+  "candidateVersion": "3.19.6",
+  "authorization": {
+    "adversarialReview": true,
+    "fixes": true,
+    "featureBranchPush": true,
+    "pullRequest": true,
+    "hostedChecks": true,
+    "merge": false,
+    "publication": false
+  },
+  "findings": [
+    {
+      "priority": "P2",
+      "issue": "Cancellation during publication returned success",
+      "resolution": "Abort checks across six publication boundaries"
+    },
+    {
+      "priority": "P2",
+      "issue": "Cancellation settled before child exit",
+      "resolution": "Bounded TERM/KILL runner settles at close before cleanup"
+    },
+    {
+      "priority": "P2",
+      "issue": "Implicit HE-AAC passed AAC-LC candidate",
+      "resolution": "Opt-in summary preserves SBR evidence; package requires explicit absence"
+    },
+    {
+      "priority": "P3",
+      "issue": "Fallback movie clock reported known",
+      "resolution": "Additive metadata confidence gates reports without changing decode timestamps"
+    }
+  ],
+  "followUpReviews": {
+    "remainingActionableFindings": 0,
+    "clock": {
+      "pureChecks": 90,
+      "observationScenarios": 20,
+      "negativeControls": 2,
+      "legacyComparisons": 36,
+      "record": "output/contract-clock-followup-2026-10-17-3fuC7U/REVIEW.md"
+    },
+    "package": {
+      "unitChecks": 56,
+      "configurationProbes": 5,
+      "legacyComparisons": 34,
+      "actualHeAacRejected": true,
+      "actualLcAccepted": true,
+      "intendedGuardMutationDetected": true,
+      "record": "output/prepared-inspector-followup-20261017-lmEJKa/REVIEW.md"
+    },
+    "tool": {
+      "helperCases": 23,
+      "additionalRunnerChecks": 7,
+      "originalReproductionsCorrected": true,
+      "record": "output/tool-adversarial-followup-2026-10-17-AC6wSf/REVIEW.md"
+    }
+  },
+  "local": {
+    "ownership": {
+      "passed": 1353,
+      "failed": 0
+    },
+    "infrastructure": {
+      "passed": 26,
+      "failed": 0
+    },
+    "externalHelper": {
+      "passed": 23,
+      "failed": 0
+    },
+    "selectedBrowser": {
+      "total": 268,
+      "passed": 268,
+      "skipped": 0,
+      "reports": 1,
+      "engines": {
+        "chrome": 134,
+        "webkit": 134
+      },
+      "workers": 1,
+      "retries": 0,
+      "runnerErrors": [],
+      "durationMs": 194713.987
+    },
+    "focusedNewRegressions": {
+      "passed": 4,
+      "failed": 0
+    },
+    "legacyComparisons": 32,
+    "sourceHashes": {
+      "js/media-input-contract.js": "281b08261a76bac8908089cee97d0fb4ac2f1ff70b8d0e0d9d976bb1d58fae4a",
+      "js/media-admission.js": "ec825f96a528305ce85c3bcfbcdaf379c7cd74034eecbd15015f9c01e2ddd5f8",
+      "js/mp4-demux.js": "8d946edcab088500e5ea46c1359914990d758bb3c229927fb87e969b542b8d5c",
+      "js/prepared-media.js": "dfaf5624dea43d6f25e1c43daae8993247919980be425d9780009d4ba41e41c1",
+      "tools/media-prepare/prepare.mjs": "1f09e6c51db4c6688d26d0471feae8b51deeec625ef0833239887458812f1009"
+    }
+  },
+  "retainedFailure": {
+    "selectedInitial": {
+      "passed": 167,
+      "failed": 1,
+      "interrupted": 1,
+      "notRun": 99
+    },
+    "cause": "New test used copied ASC byteOffset and corrupted fixture header; corrected unique-byte location and valid-table precondition. Associated 60-second timeout separate cause unestablished.",
+    "applicationChangedForTestCorrection": false
+  },
+  "hosted": {
+    "status": "pending PR creation",
+    "expectedChromiumInventory": 574,
+    "expectedWebKitInventory": 184,
+    "requiredChecks": [
+      "Chromium and ownership",
+      "WebKit preparation workflow"
+    ],
+    "publicationMustBeSkipped": true,
+    "finalReceipt": "output/media-contract-adversarial-2026-10-17-dvpt1e/WORK-RECORD.md"
+  },
+  "preservation": {
+    "existingRepositoryEntries": 1107,
+    "fixtureFiles": 37,
+    "existingChanges": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      "docs/media-input-architecture.md",
+      "js/media-admission.js",
+      "js/media-input-contract.js",
+      "js/mp4-demux.js",
+      "js/prepared-media.js",
+      "tests/media-admission.spec.ts",
+      "tests/media-prepare.test.mjs",
+      "tests/mp4-audio-malformed.mjs",
+      "tests/prepared-media-regression.mjs",
+      "tests/prepared-media.spec.ts",
+      "tools/media-prepare/README.md",
+      "tools/media-prepare/prepare.mjs"
+    ],
+    "unexpected": [],
+    "fixtureBytesAndMtimesPreserved": true
+  },
+  "limitations": [
+    "candidate is not full prepared-profile conformance",
+    "no package importer UI or strict prepared-only mode",
+    "no physical Safari listening or OS PWA migration",
+    "no exhaustive hostile same-user filesystem or descendant-process-tree management",
+    "historical Grid, 44.1kHz amplitude and broader WebKit7.1 remain separate"
+  ]
+}

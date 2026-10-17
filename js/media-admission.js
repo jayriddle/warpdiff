@@ -18,6 +18,7 @@ function _mediaInputAudioMetadata(slot, loadingToken, container, metadata) {
     const tracks = metadata?.audioTracks;
     _mediaInputObserve(slot, loadingToken, {container,
         inventoryKnown: Array.isArray(tracks), audioTrackCount: Array.isArray(tracks) ? tracks.length : null,
+        metadataTimelineVerified: container !== 'mp4' || metadata?.timelineVerified === true,
         metadataAudioStart: Number.isFinite(metadata?.timelineStart) ? metadata.timelineStart : null});
 }
 function _mediaInputProbeFrame(slot, element, loadingToken) {
@@ -39,12 +40,15 @@ function _getMediaInputReport(slot) {
     const element = getLayer(slot)?.querySelector('video,audio');
     const host = _hostLoadIsCurrent(_viewLoadGeneration);
     const analysed = !!audioMetrics[slot] && (!!waveformData[slot] || !!_audioSlotVizData[slot]);
+    // Legacy decoding can retain a fallback movie clock. A report cannot call
+    // that guessed clock verified container timing, even after samples decode.
     const audioStartKnown = _audioTimelineStartKnown[slot];
+    const reportClockVerified = observed.container !== 'mp4' || observed.metadataTimelineVerified === true;
     return WarpMediaInput.assessCapabilities({...observed, kind: md.type,
         loaderDecision: host ? _hostLoadRequest.status === 'ready' ? 'admitted' : 'pending'
             : viewActivating ? 'admitted' : 'pending',
         durationSeconds: element?.duration,
-        audioStartKnown: audioStartKnown === true || audioStartKnown === undefined && Number.isFinite(observed.metadataAudioStart),
+        audioStartKnown: reportClockVerified && (audioStartKnown === true || audioStartKnown === undefined && Number.isFinite(observed.metadataAudioStart)),
         audioStartSeconds: audioStartKnown === true ? _audioTimelineStarts[slot] : observed.metadataAudioStart,
         analysisReady: analysed,
         previewReady: !!_videoAudioBuffers[slot] || !!_audioSlotVizData[slot]?.audioBuffer,

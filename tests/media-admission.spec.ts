@@ -6,7 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {prepareMp4AudioFiles} from './helpers/mp4-audio-files.mjs';
 
 test.use({serviceWorkers:'block'});
-let directory:string, files:ReturnType<typeof prepareMp4AudioFiles>, silent:string, wave:string;
+let directory:string, files:ReturnType<typeof prepareMp4AudioFiles>, silent:string, wave:string, clocked:string, missingClock:string;
 test.beforeAll(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'warpdiff-admission-'));
   files = prepareMp4AudioFiles(directory, path.join(__dirname, '..'));
@@ -14,6 +14,17 @@ test.beforeAll(() => {
   execFileSync('ffmpeg', ['-v','error','-i',files.single,'-an','-c:v','copy',silent]);
   wave = path.join(directory, 'audio.wav');
   execFileSync('ffmpeg', ['-v','error','-i',files.single,'-vn','-c:a','pcm_s16le',wave]);
+  clocked=path.join(directory,'clocked.mp4');missingClock=path.join(directory,'missing-clock.mp4');
+  execFileSync('ffmpeg',['-v','error','-i',path.join(__dirname,'fixtures/audio_offset.mp4'),'-map','0','-c','copy','-movie_timescale','48000',clocked]);
+  const bytes=fs.readFileSync(clocked);
+  // Rename the structurally located header; sizes and absolute media offsets stay intact.
+  for(let at=0;at<bytes.length;at+=bytes.readUInt32BE(at)) {
+    if(bytes.toString('ascii',at+4,at+8)!=='moov')continue;
+    const end=at+bytes.readUInt32BE(at);
+    for(let p=at+8;p<end;p+=bytes.readUInt32BE(p))if(bytes.toString('ascii',p+4,p+8)==='mvhd'){bytes.write('free',p+4,'ascii');break;}
+    break;
+  }
+  fs.writeFileSync(missingClock,bytes);
 });
 test.afterAll(() => { if (directory) fs.rmSync(directory, {recursive:true, force:true}); });
 test.beforeEach(async ({page}) => {
@@ -104,6 +115,23 @@ test('audio-only analysis does not turn an unknown start into verified zero', as
   expect(report.kind).toBe('audio'); expect(report.capabilities.picture.state).toBe('not-applicable');
   expect(report.timing.audioStart).toMatchObject({state:'unknown',seconds:null});
   expect(report.capabilities.originalSourceAnalysis.state).toBe('unknown');
+});
+
+test('missing MP4 movie clock cannot certify legacy fallback timing',async({page,browserName})=>{
+  await page.locator('#multiFileInput').setInputFiles(clocked);
+  await expect.poll(async()=>(await reports(page)).editA?.timing.audioStart.state).toBe('known');
+  const correct=(await reports(page)).editA.timing.audioStart.seconds;
+  expect(correct).toBeGreaterThan(0);expect(correct).toBeLessThan(.2);
+  await page.locator('#multiFileInput').setInputFiles(missingClock);
+  await expect.poll(async()=>(await reports(page)).editA?.admission.state).toBe('failed');
+  if(browserName==='chromium') {
+    await expect.poll(async()=>(await reports(page)).editA?.capabilities.decodedAnalysis.state).toBe('available');
+    expect((await reports(page)).editA.container).toBe('mp4');
+    // Legacy transport arithmetic is retained; only the report's confidence changes.
+    expect(await page.evaluate(()=>(window as any).__testAPI._audioTimelineStartKnown.editA)).toBe(true);
+  }
+  expect((await reports(page)).editA.timing.audioStart).toMatchObject({state:'unknown',seconds:null});
+  expect(await page.evaluate(()=>(window as any).admissionErrors)).toEqual([]);
 });
 
 test('manual decoder failure cannot inherit a previous image success', async ({page}) => {

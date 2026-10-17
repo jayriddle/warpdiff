@@ -1,6 +1,7 @@
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
@@ -77,6 +78,37 @@ test('cancellation retires a running tool and cleans pending output',{skip:proce
   for(let i=0;i<100&&!fs.existsSync(path.join(output,'.review.partial.mp4'));i++)await new Promise(r=>setTimeout(r,10));
   assert(fs.existsSync(path.join(output,'.review.partial.mp4')));controller.abort();await rejected;assert(!fs.existsSync(output));
 });
+test('cancellation waits for an uncooperative child to exit before cleaning output',{skip:process.platform==='win32'},async()=>{
+  const executable=path.join(dir,'ignore-term-tool'),pidFile=path.join(dir,'ignore-term.pid');
+  fs.writeFileSync(executable,'#!'+process.execPath+'\n'+
+    'const fs=require("node:fs");process.on("SIGTERM",()=>{});fs.writeFileSync('+JSON.stringify(pidFile)+',String(process.pid));setInterval(()=>{},1000);\n',{mode:0o700});
+  const controller=new AbortController(),output=path.join(dir,'ignore-term-output');
+  const pending=preparePackage({input:source,output,ffmpeg:executable,signal:controller.signal});
+  const result=pending.then(()=>({name:'unexpected success'}),e=>e);
+  let pid;
+  try {
+    for(let i=0;i<500&&!fs.existsSync(pidFile);i++)await new Promise(r=>setTimeout(r,10));
+    assert(fs.existsSync(pidFile),'Owned child reached its installed TERM handler');pid=Number(fs.readFileSync(pidFile,'utf8'));
+    controller.abort();assert.equal((await result).name,'AbortError');
+    assert.throws(()=>process.kill(pid,0),{code:'ESRCH'});assert(!fs.existsSync(output));
+  } finally {controller.abort();if(pid){try{process.kill(pid,'SIGKILL');}catch{}}await result;}
+});
+for(const boundary of ['rendition-link','rendition-unlink','manifest-open','manifest-write','manifest-link','manifest-unlink']) {
+  test('cancellation at '+boundary+' rejects and removes only owned output',async()=>{
+    const controller=new AbortController(),output=path.join(dir,'publish-cancel-'+boundary);
+    const originals={open:fsp.open,link:fsp.link,unlink:fsp.unlink};let reached=false;
+    const stop=()=>{reached=true;controller.abort();};
+    fsp.link=async(...args)=>{const value=await originals.link(...args);if(args[1]===path.join(output,boundary==='rendition-link'?'review.mp4':'warpdiff-package.json')&&boundary.endsWith('-link'))stop();return value;};
+    fsp.unlink=async(...args)=>{const value=await originals.unlink(...args);if(args[0]===path.join(output,boundary==='rendition-unlink'?'.review.partial.mp4':'.manifest.partial.json')&&boundary.endsWith('-unlink'))stop();return value;};
+    fsp.open=async(...args)=>{const handle=await originals.open(...args);
+      if(args[0]===path.join(output,'.manifest.partial.json')){
+        if(boundary==='manifest-open')stop();
+        if(boundary==='manifest-write'){const write=handle.writeFile.bind(handle);handle.writeFile=async(...a)=>{const value=await write(...a);stop();return value;};}
+      }return handle;};
+    try {await assert.rejects(preparePackage({input:source,output,signal:controller.signal}),{name:'AbortError'});assert(reached);assert(!fs.existsSync(output));}
+    finally{Object.assign(fsp,originals);}
+  });
+}
 test('a leading audio edit retains its onset within one AAC packet',async t=>{
   const input=path.join(root,'tests/fixtures/audio_offset.mp4'),output=await preparePackage({input,output:path.join(dir,'offset')});
   function onset(file){const samples=pcm(file);for(let i=0;i<samples.length;i+=2)if(Math.abs(samples[i])>1000)return i/2/48000;throw Error('No audible onset');}

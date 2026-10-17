@@ -78,6 +78,27 @@ test('a forged matching manifest cannot turn corrupt media into a candidate',asy
   });expect(result).toBe(true);expect(await page.evaluate(()=>(window as any).__testAPI.mediaInputReports)).toEqual({});
 });
 
+test('implicit SBR cannot satisfy the AAC-LC package profile despite an AOT2 codec string',async({page})=>{
+  const result=await page.evaluate(async()=>{
+    const w=window as any,[,manifestFile,mediaFile]=Array.from((document.getElementById('packageTestInput') as HTMLInputElement).files!);
+    const bytes=new Uint8Array(await mediaFile.arrayBuffer()),description=w._demuxMP4Audio(bytes).description;
+    if(description.length!==5)throw Error('Positive AAC-LC fixture must expose its five-byte ASC');
+    // Extraction returns a copy. Locate its unique fixture bytes rather than
+    // mistaking that copy's byteOffset for a location inside the container.
+    const offsets=[];
+    for(let at=0;at<=bytes.length-description.length;at++)if(description.every((n:number,i:number)=>bytes[at+i]===n))offsets.push(at);
+    if(offsets.length!==1)throw Error('Positive AAC-LC fixture must have one identifiable ASC');
+    bytes.set([0x13,0x10,0x56,0xe5,0x98],offsets[0]);
+    const summary=w._demuxMP4Audio(bytes,false,null,true),digest=await crypto.subtle.digest('SHA-256',bytes);
+    if(!summary)throw Error('Altered fixture must retain valid container tables');
+    const manifest=JSON.parse(await manifestFile.text());manifest.rendition.sha256=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
+    let error='';try{await w.eval('WarpPreparedMedia').inspectFiles({manifestFile:new File([JSON.stringify(manifest)],'warpdiff-package.json'),mediaFile:new File([bytes],'review.mp4')});}catch(e:any){error=e.message;}
+    return{codec:summary.codec,sbr:summary.aacSbr,error};
+  });
+  expect(result).toMatchObject({codec:'mp4a.40.2',sbr:true});expect(result.error).toMatch(/stereo AAC-LC/);
+  expect(await page.evaluate(()=>(window as any).__testAPI.mediaInputReports)).toEqual({});
+});
+
 test('clear cancels a pending file adapter and late read completion cannot activate a comparison',async({page})=>{
   await page.evaluate(()=>{
     const w=window as any,[input,manifestFile,mediaFile]=Array.from((document.getElementById('packageTestInput') as HTMLInputElement).files!);

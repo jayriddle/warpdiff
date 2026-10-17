@@ -182,6 +182,7 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   check('demux[package-summary]: ambiguous tracks require selection even in validation mode',parse(mp4AudioFixture([{}, {id:20}]),false,null,true)===null);
   const noClock=mp4AudioFixture([{}],{movieTimescales:[]});
   check('demux[package-summary]: missing movie clock cannot publish a default timestamp while legacy extraction stays compatible',parse(noClock)?.chunks.length===2&&parse(noClock,false,null,true)===null);
+  check('demux[metadata]: a legacy fallback clock is explicitly unverified',parse(noClock,true)?.timelineVerified===false&&parse(one,true)?.timelineVerified===true);
   const aacFile=new URL('fixtures/dialogue_51_aac.mp4',import.meta.url);
   if(existsSync(aacFile)) {
     const aac=parse(new Uint8Array(readFileSync(aacFile)));
@@ -197,6 +198,15 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   check('demux[malformed-audio]: AAC ASC overrides explicit stereo and rate placeholders',
     aacPlaceholder?.channels===6&&aacPlaceholder.sampleRate===48000&&aacPlaceholder.codec==='mp4a.40.2'
       &&Buffer.from(aacPlaceholder.description).equals(Buffer.from([0x11,0xb0])));
+  for(const [name,hex,sbr] of [['LC with absent SBR','119056e500',false],['implicit HE-AAC','131056e598',true],['uninspected large ASC','1190'+'00'.repeat(65),null]]) {
+    const asc=Buffer.from(hex,'hex'),dc=Buffer.concat([decoderConfig,Buffer.from([5,asc.length]),asc]);
+    const es=Buffer.concat([Buffer.alloc(3),Buffer.from([4,dc.length]),dc]);
+    const bytes=mp4AudioFixture([{stsd:description('mp4a',placeholder,[box('esds',u32(0),Buffer.from([3,es.length]),es)])}]);
+    const summary=parse(bytes,false,null,true),legacy=parse(bytes);
+    check('demux[package-summary]: '+name+' preserves SBR evidence independently of AOT2',
+      summary?.codec==='mp4a.40.2'&&summary.sampleRate===48000&&summary.channels===2&&summary.aacSbr===sbr
+        &&legacy?.codec==='mp4a.40.2'&&!('aacSbr' in legacy));
+  }
   const limited={input:mp4AudioFixture([{payload:Buffer.alloc(1000001),stsz:u32(0,1,1000001),stsc:table([1,1000001,1]),stts:table([1000001,1])}]),console:{log(){},warn(){}}};
   runInNewContext(source+`;globalThis.bytes=new Uint8Array(input);globalThis.copies=0;
     Uint8Array.prototype.slice=function(){copies++;throw Error('Stop before allocating a million packets');};globalThis.result=_demuxMP4Audio(bytes);`,limited);

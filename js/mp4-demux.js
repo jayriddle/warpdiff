@@ -209,7 +209,12 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
                         return index === 15 ? read(24) : [96000,88200,64000,48000,44100,32000,24000,22050,16000,12000,11025,8000,7350][index];
                     };
                     const type = objectType();
-                    if (decoder) { decoder.codec = 'mp4a.40.' + type; decoder.description = data.subarray(at, limit); }
+                    if (decoder) {
+                        decoder.codec = 'mp4a.40.' + type; decoder.description = data.subarray(at, limit);
+                        // The bounded sync-extension scan below cannot establish
+                        // absence in a larger config. Only package validation uses this fact.
+                        decoder.aacSbr = type === 5 || type === 29 ? true : length <= 64 ? false : null;
+                    }
                     let rate = frequency(), configuration = read(4);
                     let stereoExtension = type === 29;
                     if (type === 5 || type === 29) { rate = frequency(); objectType(); }
@@ -219,6 +224,7 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
                         for (let probe = bit; probe + 21 <= limit * 8; probe++) {
                             bit = probe;
                             if (read(11) !== 0x2b7 || objectType() !== 5 || !read(1)) continue;
+                            if (decoder) decoder.aacSbr = true;
                             rate = frequency();
                             if (bit + 12 <= limit * 8 && read(11) === 0x548) stereoExtension = !!read(1);
                             break;
@@ -245,7 +251,8 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
             : Number.isInteger(selectedTrackId) ? audio.find(t => t.id === selectedTrackId) : null;
         const selection = chosen ? 'single' : audio.length ? 'ambiguous' : 'none';
         const timelineStart = chosen?.valid ? chosen.timelineDuration / movieTimescale : null;
-        if (metadataOnly && !validateOnly) return {timelineStart, channelLayout:chosen?.format.channelLayout || null,
+        if (metadataOnly && !validateOnly) return {timelineStart, timelineVerified:foundMovieHeader && !!chosen?.valid,
+            channelLayout:chosen?.format.channelLayout || null,
             audioTracks:audio.map(t => t.format), selection, trackId:chosen?.id ?? null};
         if (!chosen?.valid || new Set(ids).size !== ids.length) return null;
         const t = chosen;
@@ -315,7 +322,7 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
         // Package inspection needs the same complete table/range validation,
         // without packet copies, expanded timestamps or a second parser.
         if (validateOnly && !foundMovieHeader) return null; // No default clock may certify a package start.
-        if (validateOnly) return {codec:t.codec, channels:t.format.channels, sampleRate:t.format.sampleRate,
+        if (validateOnly) return {codec:t.codec, aacSbr:t.aacSbr ?? null, channels:t.format.channels, sampleRate:t.format.sampleRate,
             timelineStart, trackId:t.id, audioTrackCount:audio.length,
             videoTrackCount:tracks.filter(track => track.handler === 'vide').length,
             trackCount:tracks.length, packetCount:count, encodedDuration:ticks / t.timescale};

@@ -12,7 +12,7 @@ export async function runPreparedMediaChecks(check, source=readFileSync(new URL(
     transformation:{video:'copy',audio:'aac-stereo-48000',normalization:'none',downmix:'ffmpeg-default',selectedAudioStream:1}};
   let audioCalls=0,videoCalls=0,summaryMode=false,audioOverride=null,videoOverride=null;
   const api=runInNewContext(source+'\nWarpPreparedMedia',{File,TextEncoder,crypto:webcrypto,
-    _demuxMP4Audio(bytes,metadataOnly,selected,validateOnly){audioCalls++;summaryMode=metadataOnly===false&&selected===null&&validateOnly===true;return audioOverride??{codec:'mp4a.40.2',channels:2,sampleRate:48000,timelineStart:0,trackCount:2,audioTrackCount:1,videoTrackCount:1};},
+    _demuxMP4Audio(bytes,metadataOnly,selected,validateOnly){audioCalls++;summaryMode=metadataOnly===false&&selected===null&&validateOnly===true;return audioOverride??{codec:'mp4a.40.2',aacSbr:false,channels:2,sampleRate:48000,timelineStart:0,trackCount:2,audioTrackCount:1,videoTrackCount:1};},
     _demuxMP4Video(){videoCalls++;return videoOverride??{codec:'avc1.42c01e',codedWidth:320,codedHeight:180,samples:[{}]};}});
   const mf=value=>new File([JSON.stringify(value)],'warpdiff-package.json');
   const inspect=(options={})=>api.inspectFiles({manifestFile:mf(manifest),mediaFile:output,sourceFile:input,...options});
@@ -47,8 +47,8 @@ export async function runPreparedMediaChecks(check, source=readFileSync(new URL(
   test('oversized manifest rejects before reading it',await rejects(()=>inspect({manifestFile:oversized}))&&reads===0);
   const advertised=new File(['x'],output.name);Object.defineProperty(advertised,'size',{value:64*1024*1024+1});advertised.arrayBuffer=async()=>{reads++;return new ArrayBuffer(1);};
   test('oversized media rejects before its bytes are read',await rejects(()=>inspect({mediaFile:advertised}))&&reads===0);
-  for(const patch of [{audioTrackCount:2},{videoTrackCount:2},{trackCount:3},{sampleRate:44100},{channels:1},{codec:'opus'},{timelineStart:null}]){
-    audioOverride={codec:'mp4a.40.2',channels:2,sampleRate:48000,timelineStart:0,trackCount:2,audioTrackCount:1,videoTrackCount:1,...patch};
+  for(const patch of [{audioTrackCount:2},{videoTrackCount:2},{trackCount:3},{sampleRate:44100},{channels:1},{codec:'opus'},{aacSbr:true},{aacSbr:null},{timelineStart:null}]){
+    audioOverride={codec:'mp4a.40.2',aacSbr:false,channels:2,sampleRate:48000,timelineStart:0,trackCount:2,audioTrackCount:1,videoTrackCount:1,...patch};
     test('actual audio/inventory mismatch '+JSON.stringify(patch)+' rejects',await rejects(()=>inspect(),/one video/));
   }
   audioOverride=null;
