@@ -77,6 +77,19 @@
     "staging": {
       "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
       "files": 82
+    },
+    "releaseNotes": {
+      "summary": {
+        "total": 22,
+        "passed": 22,
+        "skipped": 0,
+        "reports": 1
+      },
+      "workers": 1,
+      "retries": 0,
+      "runnerErrors": [],
+      "fixtureWritesSuppressed": true,
+      "seconds": 11
     }
   },
   "independentReview": {
@@ -111,6 +124,14 @@
       "seconds": 13,
       "findings": "Both P2 findings closed; no new concrete issue in examined scope",
       "runtimeFilesMatchedGitDiskHTTP": 12
+    },
+    "announcementCorrection": {
+      "record": "output/prepared-import-announcement-review-2026-10-17-r9BiBf/README.md",
+      "type": "Independent static/data review; no browser execution",
+      "testSHA256": "c2260bcc65bf542a148e30ec7e2aef58732afa120c0fb26fb4e6c59614f9e838",
+      "findings": [],
+      "policyCasesPassed": 11,
+      "hostedFailuresClassified": 10
     }
   },
   "sourceHashes": {
@@ -127,7 +148,8 @@
     "playwright.webkit.config.ts": "e935a28dda80e273d4202f9abf62e80c03af6239f44b9fcfc42c29c9c8fd2f4e",
     "sw.js": "deaae6550d3af710fc4dba58989292e5570cd32c2092fdd2d769f8f26731ea32",
     "tests/prepared-import.spec.ts": "718374b76a19198e5d718bd1f476e1cb76de86aa95c8609d21e22d96c8d61a7b",
-    "tools/media-prepare/README.md": "db746ecb891d35aa499894205d41530a8307922df47d6e0c2800a9098685dbc1"
+    "tools/media-prepare/README.md": "db746ecb891d35aa499894205d41530a8307922df47d6e0c2800a9098685dbc1",
+    "tests/warpdiff.spec.ts": "c2260bcc65bf542a148e30ec7e2aef58732afa120c0fb26fb4e6c59614f9e838"
   },
   "limitations": [
     "Not a strict prepared-media profile",
@@ -186,5 +208,32 @@
     }
   ],
   "rawEvidence": "output/prepared-package-import-2026-10-17-RyF7Mb",
-  "finalNotes": "Only this record and README change after independently reviewed/runtime-tested e7c10c9. Hosted verification of final PR head is pending."
+  "finalNotes": "Runtime and importer tests remain identical to independently reviewed/package-tested e7c10c9. After notes-only375f25b, only the existing release-note matrix and these two verification records change. Required checks of corrected PR head pending.",
+  "initialHosted": {
+    "run": 39062652514,
+    "url": "https://github.com/jayriddle/warpdiff/actions/runs/39062652514",
+    "head": "375f25b7d33bc52357010c5a8b7e94422107c091",
+    "conclusion": "failure",
+    "chromium": {
+      "passed": 583,
+      "failed": 10,
+      "skipped": 1,
+      "inventoryCompleteAndUnique": true,
+      "retries": 0,
+      "runnerErrors": 0
+    },
+    "webkit": {
+      "run": 39062652514,
+      "head": "375f25b7d33bc52357010c5a8b7e94422107c091",
+      "passed": 204,
+      "skipped": 0,
+      "retries": 0,
+      "runnerErrors": 0,
+      "inventoryCompleteAndUnique": true,
+      "archiveDigest": "sha256:cbb682c1cfdf74d113d74b0d6e7b163e1a3a00d7863a36a39acaad95a1ca91a7",
+      "publication": "skipped"
+    },
+    "cause": "Existing release-note expectations retained3.19.6; corrected to3.19.7 with prior-version announcement and current-version silence controls.",
+    "publication": "skipped"
+  }
 }
