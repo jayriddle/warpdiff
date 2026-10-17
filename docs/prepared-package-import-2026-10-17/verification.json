@@ -30,6 +30,53 @@
       },
       "retries": 0,
       "runnerErrors": []
+    },
+    "packageSmoke": {
+      "url": "http://127.0.0.1:63291/output/prepared-package-import-2026-10-17-RyF7Mb/local-package/",
+      "sha": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "scope": "Exact committed local staged package, fresh serial browser contexts. Chrome offline emulation only.",
+      "results": [
+        {
+          "name": "chrome",
+          "version": "155.0.8059.82",
+          "release": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+          "packagedStartup": true,
+          "inspectionPreservesComparison": true,
+          "sourceBinding": "matched",
+          "inputCancelPreservedForm": true,
+          "normalHandoffAndAnalysis": true,
+          "preparedProfile": "not-validated",
+          "offline": {
+            "condition": "Chrome offline emulation",
+            "reload": true,
+            "inspection": true,
+            "normalLoadAndAnalysis": true
+          },
+          "errors": []
+        },
+        {
+          "name": "webkit",
+          "version": "26.0",
+          "release": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+          "packagedStartup": true,
+          "inspectionPreservesComparison": true,
+          "sourceBinding": "matched",
+          "inputCancelPreservedForm": true,
+          "normalHandoffAndAnalysis": true,
+          "preparedProfile": "not-validated",
+          "offline": null,
+          "errors": []
+        }
+      ]
+    },
+    "publicSourceParity": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "files": 42,
+      "gitDiskHTTPMatch": true
+    },
+    "staging": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "files": 82
     }
   },
   "independentReview": {
@@ -47,7 +94,24 @@
       }
     ],
     "focusHardening": "Plain Tab/Shift+Tab cycles visible enabled controls; Ctrl/Meta/Alt navigation preserved.",
-    "correctionFollowUp": "Pending"
+    "correctionFollowUp": {
+      "target": "e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f",
+      "record": "output/prepared-import-adversarial-followup-2026-10-17-0knDCN/README.md",
+      "passed": 28,
+      "projects": {
+        "chromium": 14,
+        "webkit": 14
+      },
+      "workers": 1,
+      "retries": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "runnerErrors": 0,
+      "pageErrors": 0,
+      "seconds": 13,
+      "findings": "Both P2 findings closed; no new concrete issue in examined scope",
+      "runtimeFilesMatchedGitDiskHTTP": 12
+    }
   },
   "sourceHashes": {
     "AGENTS.md": "31262a462de819598a8513682f7d70bb6b317cd6a3ae93b279958e1847d57300",
@@ -121,5 +185,6 @@
       "cause": "Boundary-only Tab cycle missed WebKit platform policy"
     }
   ],
-  "rawEvidence": "output/prepared-package-import-2026-10-17-RyF7Mb"
+  "rawEvidence": "output/prepared-package-import-2026-10-17-RyF7Mb",
+  "finalNotes": "Only this record and README change after independently reviewed/runtime-tested e7c10c9. Hosted verification of final PR head is pending."
 }

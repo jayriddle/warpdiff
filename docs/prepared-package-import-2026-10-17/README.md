@@ -21,7 +21,9 @@ An independent reviewer examined baseline → initial candidate `4949b85059999d2
 
 Strict content-area Tab observations are recorded separately from the P2 defects: native focus may leave the content area, and WebKit can skip buttons despite `tabIndex=0`. An explicit modal control cycle is a scoped usability improvement, not a claimed native browser security repair.
 
-Original review, Node/browser probe code, raw passing/failing results and preservation receipts: `output/prepared-import-adversarial-2026-10-17-y7jGyo/README.md`. Correction follow-up and hosted receipts are appended to the PR/local record when complete; they are not inferred from the initial review.
+Original review, Node/browser probe code, raw passing/failing results and preservation receipts: `output/prepared-import-adversarial-2026-10-17-y7jGyo/README.md`.
+
+The independent correction follow-up at **`e7c10c911e5924570b9ac4f2ca1b2c54ecbb441f`** closed both P2 findings and found no new concrete issue in the examined scope. **28 checks passed: 14 Chromium +14 WebKit**, one worker, zero retries/skips/flaky results, runner errors, page errors or unhandled rejections; 13.0 seconds. Probes cover all four chooser-cancel targets, real dialog cancellation/Escape, Appearance keyboard ownership, complete forward/backward control cycles, modified-Tab preservation, pending digest cancellation/reservations, managed supersession and corrupt-AVC uncertainty. Twelve relevant runtime responses matched the exact git target and local files. The follow-up did not rerun the author's broader suites and is not a full audit. Record: `output/prepared-import-adversarial-followup-2026-10-17-0knDCN/README.md`.
 
 ## Measured local verification
 
@@ -30,6 +32,9 @@ Original review, Node/browser probe code, raw passing/failing results and preser
 - **23 real external-preparation tests passed**; the CLI remains unchanged.
 - **98 selected browser cases passed: 49 Chrome +49 WebKit**, including all 20 new importer cases per engine plus existing package/provider/external-preparation integrations. Complete unique inventory, one worker, zero retries/skips/flaky results and zero runner errors; 51.2 seconds.
 - New cases exercise no read/network on selection, explicit loading, optional original/companions, altered bytes/identity, malformed manifest, input invalidation, cancellation/reservations/reopen, normal and managed supersession, reset references, MIME normalization after inspection, literal filenames/forged claims, invalid AVC uncertainty, narrow viewport/key/drop behavior, queued close events, file-input cancel and Appearance Escape ownership.
+- All **42 public source responses** matched git target `e7c10c9` and local files. Staging produced **82 files** at that target. Fresh Chrome and WebKit contexts passed exact-package startup, service-worker control, real package inspection preserving the current comparison, original byte matching, input-cancel preservation, and explicit normal loading/analysis. Prepared profile remained `not-validated`; neither context reported page errors. Chrome additionally passed offline-emulated reload, inspection and loading/analysis. WebKit was tested online; no WebKit offline result is claimed. Both engines' summary/action screenshots were visually inspected.
+
+The final verification-note commit changes only this README and its JSON record after `e7c10c9`; runtime and test bytes remain identical to the independently reviewed and package-tested target. Hosted checks must establish the final PR head separately.
 
 The global fixture generator was disabled for local browser configs. Existing fixture bytes and mtimes are preserved; helper outputs use separate temporary directories. Source serving uses an owned ephemeral server, leaving the user's localhost:8080 alone. No dependencies or machine settings changed.
 
