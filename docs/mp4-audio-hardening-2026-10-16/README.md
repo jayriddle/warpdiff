@@ -53,11 +53,13 @@ A later ownership run recorded 1,168 passes and one source-guard failure: the re
 
 Both final engines exposed working AAC decoding in this run. Chrome did not expose the native audio-track list; WebKit did. The policy deliberately remains consistent across them. The new cases also verify stale-read retirement and readable stacked notices at a 390-pixel viewport. Existing fixtures were preserved; the legacy WebKit Opus hook attempted nine byte-identical fixture writes, which the local guard skipped without changing bytes or modification times.
 
-Final source review also caught an unconsumed duplicate-movie-header guard. The parser now rejects a second movie clock, with a behavioral malformed-file check; focused browser and ownership verification were repeated after that correction.
+Correction to the original author record: final source review attempted to add a duplicate-movie-header guard, but it remained unused at `923eb07`. The added test inserted a header without moving absolute sample offsets, so it rejected for an unrelated media-range failure. The independent review demonstrated acceptance of a second clock when those offsets were repaired. The earlier claim of corrected behavior was inaccurate. The [review-correction record](../mp4-audio-review-fix-2026-10-16/README.md) documents the implemented guard, rebuilt valid-offset fixtures, targeted counterfactual checks and subsequent verification.
 
 The first final preservation helper flagged three nested worktree `.git` pointer files because it included them while the initial snapshot excluded Git metadata by name. Their pre-existing dates were inspected; using the same snapshot scope yields no unrelated differences. The original failed receipt remains retained. A final helper command also encountered the system Python Xcode-license gate; editing was completed with Node, without accepting licenses or changing machine settings.
 
 Final required hosted results remain pending at commit time. They must verify the committed feature and its complete inventories (545 Chromium cases including the existing approved skip; 157 focused WebKit cases). The final PR description and ignored evidence record will retain exact hosted identifiers, reports and archive receipts. Merge/publication remain on hold. A passing isolated or intermediate run is not described as a complete final suite.
+
+The counts and source hashes above describe the original reviewed revision. Its later hosted run passed at `923eb07`, but the independent review identified the padding-policy bypass and duplicate-clock gap. They are addressed in the linked correction record, which owns the newer verification scope and expanded inventories; the original passing results do not establish those corrections.
 
 ## Limits and next slices
 

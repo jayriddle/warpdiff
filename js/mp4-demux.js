@@ -5,6 +5,32 @@
 // (WebM returns a subset). Used by the audio decode pipeline to feed WebCodecs AudioDecoder.
 // See CLAUDE.md "MP4 audio demuxer" for track isolation and bounded extraction.
 
+// Recognize top-level ISO-BMFF boxes rather than assuming ftyp is first. This
+// only chooses the metadata/track-policy path; _demuxMP4Audio validates it.
+// Padding, broken identified headers and an exhausted plausible prefix remain
+// candidates, so an inconclusive bounded scan cannot enable native analysis.
+function _isMP4AudioContainer(data) {
+    if (!ArrayBuffer.isView(data) || data.BYTES_PER_ELEMENT !== 1) return false;
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    let at = 0, candidate = false;
+    for (let boxes = 0; boxes < 64; boxes++) {
+        if (data.length - at < 8) return candidate;
+        const type = String.fromCharCode(data[at + 4], data[at + 5], data[at + 6], data[at + 7]);
+        if (type === 'ftyp' || type === 'moov' || type === 'mdat') return true;
+        if (type === 'free' || type === 'skip' || type === 'wide') candidate = true;
+        let size = view.getUint32(at), header = 8;
+        if (size === 1) {
+            if (data.length - at < 16) return candidate;
+            size = view.getUint32(at + 8) * 0x100000000 + view.getUint32(at + 12);
+            header = 16;
+        } else if (size === 0) size = data.length - at;
+        if (!Number.isSafeInteger(size) || size < header || size > data.length - at) return candidate;
+        at += size;
+        if (at === data.length) return candidate;
+    }
+    return true; // Plausible prefix exceeded recognition budget: require verification.
+}
+
 // --- MP4 demuxer ---
 function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
     // Keep encoded tables as views. No packet copies or per-sample objects are
@@ -49,6 +75,8 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
                     if (!track || parent !== expected || !save(track, type, s, e) || !walk(s, e, type, track, depth + 1)) return false;
                 } else if (type === 'mdat' && !parent) mediaRanges.push([s, e]);
                 else if (type === 'mvhd' && parent === 'moov') {
+                    if (foundMovieHeader) return false;
+                    foundMovieHeader = true;
                     if (e - s < 1 || data[s] > 1 || e - s < (data[s] ? 24 : 16)) return false;
                     movieTimescale = view.getUint32(s + (data[s] ? 20 : 12)); if (!movieTimescale) return false;
                 } else if (track && type === 'tkhd' && parent === 'trak') {

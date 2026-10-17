@@ -125,3 +125,40 @@ for(const kind of['video','audio'])test('host '+kind+' readiness respects the si
   else {await expect(page.locator('#audioTrackAlert')).toBeVisible();await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('2 audio tracks');}
   expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
 });
+
+for(const kind of['video','audio'])test('leading MP4 padding cannot bypass the '+kind+' single-track gate',async({page})=>{
+  await page.locator('#multiFileInput').setInputFiles(kind==='video'?files.paddedMulti:files.paddedAudio);
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  await expect(page.locator('#audioTrackAlert'),'Padding must retain the multiple-track notice').toContainText('Multiple MP4 audio tracks');
+  const state=await page.evaluate(()=>(window as any).eval(`({metrics:!!audioMetrics.editA,wave:!!waveformData.editA,slotViz:!!_audioSlotVizData.editA,preview:!!_videoAudioBuffers.editA,opus:!!_opusSyncSlots.editA,noAudio:_noAudioSlots.has('editA'),muted:getLayer('editA').querySelector('video,audio').muted})`));
+  expect(state).toEqual({metrics:false,wave:false,slotViz:false,preview:false,opus:false,noAudio:false,muted:false});
+  if(kind==='video')await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('2 audio tracks');
+  expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
+});
+
+for(const kind of['video','audio'])test('host readiness applies the same track policy after leading MP4 padding for '+kind,async({page})=>{
+  const file=kind==='video'?files.paddedMulti:files.paddedAudio;
+  await page.evaluate(({name,type,base64})=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'padded-multi',files:[{name,contentType:type,base64}]},location.origin),{name:path.basename(file),type:kind==='video'?'video/mp4':'audio/mp4',base64:fs.readFileSync(file).toString('base64')});
+  await expect.poll(()=>page.evaluate(()=>(window as any).replies),'Padding must retain correlated single-track readiness policy').toEqual([expect.objectContaining({requestId:'padded-multi',type:kind==='video'?'WARPDIFF_LOAD_READY':'WARPDIFF_LOAD_FAILED'})]);
+  if(kind==='video') {
+    await expect(page.locator('#audioTrackAlert')).toContainText('Multiple MP4 audio tracks');
+    expect(await page.evaluate(()=>(window as any).eval('!!audioMetrics.editA || !!_videoAudioBuffers.editA'))).toBe(false);
+  } else await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);
+  expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
+});
+
+test('padded single-track AAC uses MP4 fallback after native decode failure',async({page,browserName})=>{
+  const support=await page.evaluate(async()=>typeof AudioDecoder!=='undefined'&&
+    (await AudioDecoder.isConfigSupported({codec:'mp4a.40.2',sampleRate:44100,numberOfChannels:2,description:new Uint8Array([0x12,0x10])})).supported);
+  if(browserName==='chromium')expect(support).toBe(true);
+  await page.evaluate(()=>{AudioContext.prototype.decodeAudioData=()=>Promise.reject(Error('Force padded MP4 packet decoding'));});
+  await page.locator('#multiFileInput').setInputFiles(files.paddedSingle);
+  if(support) {
+    await expect.poll(()=>page.evaluate(()=>(window as any).eval('!!audioMetrics.editA && !!waveformData.editA')),'Padded MP4 must reach actual AAC packet decoding').toBe(true);
+    await expect(page.locator('#ffmpegPanel')).toBeHidden();
+  } else await expect(page.locator('#ffmpegPanel')).toBeVisible();
+  expect(await page.evaluate(()=>(window as any).eval("_noAudioSlots.has('editA')"))).toBe(false);
+  await expect(page.locator('#audioTrackAlert')).toBeHidden();
+  expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
+  await test.info().attach('padded-aac-decoder-support',{body:JSON.stringify({supported:support,decoded:!!support}),contentType:'application/json'});
+});

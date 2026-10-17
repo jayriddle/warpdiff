@@ -1,6 +1,6 @@
 import {readFileSync,existsSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
-import {mp4AudioFixture,box,u32,table} from './helpers/mp4-audio-fixture.mjs';
+import {mp4AudioFixture,prependMp4Boxes,box,u32,table} from './helpers/mp4-audio-fixture.mjs';
 
 export function runMalformedAudioChecks(check, source=readFileSync(new URL('../js/mp4-demux.js',import.meta.url),'utf8')) {
   const realm={console:{log(){},warn(){}}};runInNewContext(source,realm);
@@ -8,6 +8,40 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   const rejected=(name,bytes)=>{let result,error;try{result=parse(bytes);}catch(e){error=e;}check('demux[malformed-audio]: '+name,!error&&result===null);};
   const one=mp4AudioFixture();const valid=parse(one);
   check('demux[malformed-audio]: single audio track preserves packet bytes and timestamps',valid?.chunks.length===2&&valid.chunks[0].data[0]===1&&valid.chunks[1].data[0]===11&&valid.chunks[1].timestamp===20000);
+  const extendedPadding=Buffer.concat([u32(1),Buffer.from('free'),Buffer.from('0000000000000010','hex')]);
+  const paddedOne=prependMp4Boxes(one,box('free',Buffer.alloc(8)));
+  const paddedView=Buffer.concat([Buffer.alloc(3),Buffer.from(paddedOne)]);
+  const recognitionCases=[
+    ['ordinary MP4',one,true],
+    ['leading free box',paddedOne,true],
+    ['mixed leading padding',prependMp4Boxes(one,Buffer.concat([box('skip'),box('wide'),box('free')])),true],
+    ['extended-size padding',prependMp4Boxes(one,extendedPadding),true],
+    ['unknown top-level box before ftyp',prependMp4Boxes(one,box('uuid',Buffer.alloc(16))),true],
+    ['legacy movie-first candidate',box('moov'),true],
+    ['media-first candidate',box('mdat'),true],
+    ['truncated ftyp candidate',Buffer.concat([u32(0xffffffff),Buffer.from('ftyp')]),true],
+    ['invalid padding stays unverified MP4',Buffer.concat([u32(4),Buffer.from('free')]),true],
+    ['unsafe extended padding stays unverified MP4',Buffer.concat([u32(1),Buffer.from('free'),Buffer.alloc(8,255)]),true],
+    ['final zero-size padding stays unverified MP4',Buffer.concat([u32(0),Buffer.from('free')]),true],
+    ['nonzero byteOffset',new Uint8Array(paddedView.buffer,paddedView.byteOffset+3,paddedOne.length),true],
+    ['ftyp text inside a payload is not a top-level box',box('junk',box('ftyp')),false],
+    ['invalid unknown header cannot authorize a payload scan',Buffer.concat([u32(4),Buffer.from('junk'),box('ftyp')]),false],
+    ['WAVE signature',Buffer.from('RIFF0000WAVEfmt '),false],
+    ['WebM signature',Buffer.from('1a45dfa300000000','hex'),false],
+    ['empty bytes',new Uint8Array(),false],
+    ['non-byte view',new Uint16Array(8),false],
+  ];
+  for(const [name,input,wanted]of recognitionCases)check('mp4-recognition: '+name,
+    typeof realm._isMP4AudioContainer==='function'&&realm._isMP4AudioContainer(input)===wanted);
+  check('demux[malformed-audio]: leading padding retains the sole track packet map',JSON.stringify(parse(paddedOne))===JSON.stringify(valid));
+  const bounded={input:Buffer.concat([...Array.from({length:1000},()=>box('junk')),Buffer.from(one)])};
+  runInNewContext(source+`;globalThis.reads=0;globalThis.result=false;
+    if(typeof _isMP4AudioContainer==='function') {
+      const read=DataView.prototype.getUint32;
+      DataView.prototype.getUint32=function(...args){if(++reads>64)throw Error('Recognizer exceeded its header budget');return read.apply(this,args);};
+      globalThis.result=_isMP4AudioContainer(new Uint8Array(input));
+    }`,bounded);
+  check('mp4-recognition: a bounded inconclusive prefix stays unverified instead of bypassing policy',bounded.result===true&&bounded.reads<=64);
   const multi=mp4AudioFixture([{id:10,timescale:48000},{id:20,timescale:24000}]);
   rejected('multiple audio tracks require an explicit selection',multi);
   for(const id of[10,20]){
@@ -46,11 +80,19 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   check('demux[malformed-audio]: an edit list after mdia retains leading silence and priming on that track',
     late?.timelineStart===.166&&late.preSkip===480&&late.maxSamples===48000&&lateMeta.timelineStart===late.timelineStart);
   rejected('duplicate audio track IDs',mp4AudioFixture([{id:1},{id:1}]));
-  const duplicateMovie=Buffer.from(one),movieSize=duplicateMovie.readUInt32BE(24);
-  const duplicateHeader=box('mvhd',u32(0,0,0,1000));
-  const duplicateBytes=Buffer.concat([duplicateMovie.subarray(0,32),duplicateHeader,duplicateMovie.subarray(32)]);
-  duplicateBytes.writeUInt32BE(movieSize+duplicateHeader.length,24);
-  rejected('duplicate movie clocks cannot replace edit-list timing',new Uint8Array(duplicateBytes));
+  // The fixture builder computes absolute offsets from the final movie size.
+  // Every duplicate below retains feasible packets; stale offsets cannot pass
+  // this regression by causing an unrelated mdat-range failure.
+  const clockTrack={elst:u32(0,2,100,0xffffffff,0x10000,1000,0,0x10000)};
+  const clockControl=parse(mp4AudioFixture([clockTrack],{movieTimescales:[1000]}));
+  check('demux[malformed-audio]: single movie clock retains edit timing and valid packets',
+    clockControl?.timelineStart===.1&&clockControl.maxSamples===48000&&clockControl.chunks.length===2
+      &&clockControl.chunks[0].data[0]===1&&clockControl.chunks[1].timestamp===20000);
+  for(const clocks of[[1000,2000],[2000,1000],[1000,1000]]) {
+    const duplicate=mp4AudioFixture([clockTrack],{movieTimescales:clocks});
+    rejected('duplicate movie clocks '+clocks.join('/')+' reject with valid sample offsets',duplicate);
+    check('demux[malformed-audio]: duplicate movie clocks '+clocks.join('/')+' also reject metadata',parse(duplicate,true)===null);
+  }
   check('demux[malformed-audio]: unavailable explicit selection does not pick another track',parse(multi,false,999)===null);
   const padded=Buffer.concat([Buffer.alloc(7),Buffer.from(one),Buffer.alloc(9)]);
   const offset=parse(new Uint8Array(padded.buffer,padded.byteOffset+7,one.length));
@@ -84,6 +126,8 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   check('demux[malformed-audio]: a zero co64 offset cannot point into headers',co64===null);
   check('demux[malformed-audio]: valid co64 uses all 64 bits without changing packet positions',
     JSON.stringify(parse(mp4AudioFixture([{stco:null,co64:b=>b}])))===JSON.stringify(valid));
+  check('demux[malformed-audio]: padding rebases co64 without changing selected packets',
+    JSON.stringify(parse(prependMp4Boxes(mp4AudioFixture([{stco:null,co64:b=>b}]),box('free'))))===JSON.stringify(valid));
   const dops=Buffer.from([0,2,0,0,0,0,187,128,0,0,0]);
   const description=(type,body,children=[])=>Buffer.concat([u32(0,1),box(type,body,...children)]);
   const sound=Buffer.alloc(28);sound.writeUInt16BE(2,16);sound.writeUInt16BE(48000,24);

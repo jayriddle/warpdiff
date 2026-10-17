@@ -151,5 +151,15 @@
     "status": "pending",
     "requiredBeforeMerge": true
   },
-  "mergeAndPublication": "on hold"
+  "mergeAndPublication": "on hold",
+  "scope": "Original author verification for reviewed 923eb079aa18d5fb9fa9a47bb81e7a18317b6cd5; not verification of the subsequent independent-review corrections",
+  "reviewCorrections": {
+    "reviewedHead": "923eb079aa18d5fb9fa9a47bb81e7a18317b6cd5",
+    "findings": [
+      "Leading padding bypassed the single-track gate",
+      "Duplicate movie-header guard was unused; its test rejected stale sample offsets"
+    ],
+    "record": "../mp4-audio-review-fix-2026-10-16/README.md",
+    "verification": "../mp4-audio-review-fix-2026-10-16/verification.json"
+  }
 }

@@ -1,0 +1,189 @@
+{
+  "reviewedTarget": "923eb079aa18d5fb9fa9a47bb81e7a18317b6cd5",
+  "releasedBaseline": "d84d6757c4b23370d0d62509ec2d3056ee823028",
+  "candidate": "3.19.5",
+  "findingsAddressed": [
+    "R1: bounded shared container recognition at all three entry/dispatch sites",
+    "R2: unique movie-header guard plus valid-offset duplicate-clock fixtures"
+  ],
+  "browser": {
+    "passed": 34,
+    "projects": {
+      "chromium": 17,
+      "webkit": 17
+    },
+    "retries": 0,
+    "workers": 1,
+    "skipped": 0,
+    "runnerErrors": 0,
+    "seconds": 30.144468
+  },
+  "parserChecks": 284,
+  "ownership": {
+    "passed": 1197,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 25,
+    "failed": 0
+  },
+  "negativeControls": {
+    "count": 9,
+    "allIntendedFailures": true,
+    "allValidInputControls": true,
+    "duplicateClockIndependentOfMediaRangeGuard": true
+  },
+  "reference": {
+    "files": 6,
+    "trackInstances": 10,
+    "packetsAndRelativeTimingVerified": true,
+    "paddingPreservesExplicitSelectedTrackData": true,
+    "clockCounterfactual": {
+      "control": {
+        "delay": 0.1,
+        "maxSamples": 48000
+      },
+      "guardRemoved": {
+        "delay": 0.05,
+        "maxSamples": 24000
+      },
+      "samePackets": true,
+      "correctedFullAndMetadataReject": true
+    }
+  },
+  "beforeFix": {
+    "parser": {
+      "passed": 258,
+      "failed": 25,
+      "scope": "6 duplicate-clock rejections plus 19 absent recognition-API checks"
+    },
+    "browser": {
+      "failed": 1,
+      "skippedOrUnexecuted": 4,
+      "exit": 130,
+      "complete": false,
+      "intendedMissingNoticeAssertionFailed": true,
+      "teardownTimeoutRetained": true
+    }
+  },
+  "capabilities": [
+    {
+      "project": "chromium",
+      "title": "multiple MP4 audio tracks keep native video playback without selecting analysis",
+      "name": "native-track-capability",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": false
+      }
+    },
+    {
+      "project": "chromium",
+      "title": "multiple MP4 audio tracks keep native audio playback without selecting analysis",
+      "name": "native-track-capability",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": false
+      }
+    },
+    {
+      "project": "chromium",
+      "title": "single-track AAC fallback receives the selected codec configuration",
+      "name": "aac-decoder-support",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    },
+    {
+      "project": "chromium",
+      "title": "padded single-track AAC uses MP4 fallback after native decode failure",
+      "name": "padded-aac-decoder-support",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    },
+    {
+      "project": "webkit",
+      "title": "multiple MP4 audio tracks keep native video playback without selecting analysis",
+      "name": "native-track-capability",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": true
+      }
+    },
+    {
+      "project": "webkit",
+      "title": "multiple MP4 audio tracks keep native audio playback without selecting analysis",
+      "name": "native-track-capability",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": true
+      }
+    },
+    {
+      "project": "webkit",
+      "title": "single-track AAC fallback receives the selected codec configuration",
+      "name": "aac-decoder-support",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    },
+    {
+      "project": "webkit",
+      "title": "padded single-track AAC uses MP4 fallback after native decode failure",
+      "name": "padded-aac-decoder-support",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    }
+  ],
+  "webmAndVideoSuffixUnchanged": true,
+  "sourceHashes": {
+    "js/mp4-demux.js": "09fa3de458a2859a020ba610017b1076a1e0044ed3d7a801f82d7574dad01fd6",
+    "js/audio-decode.js": "fec9560669d4278db7970b11d560de89f9a5e3e1f7adf1240826da578c2c939c",
+    "tests/mp4-audio.spec.ts": "8fdb8d8412e83a6a347387ace390f404cc4899fc185a350b36bafbc60ed90daa",
+    "tests/mp4-audio-malformed.mjs": "797500cdca410ea7a899dbc0feba9cfb5b7b3ef37bafcb930ed2cb350a437aed",
+    "tests/helpers/mp4-audio-fixture.mjs": "271b313180722dd4feaabf3e875e3532d6ede4075ff740c44b773ce578f06df0",
+    "tests/helpers/mp4-audio-files.mjs": "61f3ea75ddd7fa36bc4c42142b4184b385c2e7085cbf43fe3b897ca527ec00f1"
+  },
+  "hosted": {
+    "status": "pending at correction commit",
+    "expectedInventory": {
+      "chromium": 550,
+      "webkit": 162
+    }
+  },
+  "independentFollowup": "not yet performed",
+  "mergeAndPublication": "on hold"
+}

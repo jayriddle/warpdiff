@@ -137,8 +137,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     // Detect Opus from file bytes — needed to activate Chrome sync correction.
     // Scan first and last 64KB for 'Opus' (MP4) or 'A_OPUS' (WebM).
     const bytes = new Uint8Array(arrayBuffer);
-    const isMP4 = bytes.length > 7 &&
-        bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+    const isMP4 = _isMP4AudioContainer(bytes);
     let timelineStart = null;
     let audioTracks = null;
     let mp4Metadata = null;
@@ -386,8 +385,7 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
     const bytes = new Uint8Array(arrayBuffer);
 
     // Detect container format from first bytes
-    const isMP4 = bytes.length > 7 &&
-        bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70; // 'ftyp'
+    const isMP4 = _isMP4AudioContainer(bytes);
     const isWebM = bytes.length > 3 &&
         bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3; // EBML
 
@@ -599,7 +597,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
     const gen = _audioDecodeGen[slot];
     _setAudioTrackIssue(slot, '');
     const bytes = new Uint8Array(arrayBuffer);
-    const isMP4 = bytes.length > 7 && String.fromCharCode(...bytes.subarray(4, 8)) === 'ftyp';
+    const isMP4 = _isMP4AudioContainer(bytes);
     const trackIssue = isMP4 ? _mp4AudioAnalysisIssue(_demuxMP4Audio(bytes, true)) : '';
     if (trackIssue) {
         _setAudioTrackIssue(slot, trackIssue);
