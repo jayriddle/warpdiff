@@ -21,6 +21,7 @@ import { createHash } from 'node:crypto';
 import { runInNewContext } from 'node:vm';
 import { runScrubVideoChecks } from './scrub-video-regression.mjs';
 import { runMalformedVideoChecks } from './mp4-video-malformed.mjs';
+import { runMalformedAudioChecks } from './mp4-audio-malformed.mjs';
 import { runScrubInputChecks } from './scrub-input-regression.mjs';
 import { runPreferenceChecks } from './preferences-regression.mjs';
 
@@ -504,7 +505,7 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
   check('one-owner[decode-failure]: terminal failure owner rejects stale generations',
         failOwner.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return'));
   check('one-owner[decode-failure]: native and WebCodecs async paths carry generation to failure routing',
-        native.includes('_onAllDecodeFailed(slot, false, gen)') &&
+        /_onAllDecodeFailed\(slot, [^;\n]+, gen\)/.test(native) &&
         webcodecs.includes('_onAllDecodeFailed(slot, false, gen)') &&
         decoder.includes('_onAllDecodeFailed(slot, true, gen)'));
   const webcodecsFinished = extractFn('_webcodecsFinished');
@@ -1304,8 +1305,8 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
   // the shipped demuxers so a revert fails here.
   const audioDemux = extractFn('_demuxMP4Audio');
   const videoDemux = extractFn('_demuxMP4Video');
-  check('demux[mp4]: audio stsz default-size branch clamps count to data.length',
-        audioDemux.includes('Math.min(count, data.length)'));
+  // Audio count/range rejection is exercised below by runMalformedAudioChecks;
+  // do not preserve the retired clamp-and-partially-publish implementation text.
   check('demux[mp4]: video stsz clamps count (uniform → data.length)',
         videoDemux.includes('Math.min(n, data.length)') && videoDemux.includes('const cnt'));
 
@@ -1600,6 +1601,13 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
     check('demux[mp4]: ordinary fixture has no delayed audio timeline start',
           r && r.timelineStart === 0);
   }
+}
+
+{
+  const issue=new Function(extractFn('_mp4AudioAnalysisIssue')+'\nreturn _mp4AudioAnalysisIssue;')();
+  check('audio-track-policy: ambiguous MP4 tracks cannot silently select analysis',/Multiple MP4 audio tracks/.test(issue({audioTracks:[{},{}]})));
+  check('audio-track-policy: unreadable inventory remains distinct from no audio',/could not be verified/.test(issue(null)));
+  check('audio-track-policy: known single and absent audio inventories retain normal handling',issue({audioTracks:[{}]})===''&&issue({audioTracks:[]})==='');
 }
 
 // MP4 audio edit-list placement — audio_offset.mp4 carries a leading empty edit
@@ -2325,6 +2333,7 @@ runPreferenceChecks(check, readFileSync(new URL('js/preferences.js', ROOT), 'utf
 // ── summary ───────────────────────────────────────────────────────────────────
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);
+runMalformedAudioChecks(check);
 await runScrubInputChecks(check);
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

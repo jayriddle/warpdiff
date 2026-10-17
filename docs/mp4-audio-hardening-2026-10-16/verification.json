@@ -1,0 +1,155 @@
+{
+  "baseline": "d84d6757c4b23370d0d62509ec2d3056ee823028",
+  "candidate": "3.19.5",
+  "finalFocused": {
+    "chromium": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "scope": "Final runtime source and all 12 new MP4 cases",
+      "seconds": 10.132374
+    },
+    "webkit": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "workers": 1,
+      "scope": "Final runtime source and all 12 new MP4 cases",
+      "seconds": 17.867834000000002
+    }
+  },
+  "intermediateRelated": {
+    "passed": 83,
+    "failed": 0,
+    "skipped": 0,
+    "retries": 0,
+    "workers": 1,
+    "scope": "Intermediate runtime before the missing-WebCodecs classification correction and three additional MP4 cases",
+    "seconds": 81.609409
+  },
+  "intermediateWebkit": {
+    "passed": 154,
+    "failed": 0,
+    "skipped": 0,
+    "retries": 0,
+    "workers": 1,
+    "scope": "Intermediate runtime before the missing-WebCodecs classification correction and three additional MP4 cases",
+    "seconds": 212.860567
+  },
+  "ownership": {
+    "passed": 1170,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 25,
+    "failed": 0
+  },
+  "malformedAudioChecks": 257,
+  "negativeControls": 7,
+  "allNegativeControlsFailIntendedAssertions": true,
+  "ffprobe": {
+    "files": 18,
+    "audioTracks": 18,
+    "allPacketBytesRelativeTimestampsAndConfigurationsMatch": true,
+    "controlledPlaceholderVariant": true
+  },
+  "webmAndVideoDemuxersUnchanged": true,
+  "capabilities": [
+    {
+      "browser": "chromium",
+      "title": "multiple MP4 audio tracks keep native video playback without selecting analysis",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": false
+      }
+    },
+    {
+      "browser": "chromium",
+      "title": "multiple MP4 audio tracks keep native audio playback without selecting analysis",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": false
+      }
+    },
+    {
+      "browser": "chromium",
+      "title": "single-track AAC fallback receives the selected codec configuration",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    },
+    {
+      "browser": "webkit",
+      "title": "multiple MP4 audio tracks keep native video playback without selecting analysis",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": true
+      }
+    },
+    {
+      "browser": "webkit",
+      "title": "multiple MP4 audio tracks keep native audio playback without selecting analysis",
+      "value": {
+        "metrics": null,
+        "preview": false,
+        "opus": false,
+        "pending": false,
+        "noAudio": false,
+        "wave": false,
+        "slotViz": false,
+        "media": false,
+        "audioTracksAPI": true
+      }
+    },
+    {
+      "browser": "webkit",
+      "title": "single-track AAC fallback receives the selected codec configuration",
+      "value": {
+        "supported": true,
+        "decoded": true
+      }
+    }
+  ],
+  "sourceHashes": {
+    "index.html": "5158fa4ebbece84350bf9a353e3f5286d921c04488ac2829c69de3d47becdb2a",
+    "sw.js": "10c1eadc9d031fc7e855feaa81a853fd57cab75f0153b27971a7580ce32351c8",
+    "js/mp4-demux.js": "4839e29468e2ccbfd45a01732572b56bace9daed942c95a325054f640f3f1e94",
+    "js/audio-decode.js": "73da2f2d5430b7867198eca499cc1ff87f47bf317f19c2dcc809779176f3d054",
+    "tests/mp4-audio.spec.ts": "890ba6934c0eed1e971045638453ba2fae3f3e09018ec3f3789ec740e054175a",
+    "tests/mp4-audio-malformed.mjs": "0781cc92d2b6ddcf8a6a6f010953740979acd12ce273c607128a2f328b4ac8ab",
+    "tests/helpers/mp4-audio-fixture.mjs": "0480bc9fd54a1c338e5719e2b6223cb33172237443cb9ce1b5f26b4a03df0ac0",
+    "tests/helpers/mp4-audio-files.mjs": "4399638545f81c76d81eea49c4e84c78376660f2f3849d39f544a4271a9178c2",
+    "tests/ownership.test.mjs": "58929cee42ac63683f5ce41481eb7fbe75b0f5ad94e8bb287ab391ee4139fbb8",
+    "playwright.webkit.config.ts": "6462571e6026db32a0a0c17a3bfbf65ebf8175fa5011a4d7d35ab11602a7a973"
+  },
+  "hosted": {
+    "status": "pending",
+    "requiredBeforeMerge": true
+  },
+  "mergeAndPublication": "on hold"
+}

@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   projects: [
+    {name:'webkit-mp4-audio', testMatch:'mp4-audio.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-updates', testMatch:'app-updates.spec.ts', grepInvert:/predecessor negative control/, use:{browserName:'webkit'}},
     {name:'webkit-preferences', testMatch:'preferences.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-host-load', testMatch:'host-load.spec.ts', use:{browserName:'webkit'}},

@@ -460,6 +460,8 @@ By default, each asset displays an info bar (Grid mode) or a header strip (Stack
 
 Field order and color hierarchy are consistent between Grid info bars and the Stack header strip.
 
+For recognized MP4 files, decoded analysis and scrub audio require one readable audio track. If a file has multiple tracks, WarpDiff lists them and leaves playback to the browser, but withholds waveform, spectrogram, loudness metrics, dialogue/center monitoring and scrub audio. Export the desired audio track with the picture (or as a single-track audio file) in your external media tool, then reload that copy. A persistent notice also appears if the MP4 track inventory cannot be verified. Clearing or loading a prepared copy retires the notice. Managed audio-only requests require decoded analysis and fail explicitly when this condition is unmet; video requests may become ready after picture verification with decoded audio tools unavailable.
+
 Open **Customize info bar** using the sliders icon in the header. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
 
 Choose **Default** to keep the original display, **Minimal** for zoom (images) or duration (video/audio), **Visual Focus** for picture and timing fields, **Audio Essentials** for loudness and source audio information, or **All Available**. Editing a preset changes its label to **Custom**. **Reset profile** restores the selected media type's Default without changing the other profiles.
