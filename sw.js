@@ -7,6 +7,7 @@ const ASSETS = ['./', 'index.html', 'js/app-updates.js', 'js/preferences.js', 'j
 ASSETS.push('js/playback-audio-core.js', 'js/slow-playback.js', 'js/signalsmith-worklet.js');
 ASSETS.push('js/media-input-contract.js', 'js/media-preparation.js');
 ASSETS.push('js/media-admission.js');
+ASSETS.push('js/prepared-media.js');
 const SCOPE = self.registration.scope;
 const RUNTIME_URLS = new Set(ASSETS.map(asset => new URL(asset, SCOPE).href));
 const SCOPE_SUFFIX = '-' + encodeURIComponent(new URL(SCOPE).pathname);

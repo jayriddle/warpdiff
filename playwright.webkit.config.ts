@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   projects: [
+    {name:'webkit-prepared-media', testMatch:'prepared-media.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-media-admission', testMatch:'media-admission.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-media-input', testMatch:'media-input.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-mp4-audio', testMatch:'mp4-audio.spec.ts', use:{browserName:'webkit'}},

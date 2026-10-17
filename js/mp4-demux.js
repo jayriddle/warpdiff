@@ -32,7 +32,7 @@ function _isMP4AudioContainer(data) {
 }
 
 // --- MP4 demuxer ---
-function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
+function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, validateOnly = false) {
     // Keep encoded tables as views. No packet copies or per-sample objects are
     // made until every selected-track count, clock and media range is feasible.
     try {
@@ -245,7 +245,7 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
             : Number.isInteger(selectedTrackId) ? audio.find(t => t.id === selectedTrackId) : null;
         const selection = chosen ? 'single' : audio.length ? 'ambiguous' : 'none';
         const timelineStart = chosen?.valid ? chosen.timelineDuration / movieTimescale : null;
-        if (metadataOnly) return {timelineStart, channelLayout:chosen?.format.channelLayout || null,
+        if (metadataOnly && !validateOnly) return {timelineStart, channelLayout:chosen?.format.channelLayout || null,
             audioTracks:audio.map(t => t.format), selection, trackId:chosen?.id ?? null};
         if (!chosen?.valid || new Set(ids).size !== ids.length) return null;
         const t = chosen;
@@ -312,6 +312,13 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null) {
         const maxFrames = t.segmentDuration > 0 ? Math.round(t.segmentDuration / movieTimescale * t.sampleRate) : 0;
         if (!Number.isSafeInteger(preSkip) || !Number.isSafeInteger(maxFrames)) return null;
         if (t.codec.startsWith('mp4a.40.') && (!t.description || !t.format.channels || !t.format.sampleRate)) return null;
+        // Package inspection needs the same complete table/range validation,
+        // without packet copies, expanded timestamps or a second parser.
+        if (validateOnly && !foundMovieHeader) return null; // No default clock may certify a package start.
+        if (validateOnly) return {codec:t.codec, channels:t.format.channels, sampleRate:t.format.sampleRate,
+            timelineStart, trackId:t.id, audioTrackCount:audio.length,
+            videoTrackCount:tracks.filter(track => track.handler === 'vide').length,
+            trackCount:tracks.length, packetCount:count, encodedDuration:ticks / t.timescale};
         // All rejection checks precede packet copies. Build timestamps and offsets
         // directly from validated compact runs, without expanded helper arrays.
         const chunks = [];

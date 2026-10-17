@@ -1,6 +1,6 @@
 # Media input contracts and preparation adapters
 
-Status: foundation and capability-report slices implemented locally on `codex/media-input-contract`, based on released 3.19.5 (`19ec134`). Candidate 3.19.6 is unpublished. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Merge and publication remain on hold.
+Status: foundation, capability report and initial offline prepared-package handoff implemented locally on `codex/media-input-contract`, based on released 3.19.5 (`19ec134`). Candidate 3.19.6 is unpublished. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Full prepared-profile conformance remains future work. Merge and publication remain on hold.
 
 ## Migration slices
 
@@ -8,10 +8,10 @@ WarpDiff's comparison core should consume media whose usable capabilities and ti
 
 1. **Contract and adapter foundation — implemented.** Extract the existing MP4 audio-selection policy into immutable versioned assessments. Describe the existing compatibility recipe with a versioned preparation request. Route the manual command through an adapter. Add an explicit trusted-code file-provider interface, cancellation and unverified results. Preserve visible loading behavior.
 2. **Capability inventory and admission report — implemented conservatively.** Observe existing picture/audio decoding and metadata, with explicit available/unavailable/unknown/not-applicable states. Distinguish playback, frame access, listening and original-source analysis. Retain actual first-frame/audio checks and explain unavailable tools. MIME labels, extensions and sidecars cannot certify decoding. Exact CFR, full synchronization and original-source fidelity stay unverified.
-3. **Prepared package and first real processor.** Validate a review rendition plus source/provenance metadata, then implement one separately installed local tool or managed-host adapter end-to-end. Choose one concrete transport. Returned files re-enter normal admission. Validate timeline, duration, leading silence, frame mapping and channel identity with independent fixtures before offering a strict mode.
+3. **Prepared package and first real processor — initial file handoff implemented.** A separate Node tool invokes user-installed FFmpeg/ffprobe and returns a review rendition plus manifest through offline file exchange. Browser inspection binds selected bytes and validates bounded AVC/AAC container facts; returned files still re-enter normal admission. Complete timeline/frame/channel/provenance conformance, broader profiles and a user package picker remain future work before any strict mode.
 4. **Separate compatibility from the comparison core.** Introduce a deliberately selected prepared-media mode; move legacy direct-loading support behind its own boundary. Retire each workaround only after the prepared profile replaces it with measured cross-browser evidence. Keep standalone direct loading until an explicit product decision changes that policy.
 
-Neither implemented slice removes Opus replacement, edit-list handling, native/WebCodecs fallbacks or channel matrices. They deliver no native helper, upload service, strict prepared-only mode or new host message protocol.
+The implemented slices do not remove Opus replacement, edit-list handling, native/WebCodecs fallbacks or channel matrices. The optional external Node tool is not an installed browser helper or network service. There is no upload service, strict prepared-only mode or new host message protocol.
 
 ## MP4 audio-selection contract
 
@@ -90,6 +90,12 @@ The existing `WARPDIFF_LOAD` protocol is unchanged. There is no third-party prov
 
 ## Prepared profile to validate later
 
+The [initial offline package and local tool](../tools/media-prepare/README.md) implement part of this boundary: versioned manifest, exact selected-byte binding, bounded track/sample-table inspection and a real separately run processor. `WarpPreparedMedia` returns **candidate**, with normal loading required. It does not promote the Media status prepared profile to validated. Source hashes bind selected originals but cannot authenticate a producer or prove derivation. Full-file browser decode, exact frame mapping/CFR, A/V synchronization, channel identity and measurement conformance remain unverified.
+
+The transport is explicit file exchange: the external CLI produces `review.mp4` plus `warpdiff-package.json`; standalone users load the MP4 normally, while trusted tooling invokes the one-shot file-provider adapter with the selected original and both returned files. No script discovery, network service, media upload, automatic manifest import or automatic slot replacement is added. The manual adapter remains the only default app registration. CLI/reference fixtures exercise AC-3 conversion, selected-track tones, copied frame hashes, leading onset, short-track padding, surround-to-stereo declaration, cancellation and cleanup. These fixtures do not establish universal conformance.
+
+The inspector limits a manifest to 16 KiB and each file to 64 MiB, with one active inspection including unsettled cancelled reads/digests. It reuses the audio demuxer's complete compact-table/range checks through an opt-in no-copy summary mode; existing metadata/extraction modes are unchanged. The video parser checks sample tables; complete AVC parameter sets and rendering remain the loader's/later validation's responsibility. These bounds are not a whole-browser memory budget.
+
 The package should distinguish original deliverables from review renditions. A candidate browser profile is MP4 with broadly supported H.264/AVC picture, explicit constant frame rate, bounded resolution/bitrate/GOP, known timeline and one selected readable audio track. Exact ceilings need fixtures and browser evidence before enforcement.
 
 Stereo AAC may serve compatibility or headphone review. It must not stand in for original multichannel measurements. A channel-preserving source or lossless analysis sidecar should retain verified layout/order, sample rate, timeline/edit/priming information and provenance. A downmix must declare matrix, center/surround/LFE treatment and headroom; no silent normalization or per-asset level adjustment. Source identity must bind to bytes, not merely filenames. Provider sidecars remain untrusted evidence until matched and checked. Ordinary capability checks cannot establish professional loudness/true-peak conformance.
@@ -100,4 +106,4 @@ Standalone and managed users should share assessments and requests. A real host 
 
 Pure fault-injection checks in `tests/media-input-regression.mjs` and `tests/media-admission-regression.mjs` run through ownership. Browser checks in `tests/media-input.spec.ts` cover the real panel adapter, explicit invocation, corrupt output revalidation and clear cancellation in Chrome and WebKit. `tests/media-admission.spec.ts` adds actual decoded capability reports, timing uncertainty, multi-track withholding, first-frame rejection, owner retirement and dialog keyboard/focus/layout checks in both engines. Existing command, external conversion, host and MP4 suites cover preserved behavior. All three boundary/adapter runtime files belong in `sw.js` ASSETS for release-pinned/offline packaging.
 
-The [foundation work record](media-input-contract-2026-10-17/README.md) and [capability-report work record](media-admission-report-2026-10-17/README.md) record measured results and limitations. Slices 3 and 4 are planned work, not completed capabilities.
+The [foundation work record](media-input-contract-2026-10-17/README.md), [capability-report work record](media-admission-report-2026-10-17/README.md) and [prepared-package work record](prepared-package-2026-10-17/README.md) record measured results and limitations. Remaining slice-3 conformance/UI work and slice 4 are planned, not completed capabilities.

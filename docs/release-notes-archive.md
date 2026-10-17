@@ -8,6 +8,7 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 - File-provider outputs require normal-load verification, and clear/replacement retires pending preparation. No native helper, upload service or browser converter is included.
 - Adds **Media status** for per-input picture, pixel access, playback, decoded-audio analysis and scrub-audio availability. Reported duration and known audio start remain separate from unverified CFR, full synchronization and original-source fidelity.
 - The unpublished foundation and capability-report slices share this candidate version. The new visible report advances What's New to two concise bullets for 3.19.6; the foundation alone retained the prior summary. Scope and remaining slices: [media input architecture](media-input-architecture.md).
+- Adds an optional repository-only Node preparation tool and explicit offline file adapter. User-installed FFmpeg creates a stereo compatibility copy plus a byte-bound manifest. Bounded container inspection still requires normal loading; full prepared-media conformance remains unverified. No helper or converter is deployed with the app.
 
 ## v3.19.5 (released October 17, 2026)
 

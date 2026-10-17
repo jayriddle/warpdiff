@@ -171,6 +171,17 @@ export function runMalformedAudioChecks(check, source=readFileSync(new URL('../j
   runInNewContext(source+`;globalThis.bytes=new Uint8Array(input);globalThis.copies=0;
     Uint8Array.prototype.slice=function(){copies++;throw Error('Metadata must not copy packets');};globalThis.result=_demuxMP4Audio(bytes,true);`,metadataState);
   check('demux[malformed-audio]: metadata-only mode makes no byte copies',metadataState.result?.audioTracks.length===1&&metadataState.copies===0);
+  const summaryState={input:one,console:{log(){},warn(){}}};
+  runInNewContext(source+`;globalThis.bytes=new Uint8Array(input);globalThis.copies=0;
+    Uint8Array.prototype.slice=function(){copies++;throw Error('Inspection must not copy packets');};globalThis.result=_demuxMP4Audio(bytes,false,null,true);`,summaryState);
+  check('demux[package-summary]: validated tables return compact counts without any packet copy',
+    summaryState.result?.packetCount===2&&summaryState.result.trackCount===1&&summaryState.result.audioTrackCount===1&&summaryState.result.videoTrackCount===0&&summaryState.copies===0&&!('chunks'in summaryState.result));
+  check('demux[package-summary]: compact timing preserves the extraction clock',summaryState.result?.timelineStart===valid.timelineStart&&summaryState.result.encodedDuration===.04);
+  check('demux[package-summary]: incomplete chunk coverage cannot pass as metadata',parse(mp4AudioFixture([{stsz:u32(0,1,2),stsc:table([1,1,1])}]),false,null,true)===null);
+  check('demux[package-summary]: invalid media ranges reject before summary publication',parse(mp4AudioFixture([{stco:table([0])}]),false,null,true)===null);
+  check('demux[package-summary]: ambiguous tracks require selection even in validation mode',parse(mp4AudioFixture([{}, {id:20}]),false,null,true)===null);
+  const noClock=mp4AudioFixture([{}],{movieTimescales:[]});
+  check('demux[package-summary]: missing movie clock cannot publish a default timestamp while legacy extraction stays compatible',parse(noClock)?.chunks.length===2&&parse(noClock,false,null,true)===null);
   const aacFile=new URL('fixtures/dialogue_51_aac.mp4',import.meta.url);
   if(existsSync(aacFile)) {
     const aac=parse(new Uint8Array(readFileSync(aacFile)));

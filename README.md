@@ -153,6 +153,8 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 
 ### Going deeper
 
+- **[Optional local preparation tool](tools/media-prepare/README.md)** — separately invokes your installed FFmpeg/ffprobe to create an AVC/stereo-AAC review copy plus a byte-bound manifest. The offline file adapter checks selected bytes and container tables before normal loading. Initial limits are 64 MiB per file; full timing/fidelity conformance remains unverified. No converter or helper is deployed with the browser app.
+
 - **[Media input contracts and preparation adapters](docs/media-input-architecture.md)** — migration slices, versioned policy/provider interfaces and current limits. Direct loading and manual external preparation remain available; no processor is bundled.
 
 - **[CLAUDE.md](CLAUDE.md)** — project conventions, architecture patterns, naming, and the specific technical decisions worth knowing about (frame stepping math, Stack zoom modes, equal-area grid layout, scope rendering strategy).

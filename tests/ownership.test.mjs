@@ -26,6 +26,7 @@ import { runScrubInputChecks } from './scrub-input-regression.mjs';
 import { runPreferenceChecks } from './preferences-regression.mjs';
 import { runMediaInputChecks } from './media-input-regression.mjs';
 import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
+import { runPreparedMediaChecks } from './prepared-media-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -2336,6 +2337,7 @@ runMediaAdmissionChecks(check);
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────
+await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);
 runMalformedAudioChecks(check);

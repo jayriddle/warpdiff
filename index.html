@@ -3866,6 +3866,7 @@
     <script src="js/media-preparation.js"></script>
     <script src="js/media-admission.js"></script>
     <script src="js/mp4-demux.js"></script>
+    <script src="js/prepared-media.js"></script>
     <script src="js/scrub-video.js"></script>
     <script src="js/timecode.js"></script>
     <script src="js/wipe.js"></script>
@@ -14040,6 +14041,7 @@
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>
             <p><strong>Reset:</strong> Click the reset icon (circular arrow, visible after loading) to clear all files and start over.</p>
+            <p><strong>Optional local preparation package:</strong> Repository users can run the separate Node preparation tool with their own installed FFmpeg/ffprobe to create <strong>review.mp4</strong> and a manifest. Load the MP4 normally; the browser does not automatically import the manifest. The first recipe supports bounded AVC picture and a selected soundtrack, makes a stereo compatibility copy, and limits each source/returned file to 64 MiB. Trusted tools can check selected-byte hashes and container tables before ordinary loading. Those checks do not certify frame mapping, full sync, original channel fidelity or professional measurements; keep the original.</p>
 
             <h2>View Modes</h2>
             <p><strong>Stack</strong> — The default mode. One asset is visible at a time, layered on top of the others. Use arrow keys or the asset buttons in the header to switch between assets. Asset name, zoom, resolution, aspect ratio, and filename are shown in the header. A mini-map thumbnail appears in the lower-right when the asset overflows the viewport — click or drag it to pan. Press <kbd>\</kbd> to toggle between <em>Fit</em> (each asset fills the viewport independently) and <em>Balance</em> (all assets scaled to the same rendered screen area).</p>
