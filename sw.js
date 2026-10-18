@@ -1,5 +1,5 @@
 // Keep in sync with APP_VERSION in index.html
-const CACHE_NAME = 'warpdiff-v3.19.7';
+const CACHE_NAME = 'warpdiff-v3.19.8';
 // Staging fills this with the exact public bundle; checkout serving remains build-free.
 const RELEASE = null;
 const ASSETS = ['./', 'index.html', 'js/app-updates.js', 'js/preferences.js', 'js/appearance.js', 'js/info-bar.js', 'js/usage.js', 'js/audio-viz.js', 'js/audio-analysis.js', 'js/audio-analysis-worker.js', 'js/scopes.js', 'js/hotkeys.js',
@@ -9,6 +9,7 @@ ASSETS.push('js/media-input-contract.js', 'js/media-preparation.js');
 ASSETS.push('js/media-admission.js');
 ASSETS.push('js/prepared-media.js');
 ASSETS.push('js/prepared-import.js');
+ASSETS.push('js/preparation-connection.js', 'js/local-preparation.js');
 const SCOPE = self.registration.scope;
 const RUNTIME_URLS = new Set(ASSETS.map(asset => new URL(asset, SCOPE).href));
 const SCOPE_SUFFIX = '-' + encodeURIComponent(new URL(SCOPE).pathname);

@@ -143,6 +143,8 @@ test('manual decoder failure cannot inherit a previous image success', async ({p
   await page.locator('#multiFileInput').setInputFiles({name:'corrupt.mp4',mimeType:'video/mp4',buffer:Buffer.from('not a movie')});
   await expect.poll(async () => (await reports(page)).editA?.admission.state).toBe('failed');
   expect((await reports(page)).editA.capabilities.picture.state).toBe('unavailable');
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await page.locator('#localPreparationClose').click();
   await page.locator('#mediaStatusBtn').click(); await expect(page.locator('#mediaStatusContent')).toContainText('could not be decoded');
 });
 

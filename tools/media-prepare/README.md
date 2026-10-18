@@ -2,11 +2,13 @@
 
 This tool runs outside the browser. Install Node 24 or newer and install FFmpeg/ffprobe separately, then run it from a WarpDiff checkout. It does not download or redistribute those executables and is excluded from the Pages package. Existing direct loading and copied-command preparation remain available.
 
+For a checkout, clone the repository or use **Code → Download ZIP** on its [GitHub page](https://github.com/jayriddle/warpdiff), extract it, and open a terminal in the extracted WarpDiff folder. The example below is for macOS or Linux; replace both paths. Ordinary media and the in-app copied-command audio workflow do not require this tool or a package.
+
 ```sh
 node tools/media-prepare/prepare.mjs --input '/path/to/source.mp4' --output '/path/to/new-package'
 ```
 
-Output must be a new directory. The tool creates `review.mp4` and `warpdiff-package.json`; the original is retained. In WarpDiff, open **Package** (Load prepared package) in the header. Select **warpdiff-package.json** and **review.mp4**, optionally select the original for byte matching, and add up to three companion images or videos. Choose **Check package**, review what is inspected versus unverified, then **Load comparison**. Inspection failure or cancellation preserves the current comparison. Loading starts a new comparison through the normal decoder checks and timestamp ordering. The original is not added automatically. You can also load **review.mp4** with the usual Load/drop workflow; a manifest by itself is not loadable media. Managed hosts continue to use their existing reload channel.
+Output must be a new directory. The tool creates `review.mp4` and `warpdiff-package.json`; the original is retained. In WarpDiff, open **Help → Advanced → Import externally prepared media**. The dialog has setup guidance under **How to get prepared files** and a **Load ordinary files** route for normal media. Select **warpdiff-package.json** and **review.mp4**, optionally select the original for byte matching, and add up to three companion images or videos. Choose **Check prepared files**, review what is inspected versus unverified, then **Load comparison**. Inspection failure or cancellation preserves the current comparison. Loading starts a new comparison through the normal decoder checks and timestamp ordering. The original is not added automatically. You can also load **review.mp4** with the usual Load/drop workflow; a manifest by itself is not loadable media. Managed hosts continue to use their existing reload channel.
 
 The first recipe accepts MP4/MOV, copies one AVC/H.264 8-bit 4:2:0 picture stream and converts one selected audio stream to stereo AAC-LC at 48 kHz/192 kbps. It pads a short soundtrack to preserve the picture. Source and returned file each have a 64 MiB limit for this first handoff; larger inputs retain the ordinary direct/external workflows. The copied picture must fit 4096 pixels on either axis and 4096×2160 pixels overall. Other containers/picture formats need a different preparation recipe. The helper forces the MOV/MP4 demuxer and a file-only protocol allowlist for both executables; a disguised playlist cannot fetch network media.
 
@@ -43,3 +45,8 @@ Inspection checks a bounded 16 KiB versioned manifest, 64 MiB per selected file,
 The status is **candidate**, with `validation: 'normal-load-required'`. It does not certify full browser decoding, complete AVC parameter sets, CFR/frame mapping, end-to-end synchronization, channel fidelity, source derivation or professional measurements. The existing loader owns decoded frames, playable/analyzed audio and correlated host READY/FAILED. The Media status prepared-profile field remains unvalidated. Provider success, hashes and sidecar claims never authorize READY.
 
 Run `npm run test:ownership`, `npm run test:preparation` and the `prepared-media.spec.ts` Chrome/WebKit cases. The helper checks run in the protected ownership CI job after fixture generation. See [the architecture](../../docs/media-input-architecture.md) and [work record](../../docs/prepared-package-2026-10-17/README.md).
+
+An alternative [local companion prototype](companion/README.md) tests one-click
+preparation and automatic opening without package files. It is development
+tooling around a local managed copy of WarpDiff, not a deployed or installed
+feature. Its transport and preparation policy are separate from this package recipe.

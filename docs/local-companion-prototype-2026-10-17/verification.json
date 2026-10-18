@@ -1,0 +1,82 @@
+{
+  "base": "d2c56f782d92bd6803c9e99e1564efe3320a8e53",
+  "branch": "codex/local-preparation-prototype",
+  "scope": "repository-only loopback prototype; no merge or publication",
+  "browser": {
+    "startTime": "2026-10-18T06:34:34.312Z",
+    "duration": 47883.672999999995,
+    "expected": 24,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0,
+    "runnerErrors": 0,
+    "workers": 1,
+    "retries": 0,
+    "engines": [
+      "Chrome 155.0.8059.82",
+      "Playwright WebKit 26.0"
+    ]
+  },
+  "native": {
+    "passed": 9,
+    "failed": 0
+  },
+  "ownership": {
+    "passed": 1353,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 26,
+    "failed": 0
+  },
+  "preservation": {
+    "baseline": "d2c56f782d92bd6803c9e99e1564efe3320a8e53",
+    "branch": "codex/local-preparation-prototype",
+    "existingFiles": 1115,
+    "changed": [
+      "tools/media-prepare/README.md"
+    ],
+    "fixtures": 37,
+    "fixtureChanges": [],
+    "verifiedAfterCorrection": "921aad9884d60fa264f66da1992f2220c94d0773",
+    "sourceHashMismatches": 0
+  },
+  "sources": {
+    "playwright.companion.config.ts": "c7e1c6bde07277a75c552d66ed4548aa15e5b554420e4f87e1f962b9753f9116",
+    "tests/local-companion.test.mjs": "8cc8969c9d247d8531fced4ed11a88054f36f19b2d4f6b351b04a3f0aa8f2437",
+    "tests/local-companion.spec.ts": "cb48ea0d24933f084ef1033759d8bfdb6598195048e3e5fb939977a03b597692",
+    "tests/helpers/local-companion-launch.mjs": "d56d053c46d251e507cbeccbd08508611dd1ab36c8e5f8ebd575d91db385cebc",
+    "tools/media-prepare/companion/README.md": "d35289368b537b97c6d6ae5648363314566d331cfa94557783c53c469b780dbd",
+    "tools/media-prepare/companion/client.js": "1119c4895400215ddf86e037cfb6ff3ce30676b9205bc741ded3d4b014bbc72a",
+    "tools/media-prepare/companion/index.html": "550b414f70acc43cd513fda2c222b076ac1ff9c41eaaa7ec4dc526b961573aff",
+    "tools/media-prepare/companion/processor.mjs": "9f75374b7eb5cf8640ffb22950bc6b0b2184d1a7aebec235088945adce1f4610",
+    "tools/media-prepare/companion/server.mjs": "1fbb3e2b19115ae59414fe6d3d248a2a9fdba5861fd159bd8f630bd2764b208c",
+    "tools/media-prepare/companion/style.css": "24821503c0a1c1b4aa6e471962099f146ebc35f94ca92909bd27c5e4bb16293b"
+  },
+  "evidence": "output/local-companion-prototype-2026-10-17-2fYJoC",
+  "independentReview": {
+    "target": "a769a7f93dc8ff17bff7c5989b4115d6e0311427",
+    "findings": [
+      {
+        "priority": "P2",
+        "issue": "Rejected selection retires current comparison",
+        "status": "closed by independent follow-up at 921aad9884d60fa264f66da1992f2220c94d0773"
+      }
+    ],
+    "nativePassed": 9,
+    "controlledBrowserJourneys": 19,
+    "evidence": "output/local-companion-independent-2026-10-18/REVIEW.md",
+    "baselineLimitation": "WebKit paused video can remain black until Play; reproduced without wrapper"
+  },
+  "independentFollowup": {
+    "target": "921aad9884d60fa264f66da1992f2220c94d0773",
+    "materialFindings": 0,
+    "journeys": 4,
+    "invalidSelectionProbes": 12,
+    "nativeJobsStarted": 2,
+    "nativeJobsRetired": 2,
+    "pageErrors": 0,
+    "fixturesUnchanged": 37,
+    "evidence": "output/local-companion-independent-followup-2026-10-18/REVIEW.md"
+  }
+}

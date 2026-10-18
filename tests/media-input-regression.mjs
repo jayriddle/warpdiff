@@ -22,6 +22,16 @@ export async function runMediaInputChecks(check, sources={}) {
   test('request contains no media bytes or network destination',!JSON.stringify(r).includes('signedUrl')&&!('input'in r)&&!('url'in r.source));
   test('missing request identity rejects',throws(()=>prep.createRequest({filename:'x.mp4'})));
   const registry=prep.createRegistry();registry.register(prep.manualFFmpegProvider());
+  for(const mediaType of ['audio','video']) {
+    const review=prep.createReviewRequest({id:'review-'+mediaType,filename:input.name,mediaType});
+    test(mediaType+' review request is immutable and marks its measurement basis',Object.isFrozen(review)&&Object.isFrozen(review.source)&&Object.isFrozen(review.output)&&review.output.analysisBasis==='prepared-copy');
+    test(mediaType+' review request cannot use the copied-command recipe',throws(()=>registry.plan('manual-ffmpeg',review)));
+    const adapter=prep.createRegistry();let observed;
+    adapter.register({id:'review',version:1,mode:'files',supports:req=>req.recipe==='local-review-copy-v1',prepare(req){observed=req;return {kind:'files',files:[output],ready:true};}});
+    const result=await adapter.prepare('review',{...review,output:{preservesOriginal:false,certified:true}},input);
+    test(mediaType+' review choices are reconstructed and provider READY is withheld',observed.output.preservesOriginal===true&&!('certified' in observed.output)&&result.validation==='required'&&!('ready' in result));
+  }
+  test('review recipe rejects unsupported source types',throws(()=>prep.createReviewRequest({id:'x',filename:'x.png',mediaType:'image'})));
   test('duplicate providers reject',throws(()=>registry.register(prep.manualFFmpegProvider())));
   test('incompatible provider versions reject',throws(()=>registry.register({id:'wrong',version:2,mode:'files',supports:()=>true,prepare(){}})));
   test('provider IDs must be strings, not coercible objects',throws(()=>registry.register({id:{toString:()=> 'object-id'},version:1,mode:'files',supports:()=>true,prepare(){}})));

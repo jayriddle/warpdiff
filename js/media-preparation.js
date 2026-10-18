@@ -16,6 +16,16 @@ function _ffmpegFilenameParts(filename) {
 const WarpMediaPreparation = (() => {
     const CONTRACT = 'warpdiff.media-preparation', VERSION = 1;
     const RECIPE = 'video-audio-compatibility-v1';
+    const REVIEW_RECIPE = 'local-review-copy-v1';
+    function createReviewRequest({id, filename, mediaType}) {
+        if (typeof id !== 'string' || !id || id.length > 128 || typeof filename !== 'string' || !filename ||
+            !['video','audio'].includes(mediaType)) throw new TypeError('Invalid review-copy request');
+        return Object.freeze({contract: CONTRACT, version: VERSION, id, recipe: REVIEW_RECIPE,
+            source: Object.freeze({name:filename,mediaType}),
+            output: Object.freeze({analysisBasis:'prepared-copy',preservesOriginal:true,
+                picture:mediaType==='video'?'compatible-h264-copy-or-encode':'none',
+                audio:mediaType==='video'?'stereo-aac':'pcm-original-channel-count'})});
+    }
     function createRequest({id, filename, codec = 'unknown'}) {
         if (typeof id !== 'string' || !id || id.length > 128 || typeof filename !== 'string' || !filename ||
                 typeof codec !== 'string' || !codec || codec.length > 128) throw new TypeError('Invalid preparation request');
@@ -27,6 +37,9 @@ const WarpMediaPreparation = (() => {
         });
     }
     function checkedRequest(request) {
+        if (request?.contract === CONTRACT && request.version === VERSION && request.recipe === REVIEW_RECIPE) {
+            return createReviewRequest({id:request.id,filename:request.source?.name,mediaType:request.source?.mediaType});
+        }
         if (!request || request.contract !== CONTRACT || request.version !== VERSION || request.recipe !== RECIPE ||
                 request.source?.mediaType !== 'video' || request.reason?.code !== 'audio-decode-unavailable') {
             throw new TypeError('Unsupported preparation contract');
@@ -123,5 +136,5 @@ const WarpMediaPreparation = (() => {
         }
         return Object.freeze({register, describe, plan, prepare, cancel});
     }
-    return Object.freeze({version: VERSION, createRequest, manualFFmpegProvider, createRegistry});
+    return Object.freeze({version: VERSION, createRequest, createReviewRequest, manualFFmpegProvider, createRegistry});
 })();

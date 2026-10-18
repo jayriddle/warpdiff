@@ -12,6 +12,12 @@ test.beforeEach(async({page})=>{
   await page.addInitScript(()=>{localStorage.setItem('lastSeenVersion','999.0.0');const w=window as any;w.audioErrors=[];w.replies=[];addEventListener('error',e=>w.audioErrors.push(e.message));addEventListener('unhandledrejection',e=>w.audioErrors.push(String(e.reason)));addEventListener('message',e=>{if(/^WARPDIFF_LOAD_(READY|FAILED)$/.test(e.data?.type))w.replies.push(e.data);});});
   await page.goto('/');
 });
+async function openCommandFallback(page:any) {
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await page.locator('#localPreparationDialog summary').click();
+  await page.locator('#localPreparationManual').click();
+  await expect(page.locator('#ffmpegPanel')).toBeVisible();
+}
 for(const kind of['video','audio'])test('multiple MP4 audio tracks keep native '+kind+' playback without selecting analysis',async({page})=>{
   await page.locator('#multiFileInput').setInputFiles(kind==='video'?files.multi:files.audio);
   await expect(page.locator('#comparisonView')).toHaveClass(/active/);
@@ -52,7 +58,7 @@ test('a rejected MP4 packet map is not labelled no audio after native decode fai
   // context takes the intended failure path without creating a disposable one.
   await page.evaluate(()=>{(window as any).forcedDecodeFailures=0;AudioContext.prototype.decodeAudioData=()=>{(window as any).forcedDecodeFailures++;return Promise.reject(Error('Force packet fallback for the controlled malformed table'));};});
   await page.locator('#multiFileInput').setInputFiles(files.malformed);
-  await expect(page.locator('#ffmpegPanel')).toBeVisible();
+  await openCommandFallback(page);
   expect(await page.evaluate(()=>(window as any).forcedDecodeFailures)).toBe(1);
   expect(await page.evaluate(()=>(window as any).eval("_noAudioSlots.has('editA')"))).toBe(false);
   expect(await page.evaluate(()=>(window as any).eval('_webcodecsPending.size'))).toBe(0);
@@ -69,7 +75,7 @@ test('single-track AAC fallback receives the selected codec configuration',async
     await expect.poll(()=>page.evaluate(()=>(window as any).eval('!!audioMetrics.editA && !!waveformData.editA'))).toBe(true);
     await expect(page.locator('#ffmpegPanel')).toBeHidden();
   } else {
-    await expect(page.locator('#ffmpegPanel')).toBeVisible();
+    await openCommandFallback(page);
   }
   expect(await page.evaluate(()=>(window as any).eval("_noAudioSlots.has('editA')"))).toBe(false);
   expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
@@ -82,7 +88,7 @@ test('known MP4 audio is not called absent when WebCodecs is unavailable',async(
     AudioContext.prototype.decodeAudioData=()=>Promise.reject(Error('Force native failure without WebCodecs'));
   });
   await page.locator('#multiFileInput').setInputFiles(files.single);
-  await expect(page.locator('#ffmpegPanel')).toBeVisible();
+  await openCommandFallback(page);
   expect(await page.evaluate(()=>(window as any).eval("_noAudioSlots.has('editA')"))).toBe(false);
   expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);
 });
@@ -164,7 +170,7 @@ test('padded single-track AAC uses MP4 fallback after native decode failure',asy
   if(support) {
     await expect.poll(()=>page.evaluate(()=>(window as any).eval('!!audioMetrics.editA && !!waveformData.editA')),'Padded MP4 must reach actual AAC packet decoding').toBe(true);
     await expect(page.locator('#ffmpegPanel')).toBeHidden();
-  } else await expect(page.locator('#ffmpegPanel')).toBeVisible();
+  } else await openCommandFallback(page);
   expect(await page.evaluate(()=>(window as any).eval("_noAudioSlots.has('editA')"))).toBe(false);
   await expect(page.locator('#audioTrackAlert')).toBeHidden();
   expect(await page.evaluate(()=>(window as any).audioErrors)).toEqual([]);

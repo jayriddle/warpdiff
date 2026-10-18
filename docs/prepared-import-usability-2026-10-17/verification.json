@@ -1,0 +1,100 @@
+{
+  "baseline": "72dcec3c2554aeca731cb0a89b8b676973cdee14",
+  "candidateVersion": "3.19.8",
+  "branch": "codex/prepared-import-usability",
+  "status": "local and independent follow-up passed; hosted results recorded on PR after this documentation commit",
+  "mergeAuthorized": false,
+  "publicationAuthorized": false,
+  "evidenceDirectory": "output/prepared-import-usability-2026-10-17-DURVsJ",
+  "exploratory": {
+    "passed": 149,
+    "failed": 1,
+    "reason": "WebKit outside-modal Tab policy; corrected to Option/Alt+Tab"
+  },
+  "keyboardCorrection": {
+    "passed": 2,
+    "failed": 0
+  },
+  "ownership": {
+    "passed": 1353,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 26,
+    "failed": 0
+  },
+  "local": {
+    "focused": {
+      "total": 154,
+      "passed": 154,
+      "skipped": 0,
+      "reports": 1
+    },
+    "notes": {
+      "total": 32,
+      "passed": 32,
+      "skipped": 0,
+      "reports": 1
+    },
+    "retries": 0,
+    "workers": 1,
+    "runnerErrors": 0
+  },
+  "preservation": {
+    "preExistingFiles": 1113,
+    "expectedModifiedFiles": 14,
+    "fixtureHashesAndMtimes": 37,
+    "unexpectedChanges": 0
+  },
+  "preReviewLocal": {
+    "focused": {
+      "total": 150,
+      "passed": 150,
+      "skipped": 0,
+      "reports": 1
+    },
+    "notes": {
+      "total": 32,
+      "passed": 32,
+      "skipped": 0,
+      "reports": 1
+    },
+    "retries": 0,
+    "workers": 1,
+    "runnerErrors": 0
+  },
+  "review": {
+    "target": "a70f6ce44432fbf719e772ec75a7725850007c2f",
+    "focusedPassed": 128,
+    "findings": [
+      {
+        "priority": "P2",
+        "issue": "Closed-details link entered modal Tab cycle and stalled forward traversal",
+        "correction": "Exclude controls hidden by closed details ancestors except their summary",
+        "negativeCheck": "Intended manifest-focus assertion failed; outer 60-second timeout retained",
+        "followUp": "resolved independently"
+      }
+    ],
+    "evidenceDirectory": "output/prepared-import-independent-2026-10-17"
+  },
+  "followUp": {
+    "target": "0441f24090e75d6b19118947aff804ea94188318",
+    "scenarios": 4,
+    "exactFocusAssertions": 224,
+    "pageErrors": 0,
+    "additionalFindings": 0,
+    "evidenceDirectory": "output/prepared-import-independent-followup-2026-10-17"
+  },
+  "stagedPackage": {
+    "target": "0441f24090e75d6b19118947aff804ea94188318",
+    "files": 82,
+    "engines": [
+      "Chrome155.0.8059.82",
+      "PlaywrightWebKit26.0"
+    ],
+    "startup": true,
+    "inspectionAndNormalHandoff": true,
+    "chromeOfflineReloadAndImport": true,
+    "pageErrors": 0
+  }
+}

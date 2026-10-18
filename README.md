@@ -4,11 +4,19 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.7
+**Current version:** 3.19.8
 
 ---
 
 WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+
+## Open files with optional local preparation
+
+Use **Load** or drag and drop normally. If a video or audio file cannot be used fully, WarpDiff offers **Prepare and open**. Connect the separately running local tool once for this visit, approve its connection window, and keep that window open. Only your explicit preparation action sends selected files to that tool on your computer; nothing is uploaded to a remote preparation service. The returned copies load automatically alongside the other comparison files. No package manifest, copied per-file command or second picker is needed.
+
+Originals stay untouched. Compatible AVC picture is copied; other picture may become H.264 at up to 1080p. Video soundtracks become stereo AAC; audio-only copies retain channel count/sample rate in PCM WAV. Analysis describes the loaded review copy, not original-source fidelity or measurement conformance. The local tool uses separately installed FFmpeg/ffprobe; WarpDiff bundles no converter. **Preparation → Other ways to prepare** retains the safe copied-command fallback. Managed review hosts retain control of their media.
+
+[Local tool setup and limits](tools/media-prepare/companion/README.md). This candidate workflow is awaiting review and is not published yet.
 
 ## Customize the info bar
 
@@ -69,7 +77,7 @@ It started as a personal tool for my own review workflow. Other reviewers asked 
 
 **Prepared packages**
 
-Open **Package** (Load prepared package) in the header, select `warpdiff-package.json` and the prepared MP4, and optionally select the original to check its byte binding. Add up to three companion images or videos. **Check package** verifies the selected bytes and bounded container requirements without replacing the current comparison; **Load comparison** then starts a new comparison through the normal decoder checks. The original is used only for matching and is not added automatically. Loading uses the usual timestamp ordering. Inspection failure or cancellation preserves the current comparison. Nothing is uploaded or converted in the browser. The summary distinguishes inspected stereo format from declared transformations and unverified timing, source fidelity and measurement conformance. See the [optional external tool](tools/media-prepare/README.md).
+Ordinary files use **Load** or drag and drop; no package is needed. For files from the optional external tool, open **Help → Advanced → Import externally prepared media**, select `warpdiff-package.json` and the prepared MP4, and optionally select the original to check its byte binding. Add up to three companion images or videos. The dialog explains setup under **How to get prepared files** and offers **Load ordinary files** to return to normal loading. **Check prepared files** verifies the selected bytes and bounded container requirements without replacing the current comparison; **Load comparison** then starts a new comparison through the normal decoder checks. The original is used only for matching and is not added automatically. Loading uses the usual timestamp ordering. Inspection failure or cancellation preserves the current comparison. Nothing is uploaded or converted in the browser. The summary distinguishes inspected stereo format from declared transformations and unverified timing, source fidelity and measurement conformance. See the [optional external tool](tools/media-prepare/README.md).
 
 **Loading feedback**
 - **Media status** shows observed picture, pixel access, native playback, decoded-audio analysis and scrub-audio availability for each loaded input. It distinguishes reported timing from unverified frame-rate, synchronization and original-source fidelity claims. Refresh checks current frames without starting playback or preparation. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)
@@ -82,7 +90,7 @@ Open **Package** (Load prepared package) in the header, select `warpdiff-package
 - `Shift+Z` linked zoom — hover one asset, see the same spot magnified on all others
 
 **Video & audio playback**
-- Unsupported video audio uses a safe external FFmpeg command and reload workflow. WarpDiff does not bundle or run FFmpeg. The supplied command targets MP4/MOV video (including `.m4v`); other formats require a suitable external command. Install FFmpeg separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Short soundtracks are padded to retain the complete picture. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
+- Unsupported video audio uses a safe external FFmpeg command and numbered reload guidance; no package or JSON details file is needed. WarpDiff does not bundle or run FFmpeg. The supplied command targets MP4/MOV video (including `.m4v`); other formats require a suitable external command. Install FFmpeg separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Short soundtracks are padded to retain the complete picture. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
 - Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Recognized MP4 inputs need one readable audio track for waveform, spectrogram, loudness and scrub audio. Multiple or unverifiable tracks keep native playback with a preparation notice; export the desired track and reload. WarpDiff does not guess which track the browser plays. [Scope and verification](docs/mp4-audio-hardening-2026-10-16/README.md)
