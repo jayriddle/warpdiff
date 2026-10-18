@@ -45,3 +45,8 @@ Inspection checks a bounded 16 KiB versioned manifest, 64 MiB per selected file,
 The status is **candidate**, with `validation: 'normal-load-required'`. It does not certify full browser decoding, complete AVC parameter sets, CFR/frame mapping, end-to-end synchronization, channel fidelity, source derivation or professional measurements. The existing loader owns decoded frames, playable/analyzed audio and correlated host READY/FAILED. The Media status prepared-profile field remains unvalidated. Provider success, hashes and sidecar claims never authorize READY.
 
 Run `npm run test:ownership`, `npm run test:preparation` and the `prepared-media.spec.ts` Chrome/WebKit cases. The helper checks run in the protected ownership CI job after fixture generation. See [the architecture](../../docs/media-input-architecture.md) and [work record](../../docs/prepared-package-2026-10-17/README.md).
+
+An alternative [local companion prototype](companion/README.md) tests one-click
+preparation and automatic opening without package files. It is development
+tooling around a local managed copy of WarpDiff, not a deployed or installed
+feature. Its transport and preparation policy are separate from this package recipe.

@@ -1,0 +1,55 @@
+{
+  "base": "d2c56f782d92bd6803c9e99e1564efe3320a8e53",
+  "branch": "codex/local-preparation-prototype",
+  "scope": "repository-only loopback prototype; no merge or publication",
+  "browser": {
+    "startTime": "2026-10-18T06:27:34.220Z",
+    "duration": 47348.37100000001,
+    "expected": 22,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0,
+    "runnerErrors": 0,
+    "workers": 1,
+    "retries": 0,
+    "engines": [
+      "Chrome 155",
+      "Playwright WebKit"
+    ]
+  },
+  "native": {
+    "passed": 9,
+    "failed": 0
+  },
+  "ownership": {
+    "passed": 1353,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 26,
+    "failed": 0
+  },
+  "preservation": {
+    "baseline": "d2c56f782d92bd6803c9e99e1564efe3320a8e53",
+    "branch": "codex/local-preparation-prototype",
+    "existingFiles": 1115,
+    "changed": [
+      "tools/media-prepare/README.md"
+    ],
+    "fixtures": 37,
+    "fixtureChanges": []
+  },
+  "sources": {
+    "playwright.companion.config.ts": "c7e1c6bde07277a75c552d66ed4548aa15e5b554420e4f87e1f962b9753f9116",
+    "tests/local-companion.test.mjs": "8cc8969c9d247d8531fced4ed11a88054f36f19b2d4f6b351b04a3f0aa8f2437",
+    "tests/local-companion.spec.ts": "303c6dc04b17db0c29f92ad33bb0339f8dba48185c95278e3a21bf0fab599c18",
+    "tests/helpers/local-companion-launch.mjs": "d56d053c46d251e507cbeccbd08508611dd1ab36c8e5f8ebd575d91db385cebc",
+    "tools/media-prepare/companion/README.md": "34b5347e3c2a11af3dabd195b267d1b9883692b7091807e403614fea0e6ea63c",
+    "tools/media-prepare/companion/client.js": "9f4693884fde1949ffe5ea67944f22e4f7597c48061fb8c7560a7d0d9873aac6",
+    "tools/media-prepare/companion/index.html": "f67bb72a7652251bffaea17d6ed7b21d9a47436df5fed1409ecb34cd1b0e05f2",
+    "tools/media-prepare/companion/processor.mjs": "9f75374b7eb5cf8640ffb22950bc6b0b2184d1a7aebec235088945adce1f4610",
+    "tools/media-prepare/companion/server.mjs": "1fbb3e2b19115ae59414fe6d3d248a2a9fdba5861fd159bd8f630bd2764b208c",
+    "tools/media-prepare/companion/style.css": "8d7f1fdfabb14c559ed5490e069f10b98c151701a7f4f6e0cab5c0ae858cea60"
+  },
+  "evidence": "output/local-companion-prototype-2026-10-17-2fYJoC"
+}
