@@ -178,3 +178,16 @@ The initial hosted run was cancelled after the recorded shard failure; partial
 passes/cancelled jobs are not a complete passing inventory. A fresh hosted run
 of the corrected commit is required. Final receipts are kept in the author
 completion record and PR; source runtime bytes remain those reviewed at b520fb3.
+
+The second hosted run `39147201175` at `4de7e4e` also was not green:
+complete Chromium recorded **630 passed/two failed/one approved skip**. The two
+remaining cases clicked Media status beneath the intentionally open Preparation
+modal after manual corrupt-file/invalid-AVC loading. The tests now dismiss that
+guidance first (the AVC case only expects it when the native element reports an
+error), then retain the unavailable/unknown picture/frame access, not-validated
+profile and absence-of-READY assertions. Independent source review agrees these
+are navigation adaptations, not readiness changes. Both complete affected spec
+files passed **80/80** Chrome/WebKit cases, one worker/zero retries, about
+1.2 minutes. The source runtime still matches b520fb3. WebKit in the second
+hosted run was not complete when superseded; no passing result is inferred.
+A new complete hosted run is required for the final test-only correction.

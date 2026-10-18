@@ -106,6 +106,10 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   const forged={...manifest,rendition:{...manifest.rendition,sha256:createHash('sha256').update(bytes).digest('hex')}};
   await page.locator('#preparedImportManifest').setInputFiles({name:'manifest.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(forged))});await page.locator('#preparedImportMedia').setInputFiles({name:'review.mp4',mimeType:'video/mp4',buffer:bytes});await check(page);expect(await current(page)).toEqual(['green.png']);await page.locator('#preparedImportLoad').click();
   await expect.poll(()=>page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>!!v.error||v.readyState>=2),{timeout:15000}).toBe(true);
+  if(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>!!v.error)) {
+    await expect(page.locator('#localPreparationDialog')).toBeVisible();
+    await page.locator('#localPreparationClose').click();
+  }
   await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
   const report=await page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA);
   expect(['unknown','unavailable']).toContain(report.capabilities.picture.state);expect(['unknown','unavailable']).toContain(report.capabilities.frameAccess.state);expect(report.admission.preparedProfile).toBe('not-validated');expect(await page.evaluate(()=>(window as any).importReplies)).toEqual([]);
