@@ -2,7 +2,7 @@
   "baseline": "72dcec3c2554aeca731cb0a89b8b676973cdee14",
   "candidateVersion": "3.19.8",
   "branch": "codex/prepared-import-usability",
-  "status": "correction tested; independent follow-up pending",
+  "status": "local and independent follow-up passed; hosted results recorded on PR after this documentation commit",
   "mergeAuthorized": false,
   "publicationAuthorized": false,
   "evidenceDirectory": "output/prepared-import-usability-2026-10-17-DURVsJ",
@@ -72,9 +72,29 @@
         "issue": "Closed-details link entered modal Tab cycle and stalled forward traversal",
         "correction": "Exclude controls hidden by closed details ancestors except their summary",
         "negativeCheck": "Intended manifest-focus assertion failed; outer 60-second timeout retained",
-        "followUp": "pending"
+        "followUp": "resolved independently"
       }
     ],
     "evidenceDirectory": "output/prepared-import-independent-2026-10-17"
+  },
+  "followUp": {
+    "target": "0441f24090e75d6b19118947aff804ea94188318",
+    "scenarios": 4,
+    "exactFocusAssertions": 224,
+    "pageErrors": 0,
+    "additionalFindings": 0,
+    "evidenceDirectory": "output/prepared-import-independent-followup-2026-10-17"
+  },
+  "stagedPackage": {
+    "target": "0441f24090e75d6b19118947aff804ea94188318",
+    "files": 82,
+    "engines": [
+      "Chrome155.0.8059.82",
+      "PlaywrightWebKit26.0"
+    ],
+    "startup": true,
+    "inspectionAndNormalHandoff": true,
+    "chromeOfflineReloadAndImport": true,
+    "pageErrors": 0
   }
 }
