@@ -37,7 +37,9 @@
       "tools/media-prepare/README.md"
     ],
     "fixtures": 37,
-    "fixtureChanges": []
+    "fixtureChanges": [],
+    "verifiedAfterCorrection": "921aad9884d60fa264f66da1992f2220c94d0773",
+    "sourceHashMismatches": 0
   },
   "sources": {
     "playwright.companion.config.ts": "c7e1c6bde07277a75c552d66ed4548aa15e5b554420e4f87e1f962b9753f9116",
@@ -58,12 +60,23 @@
       {
         "priority": "P2",
         "issue": "Rejected selection retires current comparison",
-        "status": "corrected; author24/24; focused independent follow-up pending"
+        "status": "closed by independent follow-up at 921aad9884d60fa264f66da1992f2220c94d0773"
       }
     ],
     "nativePassed": 9,
     "controlledBrowserJourneys": 19,
     "evidence": "output/local-companion-independent-2026-10-18/REVIEW.md",
     "baselineLimitation": "WebKit paused video can remain black until Play; reproduced without wrapper"
+  },
+  "independentFollowup": {
+    "target": "921aad9884d60fa264f66da1992f2220c94d0773",
+    "materialFindings": 0,
+    "journeys": 4,
+    "invalidSelectionProbes": 12,
+    "nativeJobsStarted": 2,
+    "nativeJobsRetired": 2,
+    "pageErrors": 0,
+    "fixturesUnchanged": 37,
+    "evidence": "output/local-companion-independent-followup-2026-10-18/REVIEW.md"
   }
 }

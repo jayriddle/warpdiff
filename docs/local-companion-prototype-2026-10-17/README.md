@@ -138,3 +138,25 @@ checks and 19 controlled browser journeys, including two delayed native-job
 retirements. Its original finding and raw evidence remain at
 `output/local-companion-independent-2026-10-18/REVIEW.md`; the original reviewed
 revision is not retrospectively described as clean.
+
+Focused independent follow-up at **921aad9884d60fa264f66da1992f2220c94d0773**
+closed that P2 with no additional material correction finding. Four independent
+Chrome/WebKit journeys at 390×650 checked 12 invalid selections, exact retained
+iframe/media identity, valid replacement recovery and two native-job retirements.
+Client/style HTTP bytes matched disk and all 37 fixture hashes/sizes/mtimes
+remained unchanged. This is a focused follow-up, not an independent rerun of the
+entire 24-case inventory. Evidence:
+`output/local-companion-independent-followup-2026-10-18/REVIEW.md`.
+
+Final ownership/infrastructure checks again passed **1,353/26**. The preservation
+audit checked 1,115 pre-existing tracked/nonignored files: the only intentional
+change to an existing file is the prototype link in `tools/media-prepare/README.md`;
+all other pre-existing file bodies and all 37 fixture hashes/mtimes remain unchanged.
+Remaining files are additions for this prototype. Source hashes match the tested
+correction. The final record-only commit does not change implementation/tests.
+
+The next practical check is trying actual problem files in the local prototype,
+preferably Chromium first because of the retained WebKit paused-picture issue.
+Turning this into an installed companion or connecting the published app to it
+requires a separate transport/installation slice. No new PR, push, merge or
+publication was performed for this prototype. PR #53 remains unchanged and held.
