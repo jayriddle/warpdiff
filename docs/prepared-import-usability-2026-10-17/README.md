@@ -23,8 +23,16 @@ Initial exploratory run: **149 passed, one failed** in 2.4 minutes. The new outs
 
 Desktop welcome/import, 390×650 import and external-audio steps were visually inspected. At 390×650, the dialog opens at scrollTop 0 with the heading focused and the ordinary-loading exit inside its visible bounds. First structural checks: ownership **1353 passed**, infrastructure **26 passed**.
 
-Fresh local verification: **150 focused passes** (75 per engine; 1.3 minutes) plus **32 startup/release-note passes** (16 per engine; 13.5 seconds). Complete/disjoint inventories were verified with zero retries, skips, flaky results or runner errors. Ownership **1353 passed**, infrastructure **26 passed**. The legacy startup copy changes only its fixture directory and replaces the fixture-writing beforeAll with read-only sentinels; scenario assertions are unchanged. Independent review and hosted check evidence will be recorded before the PR is handed back. No merge or publication is authorized.
+Fresh local verification: **150 focused passes** (75 per engine; 1.3 minutes) plus **32 startup/release-note passes** (16 per engine; 13.5 seconds). Complete/disjoint inventories were verified with zero retries, skips, flaky results or runner errors. Ownership **1353 passed**, infrastructure **26 passed**. The legacy startup copy changes only its fixture directory and replaces the fixture-writing beforeAll with read-only sentinels; scenario assertions are unchanged. The independent review and correction are recorded below. Required hosted results will be attached to the PR and full local work record after the final branch push, avoiding an extra documentation-only CI cycle. No merge or publication is authorized.
 
 ## Limits
 
 Playwright WebKit is not physical Safari. Touch is emulated. Real chooser activation is tested; OS Cancel is represented by its DOM cancellation event. No new physical listening, codec/timing/measurement conformance or OS PWA migration claims are made. Existing historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate.
+
+## Adversarial review and keyboard correction
+
+Independent review of `a70f6ce44432fbf719e772ec75a7725850007c2f` found one new P2: the collapsed setup guide's link retained nonempty client rectangles, so the explicit Tab cycle attempted to focus it and stalled on the summary. The reviewer's focused suite passed **128/128**; a separate **18-Tab-per-engine** probe exposed the coverage gap in both Chrome and WebKit. Evidence: `output/prepared-import-independent-2026-10-17/REVIEW.md` and `focus-probe.json`. No other material finding was established.
+
+The new exact traversal regression was first run against the unfixed production source. It failed at the intended manifest-focus assertion and also reached the outer 60-second timeout; both errors remain in `negative-report.json` / `negative.log`. The correction excludes descendants of closed details except their summary. The existing focus owner recomputes the cycle on each Tab; no additional keyboard owner is added. Tests cover every control forwards and backwards, with guidance closed/open and after closing it again.
+
+After correction: **154 focused passes** (77 per engine; 1.4 minutes), **32 startup/release-note passes**, and ownership **1353 passed**. Inventories are complete and unique, zero retries, skips, flaky results or runner errors. The focused independent follow-up is pending on the pinned correction. Merge and publication remain on hold.

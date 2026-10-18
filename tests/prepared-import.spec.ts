@@ -188,6 +188,21 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.keyboard.press('Escape');await expect(page.locator('#quickStartPopup')).toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();
   await page.keyboard.press('Escape');await expect(page.locator('#quickStartPopup')).not.toBeVisible();expect(await current(page)).toEqual(['green.png']);
  });
+ for(const expanded of [false,true])test(`forward and reverse Tab reach every control with ${expanded?'expanded':'collapsed'} guidance`,async({page})=>{
+  await expect(page.locator('#preparedImportTitle')).toBeFocused();
+  await page.keyboard.press('Tab');await expect(page.locator('#preparedImportOrdinary')).toBeFocused();
+  await page.keyboard.press('Tab');await expect(page.locator('#preparedImportGuide summary')).toBeFocused();
+  if(expanded)await page.keyboard.press('Enter');
+  const fields=['#preparedImportManifest','#preparedImportMedia','#preparedImportSource','#preparedImportOthers','#preparedImportCancel'];
+  const afterSummary=expanded?['#preparedImportGuide a',...fields]:fields;
+  for(const selector of afterSummary){await page.keyboard.press('Tab');await expect(page.locator(selector)).toBeFocused();}
+  await page.keyboard.press('Tab');await expect(page.locator('#preparedImportOrdinary')).toBeFocused();
+  for(const selector of [...afterSummary].reverse()){await page.keyboard.press('Shift+Tab');await expect(page.locator(selector)).toBeFocused();}
+  await page.keyboard.press('Shift+Tab');await expect(page.locator('#preparedImportGuide summary')).toBeFocused();
+  if(expanded){await page.keyboard.press('Enter');await page.keyboard.press('Tab');await expect(page.locator('#preparedImportManifest')).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(page.locator('#preparedImportGuide summary')).toBeFocused();}
+  await page.keyboard.press('Shift+Tab');await expect(page.locator('#preparedImportOrdinary')).toBeFocused();
+  expect(await current(page)).toEqual(['green.png']);
+ });
  test.describe('touch guidance',()=>{test.use({hasTouch:true});test('narrow Help and the ordinary exit remain reachable with touch',async({page})=>{
   await page.setViewportSize({width:320,height:480});await page.locator('#preparedImportCancel').click();
   const box=(await page.locator('#quickStartPopup').boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(320);

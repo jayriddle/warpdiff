@@ -149,7 +149,16 @@ document.getElementById('preparedImportDialog').addEventListener('keydown', even
     if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
     const dialog = event.currentTarget;
     const controls = [...dialog.querySelectorAll('a[href], summary, input:not(:disabled), button:not(:disabled)')]
-        .filter(control => control.tabIndex >= 0 && control.getClientRects().length);
+        .filter(control => {
+            if (control.tabIndex < 0 || !control.getClientRects().length) return false;
+            // Browsers can report rectangles for descendants of closed details
+            // even though they cannot take focus. Only its summary participates.
+            for (let parent = control.parentElement; parent && parent !== dialog; parent = parent.parentElement) {
+                if (parent.matches('details:not([open])') &&
+                        !parent.querySelector(':scope > summary')?.contains(control)) return false;
+            }
+            return true;
+        });
     if (!controls.length) return;
     // WebKit's platform Tab policy can skip buttons despite tabIndex === 0.
     // Cycle the dialog's controls explicitly so both directions include them.
