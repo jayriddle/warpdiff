@@ -53,7 +53,7 @@ not an installable companion or an integration into the published site.
 
 ## Verification
 
-Final control-state run: **22 passed**, 11 Chromium/11 WebKit, one worker,
+Pre-review control-state run: **22 passed**, 11 Chromium/11 WebKit, one worker,
 zero retries, no skipped/flaky cases and no runner errors; 47.3 seconds.
 The preceding complete run also passed 22 cases in 46.0 seconds before the
 last control-state restriction.
@@ -111,3 +111,30 @@ Compact machine-readable results accompany this record.
 This slice does not merge, publish, install dependencies, change machine
 settings or redistribute FFmpeg. The local prototype is for trying the
 workflow before product integration and release review.
+
+## Adversarial review and correction
+
+Review at `a769a7f` found a P2 wrapper regression: `choose()` retired the current
+comparison before validating a new selection. Five files or an image/audio mix
+therefore discarded a valid comparison. The unchanged app rejects those while
+retaining the comparison. The correction validates count, kind, nonempty files
+and allowed mix first, then uses a separate status notice on rejection. Only an
+accepted replacement may change generation, retire the frame or cancel native
+work. New browser checks assert the original iframe survives rejection,
+capabilities remain usable, valid replacement clears the notice, and an invalid
+selection during native processing leaves that job running until explicit Cancel.
+
+The visual review also examined black initial-video screenshots. Chrome's
+immediate screenshot preceded its normal fade and was red after settling.
+Playwright WebKit retained a black paused frame, reproduced independently in
+the unchanged wrapper-free app and with inert disabled; native Play recovered
+both ordinary and prepared playback. This is retained as a visible baseline
+limitation. It is not classified as repaired or as physical Safari verification.
+
+After correction, the complete prototype inventory passed **24/24**, 12 per
+engine, in 47.9 seconds with one worker, zero retries, no skips/flaky results
+and no runner errors. The pinned independent first review passed nine native
+checks and 19 controlled browser journeys, including two delayed native-job
+retirements. Its original finding and raw evidence remain at
+`output/local-companion-independent-2026-10-18/REVIEW.md`; the original reviewed
+revision is not retrospectively described as clean.

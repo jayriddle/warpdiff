@@ -93,7 +93,8 @@ WARPDIFF_BROWSER_CHANNEL=chrome npx playwright test --config=playwright.companio
 
 The browser tests use one worker and zero retries in Chromium and Playwright
 WebKit. They exercise direct loading, real DTS/FFV1 preparation, automatic
-return, mixed comparisons, cancellation, file drops and narrow layouts.
+return, mixed comparisons, cancellation, file drops, rejected selections and
+narrow layouts. Rejected selections preserve the current comparison/job.
 Native tests exercise authorization, request limits, exclusive reservation,
 stale cancellation, process retirement and real conversion/cleanup.
 
@@ -105,5 +106,11 @@ and Safari behavior remain unimplemented. Physical Safari, iOS, an installer,
 signing/updating, crash cleanup, progress/capacity reporting, HDR/color handling,
 multi-track selection and original-source measurement provenance need separate
 design and verification. Existing app playback/scrub workarounds remain in place.
+
+The unchanged app can initially show a black paused video in Playwright WebKit
+until Play is pressed. Independent checks reproduced this without the wrapper
+and with ordinary and prepared files; playback recovered. Chromium showed the
+expected paused picture after its normal fade. This remains a visible baseline
+limitation, not a verified physical-Safari result.
 
 This prototype is a proof of the handoff, not a promise to open every format.

@@ -80,6 +80,9 @@ test('clear during preparation retires the external job and cannot reopen its la
     await page.goto(delayed.origin);await page.locator('#files').setInputFiles(own('dts_video.mp4'));await expect(page.locator('#prepare')).toBeVisible({timeout:45000});await page.locator('#prepare').click();
     await expect.poll(()=>delayed.state().started).toBe(true);
     await expect(page.locator('#prepareAgain')).toBeHidden();await expect(page.locator('#anyway')).toBeHidden();
+    await page.locator('#files').setInputFiles([fixture('green.png'),fixture('stereo.wav')]);
+    await expect(page.locator('#notice')).toContainText('has been kept');expect(delayed.state().retired).toBe(false);
+    await expect(page.locator('#title')).toHaveText('Preparing your files');
     await page.locator('#cancel').click();
     await page.locator('#files').setInputFiles(fixture('blue.png'));await ready(page);
     await expect.poll(()=>delayed.state().retired).toBe(true);
@@ -124,4 +127,20 @@ test('preparation cover prevents keyboard interaction with the concealed compari
   }
   await page.locator('#anyway').click();await ready(page);
   expect(await page.locator('iframe').evaluate((frame:HTMLIFrameElement)=>frame.inert)).toBe(false);
+});
+
+test('rejected selection preserves the current comparison and frame identity',async({page})=>{
+  await page.locator('#files').setInputFiles(fixture('green.png'));await ready(page);
+  await page.locator('iframe').evaluate(frame=>frame.setAttribute('data-original-frame','yes'));
+  const image=fs.readFileSync(fixture('green.png'));
+  for(const selection of [Array.from({length:5},(_,i)=>({name:'image'+i+'.png',mimeType:'image/png',buffer:image})),
+    [fixture('green.png'),fixture('stereo.wav')],[{name:'empty.png',mimeType:'image/png',buffer:Buffer.alloc(0)}]]){
+    await page.locator('#files').setInputFiles(selection as any);
+    await expect(page.locator('#notice')).toContainText('has been kept');await ready(page);
+    await expect(page.locator('iframe')).toHaveAttribute('data-original-frame','yes');
+    expect((await reports(page)).editA.capabilities.picture.state).toBe('available');
+  }
+  await page.locator('#files').setInputFiles(fixture('blue.png'));await ready(page);
+  await expect(page.locator('#notice')).toBeEmpty();
+  await expect(page.locator('iframe')).not.toHaveAttribute('data-original-frame','yes');
 });

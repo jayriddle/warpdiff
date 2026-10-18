@@ -1,7 +1,7 @@
 'use strict';
 (() => {
     const token=document.querySelector('meta[name="companion-token"]').content;
-    const ui=Object.fromEntries(['open','files','prepareAgain','comparison','cover','title','message','names','copyNote','prepare','anyway','cancel'].map(id=>[id,document.getElementById(id)]));
+    const ui=Object.fromEntries(['open','files','prepareAgain','comparison','cover','title','message','notice','names','copyNote','prepare','anyway','cancel'].map(id=>[id,document.getElementById(id)]));
     let generation=0, files=[],needs=[],frame=null,directReady=false,pendingFrame=null,pendingHost=null,job=null,preparation=null,retiring=Promise.resolve();
     const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     function kind(file) {
@@ -95,12 +95,13 @@
         } finally {urls.forEach(url=>URL.revokeObjectURL(url));}
     }
     async function choose(selected) {
-        const epoch=++generation;cancelHost();clearFrame();files=[];needs=[];await disposeJob();
-        if(epoch!==generation)return;
         if(selected.length<1||selected.length>4||selected.some(file=>!kind(file)||!file.size)||
            selected.some(file=>kind(file)==='audio')&&selected.some(file=>kind(file)!=='audio')) {
-            needs=[];view('Choose 1–4 media files','Use images and videos together, or an audio-only comparison.');return;
+            ui.notice.textContent='Choose 1–4 nonempty media files: images and videos together, or audio only. Your current comparison or preparation has been kept.';return;
         }
+        ui.notice.textContent='';
+        const epoch=++generation;cancelHost();clearFrame();files=[];needs=[];await disposeJob();
+        if(epoch!==generation)return;
         files=[...selected];needs=[];await openComparison(files,epoch);
     }
     async function prepare() {
@@ -141,7 +142,7 @@
     ui.prepare.addEventListener('click',prepare);
     ui.prepareAgain.addEventListener('click',()=>view('Prepare compatible review copies','The selected files will be prepared locally.',{prepare:true,anyway:true,cancel:true,copy:true}));
     ui.anyway.addEventListener('click',()=>{if(directReady&&!preparation)view('Opened with limited tools','Some audio tools may be unavailable.',{visible:false});});
-    ui.cancel.addEventListener('click',async()=>{++generation;cancelHost();files=[];needs=[];clearFrame();view('Open your files','Preparation cancelled. Your originals are unchanged.');await disposeJob();});
+    ui.cancel.addEventListener('click',async()=>{++generation;cancelHost();files=[];needs=[];ui.notice.textContent='';clearFrame();view('Open your files','Preparation cancelled. Your originals are unchanged.');await disposeJob();});
     for(const type of ['dragover','drop'])document.addEventListener(type,event=>{if(!event.dataTransfer?.types.includes('Files'))return;event.preventDefault();if(type==='drop')choose([...event.dataTransfer.files]);});
     window.addEventListener('pagehide',()=>{
         if(job){job.controller.abort();fetch('/api/cancel',{method:'POST',headers:apiHeaders(job.id),keepalive:true}).catch(()=>{});}

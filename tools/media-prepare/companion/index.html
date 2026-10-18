@@ -4,7 +4,7 @@
 <title>WarpDiff — local preparation prototype</title><link rel="stylesheet" href="/style.css"><script src="/client.js" defer></script></head>
 <body><header><strong>WarpDiff</strong><span class="badge">Local prototype</span><button id="open">Open files…</button>
 <input id="files" type="file" accept="image/*,video/*,audio/*,.mkv,.mov,.mxf,.avi,.ac3,.dts,.mlp,.m4v" multiple hidden>
-<button id="prepareAgain" hidden>Prepare a compatible copy…</button><span id="privacy">Your files stay on this computer.</span></header>
+<button id="prepareAgain" hidden>Prepare a compatible copy…</button><span id="privacy">Your files stay on this computer.</span><span id="notice" role="status" aria-live="polite"></span></header>
 <main id="stage"><div id="comparison"></div><section id="cover"><div class="card">
 <h1 id="title">Open your files</h1><p id="message" role="status" aria-live="polite">Choose or drop 1–4 images, videos or audio files to compare.</p>
 <ul id="names"></ul><p id="copyNote" hidden>A review copy may change picture or sound. Compatible AVC picture is copied; other video is converted to H.264 at up to 1080p. Video soundtracks become stereo AAC. Audio-only copies keep their channel count and sample rate. Keep the originals for original-source measurements.</p>
