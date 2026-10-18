@@ -128,3 +128,32 @@ interrupted attempt additionally contained an invalid late-CONNECT harness:
 normal app disconnect correctly closes its popup; the focused replacement uses
 an independent controlled opener to exercise a still-open, disconnected bridge.
 Further full inventories and independent browser checks are pending.
+
+## Corrected candidate and independent outcome
+
+At `b520fb3`, the complete new integration inventory passed **32/32** in
+44.8 seconds, one worker and zero retries. Native preparation/helper checks
+passed **33/33**, ownership **1,360/1,360**, and infrastructure **26/26**.
+The unexplained earlier companion timeout remains historical evidence; this
+passing run does not establish its cause or claim a processor repair.
+
+The adversarial reviewer found no remaining material finding in the corrected
+scope. Independent execution passed **12/12** selected integration cases,
+**four** custom keyboard/origin checks and **two** real-public-origin transport
+probes. Chrome and WebKit navigated the actual GitHub Pages origin, temporarily
+injected only candidate transport/test controls, approved the local popup and
+explicitly prepared a fixed AC-3 fixture. Both returned a 26,572-byte MP4 and the
+unchanged released app decoded its audio. No native API request occurred before
+Prepare. This verifies the transport under the production HTTPS origin; it does
+not mean the candidate is deployed, nor replace physical Safari verification.
+The public site remained 3.19.7 at `72dcec3`.
+
+Independent evidence: `output/normal-preparation-independent-2026-10-18/REVIEW.md`
+and `review.json`. The reviewer preserved all 37 fixture hashes/sizes/mtimes.
+Author preservation checks found no missing or unexpected changed pre-existing
+files. Exact `b520fb3` staging produced **86** stable/pinned public files; native
+helper, bridge and processor files are absent. Further staged/offline and broader
+regression results, required hosted check receipts, final hashes and preservation
+are retained in the author evidence directory's final verification record and PR.
+These later checks must be inspected before merge consideration. Merge and
+publication remain held; this record does not authorize release.

@@ -115,3 +115,35 @@ The [foundation work record](media-input-contract-2026-10-17/README.md), [capabi
 Selection changes invalidate a candidate. Cancel/Escape, clear, a new load and managed-host activation retire it. Cancelled File/WebCrypto work retains the one-inspection reservation until settlement, including after reopening; late completion cannot load or update a newer selection. The native dialog owns keyboard input, blocks page file drops and restores opener focus. Clear resets all file inputs and retained candidate references. Managed review hides/rejects this standalone action; there is no new host protocol or provider discovery. The summary separates matched bytes and inspected format from declared transformation/source-derivation claims and unverified conformance. The selected original is never loaded automatically.
 
 The 3.19.8 candidate labels the ordinary Load button, starts Help with normal file loading, and places the package importer under Help → Advanced. The dialog offers a synchronous user-gesture handoff to the ordinary chooser, explains the two external-tool outputs and expands optional setup steps. Help stays beneath the native modal so Cancel/Escape can restore opener focus; choosing ordinary loading closes Help through its existing owner. Entry bindings wait for the later Help markup. These are presentation changes, not new preparation/admission capabilities.
+
+## Normal-app local connection (candidate 3.19.8)
+
+`js/local-preparation.js` now connects the optional repository-only companion to
+ordinary standalone loading. Current manual source Files and their established
+slot order stay with the comparison owner. Decode owners report affected slots;
+connecting alone neither reads nor sends them. Explicit Prepare and open invokes
+the trusted local provider with the distinct `local-review-copy-v1` request.
+Unaffected files join the returned copies through normal strict initial-media
+admission. No public host message, provider READY authority or prepared-profile
+certification is added. Managed-host entry disconnects this standalone authority.
+The earlier package importer and safe copied command remain explicit alternatives.
+
+`js/preparation-connection.js` owns an explicitly entered loopback address,
+random-nonce popup handshake and MessagePort. The helper checks the immutable
+launch origin/nonce before accepting a channel, displays its requesting origin,
+and requires local approval. Only the production origin or loopback development
+origins are accepted; the shared GitHub Pages origin remains the trust boundary.
+The bearer token and native API stay on the helper origin. There is no CORS API,
+local port scan, automatic tool start, engine download or browser conversion.
+Disconnect is terminal for an approval window. Clear/replacement cancels work;
+late returns cannot replace a new comparison. The connected transport retains
+its pending job until the helper responds after native cleanup.
+
+The external processor accepts one selected picture/soundtrack or one audio-only
+stream. Video may become H.264 up to 1080p with stereo AAC; audio-only PCM24
+retains channel count/rate. These are review copies, not original-fidelity,
+speaker-layout, HDR/color or measurement conformance guarantees. Setup still
+requires separately installed Node and FFmpeg/ffprobe. The bounded manifest
+importer retains its own smaller caps; the companion's limits are independent.
+See [the integration record](normal-app-preparation-2026-10-18/README.md) for
+limits, test evidence, adversarial corrections and release hold.
