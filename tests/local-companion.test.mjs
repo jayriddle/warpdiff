@@ -164,3 +164,26 @@ test('video preparation can encode non-AVC picture; audio-only preparation keeps
         assert.equal(metadata.streams[0].channels,8);assert.equal(metadata.streams[0].sample_rate,'48000');
     } finally {await fs.rm(directory,{recursive:true,force:true});}
 });
+
+test('bridge rejects invalid launch identities before accepting a port and disconnect is terminal',async()=>{
+    const vm=await import('node:vm');
+    const source=await fs.readFile(new URL('../tools/media-prepare/companion/bridge.js',import.meta.url),'utf8');
+    function launch(origin,nonce='f'.repeat(32),hasOpener=true) {
+        const listeners={},posted=[],opener=hasOpener?{postMessage(value){posted.push(value);}}:null;
+        const ui={status:{textContent:''},site:{textContent:''},allow:{disabled:true,addEventListener(type,fn){this[type]=fn;}},disconnect:{addEventListener(type,fn){this[type]=fn;}}};
+        vm.runInNewContext(source,{document:{querySelector(){return {content:'test-token'};},getElementById(id){return ui[id];}},
+            location:{hash:'#'+new URLSearchParams({id:nonce,origin}),pathname:'/connect.html'},history:{replaceState(){}},
+            window:{opener,addEventListener(type,fn){listeners[type]=fn;}},URL,URLSearchParams,File,AbortController,AbortSignal,
+            fetch(){throw Error('No native request expected');}});
+        const port={start(){},postMessage(value){posted.push(value);},close(){}};
+        const connect=()=>listeners.message?.({source:opener,origin,data:{type:'WARPDIFF_PREPARATION_CONNECT',version:1,id:nonce},ports:[port]});
+        return {listeners,ui,posted,connect};
+    }
+    for(const args of [['https://untrusted.example'],['null'],['https://jayriddle.github.io','bad'],['https://jayriddle.github.io','f'.repeat(32),false]]) {
+        const probe=launch(...args);probe.connect();assert.equal(probe.ui.allow.disabled,true);assert.equal(probe.listeners.message,undefined);assert.deepEqual(probe.posted,[]);
+    }
+    for(const origin of ['https://jayriddle.github.io','http://127.0.0.1:54321','https://localhost:1234']) {
+        const probe=launch(origin);probe.connect();assert.equal(probe.ui.allow.disabled,false);probe.ui.disconnect.click();probe.connect();probe.ui.allow.click();
+        assert.equal(probe.ui.allow.disabled,true);assert.equal(probe.posted.some(item=>item.type==='ready'),false);
+    }
+});

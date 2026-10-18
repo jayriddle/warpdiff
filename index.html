@@ -13561,7 +13561,7 @@
 
         // Listen for the reassignment key press
         document.addEventListener('keydown', function _reassignListener(e) {
-            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open) return;
+            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open || document.getElementById('localPreparationDialog').open) return;
             if (!_reassigningActionId) return;
             e.preventDefault();
             e.stopPropagation();
@@ -13600,7 +13600,7 @@
 
         // Keyboard navigation (lookup-based dispatcher)
         document.addEventListener('keydown', (e) => {
-            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open) return;
+            if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open || document.getElementById('localPreparationDialog').open) return;
             // Let browser-native shortcuts (Cmd+R, Ctrl+R, etc.) pass through
             if (e.metaKey || e.ctrlKey) return;
             const preparationPanel = document.getElementById('ffmpegPanel');

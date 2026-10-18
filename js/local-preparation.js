@@ -40,7 +40,11 @@ function _showLocalPreparation(opener = null) {
     const dialog = document.getElementById('localPreparationDialog');
     if (!dialog) return;
     _renderLocalPreparation();
-    if (!dialog.open) { _localPreparationOpener = opener || document.activeElement; dialog.showModal(); }
+    if (!dialog.open) {
+        _localPreparationOpener = opener || document.activeElement;
+        _closeAppearancePanel(); // retire its capture-phase keyboard owner
+        dialog.showModal();
+    }
 }
 function _closeLocalPreparation() {
     _mediaPreparationProviders.cancel();

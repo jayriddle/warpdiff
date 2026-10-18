@@ -4,15 +4,19 @@
     const params=new URLSearchParams(location.hash.slice(1)),id=params.get('id'),origin=params.get('origin');
     history.replaceState(null,'',location.pathname);
     const status=document.getElementById('status'),allow=document.getElementById('allow');
-    let port=null,connected=false,job=null;
+    let port=null,connected=false,job=null,closed=false;
     const allowed=() => {
         try {const url=new URL(origin);return url.origin===origin && (origin==='https://jayriddle.github.io' ||
             ['127.0.0.1','localhost','[::1]'].includes(url.hostname) && ['http:','https:'].includes(url.protocol));} catch (_) {return false;}
     };
+    // Reject the launch before installing a listener that can accept a port.
+    if(!window.opener||!allowed()||!/^[a-f0-9]{32}$/.test(id||'')) {
+        status.textContent='Open this connection window from WarpDiff.';return;
+    }
     const headers=jobId=>({Authorization:'Bearer '+token,'X-WarpDiff-Job':jobId});
     function post(value){try{port?.postMessage(value);}catch(_) {connected=false;}}
     function close() {
-        connected=false;allow.disabled=true;
+        closed=true;connected=false;allow.disabled=true;
         if(job){job.controller.abort();fetch('/api/cancel',{method:'POST',headers:headers(job.id),keepalive:true}).catch(()=>{});}
         post({type:'closed'});port?.close();port=null;status.textContent='Disconnected. You can close this window.';
     }
@@ -47,7 +51,7 @@
         post(error?{type:'failed',id:current.id,error}:{type:'result',id:current.id,file:result});
     }
     window.addEventListener('message',event=>{
-        if(port||event.source!==window.opener||event.origin!==origin||event.data?.type!=='WARPDIFF_PREPARATION_CONNECT'||event.data.version!==1||event.data.id!==id||event.ports.length!==1)return;
+        if(closed||port||event.source!==window.opener||event.origin!==origin||event.data?.type!=='WARPDIFF_PREPARATION_CONNECT'||event.data.version!==1||event.data.id!==id||event.ports.length!==1)return;
         port=event.ports[0];port.start();allow.disabled=false;status.textContent='Choose Connect to allow this window.';
         port.onmessage=event=>{
             const data=event.data;if(!connected||!data||typeof data!=='object')return;
@@ -56,12 +60,9 @@
             else if(data.type==='prepare')prepare(data);
         };
     });
-    allow.addEventListener('click',()=>{if(!port)return;connected=true;allow.disabled=true;status.textContent='Connected. Return to WarpDiff and choose Prepare and open when needed.';post({type:'ready'});});
+    allow.addEventListener('click',()=>{if(closed||!port)return;connected=true;allow.disabled=true;status.textContent='Connected. Return to WarpDiff and choose Prepare and open when needed.';post({type:'ready'});});
     document.getElementById('disconnect').addEventListener('click',close);
     window.addEventListener('pagehide',close);
-    if(!window.opener||!allowed()||!/^[a-f0-9]{32}$/.test(id||'')) {
-        status.textContent='Open this connection window from WarpDiff.';return;
-    }
     document.getElementById('site').textContent='WarpDiff window: '+origin;
     window.opener.postMessage({type:'WARPDIFF_PREPARATION_HELLO',version:1,id},origin);
 })();

@@ -103,3 +103,28 @@ corrected without weakening the gate; 26 checks then passed.
 Raw evidence and before-state hashes/fixture mtimes:
 `output/normal-app-preparation-2026-10-18-4ykElw/`.
 Final review/hosted results will be appended before PR handoff.
+
+## Adversarial correction checkpoint
+
+The adversarial source review found that the helper installed its port listener
+before rejecting an untrusted launch origin. A crafted later CONNECT could
+re-enable approval. Launch identity validation now precedes listener setup;
+disconnecting is terminal for that window. Native VM checks cover invalid
+origins, missing opener/nonce, valid production/local origins and late CONNECT.
+The preparation modal now retires Appearance's capture handler and both app
+hotkey handlers exempt it. Typing, remapping and native Space remain local.
+Eight focused browser checks passed across Chrome/WebKit, one worker/zero retries.
+Ownership remained 1,360; the helper native inventory increased from nine to ten
+passing checks.
+
+An initial broader regression run was interrupted at 154 passes/two failures/
+124 not run after obsolete implicit-command-panel expectations and a mid-run
+test-source update made it unsuitable as final verification. It is not green.
+The corrected integration attempt also retains a Chrome companion-order timeout:
+the source names remained unchanged while native work ran unusually long, and
+cleanup timed out. No cause or processor repair is claimed. The isolated case
+subsequently passed in both engines, as did a direct native padding probe. The
+interrupted attempt additionally contained an invalid late-CONNECT harness:
+normal app disconnect correctly closes its popup; the focused replacement uses
+an independent controlled opener to exercise a still-open, disconnected bridge.
+Further full inventories and independent browser checks are pending.

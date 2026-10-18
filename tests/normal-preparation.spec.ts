@@ -177,3 +177,45 @@ test('managed host entry disconnects preparation and cannot inherit standalone f
   await expect(page.locator('body')).toHaveClass(/managed-review/);await expect(page.locator('#preparationBtn')).not.toBeVisible();
   await expect.poll(()=>popup.isClosed()).toBe(true);await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
 });
+
+test('an untrusted opener cannot revive a rejected bridge launch',async({context})=>{
+  const attacker=await context.newPage();
+  try {
+    await attacker.route('https://untrusted.example/',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><button id="open">Open controlled connection</button>'}));
+    await attacker.goto('https://untrusted.example/');
+    const id='f'.repeat(32);
+    await attacker.evaluate(({url,id})=>{document.getElementById('open')!.onclick=()=>{
+      (window as any).child=window.open(url+'/connect.html#'+new URLSearchParams({id,origin:location.origin}));
+    };},{url:helper.origin,id});
+    const opening=attacker.waitForEvent('popup');await attacker.locator('#open').click();const popup=await opening;
+    await expect(popup.locator('#status')).toHaveText('Open this connection window from WarpDiff.');
+    await attacker.evaluate(({url,id})=>{const channel=new MessageChannel();(window as any).probe=channel.port1;
+      (window as any).child.postMessage({type:'WARPDIFF_PREPARATION_CONNECT',version:1,id},url,[channel.port2]);
+    },{url:helper.origin,id});
+    await popup.waitForTimeout(100);await expect(popup.locator('#allow')).toBeDisabled();
+    await expect(popup.locator('#status')).toHaveText('Open this connection window from WarpDiff.');await popup.close();
+  } finally {await attacker.close();}
+});
+
+test('disconnect before approval is terminal even when a later CONNECT arrives',async({page})=>{
+  const id='e'.repeat(32);
+  const opening=page.waitForEvent('popup');
+  await page.evaluate(({origin,id})=>{(window as any).latePopup=window.open(origin+'/connect.html#'+new URLSearchParams({id,origin:location.origin}));},{origin:helper.origin,id});
+  const popup=await opening;await popup.waitForLoadState('load');
+  const transfer=()=>page.evaluate(({origin,id})=>{const channel=new MessageChannel();(window as any).latePopup.postMessage({type:'WARPDIFF_PREPARATION_CONNECT',version:1,id},origin,[channel.port2]);},{origin:helper.origin,id});
+  await transfer();await expect(popup.locator('#allow')).toBeEnabled();await popup.locator('#disconnect').click();
+  await transfer();await popup.waitForTimeout(100);await expect(popup.locator('#allow')).toBeDisabled();await expect(popup.locator('#status')).toContainText('Disconnected');await popup.close();
+});
+
+test('preparation keyboard isolates typing, remapping and native Space from comparison controls',async({page})=>{
+  await page.locator('#multiFileInput').setInputFiles(fixture('landscape_a.mp4'));await opened(page,'landscape_a.mp4');
+  await page.locator('#appearanceButton').click();
+  await page.evaluate(()=>{(window as any)._showLocalPreparation();(window as any).eval("_reassigningActionId='help'");});
+  await expect(page.locator('#appearancePanel')).toBeHidden();await page.locator('#localPreparationAddress').focus();
+  await page.keyboard.type('s wg');await expect(page.locator('#localPreparationAddress')).toHaveValue('s wg');
+  expect(await page.evaluate(()=>(window as any).eval('_reassigningActionId'))).toBe('help');
+  await page.evaluate(()=>(window as any).eval('_reassigningActionId=null'));
+  await page.locator('#localPreparationClose').focus();await page.keyboard.press('Space');
+  await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+  expect(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>v.paused)).toBe(true);
+});
