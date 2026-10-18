@@ -3510,6 +3510,17 @@
         #preparedImportGuide li { margin: 8px 0; }
         #preparedImportGuide code { overflow-wrap: anywhere; }
         body.managed-review #helpAdvanced, body.managed-review #helpLoadFiles, body.managed-review #preparedImportOrdinary { display: none !important; }
+        #localPreparationDialog { width:min(620px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); overflow:auto; box-sizing:border-box; margin:auto; padding:22px; background:#202020; color:#ddd; border:1px solid #666; border-radius:8px; font:13px/1.5 system-ui,sans-serif; }
+        #localPreparationDialog::backdrop { background:#0009; }
+        #localPreparationDialog h2 { font-size:19px; margin-top:0; }
+        #localPreparationDialog input { width:100%; box-sizing:border-box; color:#eee; background:#111; border:1px solid #888; padding:8px; font:inherit; }
+        #localPreparationDialog button { color:#eee; background:#383838; border:1px solid #888; border-radius:4px; padding:8px 12px; font:inherit; cursor:pointer; }
+        #localPreparationDialog button:disabled { opacity:.45; cursor:default; }
+        #localPreparationDialog a { color:#9ac8ed; }
+        #localPreparationFiles, #localPreparationStatus { overflow-wrap:anywhere; }
+        .local-preparation-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+        #localPreparationRun { background:#805214; border-color:#c79548; }
+        body.managed-review #preparationBtn { display:none!important; }
     </style>
 </head>
 <body>
@@ -3519,7 +3530,8 @@
             <div id="headerLeft" style="position: relative;">
                 <span class="header-brand-mark" aria-hidden="true"></span><span style="font-size: 16px; font-weight: 600;"><i>Warp</i>Diff</span><span id="appVersion" style="font-size: 11px; color: #888; font-weight: 400; letter-spacing: 0.03em; user-select: all; margin-left: 4px;"></span>
                 <button class="analysis-btn" onclick="document.getElementById('multiFileInput').click(); this.blur();" id="loadBtn" title="Load files (L)" aria-label="Load files" style="margin-left: 12px;"></button>
-                <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <input type="file" id="multiFileInput" accept="image/*,video/*,audio/*,.mkv,.mov,.mxf,.avi,.dts,.ac3,.eac3,.mlp,.truehd" multiple onchange="handleMultiFileLoad(event)" style="display: none;">
+                <button type="button" class="analysis-btn" id="preparationBtn">Preparation</button>
                 <button type="button" class="analysis-btn warn" id="externalAudioBtn" hidden onclick="toggleFfmpegPanel(this)" title="Prepare unsupported audio externally">Prepare audio</button>
                 <button type="button" class="analysis-btn" id="mediaStatusBtn" hidden title="Inspect available media tools and timing evidence">Media status</button>
                 <button class="analysis-btn" onclick="resetAll()" style="display: none;" id="resetBtn" title="Reset"></button>
@@ -3889,6 +3901,21 @@
         <p id="preparedImportStatus" role="status" aria-live="polite"></p>
         <div class="prepared-import-actions"><button type="button" id="preparedImportCancel">Cancel</button><button type="button" id="preparedImportCheck" disabled>Check prepared files</button><button type="button" id="preparedImportLoad" disabled>Load comparison</button></div>
     </dialog>
+    <dialog id="localPreparationDialog" aria-labelledby="localPreparationTitle" aria-describedby="localPreparationPolicy">
+        <h2 id="localPreparationTitle">Prepare and open your files</h2>
+        <p>Load your files normally. If a video or audio file cannot be used fully, the connected local tool can make a review copy and open it here automatically.</p>
+        <ul id="localPreparationFiles"></ul>
+        <p id="localPreparationPolicy">Your originals stay untouched. Compatible AVC picture is copied; other video may be converted to H.264 at up to 1080p. Video soundtracks become stereo AAC. Audio-only copies retain their channel count and sample rate. Use originals for original-source measurements.</p>
+        <div id="localPreparationSetup">
+            <p>First, start the separately installed local tool. <a href="https://github.com/jayriddle/warpdiff/tree/main/tools/media-prepare/companion" target="_blank" rel="noopener">Setup instructions</a></p>
+            <label for="localPreparationAddress">Local tool address</label>
+            <input id="localPreparationAddress" type="url" placeholder="http://127.0.0.1:54321" autocomplete="off" spellcheck="false">
+            <div class="local-preparation-actions"><button type="button" id="localPreparationConnect">Connect local tool</button></div>
+        </div>
+        <p id="localPreparationStatus" role="status" aria-live="polite"></p>
+        <details><summary>Other ways to prepare</summary><p>You can also run a safe external command yourself and load the resulting file normally.</p><button type="button" id="localPreparationManual" disabled>Copy an external command…</button></details>
+        <div class="local-preparation-actions"><button type="button" id="localPreparationDisconnect" hidden>Disconnect tool</button><button type="button" id="localPreparationRun" disabled>Prepare and open</button><button type="button" id="localPreparationClose">Close / cancel</button></div>
+    </dialog>
     <dialog id="mediaStatusDialog" aria-labelledby="mediaStatusTitle">
         <div class="media-status-heading"><h2 id="mediaStatusTitle">Media status</h2><button type="button" id="mediaStatusRefresh">Refresh</button><button type="button" id="mediaStatusClose" aria-label="Close media status">Close</button></div>
         <p>Capabilities describe this loaded file. Refresh checks available frames without starting playback. Original-source fidelity and complete A/V synchronization are not certified.</p>
@@ -3921,6 +3948,8 @@
     <script src="js/managed-review.js"></script>
     <script src="js/media-input-contract.js"></script>
     <script src="js/media-preparation.js"></script>
+    <script src="js/preparation-connection.js"></script>
+    <script src="js/local-preparation.js"></script>
     <script src="js/media-admission.js"></script>
     <script src="js/mp4-demux.js"></script>
     <script src="js/prepared-media.js"></script>
@@ -5929,6 +5958,10 @@
             _hostLoadRequest.status = 'ready';
             _mediaInputStatusChanged();
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
+            if (_hostLoadRequest.standalonePrepared) {
+                _hostLoadRequest.localComplete(true);
+                showLoadToast('Opened the prepared review copy. Analysis uses this copy; originals are unchanged.', false, 6000);
+            }
         }
 
         function _hostLoadBatchReady(generation) {
@@ -6048,7 +6081,8 @@
             // failed conversion leave loading chrome or a partly loaded view.
             _hostLoadAbortController.abort();
             clearAllMedia(true);
-            _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
+            if (request.standalonePrepared) request.localComplete(false, error);
+            else _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
             _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
         }
 
@@ -6252,7 +6286,7 @@
         function handleMultipleFiles(files, opts) {
             if (_managedReviewActive() && !(opts && _hostLoadIsCurrent(opts.loadGeneration))) return false;
             // Filter for images, videos, and audio
-            const mediaFiles = files.filter(f =>
+            const mediaFiles = (opts && opts.loadGeneration ? files : files.map(_normalizePreparationInput)).filter(f =>
                 f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/')
             );
 
@@ -6265,6 +6299,10 @@
             const audioCount = mediaFiles.filter(f => f.type.startsWith('audio/')).length;
             if (audioCount > 0 && audioCount < mediaFiles.length) {
                 showLoadToast('Cannot mix audio with image/video files — load all audio or all image/video', true, 8000);
+                return false;
+            }
+            if (mediaFiles.some(file => !file.size)) {
+                showLoadToast('An empty file cannot be opened. Your current comparison has been kept.', true, 6000);
                 return false;
             }
 
@@ -6301,6 +6339,7 @@
             }
             if (!(opts && (opts.loadGeneration || opts.skipToast))) _usage.enterStandalone();
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
+            if (!(opts && opts.loadGeneration) || opts.standalonePrepared) _localPreparationAccept(assignments, opts?.preparedFiles);
 
             // Check if any two files have near-identical timestamps (within 2 s).
             // This can happen when files are batch-exported and timestamps are equalised.
@@ -6652,7 +6691,7 @@
             const plan = _mediaPreparationProviders.plan('manual-ffmpeg', preparation);
             _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd: plan.command,
                 commandNotice: plan.notice, preparation, providerId: plan.providerId, loadEpoch: _ffmpegLoadEpoch };
-            _setFfmpegPanelOpen(true);
+            if (!_localPreparationIssue(slot, _loadingProgressToken)) _setFfmpegPanelOpen(true);
             requestAnimationFrame(() => _drawDecodingPlaceholder(slot));
             if (slot === currentAudioSource) updateAudioVisForSlot(slot);
         }
@@ -8399,6 +8438,7 @@
                 if (loadingToken !== _loadingProgressToken) return;
                 _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not open', 'error');
+                _localPreparationIssue(slot, loadingToken);
                 _hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not play ' + file.name);
             }, { once: true });
             audio.addEventListener('loadeddata', function() {
@@ -8496,6 +8536,7 @@
                     if (!video.videoWidth || !video.videoHeight) {
                         _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                         mediaData[slot]._videoLoadFailed = true;
+                        _localPreparationIssue(slot, loadingToken);
                         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                     }
                 }
@@ -8526,6 +8567,7 @@
                 _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
+                _localPreparationIssue(slot, loadingToken);
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                 checkAllLoaded();
             });
@@ -10844,6 +10886,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia(preserveHostRequest = false) {
+            _localPreparationClear(); // normal preparation lifecycle → js/local-preparation.js
             _resetPreparedImport(); // retire explicit package inspection → js/prepared-import.js
             _mediaInputClear();
             _mediaPreparationProviders.cancel();
@@ -14106,6 +14149,7 @@
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>Prepare and open:</strong> Load or drop files normally. If a video or audio file cannot be used fully, connect the separately running local tool under <strong>Preparation</strong>, approve its connection window, and choose <strong>Prepare and open</strong>. Copies return here automatically with the other comparison files; no package or second picker is needed. Originals remain untouched. Video may become H.264 up to 1080p with stereo AAC; audio-only copies retain channel count/rate in PCM WAV. Analysis describes the loaded copy. Close/cancel, Escape, clear or accepted replacement cancels active work; invalid selections preserve it. Managed hosts retain control of their files. Setup and limits are linked in the Preparation dialog. <strong>Other ways to prepare</strong> retains the copied-command fallback. A local tool/FFmpeg installation is separate; no converter is bundled or downloaded by WarpDiff.</p>
             <p><strong>Prepared packages (advanced):</strong> Ordinary media uses <strong>Load</strong> or drag and drop; no package is needed. For files from the optional external tool, open <strong>Help → Advanced → Import externally prepared media</strong>. The dialog explains setup under <strong>How to get prepared files</strong> and offers <strong>Load ordinary files</strong> to return to normal loading. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check prepared files</strong> leaves the current comparison in place. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
             <p><strong>Media status:</strong> Open <strong>Media status</strong> in the header after loading to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>
             <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. Follow its numbered steps to install FFmpeg separately, open a terminal in the source folder, run the copied command and reload the output. No package or JSON details file is needed for that workflow. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
@@ -14451,7 +14495,7 @@
         <div class="quick-start-body">
             <ul>
                 <li>Start with the labeled Load button to compare your files. Unsupported audio now has numbered preparation steps.</li>
-                <li>Advanced prepared-file import is under Help → Advanced, with setup guidance and an easy return to ordinary loading.</li>
+                <li>Connect a local preparation tool once, then use Prepare and open to automatically load compatible review copies. Originals stay untouched.</li>
             </ul>
         </div>
     </div>

@@ -107,14 +107,14 @@ export async function createCompanion({port=0,ffmpeg='ffmpeg',ffprobe='ffprobe',
             }
             if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}
             let file;
-            if(pathname==='/') {
+            if(pathname==='/'||pathname==='/connect.html'||pathname==='/demo.html') {
                 res.setHeader('X-Frame-Options','DENY');
                 res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
-                const html=(await fs.readFile(path.join(here,'index.html'),'utf8')).replace('<!-- companion-config -->',
-                    '<meta name="companion-token" content="'+token+'">');
+                const html=(await fs.readFile(path.join(here,pathname==='/'?'setup.html':pathname==='/demo.html'?'index.html':'connect.html'),'utf8')).replace('<!-- companion-config -->',
+                    '<meta name="companion-token" content="'+token+'">').replaceAll('<!-- companion-origin -->',encodeURIComponent(origin));
                 res.writeHead(200,{'Content-Type':mime['.html']});res.end(req.method==='HEAD'?undefined:html);return;
             }
-            if(['/client.js','/style.css'].includes(pathname))file=path.join(here,pathname.slice(1));
+            if(['/client.js','/style.css','/bridge.js'].includes(pathname))file=path.join(here,pathname.slice(1));
             else if(pathname.startsWith('/app/')) {
                 const name=pathname==='/app/'?'index.html':pathname.slice(5);
                 if(!runtime.has(name)){res.writeHead(404);res.end();return;}
@@ -135,7 +135,7 @@ export async function createCompanion({port=0,ffmpeg='ffmpeg',ffprobe='ffprobe',
         state(){return {active:!!active,processing:!!active&&!active.result};}};
 }
 async function main() {
-    const app=await createCompanion();console.log(JSON.stringify({url:app.origin,prototype:true}));
+    const app=await createCompanion();console.log(JSON.stringify({url:app.origin,app:app.origin+'/app/',mode:'normal-app-preparation'}));
     let stopping=false;const stop=async()=>{if(stopping)return;stopping=true;await app.close();};
     process.once('SIGTERM',stop);process.once('SIGINT',stop);
 }

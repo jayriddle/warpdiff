@@ -112,6 +112,7 @@ function _setAudioTrackIssue(slot, message) {
         .map(s => slotLabel(s) + ' — ' + _audioTrackIssues[s]);
     alert.textContent = messages.join('\n');
     alert.hidden = messages.length === 0;
+    if (message) _localPreparationIssue(slot, _loadingProgressToken);
 }
 
 async function decodeAndComputeAudioViz(slot, source) {
@@ -667,6 +668,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         if (_audioDecodeGen[slot] !== gen) return;
         _mediaInputObserve(slot, loadingToken, {audioDecodeFailed: true});
         _setLoadingSlotState(slot, 'Could not decode', 'error');
+        _localPreparationIssue(slot, loadingToken);
         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode audio ' + mediaData[slot]?.name)) return;
         console.error('Audio decode error for slot ' + slot + ':', err);
         showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);

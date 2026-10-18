@@ -10,6 +10,8 @@ function _applyManagedReviewChrome() {
         button.setAttribute('aria-label', label);
     }
     if (!active) return;
+    _closeLocalPreparation();
+    _localPreparationConnection.disconnect();
     _resetPreparedImport();
     _closeInfoBarEditor();
     for (const id of ['quickStartPopup', 'quickStartBackdrop', 'changelogPopup', 'changelogBackdrop']) document.getElementById(id).classList.remove('show');

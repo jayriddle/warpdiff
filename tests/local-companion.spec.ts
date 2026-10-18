@@ -33,7 +33,7 @@ test.beforeAll(async()=>{
 test.afterAll(async()=>{await app?.close();if(directory)fs.rmSync(directory,{recursive:true,force:true});});
 test.beforeEach(async({page})=>{
   await page.addInitScript(()=>{const w=window as any;w.prototypeErrors=[];addEventListener('error',e=>w.prototypeErrors.push(e.message));addEventListener('unhandledrejection',e=>w.prototypeErrors.push(String(e.reason)));});
-  await page.goto(app.origin);
+  await page.goto(app.origin+'/demo.html');
 });
 test.afterEach(async({page})=>{await page.locator('#cancel').evaluate((button:HTMLButtonElement)=>button.click());expect(await page.evaluate(()=>(window as any).prototypeErrors)).toEqual([]);});
 async function ready(page:any){await expect(page.locator('#cover')).toBeHidden({timeout:45000});}
@@ -77,7 +77,7 @@ test('preparing one member preserves the other comparison files and their host o
 test('clear during preparation retires the external job and cannot reopen its late result',async({page})=>{
   const delayed=await launchCompanion(true);
   try {
-    await page.goto(delayed.origin);await page.locator('#files').setInputFiles(own('dts_video.mp4'));await expect(page.locator('#prepare')).toBeVisible({timeout:45000});await page.locator('#prepare').click();
+    await page.goto(delayed.origin+'/demo.html');await page.locator('#files').setInputFiles(own('dts_video.mp4'));await expect(page.locator('#prepare')).toBeVisible({timeout:45000});await page.locator('#prepare').click();
     await expect.poll(()=>delayed.state().started).toBe(true);
     await expect(page.locator('#prepareAgain')).toBeHidden();await expect(page.locator('#anyway')).toBeHidden();
     await page.locator('#files').setInputFiles([fixture('green.png'),fixture('stereo.wav')]);

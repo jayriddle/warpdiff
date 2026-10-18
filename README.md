@@ -10,6 +10,14 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
 
+## Open files with optional local preparation
+
+Use **Load** or drag and drop normally. If a video or audio file cannot be used fully, WarpDiff offers **Prepare and open**. Connect the separately running local tool once for this visit, approve its connection window, and keep that window open. Only your explicit preparation action sends selected files to that tool on your computer; nothing is uploaded to a remote preparation service. The returned copies load automatically alongside the other comparison files. No package manifest, copied per-file command or second picker is needed.
+
+Originals stay untouched. Compatible AVC picture is copied; other picture may become H.264 at up to 1080p. Video soundtracks become stereo AAC; audio-only copies retain channel count/sample rate in PCM WAV. Analysis describes the loaded review copy, not original-source fidelity or measurement conformance. The local tool uses separately installed FFmpeg/ffprobe; WarpDiff bundles no converter. **Preparation → Other ways to prepare** retains the safe copied-command fallback. Managed review hosts retain control of their media.
+
+[Local tool setup and limits](tools/media-prepare/companion/README.md). This candidate workflow is awaiting review and is not published yet.
+
 ## Customize the info bar
 
 Open **Customize info bar** (the sliders icon in the header) to choose visible information, arrange elements in **Left aligned** and **Right aligned** sections with drag handles, and adjust their color, text size and bold styling. Presets keep Zoom at the far right; drag any field or spacer within or between sections to suit your layout. Mouse, touch and keyboard movement are supported. Start with **Default**, **Minimal**, **Visual Focus**, **Audio Essentials**, or **All Available**. Audio information can be hidden together or selected field by field. Add adjustable **spacers** to group related fields.

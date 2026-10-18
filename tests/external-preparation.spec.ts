@@ -26,6 +26,9 @@ test('unsupported audio retains its source, opens external preparation and never
     w._webcodecsFinished('editA', w.eval('_videoAudioDecodeGen.editA'));
   });
   const panel = page.getByRole('dialog', {name:'Prepare audio externally'});
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await page.locator('#localPreparationDialog summary').click();
+  await page.locator('#localPreparationManual').click();
   await expect(panel).toBeVisible();
   await expect(panel.locator('.fp-note')).toContainText('folder containing the original file');
   await expect(panel.locator('.fp-note')).toContainText('stereo AAC');
@@ -180,7 +183,9 @@ test('native codec limits retain original surround metadata and give a preparati
   const state = await page.evaluate(() => (window as any).eval('({name:mediaData.editA.name, decoded:!!_videoAudioBuffers.editA, preparation:!!_ffmpegCommands.editA})'));
   expect(state.name).toBe('dialogue_71.mp4');
   if (state.preparation) {
-    await expect(page.locator('#externalAudioBtn')).toBeVisible();
+    await expect(page.locator('#localPreparationDialog')).toBeVisible();
+    await page.locator('#localPreparationDialog summary').click();
+    await page.locator('#localPreparationManual').click();
     await expect(page.locator('#ffmpegPanel .fp-note')).toContainText('keep the original');
   } else {
     expect(state.decoded).toBe(true);
@@ -196,6 +201,9 @@ test('external conversion and ordinary reload preserve an extensionless name and
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles({name:'.review', mimeType:'video/mp4', buffer:source});
   await page.evaluate(() => (window as any)._registerFfmpegCommand('editA', '.review', 'ac-3'));
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await page.locator('#localPreparationDialog summary').click();
+  await page.locator('#localPreparationManual').click();
   const command = await page.evaluate(() => (window as any).eval('_ffmpegCommands.editA.cmd'));
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'warpdiff-external-reload-'));
   try {
