@@ -33,7 +33,9 @@ function _setPreparedImportOpen(open, opener = null) {
         _preparedImportInvalidate();
         dialog.showModal();
         dialog.scrollTop = 0;
-        document.getElementById('preparedImportManifest').focus();
+        // Begin with the explanation, including the ordinary-loading exit, even
+        // in a short window; focusing a file input would scroll past it.
+        document.getElementById('preparedImportTitle').focus({preventScroll:true});
     } else {
         _preparedImportInvalidate();
         for (const id of ['Manifest', 'Media', 'Source', 'Others']) document.getElementById('preparedImport' + id).value = '';
@@ -117,7 +119,22 @@ function _loadPreparedImport() {
     // Its clear resets this dialog; keep only the local File array for handoff.
     handleMultipleFiles(candidate.files);
 }
-document.getElementById('preparedPackageBtn').addEventListener('click', event => _setPreparedImportOpen(true, event.currentTarget));
+function _loadOrdinaryMediaFromHelp() {
+    if (_managedReviewActive()) return;
+    _resetPreparedImport();
+    if (document.getElementById('quickStartPopup').classList.contains('show')) toggleQuickStart();
+    document.getElementById('loadBtn').focus({preventScroll:true});
+    // Stay in the user's gesture and use the ordinary loader's existing chooser.
+    document.getElementById('multiFileInput').click();
+}
+function _setupPreparedImportEntryPoints() {
+    document.getElementById('preparedPackageBtn').addEventListener('click', event => _setPreparedImportOpen(true, event.currentTarget));
+    document.getElementById('helpLoadFiles').addEventListener('click', _loadOrdinaryMediaFromHelp);
+}
+// Help follows the main script in the document; its controls do not exist yet.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _setupPreparedImportEntryPoints, {once:true});
+else _setupPreparedImportEntryPoints();
+document.getElementById('preparedImportOrdinary').addEventListener('click', _loadOrdinaryMediaFromHelp);
 document.getElementById('preparedImportCancel').addEventListener('click', _resetPreparedImport);
 document.getElementById('preparedImportCheck').addEventListener('click', _checkPreparedImport);
 document.getElementById('preparedImportLoad').addEventListener('click', _loadPreparedImport);
@@ -131,7 +148,7 @@ document.getElementById('preparedImportDialog').addEventListener('cancel', event
 document.getElementById('preparedImportDialog').addEventListener('keydown', event => {
     if (event.key !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey) return;
     const dialog = event.currentTarget;
-    const controls = [...dialog.querySelectorAll('a[href], input:not(:disabled), button:not(:disabled)')]
+    const controls = [...dialog.querySelectorAll('a[href], summary, input:not(:disabled), button:not(:disabled)')]
         .filter(control => control.tabIndex >= 0 && control.getClientRects().length);
     if (!controls.length) return;
     // WebKit's platform Tab policy can skip buttons despite tabIndex === 0.

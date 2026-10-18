@@ -20,9 +20,14 @@ test.beforeEach(async({page})=>{
     addEventListener('message',e=>{if(/^WARPDIFF_LOAD_(READY|FAILED)$/.test(e.data?.type))w.importReplies.push(e.data);});});
   await page.goto('/');await page.locator('#multiFileInput').setInputFiles(fixture('green.png'));
   await expect.poll(()=>page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA?.capabilities.picture.state)).toBe('available');
-  await page.getByRole('button',{name:'Load prepared package',exact:true}).click();
+  await openImport(page);
 });
 test.afterEach(async({page})=>{const errors=await page.evaluate(async()=>{const w=window as any;w._resetPreparedImport();if(w.releaseImportRead)await w.releaseImportRead();return w.importErrors;});expect(errors).toEqual([]);});
+async function openImport(page:any){
+  if(!await page.locator('#quickStartPopup').isVisible())await page.locator('#helpBtn').click();
+  if(!await page.locator('#helpAdvanced').evaluate((d:HTMLDetailsElement)=>d.open))await page.locator('#helpAdvanced summary').click();
+  await page.getByRole('button',{name:'Import externally prepared media',exact:true}).click();
+}
 const current=(page:any)=>page.evaluate(()=>Object.values((window as any).eval('mediaData')).filter(Boolean).map((v:any)=>v.name).sort());
 async function select(page:any,original=false){await page.locator('#preparedImportManifest').setInputFiles(prepared.manifest);await page.locator('#preparedImportMedia').setInputFiles(prepared.rendition);if(original)await page.locator('#preparedImportSource').setInputFiles(fixture('ac3_video.mp4'));}
 async function check(page:any){await page.locator('#preparedImportCheck').click();await expect(page.locator('#preparedImportLoad')).toBeEnabled({timeout:15000});}
@@ -75,7 +80,7 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
  test('clear retires selected Files and a checked result',async({page})=>{
   await select(page,true);await check(page);await page.evaluate(()=>(window as any).clearAllMedia());await expect(page.locator('#preparedImportDialog')).not.toBeVisible();
   for(const id of['Manifest','Media','Source','Others'])expect(await page.locator('#preparedImport'+id).evaluate((input:HTMLInputElement)=>input.files!.length)).toBe(0);
-  await page.locator('#preparedPackageBtn').click();await expect(page.locator('#preparedImportLoad')).toBeDisabled();await expect(page.locator('#preparedImportCheck')).toBeDisabled();expect(await current(page)).toEqual([]);
+  await openImport(page);await expect(page.locator('#preparedImportLoad')).toBeDisabled();await expect(page.locator('#preparedImportCheck')).toBeDisabled();expect(await current(page)).toEqual([]);
  });
  test('managed host supersession cancels checking and cannot be replaced by the importer',async({page})=>{
   await delayed(page);await page.evaluate(bytes=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'managed-import',capabilities:{managedReview:true},slotLabels:['','Host reference'],files:[{name:'host.png',contentType:'image/png',buffer:new Uint8Array(bytes).buffer}]},location.origin),[...fs.readFileSync(fixture('red.png'))]);
@@ -122,10 +127,81 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   expect(await current(page)).toEqual(['green.png']);await page.keyboard.press('Escape');await expect(page.locator('#preparedImportDialog')).not.toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();
   for(const id of['Manifest','Media','Source','Others'])expect(await page.locator('#preparedImport'+id).evaluate((input:HTMLInputElement)=>input.files!.length)).toBe(0);
  });
- test('opening the package modal retires Appearance keyboard capture',async({page,browserName})=>{
-  await page.locator('#preparedImportCancel').click();await page.locator('#appearanceButton').click();await expect(page.locator('#appearancePanel')).toBeVisible();
-  if(browserName==='chromium'){for(let i=0;i<40&&!(await page.locator('#preparedPackageBtn').evaluate(e=>e===document.activeElement));i++)await page.keyboard.press('Shift+Tab');await expect(page.locator('#preparedPackageBtn')).toBeFocused();}
-  else await page.locator('#preparedPackageBtn').focus(); // WebKit's default Tab policy skips buttons; exercise Enter activation.
+ test('opening the package modal retires Appearance keyboard capture',async({page})=>{
+  await page.locator('#preparedImportCancel').click();await page.locator('#quickStartPopup .quick-start-close').click();await page.locator('#appearanceButton').click();await expect(page.locator('#appearancePanel')).toBeVisible();
+  await page.locator('#helpBtn').focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#quickStartPopup')).toBeVisible();
+  await page.locator('#preparedPackageBtn').focus(); // Help's Advanced section is still expanded.
   await page.keyboard.press('Enter');await expect(page.locator('#preparedImportDialog')).toBeVisible();await expect(page.locator('#appearancePanel')).not.toBeVisible();
   await page.keyboard.press('Escape');await expect(page.locator('#preparedImportDialog')).not.toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();expect(await current(page)).toEqual(['green.png']);
+ });
+
+ test('the primary header offers ordinary Load; advanced guidance names the two required files',async({page})=>{
+  await expect(page.locator('#headerLeft #preparedPackageBtn')).toHaveCount(0);
+  await expect(page.locator('#loadBtn')).toHaveText('Load');
+  await expect(page.locator('#preparedImportDescription')).toContainText('review.mp4');
+  await expect(page.locator('#preparedImportDescription')).toContainText('warpdiff-package.json');
+  await expect(page.locator('#preparedImportOrdinary')).toBeEnabled();
+  await expect(page.getByLabel('Package details file (warpdiff-package.json)',{exact:true})).toHaveCount(1);
+  await expect(page.getByLabel('Prepared video (review.mp4)',{exact:true})).toHaveCount(1);
+  await expect(page.locator('#preparedImportGuide')).not.toHaveAttribute('open','');
+  await page.locator('#preparedImportGuide summary').click();
+  await expect(page.locator('#preparedImportGuide ol li')).toHaveCount(4);
+  await expect(page.locator('#preparedImportGuide code')).toContainText('node tools/media-prepare/prepare.mjs');
+  await expect(page.locator('#preparedImportGuide')).toContainText('does not need a package details file');
+  expect(await current(page)).toEqual(['green.png']);
+ });
+ test('ordinary loading from the dialog cancels checking and uses the existing chooser',async({page})=>{
+  await delayed(page);
+  const chooserEvent=page.waitForEvent('filechooser');await page.locator('#preparedImportOrdinary').click();const chooser=await chooserEvent;
+  await expect(page.locator('#preparedImportDialog')).not.toBeVisible();await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+  expect(await current(page)).toEqual(['green.png']);await expect(page.locator('#loadBtn')).toBeFocused();
+  await page.evaluate(async()=>{await (window as any).releaseImportRead();});
+  await chooser.setFiles(fixture('red.png'));await expect.poll(()=>current(page)).toEqual(['red.png']);
+  await expect(page.locator('#preparedImportLoad')).toBeDisabled();
+  expect(await page.evaluate(()=>(window as any).importReplies)).toEqual([]);
+ });
+ test('cancelling the ordinary chooser preserves the comparison and retires the package selection',async({page})=>{
+  await select(page);await check(page);
+  const chooserEvent=page.waitForEvent('filechooser');await page.locator('#preparedImportOrdinary').click();await chooserEvent;
+  // Playwright does not drive the OS Cancel button. Reproduce its input event;
+  // real chooser activation above still proves the synchronous gesture handoff.
+  await page.locator('#multiFileInput').dispatchEvent('cancel',{bubbles:true});
+  expect(await current(page)).toEqual(['green.png']);await expect(page.locator('#loadBtn')).toBeFocused();
+  await openImport(page);await expect(page.locator('#preparedImportLoad')).toBeDisabled();await expect(page.locator('#preparedImportCheck')).toBeDisabled();
+ });
+ test('first-visit Help starts with ordinary loading and keeps advanced import collapsed',async({page})=>{
+  await page.addInitScript(()=>localStorage.removeItem('lastSeenVersion'));await page.reload();
+  await expect(page.locator('#quickStartPopup')).toBeVisible();
+  await expect(page.locator('#quickStartPopup h3').first()).toHaveText('Getting Started');
+  await expect(page.locator('#helpAdvanced')).not.toHaveAttribute('open','');await expect(page.locator('#preparedPackageBtn')).not.toBeVisible();
+  await expect(page.locator('#preparedImportDialog')).not.toBeVisible();
+  const chooser=page.waitForEvent('filechooser');await page.locator('#helpLoadFiles').click();await(await chooser).setFiles(fixture('blue.png'));
+  await expect.poll(()=>current(page)).toEqual(['blue.png']);await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+ });
+ test('keyboard activation reaches advanced import and Escape returns to the visible Help opener',async({page,browserName})=>{
+  await page.locator('#preparedImportCancel').click();await page.locator('#helpAdvanced summary').focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#preparedPackageBtn')).not.toBeVisible();await page.keyboard.press('Enter');
+  // WebKit's macOS-style policy uses Option+Tab to include buttons.
+  await page.keyboard.press(browserName==='webkit'?'Alt+Tab':'Tab');
+  await expect(page.locator('#preparedPackageBtn')).toBeFocused();await page.keyboard.press('Enter');await expect(page.locator('#preparedImportDialog')).toBeVisible();
+  await page.keyboard.press('Escape');await expect(page.locator('#quickStartPopup')).toBeVisible();await expect(page.locator('#preparedPackageBtn')).toBeFocused();
+  await page.keyboard.press('Escape');await expect(page.locator('#quickStartPopup')).not.toBeVisible();expect(await current(page)).toEqual(['green.png']);
+ });
+ test.describe('touch guidance',()=>{test.use({hasTouch:true});test('narrow Help and the ordinary exit remain reachable with touch',async({page})=>{
+  await page.setViewportSize({width:320,height:480});await page.locator('#preparedImportCancel').click();
+  const box=(await page.locator('#quickStartPopup').boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(320);
+  await page.locator('#preparedPackageBtn').tap();await expect(page.locator('#preparedImportOrdinary')).toBeVisible();
+  const opening=await page.locator('#preparedImportDialog').evaluate(d=>({scroll:d.scrollTop,active:document.activeElement!.id,bottom:d.getBoundingClientRect().bottom,exitBottom:document.getElementById('preparedImportOrdinary')!.getBoundingClientRect().bottom}));
+  expect(opening.scroll).toBe(0);expect(opening.active).toBe('preparedImportTitle');expect(opening.exitBottom).toBeLessThanOrEqual(opening.bottom);
+  const chooser=page.waitForEvent('filechooser');await page.locator('#preparedImportOrdinary').tap();await(await chooser).setFiles(fixture('red.png'));
+  await expect.poll(()=>current(page)).toEqual(['red.png']);
+ });
+ });
+ test('managed mode rejects both ordinary-loading helpers after host supersession',async({page})=>{
+  await page.evaluate(bytes=>window.postMessage({type:'WARPDIFF_LOAD',requestId:'managed-guidance',capabilities:{managedReview:true},slotLabels:['','Host'],files:[{name:'host.png',contentType:'image/png',buffer:new Uint8Array(bytes).buffer}]},location.origin),[...fs.readFileSync(fixture('blue.png'))]);
+  await expect.poll(()=>page.evaluate(()=>(window as any).importReplies)).toEqual([expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'managed-guidance'})]);
+  let choosers=0;page.on('filechooser',()=>choosers++);await page.evaluate(()=>(window as any)._loadOrdinaryMediaFromHelp());
+  await expect(page.locator('#helpAdvanced')).not.toBeVisible();await expect(page.locator('#preparedImportOrdinary')).not.toBeVisible();
+  expect(choosers).toBe(0);expect(await current(page)).toEqual(['host.png']);
  });

@@ -1,6 +1,6 @@
 # Media input contracts and preparation adapters
 
-Status: foundation, capability reports and offline package inspection released in 3.19.6 (PR #51, `91665d9`). The explicit standalone package-import UI is the 3.19.7 candidate on `codex/prepared-package-import`; merge and publication remain on hold. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Full prepared-profile conformance remains future work.
+Status: foundation, capability reports and offline package inspection released in 3.19.6 (PR #51, `91665d9`). The explicit standalone package-import UI released in 3.19.7 (PR #52, `72dcec3`). The 3.19.8 usability candidate on `codex/prepared-import-usability` moves it to Help → Advanced and explains ordinary loading; merge and publication remain on hold. Direct loading remains available, preparation is explicit, and WarpDiff ships no FFmpeg engine. Full prepared-profile conformance remains future work.
 
 ## Migration slices
 
@@ -108,8 +108,10 @@ Pure fault-injection checks in `tests/media-input-regression.mjs` and `tests/med
 
 The [foundation work record](media-input-contract-2026-10-17/README.md), [capability-report work record](media-admission-report-2026-10-17/README.md) and [prepared-package work record](prepared-package-2026-10-17/README.md) record measured results and limitations. Remaining slice-3 conformance work and slice 4 are planned, not completed capabilities.
 
-## Explicit package import (3.19.7 candidate)
+## Explicit package import (released 3.19.7; usability candidate 3.19.8)
 
-`js/prepared-import.js` owns the standalone native dialog and one cancellable inspection. Selection alone performs no reads. Check package invokes the existing bounded inspector; source selection is optional and used only for matching. At most three nonempty image/video companions may join the rendition. Only Load comparison calls `handleMultipleFiles`; that owner retains timestamp sorting, clear, decoding, analysis and activation. An inspected MP4 with a missing/unhelpful OS MIME label receives video/mp4 only after byte inspection. Prepared profile remains not-validated.
+`js/prepared-import.js` owns the standalone native dialog and one cancellable inspection. Selection alone performs no reads. Check prepared files invokes the existing bounded inspector; source selection is optional and used only for matching. At most three nonempty image/video companions may join the rendition. Only Load comparison calls `handleMultipleFiles`; that owner retains timestamp sorting, clear, decoding, analysis and activation. An inspected MP4 with a missing/unhelpful OS MIME label receives video/mp4 only after byte inspection. Prepared profile remains not-validated.
 
 Selection changes invalidate a candidate. Cancel/Escape, clear, a new load and managed-host activation retire it. Cancelled File/WebCrypto work retains the one-inspection reservation until settlement, including after reopening; late completion cannot load or update a newer selection. The native dialog owns keyboard input, blocks page file drops and restores opener focus. Clear resets all file inputs and retained candidate references. Managed review hides/rejects this standalone action; there is no new host protocol or provider discovery. The summary separates matched bytes and inspected format from declared transformation/source-derivation claims and unverified conformance. The selected original is never loaded automatically.
+
+The 3.19.8 candidate labels the ordinary Load button, starts Help with normal file loading, and places the package importer under Help → Advanced. The dialog offers a synchronous user-gesture handoff to the ordinary chooser, explains the two external-tool outputs and expands optional setup steps. Help stays beneath the native modal so Cancel/Escape can restore opener focus; choosing ordinary loading closes Help through its existing owner. Entry bindings wait for the later Help markup. These are presentation changes, not new preparation/admission capabilities.

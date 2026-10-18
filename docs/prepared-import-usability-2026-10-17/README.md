@@ -1,0 +1,30 @@
+# Ordinary loading and advanced prepared import
+
+Candidate 3.19.8 on `codex/prepared-import-usability`, based on released 3.19.7 / `72dcec3c2554aeca731cb0a89b8b676973cdee14`. Implementation, tests, adversarial review and a PR are authorized. **Merge and publication are on hold.**
+
+The previous primary-header Package button opened four unexplained file selectors. The user could not tell whether those files were prerequisites for using WarpDiff. This correction makes normal file loading the starting point and describes the optional external-tool handoff where it belongs.
+
+## Behavior and ownership
+
+- The header has a visible **Load** label. First-visit Help starts with ordinary images/video/audio and a **Load files** action.
+- **Help → Advanced → Import externally prepared media** replaces the header Package entry. Advanced starts collapsed. The modal names `review.mp4` and `warpdiff-package.json`, explains their origin, and expands optional setup steps. The ordinary copied-command audio workflow explicitly needs no package/details file.
+- **Load ordinary files** appears before selectors and opens the existing chooser synchronously in the user's gesture. It cancels/invalidates package work, closes Help through its existing owner, and preserves the current comparison until ordinary loading begins. Managed reviews reject this action.
+- Opening focuses the heading without scrolling past the explanation. Help remains below the native modal so Cancel/Escape returns focus to the visible opener. The existing input-cancel, delayed-close, pending-read reservation, generation fences, drop containment and normal-loader ownership remain.
+- The unsupported-audio panel presents four steps: install FFmpeg separately, open a terminal in the source folder, run the copied command, and reload the output (or return it to the host). Command generation and conversion semantics are unchanged.
+- Help width is bounded by the viewport. Documentation, in-app Manual, Getting Started and the two-bullet What's New notice agree. The previous announcement is archived.
+
+No new preparation provider, transport, conversion engine, upload, host protocol or strict admission policy is added. Package inspection still establishes a candidate, not complete decoding, source derivation, exact timing/channel fidelity or measurement conformance.
+
+## Verification record
+
+Full local evidence: `output/prepared-import-usability-2026-10-17-DURVsJ/` (ignored; not deployed). The work record preserves actions, decisions, failures and limitations. Browser runs use one worker and zero retries, an owned range-capable source server, and existing fixtures. User localhost:8080 is untouched.
+
+Initial exploratory run: **149 passed, one failed** in 2.4 minutes. The new outside-modal keyboard test assumed plain Tab includes buttons in WebKit. Its macOS-style policy uses Option/Alt+Tab. The corrected exact-focus test passed **2/2**. The exploratory run also overlapped completion of the heading-focus/manual correction, so it is not final target evidence. A fresh stable functional-source run follows.
+
+Desktop welcome/import, 390×650 import and external-audio steps were visually inspected. At 390×650, the dialog opens at scrollTop 0 with the heading focused and the ordinary-loading exit inside its visible bounds. First structural checks: ownership **1353 passed**, infrastructure **26 passed**.
+
+Fresh local verification: **150 focused passes** (75 per engine; 1.3 minutes) plus **32 startup/release-note passes** (16 per engine; 13.5 seconds). Complete/disjoint inventories were verified with zero retries, skips, flaky results or runner errors. Ownership **1353 passed**, infrastructure **26 passed**. The legacy startup copy changes only its fixture directory and replaces the fixture-writing beforeAll with read-only sentinels; scenario assertions are unchanged. Independent review and hosted check evidence will be recorded before the PR is handed back. No merge or publication is authorized.
+
+## Limits
+
+Playwright WebKit is not physical Safari. Touch is emulated. Real chooser activation is tested; OS Cancel is represented by its DOM cancellation event. No new physical listening, codec/timing/measurement conformance or OS PWA migration claims are made. Existing historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate.

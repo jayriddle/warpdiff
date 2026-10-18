@@ -29,6 +29,8 @@ test('unsupported audio retains its source, opens external preparation and never
   await expect(panel).toBeVisible();
   await expect(panel.locator('.fp-note')).toContainText('folder containing the original file');
   await expect(panel.locator('.fp-note')).toContainText('stereo AAC');
+  await expect(panel.locator('.fp-note ol li')).toHaveCount(4);
+  await expect(panel.locator('.fp-note')).toContainText('No package or JSON details file is needed');
   await expect(panel.locator('.fp-note')).toContainText('Load (L)');
   await expect(panel.locator('.fp-note')).toContainText('starts a new comparison');
   await expect(page.locator('#toast')).toHaveText('Audio needs external preparation');

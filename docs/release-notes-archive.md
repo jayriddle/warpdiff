@@ -2,6 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.7 (released October 17, 2026)
+
+Released through PR #52 at `72dcec3`. The previous header Package entry is superseded by the 3.19.8 usability candidate.
+
+- Check a prepared MP4 and manifest before loading a new comparison, with optional companion files.
+- Review file matching, stereo preparation and unverified claims before loading. Failed or cancelled package checks keep the current comparison.
+
 ## v3.19.6 (released October 17, 2026)
 
 Released through PR #51 at `91665d9`. The following notes preserve the development record; [review and verification](media-contract-review-2026-10-17/README.md).

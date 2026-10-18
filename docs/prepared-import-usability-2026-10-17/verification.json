@@ -1,0 +1,49 @@
+{
+  "baseline": "72dcec3c2554aeca731cb0a89b8b676973cdee14",
+  "candidateVersion": "3.19.8",
+  "branch": "codex/prepared-import-usability",
+  "status": "local checks passed; adversarial review pending",
+  "mergeAuthorized": false,
+  "publicationAuthorized": false,
+  "evidenceDirectory": "output/prepared-import-usability-2026-10-17-DURVsJ",
+  "exploratory": {
+    "passed": 149,
+    "failed": 1,
+    "reason": "WebKit outside-modal Tab policy; corrected to Option/Alt+Tab"
+  },
+  "keyboardCorrection": {
+    "passed": 2,
+    "failed": 0
+  },
+  "ownership": {
+    "passed": 1353,
+    "failed": 0
+  },
+  "infrastructure": {
+    "passed": 26,
+    "failed": 0
+  },
+  "local": {
+    "focused": {
+      "total": 150,
+      "passed": 150,
+      "skipped": 0,
+      "reports": 1
+    },
+    "notes": {
+      "total": 32,
+      "passed": 32,
+      "skipped": 0,
+      "reports": 1
+    },
+    "retries": 0,
+    "workers": 1,
+    "runnerErrors": 0
+  },
+  "preservation": {
+    "preExistingFiles": 1113,
+    "expectedModifiedFiles": 14,
+    "fixtureHashesAndMtimes": 37,
+    "unexpectedChanges": 0
+  }
+}
