@@ -157,3 +157,24 @@ regression results, required hosted check receipts, final hashes and preservatio
 are retained in the author evidence directory's final verification record and PR.
 These later checks must be inspected before merge consideration. Merge and
 publication remain held; this record does not authorize release.
+
+## Hosted-test correction
+
+Initial PR #54 hosted run `39146174521` at `8e54dad` was **not green**:
+Chromium shard 1 failed the audio-format external-reload test because its L
+shortcut was sent while the new Preparation modal was open. That modal correctly
+owns its keys; the old test implicitly expected the command panel. Source search
+also found four MP4 fallback branches expecting that old panel directly.
+
+Only `tests/audio-format.spec.ts` and `tests/mp4-audio.spec.ts` were adapted:
+choose Other ways to prepare → manual command before exercising that fallback,
+and dismiss current preparation guidance before unrelated control checks.
+Decoder support, no-audio, generation, error, source-metadata and actual shell
+conversion assertions remain intact. All **44** relevant Chrome/WebKit checks
+passed, one worker/zero retries, 51.9 seconds. Independent source review found
+no material issue in the adaptation. No production change was needed.
+
+The initial hosted run was cancelled after the recorded shard failure; partial
+passes/cancelled jobs are not a complete passing inventory. A fresh hosted run
+of the corrected commit is required. Final receipts are kept in the author
+completion record and PR; source runtime bytes remain those reviewed at b520fb3.

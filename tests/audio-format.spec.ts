@@ -25,9 +25,11 @@ for (const [file, expected] of [
     await expect(field).toHaveAttribute('title', 'Source audio: ' + expected);
     // Some engines can read source metadata but cannot decode that soundtrack.
     // Dismiss preparation guidance before inspecting the comparison controls.
+    if (await page.locator('#localPreparationDialog').isVisible()) await page.locator('#localPreparationClose').click();
     if (await page.locator('#ffmpegPanel').isVisible()) await page.locator('#ffmpegPanelClose').click();
     if (file === 'dialogue_71.mp4') {
       await page.waitForFunction(() => (window as any).eval('_videoAudioBuffers.editA?.numberOfChannels === 3'));
+      if (await page.locator('#localPreparationDialog').isVisible()) await page.locator('#localPreparationClose').click();
       if (await page.locator('#ffmpegPanel').isVisible()) await page.locator('#ffmpegPanelClose').click();
       await page.locator('#audioListeningLabel').click();
       await page.getByRole('button', {name:'Center Only', exact:true}).click();
@@ -64,6 +66,9 @@ test('source format changes only when the externally prepared AC-3 copy is loade
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures', 'ac3_video.mp4'));
   await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('Dolby Digital');
   await page.evaluate(() => (window as any)._registerFfmpegCommand('editA', 'ac3_video.mp4', 'ac-3'));
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await page.locator('#localPreparationDialog summary').click();
+  await page.locator('#localPreparationManual').click();
   const command = await page.evaluate(() => (window as any).eval('_ffmpegCommands.editA.cmd'));
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'warpdiff-reload-'));
   try {
