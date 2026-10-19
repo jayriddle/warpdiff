@@ -183,6 +183,26 @@ export function makeFixtures(directory) {
       file
     });
   }
+  // Lossless x264 selects High 4:4:4 Predictive even with 4:2:0 samples. Also
+  // exercise ordinary High-profile HD output: macOS emits NV12 there and its
+  // compositor transfer differs from the software I420 path above.
+  const hardwareCases = [];
+  for (const [name,matrix,range,transfer] of [
+    ['nv12-709-limited','bt709','tv','bt709'],
+    ['nv12-601-limited','smpte170m','tv','bt709'],
+    ['nv12-709-full','bt709','pc','bt709'],
+    ['nv12-srgb','bt709','tv','iec61966-2-1'],
+    ['nv12-untagged',null,null,null]
+  ]) {
+    const file=path.join(directory,name+'.mp4');
+    ffmpeg(['-f','rawvideo','-pix_fmt','yuv420p','-s',width+'x'+height,'-framerate','24','-stream_loop','-1','-i',rawFile,
+      '-t','0.5','-an','-vf','scale=1920:1080:flags=neighbor'+(matrix?',setparams=range='+(range==='pc'?'full':'limited')+':color_primaries=bt709:color_trc='+transfer+':colorspace='+matrix:''),'-c:v','libx264','-crf','18','-profile:v','high','-pix_fmt','yuv420p',
+      ...(matrix?['-colorspace',matrix,'-color_range',range,'-color_primaries','bt709','-color_trc',transfer]:[]),'-movflags',matrix?'+faststart+write_colr':'+faststart',file]);
+    const metadata=probe(file).streams.find(s=>s.codec_type==='video');
+    if(metadata.profile!=='High')throw new Error('Expected ordinary AVC High fixture: '+name);
+    if(matrix && (metadata.color_space!==matrix || metadata.color_range!==range || metadata.color_transfer!==transfer || metadata.color_primaries!=='bt709'))throw new Error('Incorrect authored color metadata: '+name);
+    hardwareCases.push({name,file,matrix,range,transfer,metadata});
+  }
   return {
     width,
     height,
@@ -190,12 +210,13 @@ export function makeFixtures(directory) {
     rows,
     patches,
     cases,
+    hardwareCases,
     redVariants,
     encodeSource: encoded,
     image,
     imageTwin,
     imageSamples: sampleRGB(rgb),
     rawHash: sha256(raw),
-    files: [rawFile, image, imageTwin, encoded, ...cases.map(c => c.file), ...redVariants.map(c => c.file)]
+    files: [rawFile, image, imageTwin, encoded, ...cases.map(c => c.file), ...redVariants.map(c => c.file),...hardwareCases.map(c=>c.file)]
   };
 }

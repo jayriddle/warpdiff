@@ -90,32 +90,37 @@ function _scrubVideoSupported() {
     return typeof VideoDecoder !== 'undefined' && typeof EncodedVideoChunk !== 'undefined';
 }
 
-// Observe the native player's interpretation; never infer missing tags from
-// dimensions or assign a new source color label. Release the temporary frame.
-function _scrubVideoNativeColorSpace(video) {
-    let frame;
-    try {
-        frame = new VideoFrame(video);
-        const color = frame.colorSpace.toJSON();
-        return color.primaries && color.transfer && color.matrix && typeof color.fullRange === 'boolean' ? color : null;
-    } catch (_) { return null; }
-    finally { if (frame) frame.close(); }
+// Native NV12 and software I420 output take different compositor paths on
+// macOS Chrome. The measured SDR correction belongs only to the former.
+// Resolve the fragment against the document, not the deployment's release base.
+function _scrubVideoPresentationFilter(frame, platform, documentUrl, wideGamut = false) {
+    if (!/Mac/.test(platform || '') || frame.format !== 'NV12') return '';
+    // The sRGB-profile table does not preserve saturated colors on a P3
+    // compositor. Keep the native picture rather than reuse that correction.
+    if (wideGamut) return null;
+    const color = frame.colorSpace;
+    // NV12 with a 601 matrix did not preserve the native compositor even with
+    // the transfer correction. Keep native seeking for unverified combinations.
+    if (color?.primaries !== 'bt709' || color.matrix !== 'bt709' ||
+        !['bt709', 'iec61966-2-1'].includes(color.transfer)) return null;
+    if (color.transfer !== 'bt709') return '';
+    return 'url("' + new URL('#scrubOverlayColorFix', documentUrl).href + '")';
 }
 
-function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
+function _createScrubVideoSession(bytes, onColorRejected) {
     if (!_scrubVideoSupported()) return null;
     const info = _demuxMP4Video(bytes);
     if (!info || !info.codec || info.samples.length === 0) return null;
-    // The app supplies the native frame's color interpretation. Untagged
-    // native and WebCodecs paths can otherwise choose different defaults.
-    // If that observation failed, retain native seeking instead of guessing.
-    if (!info.colr && nativeColorSpace === null) return null;
+    // Matching inferred VideoFrame metadata does not prove matching display
+    // transfer: untagged HD AVC reproduced a 12-code compositor darkening even
+    // with identical native/decoder CICP and raw RGB. Keep its native picture
+    // path rather than inventing source tags or applying a platform tone curve.
+    if (!info.colr) return null;
     // Refuse HDR content (PQ transfer=16, HLG=18 in the colr box): Chrome
     // tone-maps HDR <video> for display; drawImage of the decoded frames gets
     // no tone mapping, so the overlay would paint drastically darker. Falling
-    // back to native <video> scrubbing is correct for these files. (Streams
-    // tagged only in the bitstream, with no colr box, are caught by the
-    // first-frame guard in the output callback below.)
+    // back to native <video> scrubbing is correct for these files. Conflicting
+    // bitstream HDR output is also caught before the first paint below.
     if (info.colr && (info.colr.transfer === 16 || info.colr.transfer === 18)) return null;
 
     const samples = info.samples;               // decode order
@@ -295,6 +300,7 @@ function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
     // (requests that painted nothing at all: 8 → 0).
     const PREFETCH_LEAD = Math.max(12, Math.round(maxGop * 0.6));
     let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
+    let presentationFilter = '';
 
     function _notifyPaint(pts) {
         if (!paintListener) return;
@@ -336,13 +342,13 @@ function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
                     primaries: cs.primaries, transfer: cs.transfer,
                     matrix: cs.matrix, fullRange: cs.fullRange
                 };
-                // Late HDR guard for streams tagged only in the bitstream (no
-                // colr box): kill the session before painting un-tone-mapped
-                // frames and clear anything already on the canvas so the
-                // <video> shows through; the controller falls back to seeks.
-                const nativeMismatch = !info.colr && nativeColorSpace &&
-                    ['primaries', 'transfer', 'matrix', 'fullRange'].some(key => cs[key] !== nativeColorSpace[key]);
-                if (cs.transfer === 'pq' || cs.transfer === 'hlg' || nativeMismatch) {
+                // Reject conflicting HDR or an unverified NV12 display path
+                // before painting. Clear the canvas so native seeking shows
+                // through, and let the controller retire encoded input too.
+                const filter = _scrubVideoPresentationFilter(frame,
+                    typeof navigator === 'undefined' ? '' : navigator.platform, window.location?.href,
+                    !!(window.matchMedia && matchMedia('(color-gamut: p3)').matches));
+                if (cs.transfer === 'pq' || cs.transfer === 'hlg' || filter === null) {
                     dead = true;
                     if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
                     frame.close();
@@ -350,6 +356,8 @@ function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
                     if (onColorRejected) onColorRejected();
                     return;
                 }
+                presentationFilter = filter;
+                if (canvas) canvas.style.filter = presentationFilter;
             }
             lastOutputPts = Math.max(lastOutputPts, frame.timestamp / 1e6);
             cacheStore(frame);
@@ -493,12 +501,15 @@ function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
             canvas = canvasEl;
             canvas.width = info.codedWidth || 640;
             canvas.height = info.codedHeight || 360;
-            // Retain the browser's managed canvas gamut. SDR compositor checks
-            // cover sRGB and P3 profiles; no additional empirical tone curve is
-            // applied. This is not physical display calibration.
+            // Retain the managed gamut and this session's measured output-path
+            // correction. Software I420 remains unfiltered; native NV12 SDR on
+            // macOS needs the separate compositor compensation below.
+            canvas.style.filter = presentationFilter;
             // colorSpaceOverride ('srgb' | 'display-p3') is a diagnostic hook.
-            const mode = colorSpaceOverride ||
-                ((window.matchMedia && matchMedia('(color-gamut: p3)').matches) ? 'display-p3' : 'srgb');
+            // BT.709 primaries fit sRGB. An unnecessary P3 backing store added
+            // conversion/rounding differences even for software-decoded SDR.
+            const mode = colorSpaceOverride || (info.colr?.primaries === 1 ? 'srgb' :
+                ((window.matchMedia && matchMedia('(color-gamut: p3)').matches) ? 'display-p3' : 'srgb'));
             let ctx = null;
             if (mode === 'display-p3') {
                 try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); }

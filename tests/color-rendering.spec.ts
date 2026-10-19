@@ -61,13 +61,50 @@ test('video Difference follows RGB subtraction and retires its staging buffer', 
   expect(await page.evaluate(() => window.eval('_diffVideoFrame === null'))).toBe(true);
 });
 
-for(const name of ['matrix709-limited','matrix601-limited','matrix709-full','srgb-transfer','untagged']) {
+test('scrub color survives a release base with document query and fragment',async({page})=>{
+  await page.route('**/release-runtime/**',async route=>{
+    const response=await route.fetch({url:route.request().url().replace('/release-runtime/','/')});
+    await route.fulfill({response});
+  });
+  await page.route('**/?staged-color=1',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,body:(await response.text()).replace('<head>','<head><base href="./release-runtime/">')});
+  });
+  await page.goto('/?staged-color=1#frame');
+  await load(page,fixtures.hardwareCases.find(c=>c.name==='nv12-709-limited').file);
+  const video=page.locator('#layerEditA video'),native=await screenshotSamples(video,test.info().outputPath('staged-native.png'));
+  expect(Math.max(...native.flatMap(p=>p.rgb))).toBeGreaterThan(200);
+  const bar=(await page.locator('#videoProgressContainer').boundingBox())!;
+  await page.mouse.move(bar.x+bar.width*.4,bar.y+bar.height/2);await page.mouse.down();
+  try{
+    if(await page.evaluate(()=>window.eval('_scrubUseDecoder()'))){
+      await page.waitForFunction(()=>window.eval('_scrubVideoSessions.editA === "failed" || _scrubOverlayLive.editA?.framesPainted>0'));
+      if(await page.evaluate(()=>window.eval('_scrubVideoSessions.editA === "failed"'))){
+        expect(await page.evaluate(()=>matchMedia('(color-gamut: p3)').matches),'wide-gamut NV12 uses native seeking').toBe(true);
+        expect(await page.evaluate(()=>window.eval('_scrubVideoInputBudget.state.bytes'))).toBe(0);
+        await page.waitForFunction(()=>!(document.querySelector('#layerEditA video') as HTMLVideoElement).seeking);
+        expect(difference(await screenshotSamples(video,test.info().outputPath('staged-native-fallback.png')),native)).toBeLessThanOrEqual(2);
+        return;
+      }
+      const canvas=page.locator('.scrub-overlay-canvas'),filter=await canvas.evaluate(c=>c.style.filter);
+      if(filter)expect(filter).toContain('/?staged-color=1#scrubOverlayColorFix');
+      expect(difference(await screenshotSamples(canvas,test.info().outputPath('staged-scrub.png')),native)).toBeLessThanOrEqual(2);
+    }else{
+      await page.waitForFunction(()=>!(document.querySelector('#layerEditA video') as HTMLVideoElement).seeking);
+      expect(difference(await screenshotSamples(video,test.info().outputPath('staged-native-seek.png')),native)).toBeLessThanOrEqual(2);
+    }
+  }finally{await page.mouse.up();}
+});
+
+for(const name of ['matrix709-limited','matrix601-limited','matrix709-full','srgb-transfer','untagged',
+  'nv12-709-limited','nv12-601-limited','nv12-709-full','nv12-srgb','nv12-untagged']) {
   test('SDR scrub preserves native picture: '+name, async ({page}, info) => {
-    await load(page,fixtures.cases.find(c=>c.name===name).file);
+    await load(page,[...fixtures.cases,...fixtures.hardwareCases].find(c=>c.name===name).file);
     await page.mouse.move(2,840);
     const video=page.locator('#layerEditA video');
     const native=await video.evaluate(readSamples,{});
     const nativeShot=await screenshotSamples(video,info.outputPath('native.png'));
+    expect(Math.max(...nativeShot.flatMap(p=>p.rgb)),'native screenshot contains the authored picture').toBeGreaterThan(200);
     const bar=(await page.locator('#videoProgressContainer').boundingBox())!;
     await page.mouse.move(bar.x+bar.width*.3,bar.y+bar.height/2);await page.mouse.down();
     try {
@@ -76,15 +113,31 @@ for(const name of ['matrix709-limited','matrix601-limited','matrix709-full','srg
         await page.waitForFunction(()=>window.eval('_scrubVideoSessions.editA === "failed" || !!_scrubOverlayLive.editA && (_scrubOverlayLive.editA.dead || _scrubOverlayLive.editA.framesPainted > 0)'));
         const paints=await page.evaluate(()=>window.eval('!!_scrubOverlayLive.editA && !_scrubOverlayLive.editA.dead'));
         if (!paints) {
-          expect(name,'tagged controls must exercise the decoder').toBe('untagged');
+          const wideGamut=await page.evaluate(()=>matchMedia('(color-gamut: p3)').matches);
+          expect(name.includes('untagged') || name==='nv12-601-limited' || name.startsWith('nv12-') && wideGamut,'verified tagged controls must exercise the decoder or its explicit native policy').toBe(true);
           expect(await page.evaluate(()=>window.eval('_scrubVideoInputBudget.state.bytes')),'rejected color releases encoded input').toBe(0);
           await page.mouse.move(bar.x+bar.width*.45,bar.y+bar.height/2);
+          await page.waitForFunction(()=>!document.querySelector('#layerEditA video')!.seeking);
+          if(name.includes('untagged'))expect(await page.locator('.scrub-overlay-canvas').count(),'untagged native path does not replace the picture').toBe(0);
           expect(difference((await video.evaluate(readSamples,{})).samples,native.samples),'native fallback preserves picture').toBe(0);
+          expect(difference(await screenshotSamples(video,info.outputPath('native-fallback.png')),nativeShot),'native fallback preserves displayed color').toBeLessThanOrEqual(2);
           return;
         }
         const canvas=page.locator('.scrub-overlay-canvas');
         expect(difference((await canvas.evaluate(readSamples,{})).samples,native.samples)).toBeLessThanOrEqual(2);
         expect(difference(await screenshotSamples(canvas,info.outputPath('scrub.png')),nativeShot),'scrub compositor matches native video').toBeLessThanOrEqual(2);
+        const filter=await canvas.evaluate(c=>c.style.filter);
+        if(filter) {
+          await canvas.evaluate(c=>c.style.filter='');
+          expect(difference(await screenshotSamples(canvas,info.outputPath('missing-compensation.png')),nativeShot),'NV12 compensation is necessary on this path').toBeGreaterThan(8);
+          await canvas.evaluate((c,f)=>c.style.filter=f,filter);
+        }
+        // Cached ImageBitmaps must retain the same presentation correction.
+        await page.waitForFunction(()=>window.eval('_scrubOverlayLive.editA.cacheStats.frames > 0'));
+        const hits=await page.evaluate(()=>window.eval('_scrubOverlayLive.editA.cacheStats.hits'));
+        await page.mouse.move(bar.x+bar.width*.2,bar.y+bar.height/2);
+        await page.waitForFunction(h=>window.eval('_scrubOverlayLive.editA.cacheStats.hits')>h,hits);
+        expect(difference(await screenshotSamples(canvas,info.outputPath('cached-scrub.png')),nativeShot),'cached compositor matches native video').toBeLessThanOrEqual(2);
         if(name==='matrix709-limited') {
           await page.evaluate(installLegacyFilter);
           await canvas.evaluate(c=>c.style.filter='url(#legacy-color-negative-control)');

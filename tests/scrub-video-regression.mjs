@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 export async function runScrubVideoChecks(check, source = readFileSync(new URL('../js/scrub-video.js', import.meta.url), 'utf8')) {
-  async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720, nativeColorSpace, colr, onColorRejected } = {}) {
+  async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720,
+      colr = {primaries:1,transfer:1,matrix:1}, frameTransfer = 'bt709', onColorRejected } = {}) {
     const resources = [], bitmaps = [], draws = [], raf = new Map(), decoders = [];
     let rafId = 0;
     class Frame {
@@ -12,7 +13,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         this.timestamp = Math.round(index / 24 * 1e6);
         this.format = format;
         this.codedWidth = width; this.codedHeight = height;
-        this.colorSpace = { transfer: 'bt709', primaries: 'bt709', matrix: 'bt709', fullRange:false };
+        this.colorSpace = { transfer: frameTransfer, primaries: 'bt709', matrix: 'bt709', fullRange:false };
         this.closed = false; this.isClone = clone;
         resources.push(this);
       }
@@ -53,10 +54,10 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
       window: {},
     };
     runInNewContext(source, realm);
-    const session = realm._createScrubVideoSession(new Uint8Array(1), nativeColorSpace, onColorRejected);
+    const session = realm._createScrubVideoSession(new Uint8Array(1), onColorRejected);
     if (!session) return { session, decoders };
     await session.ready;
-    const canvas = { width: 0, height: 0, getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
+    const canvas = { width: 0, height: 0, style:{filter:''}, getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
     session.attach(canvas, 'srgb');
     const paint = () => { const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(fn => fn()); };
     const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
@@ -64,27 +65,28 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
   }
 
   {
-    const color = {primaries:'smpte170m', transfer:'smpte170m', matrix:'smpte170m', fullRange:false};
-    let retired=0;
-    const native = await sessionFor({nativeColorSpace:color,onColorRejected:()=>{retired++;}});
-    native.session.request(0, true); native.decoder.emit(0);
-    check('scrub[color]: mismatched untagged interpretation retires before painting', native.session.dead && native.draws.length === 0 && native.resources.every(f=>f.closed) && retired===1);
-    native.session.close();
-    const matching = await sessionFor({codec:'avc1.f4001f', nativeColorSpace:{primaries:'bt709',transfer:'bt709',matrix:'bt709',fullRange:false}});
-    matching.session.request(0, true); matching.decoder.emit(0); matching.paint();
-    check('scrub[color]: matching untagged interpretation still paints normally', !matching.session.dead && matching.session.framesPainted > 0);
-    matching.session.close();
-    const tagged = await sessionFor({nativeColorSpace:color, colr:{primaries:1, transfer:1, matrix:1}});
-    check('scrub[color]: native observation never overrides declared container color', !tagged.decoder.config.colorSpace);
+    const realm={URL};runInNewContext(source,realm);
+    const filter=realm._scrubVideoPresentationFilter;
+    const native={format:'NV12',colorSpace:{primaries:'bt709',matrix:'bt709',transfer:'bt709'}},url='https://example.test/warpdiff/?review=1#old';
+    check('scrub[color]: NV12 correction binds to the stable document and retains its query',filter(native,'MacIntel',url)==='url("https://example.test/warpdiff/?review=1#scrubOverlayColorFix")');
+    check('scrub[color]: software I420 never receives the NV12 correction',filter({...native,format:'I420'},'MacIntel',url)==='');
+    check('scrub[color]: other platforms never receive macOS compensation',filter(native,'Linux x86_64',url)==='');
+    check('scrub[color]: explicit sRGB output does not receive BT709 compensation',filter({...native,colorSpace:{...native.colorSpace,transfer:'iec61966-2-1'}},'MacIntel',url)==='');
+    check('scrub[color]: unverified NV12 matrix retains native seeking',filter({...native,colorSpace:{...native.colorSpace,matrix:'smpte170m'}},'MacIntel',url)===null);
+    check('scrub[color]: wide-gamut NV12 retains native presentation',filter(native,'MacIntel',url,true)===null);
+    check('scrub[color]: wide-gamut software output stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,true)==='');
+    const untagged = await sessionFor({colr:null});
+    check('scrub[color]: untagged input retains native presentation before decoder allocation', untagged.session === null && untagged.decoders.length === 0);
+    const tagged = await sessionFor();
+    tagged.session.request(0,true);tagged.decoder.emit(0);tagged.paint();
+    check('scrub[color]: declared SDR still paints without rewriting color metadata', !tagged.session.dead && tagged.session.framesPainted > 0 && !tagged.decoder.config.colorSpace);
     tagged.session.close();
-    const unavailable = await sessionFor({nativeColorSpace:null});
-    check('scrub[color]: missing native interpretation rejects untagged input before decoder allocation', unavailable.session === null && unavailable.decoders.length === 0);
-    for (const bad of [false, true]) {
-      let closed = 0;
-      const realm = {VideoFrame:class {colorSpace={toJSON(){if(bad)throw Error('unreadable');return color;}};close(){closed++;}}};
-      runInNewContext(source, realm);
-      const observed = realm._scrubVideoNativeColorSpace({});
-      check('scrub[color]: temporary native frame closes after '+(bad?'failed':'successful')+' observation', closed === 1 && (bad ? observed === null : observed === color));
+    for (const transfer of ['pq','hlg']) {
+      let retired=0;
+      const hdr=await sessionFor({frameTransfer:transfer,onColorRejected:()=>{retired++;}});
+      hdr.session.request(0,true);hdr.decoder.emit(0);hdr.paint();
+      check('scrub[color]: '+transfer+' bitstream conflict retires before painting',hdr.session.dead && hdr.draws.length===0 && hdr.resources.every(f=>f.closed) && retired===1);
+      hdr.session.close();
     }
   }
 

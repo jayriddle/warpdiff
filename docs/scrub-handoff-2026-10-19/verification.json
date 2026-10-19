@@ -1,0 +1,203 @@
+{
+  "status": "local correction; physical listening/display confirmation and release review pending",
+  "date": "2026-10-19",
+  "branch": "codex/sdr-color-verification",
+  "startingHead": "8a9bcbde0d423b87ced720d7a52bcae902e49043",
+  "sourceSnapshotTime": "2026-10-19T22:55:49.587Z",
+  "completeSuiteRevisionScope": "Complete suites predate the final wide-gamut guard/BT.709 canvas backing change and corresponding color assertions; see final-source-snapshot.json and preservation-final.json. Final targeted checks cover those changes.",
+  "sourceHashes": {
+    "index.html": "dae5c9701f9dfed7a0fb1f2eb01f69bca7e2ccc48e2f5ab913aa76f8e2cad37a",
+    "js/audio-routing.js": "b346da30f7542aa1c79eebe87dd80ee697f29039436af30eb1f80bfe5bd856b4",
+    "js/scrub-video.js": "d445d16352c77aa79d82f515e99422a395f0c902ddae8af5ac212191510a44da",
+    "tests/color-rendering.spec.ts": "556ea0c52bd89cfc817898bed8ca95da17d195002ef9bfd98887c65520d8bf82",
+    "tests/helpers/sdr-decoder-fixture.ts": "a256a5d6725ee376500f667d79cf05342088af677cc92eb0861dcc1a30250591",
+    "tests/ownership.test.mjs": "719773ed20a5f270d23aac41c9f4118345ed2329422b101f183662b9ff47f15a",
+    "tests/restart-playback.spec.ts": "617439f173cbbd00e32475c3452937a1d8c6f142dd83cbcfa2bdf96512ea868f",
+    "tests/scrub-input.spec.ts": "959a99513c3aa8484e875b8e017a4dce5fee7cb16a72c9430188c4a18a5abde0",
+    "tests/scrub-video-regression.mjs": "3b310fa8d204aec034895a88fc0c14485bc8b3151f20d62ecaa60aea8cd71f1b",
+    "tools/investigations/sdr-color/fixtures.mjs": "c67caebd01125d3b35e9f71d84f88bcd55ab5b870955b90255f3dacfdaee85e8",
+    "tests/native-video-output.spec.ts": "ac03c298347eb643f9a65cc707a81efd46c26205d8250d82ec32c7a5107532c7",
+    "tests/helpers/native-video-output.ts": "235c0c1a2ae8980286ad2424e8c67b2a97f930f0778f8f54e88de8653ae3bbf7"
+  },
+  "measuredSource": {
+    "identification": "matched loaded filename and media metadata to a local source; original comparison untouched; private paths/media/PCM stay in ignored evidence",
+    "video": "AVC High, 1920x1056, 24 fps, 3 s, no colr",
+    "audio": {
+      "originalPcmChecks": [
+        {
+          "referenceTime": 0.4,
+          "lagSamples": 0,
+          "lagMs": 0,
+          "correlation": 0.9999962966673209
+        },
+        {
+          "referenceTime": 1.2,
+          "lagSamples": 0,
+          "lagMs": 0,
+          "correlation": 0.9999998375057435
+        },
+        {
+          "referenceTime": 2,
+          "lagSamples": 0,
+          "lagMs": 0,
+          "correlation": 0.9999999848609319
+        }
+      ],
+      "outputLatencySeconds": 0.168,
+      "baseLatencySeconds": 0.005333333333333333,
+      "browserClockErrorMs": {
+        "min": -183.1999999523164,
+        "max": -174.67033330949155
+      },
+      "afterRoute": {
+        "level": {
+          "level": 1,
+          "target": 1,
+          "volume": 1
+        },
+        "routes": 0
+      },
+      "physicalAcousticSyncMeasured": false
+    },
+    "userOutput": "Bluetooth; user reports other playback in sync on the same headphones",
+    "colorBefore": {
+      "coldRaw": 0,
+      "warmRaw": 3,
+      "coldScreen": 12,
+      "warmScreen": 13,
+      "coldVsWarm": 3
+    },
+    "colorAfter": {
+      "raw": 0,
+      "screen": 0
+    }
+  },
+  "checks": {
+    "chromium": {
+      "total": 647,
+      "passed": 646,
+      "skipped": 1,
+      "reports": 1,
+      "stats": {
+        "startTime": "2026-10-19T22:34:51.803Z",
+        "duration": 661878.2660000001,
+        "expected": 646,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runnerErrors": []
+    },
+    "webkit": {
+      "total": 243,
+      "passed": 243,
+      "skipped": 0,
+      "reports": 1,
+      "stats": {
+        "startTime": "2026-10-19T22:45:54.186Z",
+        "duration": 314198.569,
+        "expected": 243,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runnerErrors": []
+    },
+    "ownership": {
+      "passed": 1381,
+      "failed": 0,
+      "scope": "local; includes two optional neighboring-source checks absent from hosted checkout"
+    },
+    "infrastructure": {
+      "passed": 26,
+      "failed": 0
+    },
+    "focusedColorAndNative": {
+      "total": 28,
+      "passed": 28,
+      "skipped": 0,
+      "reports": 1,
+      "stats": {
+        "startTime": "2026-10-19T22:54:16.169Z",
+        "duration": 61850.587,
+        "expected": 28,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      }
+    },
+    "focusedRouting": {
+      "passed": 20,
+      "retries": 0
+    },
+    "focusedDecoderFixtures": {
+      "passed": 8,
+      "retries": 0
+    },
+    "forcedP3": {
+      "total": 12,
+      "passed": 12,
+      "skipped": 0,
+      "reports": 1,
+      "stats": {
+        "startTime": "2026-10-19T22:53:37.495Z",
+        "duration": 22864.688,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "profile": "Chrome forced display-p3-d65; not physical display measurement"
+    },
+    "mutationChecks": {
+      "colorBaseline": 37,
+      "routingBaseline": 8,
+      "mutants": 11,
+      "allIntended": true
+    },
+    "reportedFileAfter": true,
+    "whitespace": true
+  },
+  "preservation": {
+    "branch": "codex/sdr-color-verification",
+    "head": "8a9bcbde0d423b87ced720d7a52bcae902e49043",
+    "unrelatedChecked": 1116,
+    "unrelatedChanged": [],
+    "fixturesChecked": 37,
+    "fixturesChanged": [],
+    "sourceDifferencesSinceFullRun": [
+      "js/scrub-video.js",
+      "tests/color-rendering.spec.ts",
+      "tests/scrub-video-regression.mjs"
+    ],
+    "cloneSourceDifferences": [
+      "js/scrub-video.js",
+      "tests/color-rendering.spec.ts",
+      "tests/scrub-video-regression.mjs"
+    ],
+    "allowedPostFullChanges": [
+      "js/scrub-video.js",
+      "tests/color-rendering.spec.ts",
+      "tests/scrub-video-regression.mjs"
+    ],
+    "unexpectedPostFullChanges": []
+  },
+  "retainedFailures": [
+    "Premature/hidden actual-file captures rejected as evidence",
+    "Incomplete first hardware-fixture declarations; four focused failures before explicit container/frame metadata",
+    "NV12/601: 21 passes, one failure, 63-code error; native fallback now required",
+    "Forced P3 profile: seven passes/five failures before wide-gamut NV12 native fallback and sRGB BT.709 backing; final 12 pass",
+    "Two interrupted broad Chromium attempts (near cases 122 and 367); neither is green",
+    "Owned server from interruption blocked a focused startup; scoped cleanup then retry",
+    "Proposed video edit-list restriction rejected a legitimate 23 ms edit and caused 11 ownership failures; parser/test restriction fully reverted"
+  ],
+  "limits": [
+    "Browser compositor continuity, not intended-source or physical display conformance",
+    "Clock-based route-delay estimate, not acoustic loopback or measured physical post-fix sync",
+    "Scrub audition still subject to output-device delay; surround/Opus graph device latency not solved",
+    "Separate leading empty video edit mapping remains open; unrelated to zero-start reported source",
+    "Historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate",
+    "No push, hosted dispatch, PR change, merge, tag or publication"
+  ],
+  "evidenceDirectory": "output/scrub-handoff-2026-10-19-JBKU0j/"
+}

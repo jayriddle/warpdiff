@@ -11,7 +11,7 @@ export function sdrDecoderFixture(input:string, directory:string) {
   const run=(args:string[])=>execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n',...args],{maxBuffer:64*1024*1024,timeout:30000});
   run(['-copyts','-i',input,'-map','0','-c','copy','-strict','-2','-avoid_negative_ts','disabled',
     '-bsf:v','h264_metadata=video_full_range_flag=0:colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1',
-    '-color_range','tv','-color_primaries','bt709','-color_trc','bt709','-colorspace','bt709',output]);
+    '-color_range','tv','-color_primaries','bt709','-color_trc','bt709','-colorspace','bt709','-movflags','+write_colr',output]);
   const picture=(file:string)=>run(['-i',file,'-map','0:v:0','-frames:v','1','-pix_fmt','yuv420p','-f','rawvideo','pipe:1']);
   assert(picture(input).equals(picture(output)),'Test copy must retain decoded picture planes');
   const audio=(file:string)=>JSON.parse(execFileSync('ffprobe',['-v','error','-select_streams','a:0','-show_packets',

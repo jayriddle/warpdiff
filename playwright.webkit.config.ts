@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   projects: [
+    {name:'webkit-native-video-output',testMatch:'native-video-output.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-color-rendering', testMatch:'color-rendering.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-normal-preparation', testMatch:'normal-preparation.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-prepared-import', testMatch:'prepared-import.spec.ts', use:{browserName:'webkit'}},

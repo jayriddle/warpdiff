@@ -63,7 +63,7 @@ export async function runScrubInputChecks(check) {
     runInNewContext(source,context);
     const factory=context._createScrubVideoInputBudget;
     context._createScrubVideoInputBudget=()=>factory(4,8);
-    context._createScrubVideoSession=(_bytes,_color,onColorRejected)=>{
+    context._createScrubVideoSession=(_bytes,onColorRejected)=>{
       let readyResolve;
       const session={closed:0,suspended:0,rejectColor:onColorRejected,close(){this.closed++;},suspend(){this.suspended++;},
         ready:delayedReady?new Promise(resolve=>{readyResolve=resolve;}):Promise.resolve(true),resolve:()=>readyResolve(true)};

@@ -2023,10 +2023,32 @@ runMediaAdmissionChecks(check);
     (SRC.match(/\b\w+\.volume\s*=(?!=)/g) || []).length === 1 &&
     extractFn('setVolume').includes('_setMediaVolume(v, volume)'));
   const prepareNative = extractFn('_prepareNativeAudio');
-  check('safari-native-output: only ordinary mono/stereo video bypasses the Web Audio source',
-    prepareNative.includes("_IS_WEBKIT_MEDIA && _nativeVideoVolumeWritable && media.tagName === 'VIDEO'") &&
+  check('native-output: only ordinary mono/stereo video bypasses the Web Audio source',
+    prepareNative.includes("_nativeVideoVolumeWritable && media.tagName === 'VIDEO'") &&
     prepareNative.includes('[1, 2].includes(channels)') &&
-    prepareNative.includes('!_opusSyncSlots[media.dataset.slot] && !_slowPlayback.enabled'));
+    prepareNative.includes('!_opusSyncSlots[media.dataset.slot] && !_opusSyncPending[media.dataset.slot] && !_slowPlayback.enabled'));
+  const prepareProbe = ({channels=2,tag='VIDEO',pending=false,active=false,slow=false,writable=true}={}) => {
+    let sources=0;
+    const node=()=>({gain:{},connect(){},disconnect(){}}),nativeRoutes=new Map(),directRoutes=new Map();
+    const realm={_nativeAudioRoutes:nativeRoutes,_nativeDirectOutputs:directRoutes,_nativeVideoVolumeWritable:writable,
+      _opusSyncSlots:{a:active},_opusSyncPending:{a:pending},_slowPlayback:{enabled:slow,attach(){}},
+      _scheduleAudioGain(){},_connectAudioOutput:()=>node(),clearTimeout(){},
+      getAudioContext:()=>({currentTime:0,state:'running',destination:{},createGain:node,
+        createMediaElementSource(){sources++;return node();}})};
+    runInNewContext(extractFn('_setMediaVolume')+'\n'+prepareNative,realm);
+    const media={tagName:tag,dataset:{slot:'a'},muted:false,paused:true,volume:.6,addEventListener(){}};
+    realm._prepareNativeAudio(media,channels);
+    return {sources,direct:directRoutes.has(media),graph:nativeRoutes.has(media),muted:media.muted};
+  };
+  for(const channels of [1,2]) {
+    const r=prepareProbe({channels});
+    check('native-output: '+channels+' channel video creates no MediaElementSource',r.direct && !r.graph && r.sources===0 && !r.muted);
+  }
+  for(const [name,opts] of [['pending Opus',{pending:true}],['active Opus',{active:true}],['surround',{channels:6}],
+      ['audio-only',{tag:'AUDIO'}],['playback experiment',{slow:true}],['locked native volume',{writable:false}]]) {
+    const r=prepareProbe(opts);
+    check('native-output: '+name+' retains its required graph',!r.direct && r.graph && r.sources===1);
+  }
   check('safari-native-output: clear cancels native fades and hiding settles the selected output',
     extractFn('_clearNativeAudioRoutes').includes('_nativeDirectOutputs.clear()') &&
     SRC.includes('_setDirectNativeAudioMuted(media, state.target === 0, false)'));

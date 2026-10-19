@@ -1,5 +1,7 @@
 # SDR color corrections — 2026-10-19
 
+**Follow-up qualification:** the subsequent [reported-file investigation](../scrub-handoff-2026-10-19/README.md) reproduced a 12-code shift on ordinary High-profile/NV12 output. These earlier lossless fixtures exercised I420 output and did not justify removing compensation from every decoder path. Retained results below describe their tested paths; they do not close the user's later report.
+
 Candidate version: **3.19.9**, on `codex/sdr-color-verification`.
 Released comparison point: `3270b02fabf862c1aa8d4eed50343d33956b6227` (3.19.8).
 Initial investigation: `3f5c68683475195a06efb35cf3a7df7e730d4f3c`.
