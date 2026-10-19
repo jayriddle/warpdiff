@@ -604,3 +604,10 @@ Released through PR #51 at `91665d9`. The following notes preserve the developme
 ## v3.7.6
 
 - Improved scrubbing — smoother frame updates and audio preview while dragging
+
+## 3.19.9 — SDR picture corrections (candidate, 2026-10-19)
+
+- Removed the historical macOS scrub tone curve after current browser compositor checks showed it introduced a color shift. Managed sRGB/P3 canvases and HDR native fallback remain. Untagged inputs use the native player’s observed color interpretation; unavailable observations retain native seeking.
+- Corrected Safari video Difference by staging native frames before RGB blending; the temporary buffer retires on exit/clear.
+- The optional connected preparation tool accepts compatible full-range AVC and verifies preservation of known copied-picture color labels. No conversion engine is distributed.
+- Detailed evidence and limits: [SDR corrections](sdr-color-fixes-2026-10-19/README.md). Quiet maintenance release; the 3.19.8 announcement remains unchanged.

@@ -3968,7 +3968,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.8';
+        const APP_VERSION = '3.19.9';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.8';
@@ -5257,7 +5257,15 @@
                     const response = await fetch(md.src, { signal: input.controller.signal });
                     const bytes = await _readScrubVideoInput(response, input.bytes, input.controller.signal);
                     if (gen !== _scrubSessionGen || input.retired) return null;
-                    session = _createScrubVideoSession(bytes);
+                    const video = getLayer(slot)?.querySelector('video');
+                    session = _createScrubVideoSession(bytes, _scrubVideoNativeColorSpace(video), () => {
+                        // Late color rejection uses native seeking. Retire the
+                        // encoded bytes too; never replace a newer slot owner.
+                        session.close();
+                        if (gen === _scrubSessionGen && _scrubVideoSessions[slot] === session) {
+                            _scrubVideoSessions[slot] = 'failed';
+                        }
+                    });
                     if (!session) throw new Error('not scrubbable');
                     const close = session.close.bind(session);
                     session.close = () => { try { close(); } finally { _scrubVideoInputBudget.release(input); } };
@@ -5371,11 +5379,7 @@
                     if (!canvasEl) {
                         canvasEl = document.createElement('canvas');
                         canvasEl.className = 'scrub-overlay-canvas';
-                        // Match Chrome-on-macOS's <video> transfer treatment —
-                        // measured per-channel table, see #scrubOverlayColorFix.
-                        if (/Mac/.test(navigator.platform)) {
-                            canvasEl.style.filter = 'url(#scrubOverlayColorFix)';
-                        }
+                        // Use the color-managed canvas without a platform-wide tone curve.
                         _scrubOverlayCanvases[slot] = canvasEl;
                     }
                     // The canvas paint is the presentation event for this path.
@@ -5566,6 +5570,7 @@
         let _diffCanvas = null;         // overlay canvas element
         let _diffCtx = null;            // 2d context
         let _diffOffscreen = null;      // offscreen canvas for compositing
+        let _diffVideoFrame = null;     // reusable WebKit video-blend staging canvas
         let _tileCheckMode = false;
         let _tileCheckSlot = null;
         let _tileCheckView = _prefs.load('tileCheckView', 'repeat') === 'offset' ? 'offset' : 'repeat';
@@ -7711,6 +7716,22 @@
             document.body.appendChild(_diffCanvas);
         }
 
+        function _diffCompositeSource(media, width, height) {
+            if (media.tagName !== 'VIDEO' || !document.body.classList.contains('webkit-video')) return media;
+            // WebKit can overwrite rather than difference-blend a native video.
+            // Snapshot through one reusable canvas; image blending then follows
+            // the normal canvas path, preserving the sampled RGB interpretation.
+            if (!_diffVideoFrame) _diffVideoFrame = document.createElement('canvas');
+            if (_diffVideoFrame.width !== width || _diffVideoFrame.height !== height) {
+                _diffVideoFrame.width = width;
+                _diffVideoFrame.height = height;
+            }
+            const context = _diffVideoFrame.getContext('2d');
+            context.clearRect(0, 0, width, height);
+            context.drawImage(media, 0, 0, width, height);
+            return _diffVideoFrame;
+        }
+
         // Matched-pair gate for the difference composite: never blend two videos
         // whose clocks sit on different frames — a one-frame offset renders as
         // motion ghosting that reads like codec error. When mismatched, the last
@@ -7761,9 +7782,9 @@
 
             // Draw asset A, then asset B with difference blend
             octx.globalCompositeOperation = 'source-over';
-            octx.drawImage(mediaA, 0, 0, cw, ch);
+            octx.drawImage(_diffCompositeSource(mediaA, cw, ch), 0, 0, cw, ch);
             octx.globalCompositeOperation = 'difference';
-            octx.drawImage(mediaB, 0, 0, cw, ch);
+            octx.drawImage(_diffCompositeSource(mediaB, cw, ch), 0, 0, cw, ch);
             octx.globalCompositeOperation = 'source-over';
 
             // Size the overlay canvas to match the active layer's wrapper
@@ -7813,6 +7834,7 @@
                 if (announce) showToast('Difference: ' + _diffPairLabel(pairs[_diffPairIndex]));
             } else {
                 if (_diffCanvas) _diffCanvas.style.display = 'none';
+                if (_diffVideoFrame) _diffVideoFrame.width = _diffVideoFrame.height = 0;
                 if (announce) showToast('Difference off');
             }
             _updateDiffInfoBar();
@@ -10932,6 +10954,8 @@
             _wipePairIndex = 0;
             _setWipePosition(0.5);
             _diffOffscreen = null;   // release the native-resolution compositing canvas (up to ~33 MB at 4K)
+            if (_diffVideoFrame) _diffVideoFrame.width = _diffVideoFrame.height = 0;
+            _diffVideoFrame = null;
             zoomLevel = 1;
             splitZoomLevel = null;
             splitStepZoom = 1.0;
@@ -14212,7 +14236,7 @@
             <p>WarpDiff rates Left ↔ Right, Top ↔ Bottom, the four-way corner junction, and the weakest overall result as <strong>Seamless</strong>, <strong>Review</strong>, or <strong>Visible seam</strong>. It compares color, transparency, and texture-direction changes at the boundary with ordinary transitions inside the image. This measures technical edge continuity, not whether a recognizable object, shadow, or lighting pattern repeats too obviously, so inspect the repeated preview before accepting a surface. Analysis uses the original local source pixels; Tile Check, Image Wipe, and Difference are mutually exclusive.</p>
 
             <h2>Difference Mode</h2>
-            <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
+            <p>Press <kbd>D</kbd> in Stack mode to compare two images or videos as a pixel-difference composite. Identical pixels appear black and differences appear brighter. <kbd>Shift+D</kbd> or the asset arrow keys cycle Ref–A, Ref–B, and A–B. Video difference waits for both clips to present the same frame so a temporary sync offset does not appear as false motion. Difference compares browser-decoded RGB pixels; it is not a linear-light or HDR mastering comparison. Safari snapshots each video through a reusable canvas so native video blending cannot replace the result. Difference and wipe are mutually exclusive and both exit when you switch to Grid.</p>
 
             <h2>Video Playback</h2>
             <p>Video controls appear at the bottom when videos are loaded. Controls wrap as needed in smaller desktop panes so seeking, volume and source selection stay reachable. Playback defaults to <strong>Sync</strong>, where all videos play, pause, and seek together. Press <kbd>Shift+S</kbd> or click <strong>Playback: Sync</strong> to enter <strong>Solo</strong>, where the transport controls affect only the selected video.</p>
@@ -14264,7 +14288,7 @@
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
             <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
-            <p><strong>Chrome scrubbing:</strong> Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
+            <p><strong>Chrome scrubbing:</strong> SDR scrub previews use the browser’s color-managed canvas without an extra tone curve. Untagged files follow the native player’s observed color interpretation, or retain native seeking when it cannot be read. HDR preview keeps native seeking. Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>
@@ -14462,22 +14486,6 @@
     <canvas id="stackMiniMap" title="Navigator — drag to pan, click to jump"></canvas>
 
     <div class="quick-start-backdrop" id="changelogBackdrop"></div>
-<!-- Scrub-overlay color correction (macOS Chrome). Chrome's video pipeline on
-     macOS renders <video> through a BT.709-style transfer treatment that canvas
-     content doesn't get — the same frame drawn via WebCodecs reads darker in the
-     mids (up to ~12/255 codes) with a small opposite shift in the deep shadows,
-     so no gamma/linear filter can match it. This per-channel table was measured
-     empirically (2026-07-02, luma-ramp flicker calibration: CDP captures of the
-     hardware-composited window; residual after correction ≤2/255 codes).
-     Applied to .scrub-overlay-canvas on macOS only — see _scrubOverlayBegin. -->
-    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="scrubOverlayColorFix" color-interpolation-filters="sRGB">
-      <feComponentTransfer>
-        <feFuncR type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
-        <feFuncG type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
-        <feFuncB type="table" tableValues="0 0.0156 0.0554 0.0995 0.139 0.1759 0.2114 0.249 0.2853 0.3205 0.3534 0.3869 0.4208 0.4504 0.4807 0.5119 0.5431 0.5744 0.6056 0.6361 0.6615 0.6915 0.7202 0.7501 0.7775 0.8087 0.836 0.8631 0.8924 0.918 0.9453 0.9727 1"/>
-      </feComponentTransfer>
-    </filter></svg>
-
     <!-- First-play muted nudge (2026-07): actionable, once per session. Lives at the
          document top level so its z-index clears the transport bar (#videoControls) —
          nested inside the media stage, its stacking context sat below the controls. -->

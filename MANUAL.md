@@ -350,6 +350,8 @@ Press **D** in Stack mode to overlay a pixel-difference composite of the current
 
 With 2 files loaded there is one pair (A–B). With 3 files there are three pairs. With 4 files there are six media-numbered pairs, such as Image-1–Image-2 or Video-1–Video-2. Use **Shift+D** or the arrow keys to cycle through them; a toast shows the active pair label each time you switch.
 
+Difference compares browser-decoded RGB pixels, not linear-light or HDR mastering values. Safari snapshots native video into one reusable canvas before blending; leaving Difference or clearing releases that buffer. SDR scrub previews use the browser’s managed canvas gamut without an added tone curve. Untagged scrub inputs use the native player’s observed color interpretation, or retain native seeking if it is unavailable; HDR continues through native seeking. The optional connected preparation tool copies compatible full-range AVC and checks that known color labels remain intact. Physical display accuracy and complete color conformance are not certified.
+
 Difference mode uses the canvas `difference` composite operation for hardware-accelerated rendering — no manual per-pixel loops. It updates live during video playback and on frame step, and follows zoom and pan. During playback the composite only updates when both videos are on the same frame — a transient one-frame offset briefly holds the last matched diff instead of flashing false motion ghosting. The overlay is automatically removed when you switch to Grid mode or press **D** again.
 
 ---

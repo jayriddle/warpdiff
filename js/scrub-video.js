@@ -90,10 +90,26 @@ function _scrubVideoSupported() {
     return typeof VideoDecoder !== 'undefined' && typeof EncodedVideoChunk !== 'undefined';
 }
 
-function _createScrubVideoSession(bytes) {
+// Observe the native player's interpretation; never infer missing tags from
+// dimensions or assign a new source color label. Release the temporary frame.
+function _scrubVideoNativeColorSpace(video) {
+    let frame;
+    try {
+        frame = new VideoFrame(video);
+        const color = frame.colorSpace.toJSON();
+        return color.primaries && color.transfer && color.matrix && typeof color.fullRange === 'boolean' ? color : null;
+    } catch (_) { return null; }
+    finally { if (frame) frame.close(); }
+}
+
+function _createScrubVideoSession(bytes, nativeColorSpace, onColorRejected) {
     if (!_scrubVideoSupported()) return null;
     const info = _demuxMP4Video(bytes);
     if (!info || !info.codec || info.samples.length === 0) return null;
+    // The app supplies the native frame's color interpretation. Untagged
+    // native and WebCodecs paths can otherwise choose different defaults.
+    // If that observation failed, retain native seeking instead of guessing.
+    if (!info.colr && nativeColorSpace === null) return null;
     // Refuse HDR content (PQ transfer=16, HLG=18 in the colr box): Chrome
     // tone-maps HDR <video> for display; drawImage of the decoded frames gets
     // no tone mapping, so the overlay would paint drastically darker. Falling
@@ -308,6 +324,7 @@ function _createScrubVideoSession(bytes) {
     // Named callbacks (not inline) so a suspended session can build a FRESH
     // VideoDecoder around the same logic — see suspend()/the resume in request().
     function _onDecoderOutput(frame) {
+            if (dead) { frame.close(); return; }
             // reset() discards pending outputs, so anything arriving here belongs
             // to the current run. Cache emitted frames near the target (positions
             // the user may revisit — the distance gate in cacheStore skips ones
@@ -323,11 +340,14 @@ function _createScrubVideoSession(bytes) {
                 // colr box): kill the session before painting un-tone-mapped
                 // frames and clear anything already on the canvas so the
                 // <video> shows through; the controller falls back to seeks.
-                if (cs.transfer === 'pq' || cs.transfer === 'hlg') {
+                const nativeMismatch = !info.colr && nativeColorSpace &&
+                    ['primaries', 'transfer', 'matrix', 'fullRange'].some(key => cs[key] !== nativeColorSpace[key]);
+                if (cs.transfer === 'pq' || cs.transfer === 'hlg' || nativeMismatch) {
                     dead = true;
                     if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
                     frame.close();
                     try { decoder.close(); } catch (_) {}
+                    if (onColorRejected) onColorRejected();
                     return;
                 }
             }
@@ -473,12 +493,10 @@ function _createScrubVideoSession(bytes) {
             canvas = canvasEl;
             canvas.width = info.codedWidth || 640;
             canvas.height = info.codedHeight || 360;
-            // On wide-gamut (P3) displays, macOS composites <video> through a
-            // BT.709→P3 mapping that an sRGB canvas doesn't get — the overlay
-            // reads darker than the video it covers (same issue that forced the
-            // pixel magnifier to use a cloned <video>; see CLAUDE.md). Painting
-            // into a display-p3 canvas keeps the conversion in the same gamut.
-            // colorSpaceOverride ('srgb' | 'display-p3') is a calibration hook.
+            // Retain the browser's managed canvas gamut. SDR compositor checks
+            // cover sRGB and P3 profiles; no additional empirical tone curve is
+            // applied. This is not physical display calibration.
+            // colorSpaceOverride ('srgb' | 'display-p3') is a diagnostic hook.
             const mode = colorSpaceOverride ||
                 ((window.matchMedia && matchMedia('(color-gamut: p3)').matches) ? 'display-p3' : 'srgb');
             let ctx = null;

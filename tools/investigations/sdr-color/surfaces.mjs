@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readSamples, screenshotSamples as shot } from './sampling.mjs';
 import { ffmpeg } from './fixtures.mjs';
 import { difference } from './native.mjs';
+import { installLegacyFilter } from './legacy-filter.mjs';
 async function picture(page, files) {
   await page.locator('#multiFileInput').setInputFiles(files);
   await page.locator('#comparisonView.active').waitFor();
@@ -145,11 +146,13 @@ export async function surfaceChecks(page, fixtures, directory, row) {
         filter: await canvas.evaluate(c => c.style.filter)
       };
       assert(row.surfaces.scrub.rawError <= 2, 'WebCodecs raw output differs from native pixels');
+      await page.evaluate(installLegacyFilter);
       const filter = await canvas.evaluate(c => c.style.filter);
       try {
-        await canvas.evaluate(c => c.style.filter = 'none');
-        const unfiltered = await shot(canvas, path.join(directory, row.engine + '-scrub-unfiltered-control.png'));
-        row.surfaces.scrub.withoutFilterError = difference(unfiltered, nativeShot);
+        await canvas.evaluate(c => c.style.filter = 'url(#legacy-color-negative-control)');
+        const unfiltered = await shot(canvas, path.join(directory, row.engine + '-scrub-legacy-negative-control.png'));
+        row.surfaces.scrub.legacyFilterError = difference(unfiltered, nativeShot);
+        assert(row.surfaces.scrub.legacyFilterError > 2, 'Legacy filter negative control did not create a detectable shift');
       } finally {
         await canvas.evaluate((c, filter) => c.style.filter = filter, filter);
       }

@@ -57,21 +57,33 @@ export async function runScrubInputChecks(check) {
   function controllerHarness(delayedReady=false) {
     const pending=[],sessions=[],notices=[];
     const context={AbortController,mediaData:{a:{type:'video',src:'a',size:4},b:{type:'video',src:'b',size:4},c:{type:'video',src:'c',size:4}},
-      isDragging:false,showLoadToast:message=>notices.push(message),
+      isDragging:false,showLoadToast:message=>notices.push(message),getLayer:()=>({querySelector:()=>({})}),
       fetch:(url,options)=>new Promise(resolve=>pending.push({url,options,resolve})),
     };
     runInNewContext(source,context);
     const factory=context._createScrubVideoInputBudget;
     context._createScrubVideoInputBudget=()=>factory(4,8);
-    context._createScrubVideoSession=()=>{
+    context._createScrubVideoSession=(_bytes,_color,onColorRejected)=>{
       let readyResolve;
-      const session={closed:0,suspended:0,close(){this.closed++;},suspend(){this.suspended++;},
+      const session={closed:0,suspended:0,rejectColor:onColorRejected,close(){this.closed++;},suspend(){this.suspended++;},
         ready:delayedReady?new Promise(resolve=>{readyResolve=resolve;}):Promise.resolve(true),resolve:()=>readyResolve(true)};
       sessions.push(session);return session;
     };
     runInNewContext(controllerSource,context);
     return {context,pending,sessions,notices,state:()=>runInNewContext('_scrubVideoInputBudget.state',context),
       map:()=>runInNewContext('_scrubVideoSessions',context),settle:async()=>{for(let i=0;i<12;i++)await Promise.resolve();}};
+  }
+  {
+    const h=controllerHarness(),p=h.context._scrubOverlayGetSession('a');await h.settle();
+    h.pending[0].resolve(new Response(new Uint8Array(4)));await p;
+    h.sessions[0].rejectColor();
+    check('scrub-input: color rejection closes the retained session and releases its reservation immediately',
+      h.sessions[0].closed===1 && h.state().bytes===0 && h.map().a==='failed');
+    h.context._releaseScrubSessions();
+    const next=h.context._scrubOverlayGetSession('a');await h.settle();
+    h.sessions[0].rejectColor();
+    check('scrub-input: late color rejection cannot replace a newer pending owner or release its bytes',h.map().a===next && h.state().bytes===4);
+    h.pending[1].resolve(new Response(new Uint8Array(4)));await next;h.context._releaseScrubSessions();
   }
   {
     const h=controllerHarness(),{context}=h;

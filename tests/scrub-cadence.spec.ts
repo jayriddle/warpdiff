@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
+import {sdrDecoderFixture} from './helpers/sdr-decoder-fixture';
 
-test('fallback keeps preview audio alive during slow motion while the picture holds a frame', async ({ page }) => {
+test('fallback keeps preview audio alive during slow motion while the picture holds a frame', async ({ page }, info) => {
   await page.goto('/');
   await page.evaluate(() => (window as any).eval(`(() => {
     const prototype = Object.getPrototypeOf(getAudioContext().audioWorklet);
     prototype.addModule = () => Promise.reject(new Error('Exercise the automatic short-preview fallback'));
   })()`));
-  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/surround_71.mp4'));
+  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr')));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
   const warm = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2));
   expect(warm && !warm.dead && warm.framesPainted > 0).toBeTruthy();

@@ -54,6 +54,7 @@ export async function nativeChecks(fixtures, directory, record) {
         metadataAfter: colorMetadata(probe(result.file).streams.find(s => s.codec_type === 'video'))
       });
       row.decodedSamplesEqual = sha256(rawPicture(source.file)) === sha256(rawPicture(result.file));
+      assert.equal(result.preparation.picture, source.name === 'encode709' ? 'encoded-h264-up-to-1080p' : 'copied', 'Expected preparation picture path');
       if (result.preparation.picture === 'copied') {
         Object.assign(row, assertCopyPreserved(source.file, result.file));
       }

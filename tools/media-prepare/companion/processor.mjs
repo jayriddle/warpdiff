@@ -58,6 +58,10 @@ async function digest(file,signal) {
     for await(const bytes of createReadStream(file,{signal}))hash.update(bytes);
     return hash.digest('hex');
 }
+function compatiblePicture(stream) {
+    return stream?.codec_name==='h264' && (stream.pix_fmt==='yuv420p' ||
+        stream.pix_fmt==='yuvj420p' && stream.color_range==='pc');
+}
 export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffmpeg',ffprobe='ffprobe'}) {
     check(signal);
     if(!['video','audio'].includes(kind))throw new PreparationError('This prototype prepares video and audio files');
@@ -77,7 +81,7 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     if(kind==='audio'&&(!Number.isInteger(audios[0].channels)||audios[0].channels<1||audios[0].channels>8)) {
         throw new PreparationError('This prototype supports audio files with one to eight channels');
     }
-    const copyPicture=kind==='video'&&videos[0].codec_name==='h264'&&videos[0].pix_fmt==='yuv420p'&&
+    const copyPicture=kind==='video'&&compatiblePicture(videos[0])&&
         videos[0].width>0&&videos[0].height>0&&videos[0].width<=4096&&videos[0].height<=2160;
     const name=kind==='video'?'review.mp4':'review.wav', file=path.join(directory,name);
     const args=['-hide_banner','-loglevel','error','-nostdin','-n','-protocol_whitelist','file',
@@ -117,9 +121,17 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     if(!size||size>OUTPUT_LIMIT)throw new PreparationError('Prepared file is empty or exceeds the output limit');
     const output=await probe(file,{ffprobe,signal}),outVideos=output.streams.filter(s=>s.codec_type==='video'),
         outAudios=output.streams.filter(s=>s.codec_type==='audio');
-    if(kind==='video'&&(outVideos.length!==1||outVideos[0].codec_name!=='h264'||outVideos[0].pix_fmt!=='yuv420p'||
+    if(kind==='video'&&(outVideos.length!==1||!compatiblePicture(outVideos[0])||
        outAudios.length!==audios.length||outAudios.some(s=>s.codec_name!=='aac'||s.profile!=='LC'||s.channels!==2||Number(s.sample_rate)!==48000))) {
         throw new PreparationError('Prepared video did not match the requested compatibility format');
+    }
+    if(copyPicture) {
+        for(const key of ['color_range','color_space','color_primaries','color_transfer']) {
+            const value=videos[0][key];
+            if(value && !['unknown','unspecified','reserved'].includes(value) && outVideos[0][key]!==value) {
+                throw new PreparationError('Copied picture did not retain its declared color interpretation');
+            }
+        }
     }
     if(kind==='audio'&&(outVideos.length||outAudios.length!==1||outAudios[0].codec_name!=='pcm_s24le'||outAudios[0].channels!==audios[0].channels||
        Number(outAudios[0].sample_rate)!==Number(audios[0].sample_rate)))throw new PreparationError('Prepared audio did not retain its channel count and sample rate');

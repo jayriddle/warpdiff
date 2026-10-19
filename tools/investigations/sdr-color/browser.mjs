@@ -21,7 +21,9 @@ async function appLoad(page, file) {
 export async function browserChecks(fixtures, native, directory, record, {
   engines = ['chrome', 'webkit'],
   root = process.cwd(),
-  strict = true
+  strict = true,
+  headless = true,
+  colorProfile = null
 } = {}) {
   const allowed = new Set(pageFiles(root)),
     server = http.createServer((req, res) => {
@@ -54,12 +56,17 @@ export async function browserChecks(fixtures, native, directory, record, {
       const engine = engineName === 'chrome' ? chromium : webkit,
         browser = await engine.launch(engineName === 'chrome' ? {
           channel: process.env.WARPDIFF_BROWSER_CHANNEL || 'chrome',
-          args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required']
+          headless,
+          ...(colorProfile === 'native' ? {ignoreDefaultArgs:['--force-color-profile=srgb']} : {}),
+          args: ['--mute-audio', '--autoplay-policy=no-user-gesture-required',
+            ...(colorProfile && colorProfile !== 'native' ? ['--force-color-profile=' + colorProfile] : [])]
         } : {
-          headless: true
+          headless
         });
       const row = {
         engine: engineName,
+        headless,
+        colorProfile,
         version: browser.version(),
         errors: [],
         cases: [],

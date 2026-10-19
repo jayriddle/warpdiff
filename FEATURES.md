@@ -107,13 +107,15 @@ Tile Check measures technical edge continuity, not whether a recognizable object
 
 ## Difference mode
 
-Press `D` in Stack mode to overlay a pixel-difference composite of two assets. Identical pixels appear black; differences glow in proportion to the delta. Arrow keys or `Shift+D` cycle through every available pair—three pairs with three inputs or six media-numbered pairs with four. Works with images and video — updates live during playback and on frame step. Press `D` again to turn it off.
+Press `D` in Stack mode to overlay a pixel-difference composite of two assets. Identical pixels appear black; differences glow in proportion to the delta. Arrow keys or `Shift+D` cycle through every available pair—three pairs with three inputs or six media-numbered pairs with four. Works with images and video — updates live during playback and on frame step. Press `D` again to turn it off. Safari stages video frames through a reusable canvas before blending. The result compares browser-decoded RGB values, not linear-light or HDR mastering values.
 
 ## Image wipe
 
 Press `Q` in Stack mode to compare two images through a draggable hard cutoff. The pair follows Grid order: its first asset is left of the cutoff and its second asset is right. Click anywhere inside the comparison plate to snap the cutoff there; pointer movement beyond the click threshold remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary, then disappears while the pointer is held down for an unobstructed comparison. The centered header control directly selects `Ref–A`, `Ref–B`, or `A–B`; `Shift+Q` and the left/right arrows cycle those pairs in the same order.
 
 The wipe header stays dedicated to the comparison pair. The scopes panel provides its own source selector and labels the asset being analyzed. The zoom loupe and `Alt+←` / `Alt+→` rotation are spatial: they follow whichever side is under the cursor, and rotation names the affected asset in its confirmation toast. Each side is rendered as a complete presentation plate, including a neutral matte around mismatched aspect ratios, so one asset cannot bleed through the other asset's letterboxed region. The reveal image is clipped as a real DOM layer, so zoom, pan, rotation, and resize stay aligned without rasterizing the source. Wipe and Difference modes are mutually exclusive. Video wipe remains disabled while its hardware-compositor behavior is validated.
+
+SDR scrub previews retain the browser’s managed canvas gamut without an added tone curve. Untagged scrub inputs use the native player’s observed color interpretation, or retain native seeking if it is unavailable; HDR keeps native seeking. The optional connected tool can copy compatible full-range AVC while preserving its known color labels. These checks do not certify the display or overall color conformance.
 
 ## Video scopes
 

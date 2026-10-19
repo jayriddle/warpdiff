@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.8
+**Current version:** 3.19.9
 
 ---
 
@@ -161,7 +161,7 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 - **No build, no runtime dependencies.** Vanilla HTML / CSS / JS in the app itself. Playwright and the other npm tools are development dependencies only.
 - **Memory-aware by default.** Typed arrays for bulk data, cached buffers reused across frames, blob URLs over base64, audio downsampled for scrub but kept full-quality where sync matters.
 - **Frame-accurate where it matters.** Midpoint seeking `(frame + 0.5) / fps` to avoid IEEE 754 boundary issues; epsilon-based timecode display; `requestVideoFrameCallback` for loop-point detection.
-- **Native video color handling.** The video magnifier uses cloned `<video>` elements to retain the player's rendering path. End-to-end color accuracy is not certified; the [SDR investigation](docs/sdr-color-verification-2026-10-19/README.md) records browser differences and unresolved scrub/Difference findings.
+- **Native video color handling.** The video magnifier uses cloned `<video>` elements to retain the player's rendering path. SDR scrub previews use the browser’s color-managed canvas without an extra tone curve; untagged inputs follow the native player’s observed color interpretation, or retain native seeking when it cannot be read; Safari video Difference uses a canvas snapshot before RGB subtraction. The local preparation tool also copies compatible full-range AVC without changing its declared color interpretation. End-to-end color accuracy is not certified; see the [corrections and verification](docs/sdr-color-fixes-2026-10-19/README.md) and [initial investigation](docs/sdr-color-verification-2026-10-19/README.md).
 
 ### Going deeper
 
@@ -188,8 +188,8 @@ npm run test:ownership       # structural + pure-logic guards (no browser)
 
 The optional `npm run test:color` diagnostic generates isolated SDR references and
 checks preparation, browser rendering and inspection surfaces in Chrome/WebKit.
-It currently reports unresolved findings and exits nonzero; it is not a green
-color-conformance gate. See [commands and limits](tools/investigations/sdr-color/README.md).
+Focused RGB-preservation regressions also run in the Chrome/WebKit release
+checks. Neither suite certifies physical display accuracy or color conformance. See [commands and limits](tools/investigations/sdr-color/README.md).
 
 Pull requests and pushes to `main` run the complete Chromium suite across three
 isolated jobs, ownership/infrastructure checks, and the focused WebKit profile.

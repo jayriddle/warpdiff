@@ -114,16 +114,15 @@ try {
     }
     const scrub = b.surfaces.scrub;
     if (scrub.path === 'webcodecs' && scrub.screenError > 2) {
-      assert(scrub.withoutFilterError <= 2, 'Scrub screenshot also differs without the filter; investigate capture occlusion before assigning a color cause');
       record.findings.push({
-        id: 'scrub-filter',
+        id: 'scrub-compositor',
         engine: b.engine,
         severity: 'P2',
         maxCodeError: scrub.screenError,
         rawError: scrub.rawError,
-        withoutFilterError: scrub.withoutFilterError,
+        legacyFilterError: scrub.legacyFilterError,
         environment: b.environment,
-        description: 'The active scrub correction changes the compositor result despite matching raw decoded pixels. Physical P3 behavior is not established.'
+        description: 'The scrub compositor differs from native video. Compare raw pixels and retained captures before assigning a color cause; physical display accuracy is not established.'
       });
     }
   }

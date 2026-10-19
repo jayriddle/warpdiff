@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
 export async function runScrubVideoChecks(check, source = readFileSync(new URL('../js/scrub-video.js', import.meta.url), 'utf8')) {
-  async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720 } = {}) {
+  async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720, nativeColorSpace, colr, onColorRejected } = {}) {
     const resources = [], bitmaps = [], draws = [], raf = new Map(), decoders = [];
     let rafId = 0;
     class Frame {
@@ -12,7 +12,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         this.timestamp = Math.round(index / 24 * 1e6);
         this.format = format;
         this.codedWidth = width; this.codedHeight = height;
-        this.colorSpace = { transfer: 'bt709', primaries: 'bt709', matrix: 'bt709' };
+        this.colorSpace = { transfer: 'bt709', primaries: 'bt709', matrix: 'bt709', fullRange:false };
         this.closed = false; this.isClone = clone;
         resources.push(this);
       }
@@ -42,7 +42,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     const realm = {
       VideoDecoder: Decoder,
       EncodedVideoChunk: class { constructor(chunk) { Object.assign(this, chunk); } },
-      _demuxMP4Video: () => ({ codec, codedWidth: width, codedHeight: height,
+      _demuxMP4Video: () => ({ codec, colr, codedWidth: width, codedHeight: height,
         samples: Array.from({ length: count }, (_, index) => ({ pts: index / 24, key: index === 0, offset: 0, size: 1 })) }),
       requestAnimationFrame: fn => { raf.set(++rafId, fn); return rafId; },
       cancelAnimationFrame: id => raf.delete(id),
@@ -53,13 +53,39 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
       window: {},
     };
     runInNewContext(source, realm);
-    const session = realm._createScrubVideoSession(new Uint8Array(1));
+    const session = realm._createScrubVideoSession(new Uint8Array(1), nativeColorSpace, onColorRejected);
+    if (!session) return { session, decoders };
     await session.ready;
     const canvas = { width: 0, height: 0, getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
     session.attach(canvas, 'srgb');
     const paint = () => { const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(fn => fn()); };
     const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
     return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle };
+  }
+
+  {
+    const color = {primaries:'smpte170m', transfer:'smpte170m', matrix:'smpte170m', fullRange:false};
+    let retired=0;
+    const native = await sessionFor({nativeColorSpace:color,onColorRejected:()=>{retired++;}});
+    native.session.request(0, true); native.decoder.emit(0);
+    check('scrub[color]: mismatched untagged interpretation retires before painting', native.session.dead && native.draws.length === 0 && native.resources.every(f=>f.closed) && retired===1);
+    native.session.close();
+    const matching = await sessionFor({codec:'avc1.f4001f', nativeColorSpace:{primaries:'bt709',transfer:'bt709',matrix:'bt709',fullRange:false}});
+    matching.session.request(0, true); matching.decoder.emit(0); matching.paint();
+    check('scrub[color]: matching untagged interpretation still paints normally', !matching.session.dead && matching.session.framesPainted > 0);
+    matching.session.close();
+    const tagged = await sessionFor({nativeColorSpace:color, colr:{primaries:1, transfer:1, matrix:1}});
+    check('scrub[color]: native observation never overrides declared container color', !tagged.decoder.config.colorSpace);
+    tagged.session.close();
+    const unavailable = await sessionFor({nativeColorSpace:null});
+    check('scrub[color]: missing native interpretation rejects untagged input before decoder allocation', unavailable.session === null && unavailable.decoders.length === 0);
+    for (const bad of [false, true]) {
+      let closed = 0;
+      const realm = {VideoFrame:class {colorSpace={toJSON(){if(bad)throw Error('unreadable');return color;}};close(){closed++;}}};
+      runInNewContext(source, realm);
+      const observed = realm._scrubVideoNativeColorSpace({});
+      check('scrub[color]: temporary native frame closes after '+(bad?'failed':'successful')+' observation', closed === 1 && (bad ? observed === null : observed === color));
+    }
   }
 
   {
