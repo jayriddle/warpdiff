@@ -3106,7 +3106,7 @@ test.describe('WebCodecs scrub decoder', () => {
   test.beforeEach(async ({ page },info) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4'].map(name=>
-      sdrDecoderFixture(path.join(__dirname,'fixtures',name),info.outputPath('declared-sdr'))));
+      sdrDecoderFixture(path.join(__dirname,'fixtures',name),info.outputPath('declared-sdr'),{verifiedSoftware:true})));
   });
 
   test('multi-video Grid uses the steady pointer clock for scrub audio', async ({ page }) => {

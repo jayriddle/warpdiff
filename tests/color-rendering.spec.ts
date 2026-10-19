@@ -1,17 +1,18 @@
 import {test, expect} from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import {makeFixtures} from '../tools/investigations/sdr-color/fixtures.mjs';
+import {makeFixtures, makeDecoderFixtures} from '../tools/investigations/sdr-color/fixtures.mjs';
 import {difference} from '../tools/investigations/sdr-color/native.mjs';
 import {readSamples, screenshotSamples} from '../tools/investigations/sdr-color/sampling.mjs';
 import {installLegacyFilter} from '../tools/investigations/sdr-color/legacy-filter.mjs';
 
-let fixtures: any;
+let fixtures: any, decoderFixtures: any;
 test.use({viewport:{width:1280,height:850}, serviceWorkers:'block'});
 test.beforeAll(async ({}, info) => {
   const directory = path.join(info.project.outputDir, 'color-fixtures-' + info.workerIndex);
   fs.mkdirSync(directory, {recursive:true});
   fixtures = makeFixtures(directory);
+  if(process.platform==='darwin')decoderFixtures=makeDecoderFixtures(directory);
 });
 test.beforeEach(async ({page}) => {
   await page.addInitScript(() => localStorage.setItem('lastSeenVersion','999.0.0'));
@@ -150,4 +151,71 @@ for(const name of ['matrix709-limited','matrix601-limited','matrix709-full','srg
       }
     } finally {await page.mouse.up();}
   });
+}
+
+
+// This policy belongs to the macOS compositor. Linux CI still exercises the
+// platform-independent rejection/lifetime checks through ownership; these real
+// Main10 and software-output regressions run on macOS without capability skips.
+if(process.platform==='darwin') {
+  for(const kind of ['opaque-hevc-main10','ordinary-avc-software','hardware-to-software']) {
+    test('macOS decoder color fallback: '+kind,async({page,browserName},info)=>{
+      if(browserName==='chromium')await page.evaluate(({software})=>{
+        const Original=VideoDecoder;
+        (window as any).__preferSoftware=software;(window as any).__colorOutputs=[];
+        (window as any).VideoDecoder=class extends Original {
+          constructor(options:VideoDecoderInit){super({...options,output(frame){
+            (window as any).__colorOutputs.push({format:frame.format,color:frame.colorSpace.toJSON()});
+            options.output(frame);
+          }});}
+          configure(config:VideoDecoderConfig){
+            // Real decoding with only its permitted preference changed; no
+            // native-video changes and no fabricated frames or color metadata.
+            super.configure((window as any).__preferSoftware?{...config,hardwareAcceleration:'prefer-software'}:config);
+          }
+        };
+      },{software:kind==='ordinary-avc-software'});
+      await load(page,decoderFixtures[kind==='opaque-hevc-main10'?kind:'ordinary-avc-software'].file);
+      const video=page.locator('#layerEditA video'),native=await screenshotSamples(video,info.outputPath('native.png'));
+      expect(Math.max(...native.flatMap(p=>p.rgb)),'visible authored native picture').toBeGreaterThan(200);
+      const raw=await video.evaluate(readSamples,{}),bar=(await page.locator('#videoProgressContainer').boundingBox())!;
+      for(let drag=0;drag<3;drag++){
+        if(drag){
+          if(browserName==='chromium')await page.evaluate(()=>{(window as any).__preferSoftware=true;});
+          await page.locator('#playPauseBtn').click();
+          await page.waitForFunction(()=>!(document.querySelector('#layerEditA video') as HTMLVideoElement).paused);
+          await page.locator('#playPauseBtn').click();
+        }
+        const previousOutputs=browserName==='chromium'?await page.evaluate(()=>(window as any).__colorOutputs.length):0;
+        await page.mouse.move(bar.x+bar.width*(drag===0?.06:drag===1?.7:.8),bar.y+bar.height/2);await page.mouse.down();
+        try {
+          const retained=kind==='hardware-to-software' && drag===0;
+          if(browserName==='chromium'){
+            await page.waitForFunction(()=>window.eval('_scrubVideoSessions.editA === "failed" || _scrubOverlayLive.editA?.framesPainted>0'));
+            const p3=await page.evaluate(()=>matchMedia('(color-gamut: p3)').matches);
+            if(kind==='hardware-to-software' && drag===1 && !p3)await page.waitForFunction(n=>(window as any).__colorOutputs.length>n,previousOutputs);
+            const outputs=await page.evaluate(()=>(window as any).__colorOutputs);
+            expect(outputs.length,'real decoder output reached the policy').toBeGreaterThan(0);
+            if(retained){
+              expect(outputs[0].format,'hardware control actually uses NV12').toBe('NV12');
+              // P3 deliberately declines this control; sRGB retains its cache.
+              if(!p3){
+                await page.waitForFunction(()=>window.eval('_scrubOverlayLive.editA.cacheStats.frames > 0'));
+                expect(difference(await screenshotSamples(page.locator('.scrub-overlay-canvas'),info.outputPath('hardware-scrub.png')),native)).toBeLessThanOrEqual(2);
+                continue;
+              }
+            } else if(kind!=='hardware-to-software' || !await page.evaluate(()=>matchMedia('(color-gamut: p3)').matches)) {
+              expect(outputs.at(-1).format,'regression exercises its actual decoder format').toBe(kind==='opaque-hevc-main10'?null:'I420');
+            }
+            await expect.poll(()=>page.evaluate(()=>window.eval('_scrubVideoSessions.editA === "failed"')),{message:'unverified output must use native seeking'}).toBe(true);
+            expect(await page.evaluate(()=>window.eval('_scrubVideoInputBudget.state.bytes')),'rejection releases encoded reservation').toBe(0);
+            expect(await page.evaluate(()=>window.eval('!_scrubOverlayLive.editA || _scrubOverlayLive.editA.dead && _scrubOverlayLive.editA.cacheStats.bytes === 0')),'no retired overlay can resume').toBe(true);
+          } else expect(await page.evaluate(()=>window.eval('_scrubUseDecoder()'))).toBe(false);
+          await page.waitForFunction(()=>!(document.querySelector('#layerEditA video') as HTMLVideoElement).seeking);
+          expect(difference((await video.evaluate(readSamples,{})).samples,raw.samples)).toBe(0);
+          expect(difference(await screenshotSamples(video,info.outputPath('fallback-'+drag+'.png')),native),'native picture survives repeated drag and playback/resume').toBeLessThanOrEqual(2);
+        } finally {await page.mouse.up();}
+      }
+    });
+  }
 }

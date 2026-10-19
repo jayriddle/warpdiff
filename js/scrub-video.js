@@ -90,18 +90,21 @@ function _scrubVideoSupported() {
     return typeof VideoDecoder !== 'undefined' && typeof EncodedVideoChunk !== 'undefined';
 }
 
-// Native NV12 and software I420 output take different compositor paths on
-// macOS Chrome. The measured SDR correction belongs only to the former.
+// Pixel format alone does not identify the macOS compositor transfer. Only
+// the measured High 4:4:4 AVC/I420 path is safe without compensation; ordinary
+// AVC/I420 and opaque Main10 HEVC reproduced darkening and keep native seeking.
 // Resolve the fragment against the document, not the deployment's release base.
-function _scrubVideoPresentationFilter(frame, platform, documentUrl, wideGamut = false) {
-    if (!/Mac/.test(platform || '') || frame.format !== 'NV12') return '';
-    // The sRGB-profile table does not preserve saturated colors on a P3
-    // compositor. Keep the native picture rather than reuse that correction.
-    if (wideGamut) return null;
+function _scrubVideoPresentationFilter(frame, platform, documentUrl, wideGamut = false, codec = '') {
+    if (!/Mac/.test(platform || '')) return '';
     const color = frame.colorSpace;
-    // NV12 with a 601 matrix did not preserve the native compositor even with
-    // the transfer correction. Keep native seeking for unverified combinations.
-    if (color?.primaries !== 'bt709' || color.matrix !== 'bt709' ||
+    const softwareAvc = /^avc1\.f4/i.test(codec);
+    if (frame.format === 'I420' && softwareAvc && color?.primaries === 'bt709' &&
+        ['bt709', 'smpte170m'].includes(color.matrix) &&
+        ['bt709', 'iec61966-2-1'].includes(color.transfer)) return '';
+    if (frame.format !== 'NV12' || softwareAvc) return null;
+    // The sRGB-profile table does not preserve saturated colors on a P3
+    // compositor, or NV12 with a 601 matrix. Keep the native picture there.
+    if (wideGamut || color?.primaries !== 'bt709' || color.matrix !== 'bt709' ||
         !['bt709', 'iec61966-2-1'].includes(color.transfer)) return null;
     if (color.transfer !== 'bt709') return '';
     return 'url("' + new URL('#scrubOverlayColorFix', documentUrl).href + '")';
@@ -301,6 +304,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     const PREFETCH_LEAD = Math.max(12, Math.round(maxGop * 0.6));
     let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
     let presentationFilter = '';
+    let presentationVerified = false;
 
     function _notifyPaint(pts) {
         if (!paintListener) return;
@@ -336,29 +340,27 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // the user may revisit — the distance gate in cacheStore skips ones
             // that would be evicted immediately), then retain the newest paintable
             // one; the rAF tick paints it. Superseded frames close immediately.
-            if (!_lastFrameColorSpace && frame.colorSpace) {
-                const cs = frame.colorSpace;
-                _lastFrameColorSpace = {
-                    primaries: cs.primaries, transfer: cs.transfer,
-                    matrix: cs.matrix, fullRange: cs.fullRange
-                };
-                // Reject conflicting HDR or an unverified NV12 display path
-                // before painting. Clear the canvas so native seeking shows
-                // through, and let the controller retire encoded input too.
-                const filter = _scrubVideoPresentationFilter(frame,
-                    typeof navigator === 'undefined' ? '' : navigator.platform, window.location?.href,
-                    !!(window.matchMedia && matchMedia('(color-gamut: p3)').matches));
-                if (cs.transfer === 'pq' || cs.transfer === 'hlg' || filter === null) {
-                    dead = true;
-                    if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
-                    frame.close();
-                    try { decoder.close(); } catch (_) {}
-                    if (onColorRejected) onColorRejected();
-                    return;
-                }
-                presentationFilter = filter;
-                if (canvas) canvas.style.filter = presentationFilter;
+            // Validate every output, including after suspend/reconfiguration.
+            // A changed transfer must not reinterpret already cached frames.
+            const cs = frame.colorSpace;
+            const filter = _scrubVideoPresentationFilter(frame,
+                typeof navigator === 'undefined' ? '' : navigator.platform, window.location?.href,
+                !!(window.matchMedia && matchMedia('(color-gamut: p3)').matches), info.codec);
+            if (cs?.transfer === 'pq' || cs?.transfer === 'hlg' || filter === null ||
+                (presentationVerified && filter !== presentationFilter)) {
+                if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+                frame.close();
+                closeSession();
+                if (onColorRejected) onColorRejected();
+                return;
             }
+            _lastFrameColorSpace = cs ? {
+                primaries: cs.primaries, transfer: cs.transfer,
+                matrix: cs.matrix, fullRange: cs.fullRange
+            } : null;
+            presentationVerified = true;
+            presentationFilter = filter;
+            if (canvas) canvas.style.filter = presentationFilter;
             lastOutputPts = Math.max(lastOutputPts, frame.timestamp / 1e6);
             cacheStore(frame);
             const ptsS = frame.timestamp / 1e6;
@@ -480,6 +482,18 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         }
     }
 
+    function closeSession() {
+        dead = true;
+        bytes = null; // a retained closed handle must not keep the encoded file alive
+        if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+        if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
+        for (const idx of cache.keys()) cacheRemove(idx);
+        try { decoder.close(); } catch (_) {}
+        canvas = null;
+        ctx2d = null;
+        paintListener = null;
+    }
+
     return {
         ready: ready,
         width: info.codedWidth,
@@ -502,8 +516,8 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             canvas.width = info.codedWidth || 640;
             canvas.height = info.codedHeight || 360;
             // Retain the managed gamut and this session's measured output-path
-            // correction. Software I420 remains unfiltered; native NV12 SDR on
-            // macOS needs the separate compositor compensation below.
+            // correction. Only verified High 4:4:4 AVC/I420 stays unfiltered
+            // on macOS; other output must pass the policy before it can paint.
             canvas.style.filter = presentationFilter;
             // colorSpaceOverride ('srgb' | 'display-p3') is a diagnostic hook.
             // BT.709 primaries fit sRGB. An unnecessary P3 backing store added
@@ -654,16 +668,6 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             try { decoder.close(); } catch (_) {}
         },
 
-        close() {
-            dead = true;
-            bytes = null; // a retained closed handle must not keep the encoded file alive
-            if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
-            if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
-            for (const idx of cache.keys()) cacheRemove(idx);
-            try { decoder.close(); } catch (_) {}
-            canvas = null;
-            ctx2d = null;
-            paintListener = null;
-        }
+        close: closeSession
     };
 }

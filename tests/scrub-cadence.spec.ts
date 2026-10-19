@@ -8,7 +8,7 @@ test('fallback keeps preview audio alive during slow motion while the picture ho
     const prototype = Object.getPrototypeOf(getAudioContext().audioWorklet);
     prototype.addModule = () => Promise.reject(new Error('Exercise the automatic short-preview fallback'));
   })()`));
-  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr')));
+  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr'),{verifiedSoftware:true}));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
   const warm = await page.evaluate(() => (window as any).__testAPI.scrubVideo.decodeProbe('editA', 2));
   expect(warm && !warm.dead && warm.framesPainted > 0).toBeTruthy();

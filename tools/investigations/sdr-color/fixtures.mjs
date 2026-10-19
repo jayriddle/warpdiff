@@ -185,7 +185,8 @@ export function makeFixtures(directory) {
   }
   // Lossless x264 selects High 4:4:4 Predictive even with 4:2:0 samples. Also
   // exercise ordinary High-profile HD output: macOS emits NV12 there and its
-  // compositor transfer differs from the software I420 path above.
+  // compositor transfer differs from the High 4:4:4 I420 path above. Ordinary
+  // High-profile software I420 is a separate, unverified presentation path.
   const hardwareCases = [];
   for (const [name,matrix,range,transfer] of [
     ['nv12-709-limited','bt709','tv','bt709'],
@@ -219,4 +220,24 @@ export function makeFixtures(directory) {
     rawHash: sha256(raw),
     files: [rawFile, image, imageTwin, encoded, ...cases.map(c => c.file), ...redVariants.map(c => c.file),...hardwareCases.map(c=>c.file)]
   };
+}
+
+// macOS-only browser regressions for two real decoder paths that an NV12 vs
+// I420 split cannot classify safely. Generate locally; never ship these files.
+export function makeDecoderFixtures(directory) {
+  const input=path.join(directory,'patches.yuv'), result={};
+  for(const [name,encoder,pixelFormat] of [
+    ['ordinary-avc-software','libx264','yuv420p'], ['opaque-hevc-main10','libx265','yuv420p10le']
+  ]) {
+    const file=path.join(directory,name+'.mp4');
+    ffmpeg(['-f','rawvideo','-pix_fmt','yuv420p','-s',width+'x'+height,'-framerate','24','-stream_loop','-1','-i',input,
+      '-t','2','-an','-vf','scale=1920:1080:flags=neighbor,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709',
+      '-c:v',encoder,'-preset','fast','-pix_fmt',pixelFormat,
+      ...(encoder==='libx264'?['-profile:v','high','-crf','18']:['-x265-params','pools=1:frame-threads=1:log-level=error','-tag:v','hvc1']),
+      '-colorspace','bt709','-color_range','tv','-color_primaries','bt709','-color_trc','bt709','-movflags','+faststart+write_colr',file]);
+    const metadata=probe(file).streams.find(s=>s.codec_type==='video');
+    if(metadata.profile!==(encoder==='libx264'?'High':'Main 10') || metadata.color_space!=='bt709' || metadata.color_transfer!=='bt709' || metadata.color_primaries!=='bt709' || metadata.color_range!=='tv')throw Error('Incorrect decoder regression fixture: '+name);
+    result[name]={file,metadata};
+  }
+  return result;
 }

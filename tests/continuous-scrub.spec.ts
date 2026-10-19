@@ -57,7 +57,7 @@ for (const direction of [1, -1]) test(`the selected scrub engine keeps ${directi
 test('continuous scrub is standard, retains center dialogue, and releases its stream', async ({ page }, info) => {
   await page.addInitScript(() => localStorage.setItem('pref_scrubAudioMode', JSON.stringify('snippets')));
   await page.goto('/');
-  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr')));
+  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr'),{verifiedSoftware:true}));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
   await expect(page.locator('#scrubModeBtn')).toHaveCount(0);
   await page.waitForFunction(() => (window as any).eval('!!_continuousScrubEngine.state.node'));

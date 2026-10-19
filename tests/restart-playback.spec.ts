@@ -5,7 +5,7 @@ import {sdrDecoderFixture} from './helpers/sdr-decoder-fixture';
 let decoderFiles: Record<string,string>;
 test.beforeEach(async ({},info)=>{
   decoderFiles=Object.fromEntries(['landscape_a.mp4','landscape_b.mp4'].map(name=>
-    [name,sdrDecoderFixture(path.join(__dirname,'fixtures',name),info.outputPath('decoder-source'))]));
+    [name,sdrDecoderFixture(path.join(__dirname,'fixtures',name),info.outputPath('decoder-source'),{verifiedSoftware:true})]));
 });
 
 async function loadPaused(page: Page, files = ['landscape_a.mp4']) {

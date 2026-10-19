@@ -2,6 +2,8 @@
 
 Status: local corrections on `codex/sdr-color-verification`; merge and publication remain on hold. The starting commit was `8a9bcbde0d423b87ced720d7a52bcae902e49043`, reporting version 3.19.9. Final suite results and source/preservation receipts are recorded in `verification.json`.
 
+> Follow-up qualification: independent review at `c176a15` found that non-NV12 output was classified too broadly. Opaque Main10 HEVC and ordinary AVC software I420 reproduced darkening. The measurements below describe that earlier revision, not a proof for every decoder path. See [the correction record](../scrub-color-review-fix-2026-10-19/README.md) for the narrowed policy, new regressions and follow-up review.
+
 ## Report and reproduction
 
 Jay reported that clicking to scrub made the picture darker/more contrasty, then also reported possible A/V misalignment during normal playback. He identified the file already loaded in Chrome. Its existing filename label was read without seeking, reloading or changing the comparison; a matching local source was found in Downloads. Browser blob export was unavailable. The original was read locally, never uploaded, rewritten or added to Git. Source-specific paths, captures and PCM remain in ignored local evidence.

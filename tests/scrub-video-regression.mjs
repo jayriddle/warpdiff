@@ -5,7 +5,7 @@ import { runInNewContext } from 'node:vm';
 
 export async function runScrubVideoChecks(check, source = readFileSync(new URL('../js/scrub-video.js', import.meta.url), 'utf8')) {
   async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720,
-      colr = {primaries:1,transfer:1,matrix:1}, frameTransfer = 'bt709', onColorRejected } = {}) {
+      colr = {primaries:1,transfer:1,matrix:1}, frameTransfer = 'bt709', platform = '', onColorRejected } = {}) {
     const resources = [], bitmaps = [], draws = [], raf = new Map(), decoders = [];
     let rafId = 0;
     class Frame {
@@ -38,7 +38,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         return Promise.resolve();
       }
       close() { this.state = 'closed'; }
-      emit(index, format) { this.callbacks.output(new Frame(index, format)); }
+      emit(index, format, colorSpace) { const frame = new Frame(index, format); if (colorSpace) Object.assign(frame.colorSpace, colorSpace); this.callbacks.output(frame); }
     }
     const realm = {
       VideoDecoder: Decoder,
@@ -51,7 +51,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         const bitmap = { closed: false, close() { this.closed = true; } };
         bitmaps.push({ frame, options, bitmap, resolve: () => resolve(bitmap), reject });
       }),
-      window: {},
+      URL, navigator: { platform }, window: { location: { href: 'https://example.test/warpdiff/?review=1' } },
     };
     runInNewContext(source, realm);
     const session = realm._createScrubVideoSession(new Uint8Array(1), onColorRejected);
@@ -61,7 +61,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     session.attach(canvas, 'srgb');
     const paint = () => { const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(fn => fn()); };
     const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
-    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle };
+    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle, canvas };
   }
 
   {
@@ -69,12 +69,17 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     const filter=realm._scrubVideoPresentationFilter;
     const native={format:'NV12',colorSpace:{primaries:'bt709',matrix:'bt709',transfer:'bt709'}},url='https://example.test/warpdiff/?review=1#old';
     check('scrub[color]: NV12 correction binds to the stable document and retains its query',filter(native,'MacIntel',url)==='url("https://example.test/warpdiff/?review=1#scrubOverlayColorFix")');
-    check('scrub[color]: software I420 never receives the NV12 correction',filter({...native,format:'I420'},'MacIntel',url)==='');
+    check('scrub[color]: verified High 4:4:4 AVC I420 stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,false,'avc1.f4001f')==='');
+    check('scrub[color]: ordinary AVC software I420 retains native seeking',filter({...native,format:'I420'},'MacIntel',url,false,'avc1.640028')===null);
+    check('scrub[color]: opaque Main10 HEVC retains native seeking',filter({...native,format:null},'MacIntel',url,false,'hvc1.2.4.L120.B0')===null);
+    check('scrub[color]: unknown planar codec retains native seeking',filter({...native,format:'I420'},'MacIntel',url)===null);
+    check('scrub[color]: unmeasured High 4:4:4 NV12 output retains native seeking',filter(native,'MacIntel',url,false,'avc1.f4001f')===null);
+    check('scrub[color]: High 4:4:4 I420 with unverified primaries retains native seeking',filter({...native,format:'I420',colorSpace:{...native.colorSpace,primaries:'bt2020'}},'MacIntel',url,false,'avc1.f4001f')===null);
     check('scrub[color]: other platforms never receive macOS compensation',filter(native,'Linux x86_64',url)==='');
     check('scrub[color]: explicit sRGB output does not receive BT709 compensation',filter({...native,colorSpace:{...native.colorSpace,transfer:'iec61966-2-1'}},'MacIntel',url)==='');
     check('scrub[color]: unverified NV12 matrix retains native seeking',filter({...native,colorSpace:{...native.colorSpace,matrix:'smpte170m'}},'MacIntel',url)===null);
     check('scrub[color]: wide-gamut NV12 retains native presentation',filter(native,'MacIntel',url,true)===null);
-    check('scrub[color]: wide-gamut software output stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,true)==='');
+    check('scrub[color]: wide-gamut software output stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,true,'avc1.f4001f')==='');
     const untagged = await sessionFor({colr:null});
     check('scrub[color]: untagged input retains native presentation before decoder allocation', untagged.session === null && untagged.decoders.length === 0);
     const tagged = await sessionFor();
@@ -88,6 +93,45 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
       check('scrub[color]: '+transfer+' bitstream conflict retires before painting',hdr.session.dead && hdr.draws.length===0 && hdr.resources.every(f=>f.closed) && retired===1);
       hdr.session.close();
     }
+  }
+
+
+  // Presentation policy is checked before cache insertion/painting, on every
+  // output and again after a decoder is recreated around retained cached frames.
+  for (const [label,codec,format] of [
+    ['opaque HEVC','hvc1.2.4.L120.B0',null], ['ordinary software AVC','avc1.640028','I420']
+  ]) {
+    let rejected=0;
+    const h=await sessionFor({platform:'MacIntel',codec,onColorRejected:()=>{rejected++;}});
+    h.session.request(0,true);h.decoder.emit(0,format);h.paint();
+    check('scrub[color]: '+label+' rejects before cache or paint',h.session.dead && h.draws.length===0 && h.bitmaps.length===0 && h.resources.every(f=>f.closed) && rejected===1);
+    h.session.request(1,true);h.decoder.emit(1,format);h.paint();
+    check('scrub[color]: '+label+' cannot restart after rejection',h.decoders.length===1 && h.draws.length===0 && rejected===1 && h.resources.every(f=>f.closed));
+    h.session.close();
+  }
+  for (const resume of [false,true]) {
+    let rejected=0;
+    const h=await sessionFor({platform:'MacIntel',onColorRejected:()=>{rejected++;}});
+    h.session.request(0,true);h.decoder.emit(0,'NV12');h.paint();
+    h.bitmaps.forEach(b=>b.resolve());await h.settle();
+    const replacement={...h.canvas,style:{filter:''}};
+    h.session.attach(replacement,'srgb');
+    h.session.request(0,true);
+    check('scrub[color]: reattach preserves verified NV12 cache presentation '+resume,replacement.style.filter.includes('?review=1#scrubOverlayColorFix') && h.session.cacheStats.hits===1);
+    if(resume){h.session.suspend();h.session.request(1,true);}
+    else h.session.request(1,true);
+    const before=h.draws.length;
+    h.decoders.at(-1).emit(24,'I420');h.paint();
+    h.bitmaps.forEach(b=>b.resolve());await h.settle();
+    check('scrub[color]: changed output '+(resume?'after resume':'within run')+' retires cache and pending paint',h.session.dead && h.draws.length===before && h.session.cacheStats.bytes===0 && h.resources.every(f=>f.closed) && h.bitmaps.every(b=>b.bitmap.closed) && rejected===1 && h.decoders.every(d=>d.state==='closed'));
+  }
+  for (const transfer of ['pq','hlg','iec61966-2-1']) {
+    let rejected=0;
+    const h=await sessionFor({platform:'MacIntel',onColorRejected:()=>{rejected++;}});
+    h.session.request(0,true);h.decoder.emit(0,'NV12'); // leave the first paint pending
+    h.decoder.emit(0,'NV12',{transfer});h.paint();
+    h.bitmaps.forEach(b=>b.resolve());await h.settle();
+    check('scrub[color]: later '+transfer+' cannot repaint retained SDR frames',h.session.dead && h.draws.length===0 && h.session.cacheStats.bytes===0 && h.resources.every(f=>f.closed) && h.bitmaps.every(b=>b.bitmap.closed) && rejected===1);
   }
 
   {
@@ -123,7 +167,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
   }
   {
-    const h = await sessionFor({ codec: 'avc1.f4001f' });
+    const h = await sessionFor({ codec: 'avc1.f4001f', platform: 'MacIntel' });
     h.session.request(10, true);
     for (let index = 100; index < 250; index++) h.decoder.emit(index);
     h.paint();
