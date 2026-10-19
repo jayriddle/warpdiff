@@ -1,0 +1,479 @@
+{
+  "date": "2026-10-19",
+  "branch": "codex/sdr-color-verification",
+  "releasedBaseline": "3270b02fabf862c1aa8d4eed50343d33956b6227",
+  "testedWorkingTreeHead": "3270b02fabf862c1aa8d4eed50343d33956b6227",
+  "productionChanged": false,
+  "scope": "Investigation and regression tooling; current findings are not corrected or accepted.",
+  "command": "npm run test:color",
+  "status": "findings",
+  "exitCode": 1,
+  "summary": {
+    "nativeCases": 9,
+    "nativePassed": 8,
+    "nativeFailed": 1,
+    "browserEngines": 2,
+    "browserFixtureCases": 10,
+    "redControls": 6,
+    "findings": 3,
+    "conformance": "not-certified"
+  },
+  "versions": {
+    "node": "v26.4.0",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers",
+    "playwright": "1.58.2"
+  },
+  "sourceHashes": {
+    "WarpDiff_Logo_v1.png": "c89dfe8e357ac4ae52ad89be416b99f78c0432255417de8f6b28235a0e78040c",
+    "favicon-32.png": "4e0d797bf4c56fbf3b6ad89b40cef1aaab5f2d38e51643e814a556b938230287",
+    "icon-192.png": "12144de4cd21c73b18487a4392a4639fb1d4979d2041d82348a79fd63b724344",
+    "icon-512.png": "279243cff62a82addc375eeddc80299fd51d2301c87bb0982383183807104910",
+    "index.html": "843f560785e76b2fb10cdb25f28590a2ec47ea9e423657d4f37523bf1bbcffc8",
+    "js/app-updates.js": "095a2ff0e9fb711aa6b5d4fdc35dca479786ec4b21a097e61798520ae8585e1b",
+    "js/appearance.js": "e7a6c54b01c13104a254dfdbc1bead319a47f80137f9c87c2dab8e66e8a150ae",
+    "js/audio-analysis-worker.js": "8618d107916f03cd19f88f194ec96fc357401f66e8083968cec3577cfcc7188a",
+    "js/audio-analysis.js": "c0db3c1eb02f96e225a738a38255d1a94c6951fb9a58b8580c0d51e9b440704e",
+    "js/audio-decode.js": "0f041f7a0e98883e967aa5ba5e55739090398adb081fc9a8e49211c077ad276a",
+    "js/audio-monitor.js": "dbc023b0cd07927a25a8c698ac00e34ee297ce28619a9adb9c3f187d529209bf",
+    "js/audio-routing.js": "00651e48a5fba299d52734827713527352ae82f745f4e6467cb6ce580ae67573",
+    "js/audio-viz.js": "56ff325a0bcd9b109bae2f2002860d29b82b03be2ae88c9f1eb8b65e8578a35d",
+    "js/hotkeys.js": "36ef5c77853d7f6230d29c50759870e839351bd85eb96acdaa6cf2513fec54d5",
+    "js/info-bar.js": "382165b0ffe6b3f9d2756cc6cf8e05f42414330a61851bf2ebb031eb1050231b",
+    "js/local-preparation.js": "1c428141d03b36b9991870fd6d66c5e6368671d9557a3a04db2e50ca0968ba79",
+    "js/managed-review.js": "1a7ec491514522db441c6b28f9155ff8eb1fe7701dfe5c3e09336ebf6f98ef80",
+    "js/media-admission.js": "ec825f96a528305ce85c3bcfbcdaf379c7cd74034eecbd15015f9c01e2ddd5f8",
+    "js/media-input-contract.js": "281b08261a76bac8908089cee97d0fb4ac2f1ff70b8d0e0d9d976bb1d58fae4a",
+    "js/media-preparation.js": "d47845cfc868d84b570cdc40f8033854ba2796e32cc9db65aea9562b9d6a2ce6",
+    "js/mp4-demux.js": "8d946edcab088500e5ea46c1359914990d758bb3c229927fb87e969b542b8d5c",
+    "js/opus-sync.js": "b5afc8cb1d7ca3cc4bb508bd48c9481dd575d7aec12521235bd679cfee771e90",
+    "js/playback-audio-core.js": "a5bffa83cb1c034460b754dc769cc981a200370db3e0e8263238955bba68a5b6",
+    "js/preferences.js": "f4554bcbd7e7aa8521c7cef24161e1c8b2b9d1ffe411c02a77be4bfe31e99269",
+    "js/preparation-connection.js": "0871e6e2417ec7ceecb2b3f994f741f334636c8a1cbdce5dfbfff628c6f92ad9",
+    "js/prepared-import.js": "bf178451ac807f26e0d79d067f65bf22009545b96ad2ffde3de739e1156e3563",
+    "js/prepared-media.js": "dfaf5624dea43d6f25e1c43daae8993247919980be425d9780009d4ba41e41c1",
+    "js/scopes.js": "5f9336f62ce5b34229ca42ae1f4ae46bcf6bbd07ff3d29cf936f576de74988d0",
+    "js/scrub-audio-core.js": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
+    "js/scrub-audio.js": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
+    "js/scrub-video.js": "4ec52cb97fd116cc5abad04f0c9e683d891d46b00a1ef4d0625bd399010d1c51",
+    "js/scrub-worklet.js": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
+    "js/signalsmith-LICENSE.txt": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f",
+    "js/signalsmith-worklet.js": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08",
+    "js/slow-playback.js": "825d44485fdfdb9be718100921eeebab75f9b2adf2c3e454f87aebc4674e9dc0",
+    "js/starfield.js": "daadf89dc5f3a0919698b90f4f079a1896aff6a6ee08dc85a97e843748f18cb3",
+    "js/tile-check.js": "8e2369b9ffeae78fda8908e8ec0ac7279da53d6393eb4d6d0132da0108101764",
+    "js/timecode.js": "e3fc970f7721623dbe204b1697d1caa3dbf00ae0c9a398d30bf8db47d9608975",
+    "js/transport.js": "2fe79b27cd50c95ad442fb008131eb0ed7e741361cf4e604465de91e4eb778af",
+    "js/usage.js": "4e78a9a1c66a0390ae0147ba232645f04b05ceec6fa29c1bfe7a4265f2e68752",
+    "js/wipe.js": "83a75c1a000a9aecefa89d2cae0d4f0007ebae8347d0952861f689d8ad96b2ae",
+    "manifest.json": "c34585f3f840d928d56d87cf6a3a58e2252e34c041012cd7a815e8932cbd74a5",
+    "sw.js": "24a0ec0719d962c59e7fabb87baa68fa1ad74b0775416f282d055f5d38279a69",
+    "version.json": "f638d07bd0f13192a8336cb243b70ef4d3386ac50a920bbaaa39beb2a539496b",
+    "tools/media-prepare/companion/processor.mjs": "9f75374b7eb5cf8640ffb22950bc6b0b2184d1a7aebec235088945adce1f4610",
+    "tools/investigations/sdr-color/browser.mjs": "88606f74c5487bc58c3ad13d95941ab74ce4279cd154a839979486927c302c51",
+    "tools/investigations/sdr-color/fixtures.mjs": "d7112e844880e8396c84f0473da77ab24b92d3c4a1ff798e4a0203b2943300b9",
+    "tools/investigations/sdr-color/native.mjs": "027c08e5d03b9bb65faddbf49f4b62043002b3622aab4341e83b56c097fa5df0",
+    "tools/investigations/sdr-color/run.mjs": "fa6aa151ec5d7e46ba7e118641836f65de663133ec0180a677c21b4c09012fab",
+    "tools/investigations/sdr-color/sampling.mjs": "62583f49ba0ba0b01a01035215edf28f42aff5c414567fcad06c638945a77ede",
+    "tools/investigations/sdr-color/surfaces.mjs": "37baf6bdaee262e44ebae472bc156f1eff9f39ac928fadc1900724abf4171c1c"
+  },
+  "native": [
+    {
+      "name": "matrix709-limited",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "matrix601-limited",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "matrix709-full",
+      "passed": false,
+      "pixelFormatBefore": "yuvj420p",
+      "rejectedOutput": {
+        "pixelFormat": "yuvj420p",
+        "metadata": {
+          "color_space": "bt709",
+          "color_range": "pc",
+          "color_primaries": "bt709",
+          "color_transfer": "bt709",
+          "chroma_location": "left"
+        }
+      }
+    },
+    {
+      "name": "srgb-transfer",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "untagged",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "red-untagged",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "red-tag601",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "red-tag709",
+      "passed": true,
+      "picture": "copied",
+      "decodedSamplesEqual": true,
+      "elementaryStreamEqual": true,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    },
+    {
+      "name": "encode709",
+      "passed": true,
+      "picture": "encoded-h264-up-to-1080p",
+      "decodedSamplesEqual": false,
+      "maxRGBError": 0,
+      "pixelFormatBefore": "yuv420p"
+    }
+  ],
+  "browsers": [
+    {
+      "engine": "chrome",
+      "version": "155.0.8059.82",
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+        "platform": "MacIntel",
+        "p3": false,
+        "version": "3.19.8"
+      },
+      "preservationChecksPassed": true,
+      "referenceControls": {
+        "srgbWithin2": true,
+        "wrongMatrixRejected": true,
+        "wrongRangeRejected": true
+      },
+      "cases": [
+        {
+          "name": "matrix709-limited",
+          "referenceError": {
+            "bt601": 39,
+            "bt709": 0
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "matrix601-limited",
+          "referenceError": {
+            "bt601": 0,
+            "bt709": 39
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "matrix709-full",
+          "referenceError": {
+            "bt601": 35,
+            "bt709": 0
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0
+        },
+        {
+          "name": "srgb-transfer",
+          "referenceError": {
+            "bt601": 39,
+            "bt709": 0
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "untagged",
+          "referenceError": {
+            "bt601": 0,
+            "bt709": 39
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        }
+      ],
+      "red": [
+        {
+          "name": "red-untagged",
+          "original": [
+            255,
+            24,
+            0
+          ],
+          "prepared": [
+            255,
+            24,
+            0
+          ]
+        },
+        {
+          "name": "red-tag601",
+          "original": [
+            254,
+            0,
+            0
+          ],
+          "prepared": [
+            254,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "red-tag709",
+          "original": [
+            255,
+            24,
+            0
+          ],
+          "prepared": [
+            255,
+            24,
+            0
+          ]
+        }
+      ],
+      "imageError": 0,
+      "videoGridError": 0,
+      "videoDifferenceError": 0,
+      "loupeCloneError": 0,
+      "loupeScreenError": 0,
+      "scrub": {
+        "path": "webcodecs",
+        "rawError": 0,
+        "screenError": 11,
+        "withoutFilterError": 0
+      },
+      "errors": [],
+      "unhandled": []
+    },
+    {
+      "engine": "webkit",
+      "version": "26.0",
+      "environment": {
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15",
+        "platform": "MacIntel",
+        "p3": true,
+        "version": "3.19.8"
+      },
+      "preservationChecksPassed": true,
+      "referenceControls": {
+        "srgbWithin2": true,
+        "wrongMatrixRejected": true,
+        "wrongRangeRejected": true
+      },
+      "cases": [
+        {
+          "name": "matrix709-limited",
+          "referenceError": {
+            "bt601": 34,
+            "bt709": 11
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "matrix601-limited",
+          "referenceError": {
+            "bt601": 12,
+            "bt709": 39
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "matrix709-full",
+          "referenceError": {
+            "bt601": 29,
+            "bt709": 11
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0
+        },
+        {
+          "name": "srgb-transfer",
+          "referenceError": {
+            "bt601": 39,
+            "bt709": 1
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        },
+        {
+          "name": "untagged",
+          "referenceError": {
+            "bt601": 63,
+            "bt709": 67
+          },
+          "appVsBare": 0,
+          "screenshotAppVsBare": 0,
+          "scopeVsBare": 0,
+          "preparedVsOriginal": 0
+        }
+      ],
+      "red": [
+        {
+          "name": "red-untagged",
+          "original": [
+            255,
+            25,
+            0
+          ],
+          "prepared": [
+            255,
+            25,
+            0
+          ]
+        },
+        {
+          "name": "red-tag601",
+          "original": [
+            254,
+            0,
+            0
+          ],
+          "prepared": [
+            254,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "red-tag709",
+          "original": [
+            255,
+            25,
+            0
+          ],
+          "prepared": [
+            255,
+            25,
+            0
+          ]
+        }
+      ],
+      "imageError": 0,
+      "videoGridError": 0,
+      "videoDifferenceError": 255,
+      "loupeCloneError": 0,
+      "loupeScreenError": 0,
+      "scrub": {
+        "path": "native",
+        "rawError": 0
+      },
+      "errors": [],
+      "unhandled": []
+    }
+  ],
+  "negativeControls": {
+    "changedMetadataRejected": true
+  },
+  "findings": [
+    {
+      "id": "scrub-filter",
+      "engine": "chrome",
+      "severity": "P2",
+      "maxCodeError": 11,
+      "rawError": 0,
+      "withoutFilterError": 0,
+      "description": "The active scrub correction changes the compositor result despite matching raw decoded pixels. Physical P3 behavior is not established."
+    },
+    {
+      "id": "video-difference",
+      "engine": "webkit",
+      "severity": "P2",
+      "maxCodeError": 255,
+      "controlDirectError": 255,
+      "controlStagedError": 0,
+      "description": "Direct video difference blending does not match independently sampled RGB subtraction. Canvas-staging control is retained."
+    },
+    {
+      "id": "preparation-matrix709-full",
+      "severity": "P2",
+      "description": "Preparation did not satisfy the tested picture/metadata preservation case. A rejection is not a color-conformance pass.",
+      "error": "Error: Prepared video did not match the requested compatibility format"
+    }
+  ],
+  "existingChecks": {
+    "ownership": {
+      "passed": 1360,
+      "failed": 0,
+      "localNeighborChecks": 2
+    },
+    "infrastructure": {
+      "passed": 26,
+      "failed": 0
+    }
+  },
+  "preservation": {
+    "checkedExistingEntries": 1135,
+    "expectedChanges": [
+      "README.md",
+      "package.json"
+    ],
+    "unexpectedChanges": [],
+    "checkedFixtureFiles": 37,
+    "fixtureChanges": []
+  },
+  "rawEvidence": "/Users/jay/Documents/warpdiff/output/sdr-color-2026-10-19-1EB9ut",
+  "limitations": [
+    "No physical Safari/display calibration or HDR/wide-gamut conformance.",
+    "No full legacy browser suite or hosted workflow dispatched; production unchanged.",
+    "Bare-player agreement does not certify the browser color interpretation.",
+    "Flat-patch/static clips do not establish motion, edge reconstruction, resizing or complete file integrity."
+  ],
+  "completedAt": "2026-10-19T14:53:32.356Z",
+  "finalRunPath": "output/sdr-color-2026-10-19-1EB9ut/completed-diagnostic/verification.json"
+}
