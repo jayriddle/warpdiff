@@ -26,7 +26,7 @@ The app's listening PCM was compared with separately decoded FFmpeg PCM at 48 kH
 
 Before correction, ordinary stereo had a `MediaElementAudioSourceNode` route. Its AudioContext reported **168 ms output latency**, plus 5.33 ms base latency. A parallel, silent AudioWorklet tap correlated the actual native-media graph samples with the reference. Mapping those samples through `getOutputTimestamp()` and video frame presentation metadata estimated audio **174.7–183.2 ms behind** frames during the measured interval. This is a browser-clock estimate, not an acoustic loopback or physical screen measurement.
 
-After correction, the same file had a direct native output at full selected volume and **zero native-media graph routes**. PCM/reference agreement stayed unchanged. The 168 ms context still exists for decoded preview/analysis, but ordinary video playback no longer sends its sound through that independent output clock. Native speaker synchronization is delegated to the combined media element; physical listening confirmation remains necessary.
+After correction, the same file had a direct native output at full selected volume and **zero native-media graph routes**. PCM/reference agreement stayed unchanged. The 168 ms context still exists for decoded preview/analysis, but ordinary video playback no longer sends its sound through that independent output clock. Native speaker synchronization is delegated to the combined media element. Jay subsequently confirmed normal playback stays synchronized with his Bluetooth output before and after scrubbing; see the user verification below.
 
 ## Regression coverage
 
@@ -48,11 +48,11 @@ After correction, the same file had a direct native output at full selected volu
 
 ## Limits and release boundary
 
-These corrections target continuity with the browser's native presentation, not the source creator's intended color, display calibration, HDR mastering, complete file integrity or rendered-PCM conformance. Matrix/range controls do not establish every codec, driver, display profile or midstream format change. Physical Chrome/Safari listening and calibrated display measurements have not been performed in this follow-up.
+These corrections target continuity with the browser's native presentation, not the source creator's intended color, display calibration, HDR mastering, complete file integrity or rendered-PCM conformance. Matrix/range controls do not establish every codec, driver, display profile or midstream format change. Jay's Chrome/Bluetooth listening check passed as recorded below; physical Safari listening and calibrated display measurements remain unverified.
 
 Scrub audition still uses a processing/output clock and remains subject to device latency. This change does not promise to eliminate that delay or compensate surround/Opus graph output on every device. It does not establish that the original source's lips and speech were synchronized. The separate leading-video-edit finding, historical Grid observation, 44.1 kHz amplitude and wider WebKit 7.1 observations remain open/separate.
 
-No merge, push, publication, repository setting or hosted workflow was requested or performed for this follow-up. A local audible/visual recheck of the reported file is required before release consideration.
+No merge, push, publication, repository setting or hosted workflow was requested or performed for this follow-up. Normal-playback listening is now user-confirmed. Explicit visual confirmation and release review remain pending.
 
 Ignored evidence: `output/scrub-handoff-2026-10-19-JBKU0j/`. Start with `actual-file-srgb-confirmed.json`, `decoder-profile-results.json`, `audio-route-before.json`, `audio-route-results.json`, `guard-mutations.json`, and the final suite/preservation receipts. Media captures and PCM are local-only investigation material.
 
@@ -64,6 +64,12 @@ Those complete suites preceded the final wide-gamut guard, BT.709 backing-store 
 
 Final-source targeted runs passed **28/28** Chrome/WebKit color/native-output cases and **12/12** forced Display-P3 color cases. Both inventories were checked, with no skips, retries or runner errors. The controlled harness passed 37 decoder checks and eight routing policies; all 11 deliberate mutations failed their intended assertions. Earlier routing/source-handoff checks passed 20/20, and restart/input fixture checks passed 8/8. `final-candidate-source-snapshot.json` identifies the final runtime/test bytes. Forced color profiles are browser experiments, not physical wide-gamut display verification.
 
-The reported clip's final browser probe retained native seeking with zero encoded-input bytes, no overlay and **zero raw/display sample difference**. Resumed playback had zero graph routes, full selected native volume and native mute off. This is local browser evidence; physical lip synchronization remains a user recheck.
+The reported clip's final browser probe retained native seeking with zero encoded-input bytes, no overlay and **zero raw/display sample difference**. Resumed playback had zero graph routes, full selected native volume and native mute off. This is local browser instrumentation, distinct from Jay's subsequent listening confirmation below.
 
-A separate Chrome listening-preview tab was opened on the loopback diagnostic server, with the original comparison untouched. Automatic chooser selection was blocked by the extension's file-URL access setting. No permission was changed and no file was loaded there; Jay must use Load to select the clip. The server remains running for that local recheck. A summary-writer syntax error was corrected before generating the final JSON; it did not affect app or test execution.
+A separate Chrome listening-preview tab was opened on the loopback diagnostic server, with the original comparison untouched. Automatic chooser selection was blocked by the extension's file-URL access setting. No permission was changed and the agent did not load a file there; the handoff asked Jay to use Load. The server remains running for local rechecking. A summary-writer syntax error was corrected before generating the final JSON; it did not affect app or test execution.
+
+## User listening confirmation — 2026-10-19
+
+With the corrected preview at commit `e16446b6d648ae8b537e32aac1b152e0552e32b6`, Jay answered the specific question about the same clip, Chrome, Bluetooth output and normal 1× playback before and after scrubbing: **“In sync before and after scrubbing.”** This completes that manual listening check and supports the normal-playback routing correction.
+
+This is a qualitative user observation for the reported setup. It does not quantify residual latency, establish synchronization during the scrub audition itself, verify surround/Opus output, certify other devices/files, or confirm the visual/color changes. Merge and publication remain on hold. This follow-up changes verification records only; runtime and test sources are unchanged, so browser suites were not repeated.

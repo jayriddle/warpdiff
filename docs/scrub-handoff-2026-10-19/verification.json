@@ -1,5 +1,5 @@
 {
-  "status": "local correction; physical listening/display confirmation and release review pending",
+  "status": "normal-playback listening user-confirmed; visual/display confirmation and release review pending",
   "date": "2026-10-19",
   "branch": "codex/sdr-color-verification",
   "startingHead": "8a9bcbde0d423b87ced720d7a52bcae902e49043",
@@ -199,5 +199,25 @@
     "Historical Grid, 44.1 kHz amplitude and broader WebKit 7.1 observations remain separate",
     "No push, hosted dispatch, PR change, merge, tag or publication"
   ],
-  "evidenceDirectory": "output/scrub-handoff-2026-10-19-JBKU0j/"
+  "evidenceDirectory": "output/scrub-handoff-2026-10-19-JBKU0j/",
+  "userListeningVerification": {
+    "date": "2026-10-19",
+    "testedCommit": "e16446b6d648ae8b537e32aac1b152e0552e32b6",
+    "source": "Jay, direct reply to the corrected-preview listening question",
+    "browser": "Chrome",
+    "output": "Bluetooth headphones or speaker, as previously identified by Jay",
+    "clip": "same reported clip",
+    "normalPlaybackRate": 1,
+    "beforeScrubbing": "in sync",
+    "afterScrubbing": "in sync",
+    "verbatimResponse": "In sync before and after scrubbing",
+    "kind": "qualitative user observation; not an acoustic latency measurement",
+    "scopeExcludes": [
+      "audition synchronization during scrubbing",
+      "other files/devices",
+      "surround or Opus output",
+      "visual/color confirmation"
+    ],
+    "releaseApproval": false
+  }
 }
