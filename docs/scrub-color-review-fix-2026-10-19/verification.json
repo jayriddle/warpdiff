@@ -2,7 +2,7 @@
   "date": "2026-10-19",
   "branch": "codex/sdr-color-verification",
   "baseline": "c176a15f49bb7645e4b7cb1b3719bb3a441a582c",
-  "state": "Tested held-target correction; focused independent recheck pending; no merge/publication",
+  "state": "All three findings corrected; focused independent recheck complete with no actionable findings. Merge/publication held.",
   "initialImplementation": {
     "sha": "91b659cd86fccd8f8fa3c20c1659633181a568be",
     "authorResults": {
@@ -101,7 +101,7 @@
   },
   "heldTargetCorrection": {
     "base": "91b659cd86fccd8f8fa3c20c1659633181a568be",
-    "state": "Tested held-target correction; focused independent recheck pending; no merge/publication",
+    "state": "All three findings corrected; focused independent recheck complete with no actionable findings. Merge/publication held.",
     "sourceHashes": {
       "index.html": "75a3c2005d326ecd97f1a7052cf8e51b45b20630aed34de7ad397bb4fab82a42",
       "js/scrub-video.js": "5ce27e86f4999ee62178ccb7ddbbc4c6feb0ad0f0bff71239c04dd15ee8e2656",
@@ -189,5 +189,28 @@
     "No fresh user visual confirmation; prior Bluetooth sync confirmation retained.",
     "No hosted checks, pushes, PR changes, merge or publication in this correction."
   ],
-  "localEvidence": "/Users/jay/Documents/warpdiff/output/scrub-color-review-fix-2026-10-19-7DhdwK"
+  "localEvidence": "/Users/jay/Documents/warpdiff/output/scrub-color-review-fix-2026-10-19-7DhdwK",
+  "independentRecheck": {
+    "target": "07cc05a97ffb69b59a56602b7e0558d108c1188f",
+    "findings": [],
+    "browserPasses": 45,
+    "pureAndEdgePasses": 131,
+    "browserSkips": 0,
+    "browserRetries": 0,
+    "browserRunnerErrors": 0,
+    "existingFilesPreserved": 1343,
+    "fixturesPreserved": 37,
+    "priorIndependentEvidenceFilesPreserved": 161,
+    "report": "output/scrub-color-focused-recheck-fje3xm47/REVIEW.md",
+    "structuredEvidence": "output/scrub-color-focused-recheck-fje3xm47/verification.json",
+    "receiptSha256": "e83a0357409c3d80d6eb59d0bd08555f591b0a99d7f43f24f752e17ac26a63e5",
+    "scope": "Focused recheck; historical full-suite failures remain unresolved; no new physical display/acoustic verification."
+  },
+  "localPackage": {
+    "target": "07cc05a97ffb69b59a56602b7e0558d108c1188f",
+    "files": 86,
+    "scriptIntegrityMatches": true,
+    "exactRevisionStamp": true,
+    "published": false
+  }
 }
