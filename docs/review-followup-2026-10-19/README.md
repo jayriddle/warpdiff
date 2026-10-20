@@ -1,5 +1,7 @@
 # PRs #52–#55 follow-up (candidate 3.19.10)
 
+The subsequent adversarial-review correction for odd-dimension SDR preparation is recorded in [odd-dimension-fix.md](odd-dimension-fix.md), including failing-before/passing-after native regression evidence. Earlier verification checkpoints below retain their original revisions and counts.
+
 Baseline: published `main` at `9fd06988e22459579fa88d29b212e00d67555a56`, version 3.19.9. This follow-up is a new feature branch and is **not approved for merge or publication**. Earlier dated review records describe their checkpoint state; the baseline was subsequently released through PR #55. Its first main WebKit attempt failed an activation wait and blocked publication; a complete second WebKit run passed. That historical failure remains recorded.
 
 ## Finding disposition

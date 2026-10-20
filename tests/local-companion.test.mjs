@@ -238,6 +238,42 @@ test('unknown SDR interpretation is not silently assigned BT.709 during encoding
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
+for (const [width,height] of [[161,91],[161,90],[162,91],[162,90]]) {
+    for (const range of ['tv','pc']) test(`SDR ${width}x${height} ${range} preparation normalizes geometry before 4:2:0 conversion`,async()=>{
+        const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-sdr-geometry-'));
+        try {
+            // 4:4:4 permits genuinely odd dimensions. Set frame properties before
+            // FFV1 encoding so both FFmpeg 6 and 8 retain the source color tags.
+            const pixels=width*height,frame=Buffer.alloc(pixels*3,128);
+            for(let y=0;y<height;y++)for(let x=0;x<width;x++)frame[y*width+x]=x<width/2 ? range==='pc'?0:16 : range==='pc'?255:235;
+            const raw=path.join(directory,'source.yuv'),input=path.join(directory,'source.mkv'),out=path.join(directory,'output');
+            await fs.writeFile(raw,Buffer.concat(Array(6).fill(frame)));await fs.mkdir(out);
+            await execute('ffmpeg',['-v','error','-nostdin','-n','-f','rawvideo','-pixel_format','yuv444p','-video_size',width+'x'+height,
+                '-framerate','24','-i',raw,'-vf','setparams=range='+range+':color_primaries=bt709:color_trc=bt709:colorspace=bt709',
+                '-c:v','ffv1','-color_range',range,'-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',input]);
+            const metadata=async file=>JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',file])).stdout).streams[0];
+            const source=await metadata(input);
+            assert.equal(source.width,width);assert.equal(source.height,height);assert.equal(source.pix_fmt,'yuv444p');
+            assert.equal(source.color_range,range);
+            for(const key of ['color_space','color_primaries','color_transfer'])assert.equal(source[key],'bt709');
+            const result=await prepareCompatible({input,directory:out,kind:'video'}),output=await metadata(result.file);
+            assert.equal(result.preparation.picture,'encoded-h264-up-to-1080p');
+            assert.equal(output.codec_name,'h264');assert.equal(output.pix_fmt,'yuv420p');
+            assert.equal(output.width%2,0);assert.equal(output.height%2,0);
+            assert(Math.abs(output.width-width)<=2);assert(Math.abs(output.height-height)<=2);
+            assert.equal(output.nb_frames,'6');assert(Math.abs(Number(output.duration)-0.25)<0.001);
+            assert.equal(output.color_range,'tv');
+            for(const key of ['color_space','color_primaries','color_transfer'])assert.equal(output[key],'bt709');
+            const {spawnSync}=await import('node:child_process');
+            const decoded=spawnSync('ffmpeg',['-v','error','-i',result.file,'-frames:v','1','-pix_fmt','yuv420p','-f','rawvideo','pipe:1']);
+            assert.equal(decoded.status,0,decoded.stderr.toString());
+            const row=Math.floor(output.height/2)*output.width;
+            assert(Math.abs(decoded.stdout[row+16]-16)<=2,'Decoded black remains limited-range black');
+            assert(Math.abs(decoded.stdout[row+output.width-16]-235)<=2,'Decoded white remains limited-range white');
+        }finally{await fs.rm(directory,{recursive:true,force:true});}
+    });
+}
+
 test('full-range 10-bit SDR encoding declares and produces limited BT.709 black and white',async()=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-sdr-range-'));
     try {

@@ -57,7 +57,9 @@ loses that in-memory comparison.
   8-bit 4:2:0 up to 4096×2160 is copied, including full-range
   `yuvj420p` explicitly marked `pc`. Known range, matrix, primaries and transfer
   labels must survive copying; missing labels are not invented. Other picture streams are encoded to
-  H.264 yuv420p at up to 1920×1080. Video soundtracks become stereo AAC-LC at
+  H.264 yuv420p at up to 1920×1080. Odd picture dimensions are normalized to
+  even dimensions before conversion to 4:2:0; declared SDR interpretation is
+  converted explicitly to limited-range BT.709. Video soundtracks become stereo AAC-LC at
   48 kHz. Source timing is retained by FFmpeg's normal muxing behavior; this
   does not certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count

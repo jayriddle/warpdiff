@@ -104,8 +104,11 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     if(kind==='video') {
         args.push('-map','0:'+videos[0].index);
         if(copyPicture)args.push('-c:v','copy');
+        // Normalize geometry before colorspace requests 4:2:0, which cannot
+        // accept odd dimensions. Scale retains the source color interpretation;
+        // the following conversion explicitly maps it to limited BT.709.
         else args.push('-c:v','libx264','-preset','fast','-crf','18','-pix_fmt','yuv420p',
-            '-vf',conversion+',scale=w=min(iw\\,1920):h=min(ih\\,1080):force_original_aspect_ratio=decrease:force_divisible_by=2',
+            '-vf','scale=w=min(iw\\,1920):h=min(ih\\,1080):force_original_aspect_ratio=decrease:force_divisible_by=2,'+conversion,
             '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',
             '-g','48','-sc_threshold','0');
         if(audios.length)args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k','-af','apad','-shortest');
