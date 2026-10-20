@@ -2,93 +2,179 @@
   "date": "2026-10-19",
   "branch": "codex/sdr-color-verification",
   "baseline": "c176a15f49bb7645e4b7cb1b3719bb3a441a582c",
-  "state": "Local implementation tested; focused independent follow-up pending. Merge/publication held.",
-  "sourceHashes": {
-    "index.html": "0447a3daac4053edcb2a94e50e26cb55125d525723a60cb9f1db4d9691abede8",
-    "js/scrub-video.js": "5ce27e86f4999ee62178ccb7ddbbc4c6feb0ad0f0bff71239c04dd15ee8e2656",
-    "js/audio-routing.js": "b346da30f7542aa1c79eebe87dd80ee697f29039436af30eb1f80bfe5bd856b4",
-    "tests/color-rendering.spec.ts": "d7705ef0a75464171001b41f1b293d503ae6e3c77307bbb26f53ad49a5163bde",
-    "tests/continuous-scrub.spec.ts": "6dca60fad08666e9a69324373078328d26977dde271cbe2ab2ba5ada3941680f",
-    "tests/helpers/sdr-decoder-fixture.ts": "042a4fc13d0a636dab677f01efd0800573c1c3094273900e4ea217c79d7e4f2f",
-    "tests/restart-playback.spec.ts": "a54413e8a5ba95a4366ef0284c53951173f6b91aa1ed76a302d8699328d52cdc",
-    "tests/scrub-cadence.spec.ts": "7787c8d20f2524af1c983924905d56cad3c12fa0ca3a0c01a26be17274d7e95c",
-    "tests/scrub-video-regression.mjs": "2e48219f49d90ba07ab44d9a4c5241744dba5fcb35daabd2a927a4657b191465",
-    "tests/warpdiff.spec.ts": "93254b8e51b81f62e34082405f246e32542f23a2c5dcb2990e03b67591225fee",
-    "tools/investigations/sdr-color/fixtures.mjs": "cb8f34f58b3d20d8fc300a188b55616c08daa1642fffd1a92ac10f413503c974"
-  },
-  "results": {
-    "ownershipPassed": 1397,
-    "infrastructurePassed": 26,
-    "controlledSessionChecks": 53,
-    "mutationProbes": 6,
-    "allMutationsDetectedAtIntendedAssertions": true,
-    "browserReports": [
+  "state": "Tested held-target correction; focused independent recheck pending; no merge/publication",
+  "initialImplementation": {
+    "sha": "91b659cd86fccd8f8fa3c20c1659633181a568be",
+    "authorResults": {
+      "ownershipPassed": 1397,
+      "infrastructurePassed": 26,
+      "controlledSessionChecks": 53,
+      "mutationProbes": 6,
+      "allMutationsDetectedAtIntendedAssertions": true,
+      "browserReports": [
+        {
+          "file": "focused-corrected.json",
+          "passed": 34,
+          "skipped": 0,
+          "retries": 0,
+          "errors": 0,
+          "durationMs": 75772.75499999999
+        },
+        {
+          "file": "p3.json",
+          "passed": 17,
+          "skipped": 0,
+          "retries": 0,
+          "errors": 0,
+          "durationMs": 32868.544
+        },
+        {
+          "file": "lifecycle-corrected.json",
+          "passed": 8,
+          "skipped": 0,
+          "retries": 0,
+          "errors": 0,
+          "durationMs": 37235.17
+        },
+        {
+          "file": "decoder-dependent.json",
+          "passed": 17,
+          "skipped": 0,
+          "retries": 0,
+          "errors": 0,
+          "durationMs": 44400.462
+        }
+      ],
+      "browserPassed": 76,
+      "browserRetries": 0,
+      "browserSkipped": 0,
+      "negativeBrowserCases": 2,
+      "negativeBrowserExpectedAssertion": "unverified output must use native seeking",
+      "fallbackDisplayComparisons": 17,
+      "maxFallbackDisplayCodeError": 0
+    },
+    "sourceHashes": {
+      "index.html": "0447a3daac4053edcb2a94e50e26cb55125d525723a60cb9f1db4d9691abede8",
+      "js/scrub-video.js": "5ce27e86f4999ee62178ccb7ddbbc4c6feb0ad0f0bff71239c04dd15ee8e2656",
+      "js/audio-routing.js": "b346da30f7542aa1c79eebe87dd80ee697f29039436af30eb1f80bfe5bd856b4",
+      "tests/color-rendering.spec.ts": "d7705ef0a75464171001b41f1b293d503ae6e3c77307bbb26f53ad49a5163bde",
+      "tests/continuous-scrub.spec.ts": "6dca60fad08666e9a69324373078328d26977dde271cbe2ab2ba5ada3941680f",
+      "tests/helpers/sdr-decoder-fixture.ts": "042a4fc13d0a636dab677f01efd0800573c1c3094273900e4ea217c79d7e4f2f",
+      "tests/restart-playback.spec.ts": "a54413e8a5ba95a4366ef0284c53951173f6b91aa1ed76a302d8699328d52cdc",
+      "tests/scrub-cadence.spec.ts": "7787c8d20f2524af1c983924905d56cad3c12fa0ca3a0c01a26be17274d7e95c",
+      "tests/scrub-video-regression.mjs": "2e48219f49d90ba07ab44d9a4c5241744dba5fcb35daabd2a927a4657b191465",
+      "tests/warpdiff.spec.ts": "93254b8e51b81f62e34082405f246e32542f23a2c5dcb2990e03b67591225fee",
+      "tools/investigations/sdr-color/fixtures.mjs": "cb8f34f58b3d20d8fc300a188b55616c08daa1642fffd1a92ac10f413503c974"
+    },
+    "retainedFailures": [
       {
-        "file": "focused-corrected.json",
-        "passed": 34,
-        "skipped": 0,
-        "retries": 0,
-        "errors": 0,
-        "durationMs": 75772.75499999999
+        "report": "focused.json",
+        "passed": 31,
+        "failed": 3,
+        "reason": "New harness wrongly required a removed live-map entry and inspected stale output during resume; corrected assertions and 34 fresh passes."
       },
       {
-        "file": "p3.json",
-        "passed": 17,
-        "skipped": 0,
-        "retries": 0,
-        "errors": 0,
-        "durationMs": 32868.544
+        "report": "lifecycle.json",
+        "passed": 7,
+        "failed": 1,
+        "reason": "Grid test required retained caches after actual NV12 transfer change. Observation-only probe confirmed safe retirement; verified lossless fixtures now preserve all decoded frames/PTS/audio and exercise the intended retained-cache path."
       },
       {
-        "file": "lifecycle-corrected.json",
-        "passed": 8,
-        "skipped": 0,
-        "retries": 0,
-        "errors": 0,
-        "durationMs": 37235.17
+        "report": "lifecycle-diagnostic.json",
+        "failed": 1,
+        "reason": "Same Grid retirement reproduced with unmodified decoding and output observation."
       },
       {
-        "file": "decoder-dependent.json",
-        "passed": 17,
-        "skipped": 0,
-        "retries": 0,
-        "errors": 0,
-        "durationMs": 44400.462
+        "report": "ownership-mixed-platform-failure.txt",
+        "passed": 1396,
+        "failed": 1,
+        "reason": "Mixed opaque/planar accounting control intentionally requires the non-macOS path; only the verified planar control now explicitly uses MacIntel."
       }
     ],
-    "browserPassed": 76,
-    "browserRetries": 0,
-    "browserSkipped": 0,
-    "negativeBrowserCases": 2,
-    "negativeBrowserExpectedAssertion": "unverified output must use native seeking",
-    "fallbackDisplayComparisons": 17,
-    "maxFallbackDisplayCodeError": 0
-  },
-  "retainedFailures": [
-    {
-      "report": "focused.json",
-      "passed": 31,
-      "failed": 3,
-      "reason": "New harness wrongly required a removed live-map entry and inspected stale output during resume; corrected assertions and 34 fresh passes."
-    },
-    {
-      "report": "lifecycle.json",
-      "passed": 7,
-      "failed": 1,
-      "reason": "Grid test required retained caches after actual NV12 transfer change. Observation-only probe confirmed safe retirement; verified lossless fixtures now preserve all decoded frames/PTS/audio and exercise the intended retained-cache path."
-    },
-    {
-      "report": "lifecycle-diagnostic.json",
-      "failed": 1,
-      "reason": "Same Grid retirement reproduced with unmodified decoding and output observation."
-    },
-    {
-      "report": "ownership-mixed-platform-failure.txt",
-      "passed": 1396,
-      "failed": 1,
-      "reason": "Mixed opaque/planar accounting control intentionally requires the non-macOS path; only the verified planar control now explicitly uses MacIntel."
+    "independentFollowup": {
+      "browserPassed": 42,
+      "controlledChecksPassed": 53,
+      "originalFindingsResolved": true,
+      "newP2": "Rejected overlay left native picture at stale time during held gesture",
+      "report": "output/scrub-color-focused-independent-0uqypbkt/REVIEW.md"
     }
-  ],
+  },
+  "heldTargetCorrection": {
+    "base": "91b659cd86fccd8f8fa3c20c1659633181a568be",
+    "state": "Tested held-target correction; focused independent recheck pending; no merge/publication",
+    "sourceHashes": {
+      "index.html": "75a3c2005d326ecd97f1a7052cf8e51b45b20630aed34de7ad397bb4fab82a42",
+      "js/scrub-video.js": "5ce27e86f4999ee62178ccb7ddbbc4c6feb0ad0f0bff71239c04dd15ee8e2656",
+      "js/audio-routing.js": "b346da30f7542aa1c79eebe87dd80ee697f29039436af30eb1f80bfe5bd856b4",
+      "tests/scrub-input-regression.mjs": "d8b3bd1ce52b7116e672b89d42616b5272c5546b43b4d44856b21dc17eb9101e",
+      "tests/scrub-color-handoff.spec.ts": "e3bc86788fbac19f747da10e7273e7a01076849e071d3fdcaf83adbb8dbbdb67",
+      "tools/investigations/sdr-color/fixtures.mjs": "d767a72e25f490c0be1895e9c781c18d862b408fc39d3b1cb7d149b76f46308c"
+    },
+    "results": {
+      "browserReports": [
+        {
+          "file": "focused.json",
+          "passed": 35,
+          "skipped": 0,
+          "retries": 0,
+          "runnerErrors": 0,
+          "durationMs": 79800.04100000001
+        },
+        {
+          "file": "moving-repeated.json",
+          "passed": 5,
+          "skipped": 0,
+          "retries": 0,
+          "runnerErrors": 0,
+          "durationMs": 20397.468
+        },
+        {
+          "file": "p3.json",
+          "passed": 17,
+          "skipped": 0,
+          "retries": 0,
+          "runnerErrors": 0,
+          "durationMs": 32708.919
+        }
+      ],
+      "totalBrowserPasses": 57,
+      "ownershipPassed": 1407,
+      "infrastructurePassed": 26,
+      "sessionChecks": 53,
+      "inputAndControllerChecks": 45,
+      "colorMutationProbes": 6,
+      "handoffMutationProbes": 7,
+      "negativeFinalBrowser": "Intended native-timeline assertion fails against 91b659c after actual NV12/I420 and stale-native-time preconditions pass"
+    },
+    "sourceScopeNote": "35-case run predates only the final in-app help sentence and extra stale-native-time test precondition. Moving repetitions, P3 and final ownership used the final document/test.",
+    "preservation": {
+      "entries": 1179,
+      "intentionallyChanged": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "FEATURES.md",
+        "MANUAL.md",
+        "README.md",
+        "docs/release-notes-archive.md",
+        "docs/scrub-handoff-2026-10-19/README.md",
+        "index.html",
+        "js/scrub-video.js",
+        "tests/color-rendering.spec.ts",
+        "tests/continuous-scrub.spec.ts",
+        "tests/helpers/sdr-decoder-fixture.ts",
+        "tests/restart-playback.spec.ts",
+        "tests/scrub-cadence.spec.ts",
+        "tests/scrub-input-regression.mjs",
+        "tests/scrub-video-regression.mjs",
+        "tests/warpdiff.spec.ts",
+        "tools/investigations/sdr-color/fixtures.mjs"
+      ],
+      "unexpectedChanges": [],
+      "fixtureCount": 37,
+      "fixturesPreserved": true
+    },
+    "evidence": "/Users/jay/Documents/warpdiff/output/scrub-color-review-fix-2026-10-19-7DhdwK/handoff-correction"
+  },
   "priorCompleteChromium": {
     "target": "c176a15f49bb7645e4b7cb1b3719bb3a441a582c",
     "passed": 643,
@@ -97,36 +183,11 @@
     "resolved": false,
     "note": "No complete-suite rerun or causal resolution claimed."
   },
-  "preservation": {
-    "entries": 1179,
-    "intentionallyChanged": [
-      "AGENTS.md",
-      "CLAUDE.md",
-      "FEATURES.md",
-      "MANUAL.md",
-      "README.md",
-      "docs/release-notes-archive.md",
-      "docs/scrub-handoff-2026-10-19/README.md",
-      "index.html",
-      "js/scrub-video.js",
-      "tests/color-rendering.spec.ts",
-      "tests/continuous-scrub.spec.ts",
-      "tests/helpers/sdr-decoder-fixture.ts",
-      "tests/restart-playback.spec.ts",
-      "tests/scrub-cadence.spec.ts",
-      "tests/scrub-video-regression.mjs",
-      "tests/warpdiff.spec.ts",
-      "tools/investigations/sdr-color/fixtures.mjs"
-    ],
-    "unexpectedChanges": [],
-    "fixtureCount": 37,
-    "fixturesPreserved": true
-  },
-  "localEvidence": "/Users/jay/Documents/warpdiff/output/scrub-color-review-fix-2026-10-19-7DhdwK",
   "limitations": [
     "Browser compositor samples only; no physical display calibration or new acoustic measurements.",
     "New real opaque/software cases register on macOS; Linux policy checks use controlled harnesses.",
     "No fresh user visual confirmation; prior Bluetooth sync confirmation retained.",
     "No hosted checks, pushes, PR changes, merge or publication in this correction."
-  ]
+  ],
+  "localEvidence": "/Users/jay/Documents/warpdiff/output/scrub-color-review-fix-2026-10-19-7DhdwK"
 }

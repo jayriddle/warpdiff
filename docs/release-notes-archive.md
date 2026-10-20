@@ -607,7 +607,7 @@ Released through PR #51 at `91665d9`. The following notes preserve the developme
 
 ## 3.19.9 — Picture and playback corrections (candidate, 2026-10-19)
 
-- Scrub previews retain compositor compensation for the verified macOS NV12/BT.709 path and leave verified High 4:4:4 AVC/I420 unfiltered. Untagged input, opaque output, ordinary AVC software output, HDR and other unverified macOS combinations keep native seeking. Output changes retire incompatible previews and cached frames.
+- Scrub previews retain compositor compensation for the verified macOS NV12/BT.709 path and leave verified High 4:4:4 AVC/I420 unfiltered. Untagged input, opaque output, ordinary AVC software output, HDR and other unverified macOS combinations keep native seeking. Output changes retire incompatible previews and cached frames, immediately restoring the native picture at the held scrub position.
 - Ordinary writable-volume mono/stereo video keeps native combined A/V playback, avoiding the additional Web Audio output latency observed with Bluetooth. Surround and Opus replacement retain their processing paths. Jay confirmed synchronization before and after scrubbing in the corrected Chrome preview with his Bluetooth output.
 - Corrected Safari video Difference by staging native frames before RGB blending; the temporary buffer retires on exit/clear.
 - The optional connected preparation tool accepts compatible full-range AVC and verifies preservation of known copied-picture color labels. No conversion engine is distributed.

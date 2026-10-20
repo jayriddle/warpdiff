@@ -241,3 +241,16 @@ export function makeDecoderFixtures(directory) {
   }
   return result;
 }
+
+export function makeMotionFixture(directory) {
+  fs.mkdirSync(directory,{recursive:true});
+  const file=path.join(directory,'moving-high-avc.mp4');
+  ffmpeg(['-f','lavfi','-i','testsrc2=size=1920x1080:rate=24:duration=8','-an',
+    '-vf','setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709',
+    '-c:v','libx264','-preset','fast','-profile:v','high','-pix_fmt','yuv420p','-crf','18','-g','24',
+    '-color_range','tv','-color_primaries','bt709','-color_trc','bt709','-colorspace','bt709',
+    '-movflags','+faststart+write_colr',file]);
+  const metadata=probe(file).streams.find(s=>s.codec_type==='video');
+  if(metadata.profile!=='High' || metadata.color_space!=='bt709' || metadata.color_transfer!=='bt709' || metadata.color_primaries!=='bt709')throw Error('Incorrect moving decoder fixture');
+  return file;
+}
