@@ -101,13 +101,30 @@ function _scrubVideoPresentationFilter(frame, platform, documentUrl, wideGamut =
     if (frame.format === 'I420' && softwareAvc && color?.primaries === 'bt709' &&
         ['bt709', 'smpte170m'].includes(color.matrix) &&
         ['bt709', 'iec61966-2-1'].includes(color.transfer)) return '';
-    if (frame.format !== 'NV12' || softwareAvc) return null;
+    // Measurements cover AVC with limited-range NV12 output. A full-range
+    // source can decode to that output; inspect the frame, not its source label.
+    // HEVC and full/unknown-range NV12 retain native seeking until measured.
+    if (frame.format !== 'NV12' || softwareAvc || !/^avc1\./i.test(codec) || color?.fullRange !== false) return null;
     // The sRGB-profile table does not preserve saturated colors on a P3
     // compositor, or NV12 with a 601 matrix. Keep the native picture there.
     if (wideGamut || color?.primaries !== 'bt709' || color.matrix !== 'bt709' ||
         !['bt709', 'iec61966-2-1'].includes(color.transfer)) return null;
+    // Explicit sRGB-transfer NV12 already matches the native sRGB display in
+    // the tagged AVC fixture; applying the BT.709 table would change it twice.
     if (color.transfer !== 'bt709') return '';
     return 'url("' + new URL('#scrubOverlayColorFix', documentUrl).href + '")';
+}
+
+let _scrubGamutQuery = null;
+const _scrubGamutListeners = new Set();
+function _scrubWideGamut() {
+    if (!_scrubGamutQuery && typeof window !== 'undefined' && window.matchMedia) {
+        _scrubGamutQuery = window.matchMedia('(color-gamut: p3)');
+        _scrubGamutQuery.addEventListener?.('change', () => {
+            for (const listener of [..._scrubGamutListeners]) listener();
+        });
+    }
+    return !!_scrubGamutQuery?.matches;
 }
 
 function _createScrubVideoSession(bytes, onColorRejected) {
@@ -118,7 +135,8 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     // transfer: untagged HD AVC reproduced a 12-code compositor darkening even
     // with identical native/decoder CICP and raw RGB. Keep its native picture
     // path rather than inventing source tags or applying a platform tone curve.
-    if (!info.colr) return null;
+    const platform = typeof navigator === 'undefined' ? '' : navigator.platform;
+    if (/Mac/.test(platform || '') && (!info.colr || info.colr.type === 'nclc')) return null;
     // Refuse HDR content (PQ transfer=16, HLG=18 in the colr box): Chrome
     // tone-maps HDR <video> for display; drawImage of the decoded frames gets
     // no tone mapping, so the overlay would paint drastically darker. Falling
@@ -304,6 +322,19 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     const PREFETCH_LEAD = Math.max(12, Math.round(maxGop * 0.6));
     let _lastFrameColorSpace = null; // diagnostic: what Chrome assigned to decoded frames
     let presentationFilter = '';
+    let presentationFrame = null;
+    function rejectPresentation() {
+        if (dead) return;
+        if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+        closeSession();
+        if (onColorRejected) onColorRejected();
+    }
+    function gamutChanged() {
+        if (!presentationFrame || dead) return;
+        const filter = _scrubVideoPresentationFilter(presentationFrame, platform,
+            window.location?.href, _scrubWideGamut(), info.codec);
+        if (filter === null || filter !== presentationFilter) rejectPresentation();
+    }
     let presentationVerified = false;
 
     function _notifyPaint(pts) {
@@ -344,20 +375,18 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // A changed transfer must not reinterpret already cached frames.
             const cs = frame.colorSpace;
             const filter = _scrubVideoPresentationFilter(frame,
-                typeof navigator === 'undefined' ? '' : navigator.platform, window.location?.href,
-                !!(window.matchMedia && matchMedia('(color-gamut: p3)').matches), info.codec);
+                platform, window.location?.href, _scrubWideGamut(), info.codec);
             if (cs?.transfer === 'pq' || cs?.transfer === 'hlg' || filter === null ||
                 (presentationVerified && filter !== presentationFilter)) {
-                if (ctx2d && canvas) ctx2d.clearRect(0, 0, canvas.width, canvas.height);
                 frame.close();
-                closeSession();
-                if (onColorRejected) onColorRejected();
+                rejectPresentation();
                 return;
             }
             _lastFrameColorSpace = cs ? {
                 primaries: cs.primaries, transfer: cs.transfer,
                 matrix: cs.matrix, fullRange: cs.fullRange
             } : null;
+            presentationFrame = {format:frame.format, colorSpace:_lastFrameColorSpace};
             presentationVerified = true;
             presentationFilter = filter;
             if (canvas) canvas.style.filter = presentationFilter;
@@ -375,21 +404,23 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             pendingFrame = frame;
             if (!rafId) rafId = requestAnimationFrame(paintPending);
     }
-    function _onDecoderError() { dead = true; try { decoder.close(); } catch (_) {} }
+    function _onDecoderError() { closeSession(); }
 
     let decoder = new VideoDecoder({ output: _onDecoderOutput, error: _onDecoderError });
 
     let readyResolve;
     const ready = new Promise(r => { readyResolve = r; });
+    // A blocked/failed constructor must not leave a listener retaining input.
+    _scrubGamutListeners.add(gamutChanged);
     // isConfigSupported first — configure() on an unsupported codec hard-errors the decoder
     try {
         VideoDecoder.isConfigSupported(config).then(res => {
-            if (dead || !res.supported) { dead = true; readyResolve(false); return; }
+            if (dead || !res.supported) { closeSession(); readyResolve(false); return; }
             decoder.configure(config);
             readyResolve(true);
-        }).catch(() => { dead = true; readyResolve(false); });
+        }).catch(() => { closeSession(); readyResolve(false); });
     } catch (_) {
-        dead = true;
+        closeSession();
         readyResolve(false);
     }
 
@@ -424,7 +455,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         try {
             decoder.reset();
             decoder.configure(config);
-        } catch (_) { dead = true; return; }
+        } catch (_) { closeSession(); return; }
         if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
         runIsPrefetch = true;
         prefetchedKey = gopKey;
@@ -484,6 +515,8 @@ function _createScrubVideoSession(bytes, onColorRejected) {
 
     function closeSession() {
         dead = true;
+        _scrubGamutListeners.delete(gamutChanged);
+        presentationFrame = null;
         bytes = null; // a retained closed handle must not keep the encoded file alive
         if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
         if (pendingFrame) { pendingFrame.close(); pendingFrame = null; }
@@ -523,7 +556,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // BT.709 primaries fit sRGB. An unnecessary P3 backing store added
             // conversion/rounding differences even for software-decoded SDR.
             const mode = colorSpaceOverride || (info.colr?.primaries === 1 ? 'srgb' :
-                ((window.matchMedia && matchMedia('(color-gamut: p3)').matches) ? 'display-p3' : 'srgb'));
+                (_scrubWideGamut() ? 'display-p3' : 'srgb'));
             let ctx = null;
             if (mode === 'display-p3') {
                 try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); }
@@ -547,7 +580,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
                 try {
                     decoder = new VideoDecoder({ output: _onDecoderOutput, error: _onDecoderError });
                     decoder.configure(config);   // config already validated by isConfigSupported at init
-                } catch (_) { dead = true; return; }
+                } catch (_) { closeSession(); return; }
                 suspended = false;
             }
             if (decoder.state !== 'configured') return;
@@ -622,7 +655,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             try {
                 decoder.reset();
                 decoder.configure(config);
-            } catch (_) { dead = true; return; }
+            } catch (_) { closeSession(); return; }
             // Backward runs paint only the target frame (intermediates from the
             // keyframe are the PAST — painting them flashes a rewind). Forward
             // cross-GOP DRAG runs keep the progressive fast-forward feel; a

@@ -46,7 +46,7 @@ const WarpPreparedMedia = (() => {
         if (hex !== expected.sha256) throw new Error('Package SHA-256 does not match selected bytes');
         return bytes;
     }
-    async function inspectFiles({manifestFile, mediaFile, sourceFile, signal} = {}) {
+    async function inspect({manifestFile, mediaFile, sourceFile, signal} = {}, snapshot = false) {
         checkSignal(signal);
         if (inspecting) throw new Error('Another package inspection is still retiring');
         if (!(manifestFile instanceof File) || !manifestFile.size || manifestFile.size > MAX_MANIFEST_BYTES) throw new TypeError('Select a package manifest of at most 16 KiB');
@@ -64,18 +64,22 @@ const WarpPreparedMedia = (() => {
             if (!audio || audio.trackCount !== 2 || audio.videoTrackCount !== 1 || audio.audioTrackCount !== 1 ||
                 audio.codec !== 'mp4a.40.2' || audio.aacSbr !== false || audio.channels !== 2 || audio.sampleRate !== 48000 ||
                 !Number.isFinite(audio.timelineStart) || audio.timelineStart < 0) throw new Error('Package requires one video and one readable stereo AAC-LC 48 kHz track');
-            const video = _demuxMP4Video(bytes);
+            const video = _demuxMP4Video(bytes, true);
             if (!video || !/^avc1\.(42|4d|64)[a-f0-9]{4}$/i.test(video.codec) ||
                 !video.codedWidth || !video.codedHeight || video.codedWidth > 4096 || video.codedHeight > 4096 ||
-                video.codedWidth * video.codedHeight > 4096 * 2160 || !video.samples.length) throw new Error('Package requires bounded AVC picture with readable sample tables');
+                video.codedWidth * video.codedHeight > 4096 * 2160 || !video.sampleCount) throw new Error('Package requires bounded AVC picture with readable sample tables');
             checkSignal(signal);
-            return freeze({contract:'warpdiff.prepared-media-report', version:VERSION, recipe:RECIPE,
+            const report = freeze({contract:'warpdiff.prepared-media-report', version:VERSION, recipe:RECIPE,
                 status:'candidate', renditionBinding:'matched', sourceBinding:sourceFile === undefined ? 'not-checked' : 'matched',
                 container:{videoCodec:video.codec, width:video.codedWidth, height:video.codedHeight,
                     audioCodec:audio.codec, channels:audio.channels, sampleRate:audio.sampleRate, audioStart:audio.timelineStart},
                 analysisBasis:'prepared-copy', validation:'normal-load-required',
                 conformance:{fullFileDecoding:'not-verified', sourceDerivation:'not-verified',
                     frameMapping:'not-verified', synchronization:'not-verified', channelFidelity:'not-verified', measurement:'not-verified'}});
+            // File handles may become unreadable or change on disk after Check.
+            // A bounded in-memory File binds loading to the exact hashed bytes.
+            return snapshot ? Object.freeze({report, mediaFile:new File([bytes], mediaFile.name,
+                {type:'video/mp4',lastModified:mediaFile.lastModified})}) : report;
         } finally { inspecting = false; }
     }
     function createFileProvider({manifestFile, mediaFile} = {}) {
@@ -86,11 +90,11 @@ const WarpPreparedMedia = (() => {
                 if (!files) throw new Error('Package provider has already been consumed');
                 const selected = files; files = null; // one-shot; release retained Files on settlement
                 if (input?.name !== request.source?.name) throw new Error('Package source does not match preparation request');
-                await inspectFiles({...selected, sourceFile:input, signal}); checkSignal(signal);
-                return {kind:'files', files:[selected.mediaFile]};
+                const checked = await inspect({...selected, sourceFile:input, signal}, true); checkSignal(signal);
+                return {kind:'files', files:[checked.mediaFile]};
             },
         });
     }
     return Object.freeze({version:VERSION, limits:Object.freeze({fileBytes:MAX_FILE_BYTES, manifestBytes:MAX_MANIFEST_BYTES}),
-        parseManifest, inspectFiles, createFileProvider});
+        parseManifest, inspectFiles:options => inspect(options), inspectSnapshot:options => inspect(options, true), createFileProvider});
 })();

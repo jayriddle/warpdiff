@@ -104,7 +104,7 @@ function _setMediaInputStatusOpen(open, opener = null) {
     const dialog = document.getElementById('mediaStatusDialog');
     if (open && !dialog.open) {
         _mediaInputStatusOpener = opener || document.activeElement;
-        _mediaInputRefresh(); dialog.showModal();
+        _mediaInputRefresh(); _showAppDialog(dialog);
     } else if (!open && dialog.open) dialog.close();
 }
 function _mediaInputClear() {
@@ -117,8 +117,10 @@ document.getElementById('mediaStatusBtn').addEventListener('click', event => _se
 document.getElementById('mediaStatusClose').addEventListener('click', () => _setMediaInputStatusOpen(false));
 document.getElementById('mediaStatusRefresh').addEventListener('click', _mediaInputRefresh);
 document.getElementById('mediaStatusDialog').addEventListener('close', () => {
+    if (document.getElementById('mediaStatusDialog').open) return;
     const target = _mediaInputStatusOpener;
     _mediaInputStatusOpener = null;
+    if (document.querySelector('dialog[open]')) return;
     if (target?.isConnected && target.getClientRects().length) target.focus({preventScroll: true});
     else document.getElementById('loadBtn').focus({preventScroll: true});
 });

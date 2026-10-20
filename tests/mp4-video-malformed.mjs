@@ -21,11 +21,12 @@ function fixture(overrides={}) {
       const value=Object.hasOwn(overrides,name)?overrides[name]:defaults[name];
       return value===null?Buffer.alloc(0):box(name,value);
     };
-    return box('moov',box('trak',box('edts',get('elst')),box('mdia',get('mdhd'),get('hdlr'),box('minf',box('stbl',
+    return box('moov',box('trak',box('edts',get('elst')),box('mdia',get('mdhd'),get('hdlr'),box('minf',
+      ...(overrides.dataHandler?[box('hdlr',Buffer.concat([u32(0,0),Buffer.from('url ')]))]:[]),box('stbl',
       get('stsd'),get('stss'),get('stsz'),get('stsc'),get('stco'),...(overrides.co64?[box('co64',overrides.co64)]:[]),get('stts'),get('ctts'))))));
   };
   const moov=build(0);
-  return new Uint8Array(Buffer.concat([build(moov.length+8),box('mdat',Buffer.from([1,2]))]));
+  return new Uint8Array(Buffer.concat([build(moov.length+8),box('mdat',overrides.payload || Buffer.from([1,2]))]));
 }
 
 export function runMalformedVideoChecks(check, source=readFileSync(new URL('../js/mp4-demux.js',import.meta.url),'utf8')) {
@@ -35,8 +36,21 @@ export function runMalformedVideoChecks(check, source=readFileSync(new URL('../j
     let result, error;
     try { result=parse(data); } catch(e) { error=e; }
     check('demux[malformed-video]: '+name, !error && result===null);
+    check('demux[summary-video]: '+name, parse(data,true)===null);
   };
   const valid=parse(fixture());
+  const summary=parse(fixture(),true);
+  check('demux[summary-video]: same metadata without per-sample records',summary.sampleCount===valid.samples.length && summary.codec===valid.codec && !('samples' in summary));
+  const nclc=parse(fixture({stsd:description(Buffer.concat([box('avcC',avc),box('colr',Buffer.from('nclc'),Buffer.from([0,1,0,1,0,1]))]))}),true);
+  check('demux[color]: QuickTime nclc is recognized without inventing a range flag',nclc.colr.type==='nclc' && nclc.colr.primaries===1 && nclc.colr.fullRange===null);
+  check('demux[QuickTime]: media-info data handler cannot replace the video handler',parse(fixture({dataHandler:true}),true)?.sampleCount===2);
+  {
+    const allocations=[],guarded={Array:new Proxy(Array,{construct(target,args){if(typeof args[0]==='number')allocations.push(args[0]);return Reflect.construct(target,args);}})};
+    runInNewContext(source,guarded);
+    const dense=fixture({stsz:u32(0,1,1000000),stsc:table([1,1000000,1]),stts:table([1000000,1]),ctts:null,stss:null,payload:Buffer.alloc(1000000)});
+    const compact=guarded._demuxMP4Video(dense,true);
+    check('demux[summary-video]: million-sample control avoids count-sized allocations',compact.sampleCount===1000000 && allocations.every(n=>n<1000000));
+  }
   check('demux[malformed-video]: complete synthetic table produces exact offsets and timing',
     valid?.samples.length===2 && valid.samples[0].pts===0 && valid.samples[1].pts===1 && valid.samples[0].size===1 && valid.samples[1].offset===valid.samples[0].offset+1);
   const padded=Buffer.concat([Buffer.alloc(7),Buffer.from(fixture()),Buffer.alloc(9)]);

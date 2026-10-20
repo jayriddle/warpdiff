@@ -10,7 +10,7 @@ test.beforeEach(async ({page}) => {
   await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '999.0.0'));
 });
 
-test('unsupported audio retains its source, opens external preparation and never loads an engine', async ({page, request}) => {
+test('unsupported audio retains its source, offers preparation without interrupting and never loads an engine', async ({page, request}) => {
   const engineRequests: string[] = [];
   const errors: string[] = [];
   page.on('request', req => { if (/\/ffmpeg\//.test(req.url())) engineRequests.push(req.url()); });
@@ -18,6 +18,7 @@ test('unsupported audio retains its source, opens external preparation and never
   await page.goto('/');
   await expect(page.locator('#externalAudioBtn')).toBeHidden();
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/ac3_video.mp4'));
+  await page.locator('#loadBtn').focus();
   // Exercise the undecodable-track owner even on systems with native AC-3.
   await page.evaluate(() => {
     const w = window as any;
@@ -26,6 +27,9 @@ test('unsupported audio retains its source, opens external preparation and never
     w._webcodecsFinished('editA', w.eval('_videoAudioDecodeGen.editA'));
   });
   const panel = page.getByRole('dialog', {name:'Prepare audio externally'});
+  await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+  await expect(page.locator('#loadBtn')).toBeFocused();
+  await page.locator('#preparationBtn').click();
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await page.locator('#localPreparationDialog summary').click();
   await page.locator('#localPreparationManual').click();
@@ -183,6 +187,8 @@ test('native codec limits retain original surround metadata and give a preparati
   const state = await page.evaluate(() => (window as any).eval('({name:mediaData.editA.name, decoded:!!_videoAudioBuffers.editA, preparation:!!_ffmpegCommands.editA})'));
   expect(state.name).toBe('dialogue_71.mp4');
   if (state.preparation) {
+    await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+    await page.locator('#preparationBtn').click();
     await expect(page.locator('#localPreparationDialog')).toBeVisible();
     await page.locator('#localPreparationDialog summary').click();
     await page.locator('#localPreparationManual').click();
@@ -201,6 +207,8 @@ test('external conversion and ordinary reload preserve an extensionless name and
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles({name:'.review', mimeType:'video/mp4', buffer:source});
   await page.evaluate(() => (window as any)._registerFfmpegCommand('editA', '.review', 'ac-3'));
+  await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+  await page.locator('#preparationBtn').click();
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await page.locator('#localPreparationDialog summary').click();
   await page.locator('#localPreparationManual').click();

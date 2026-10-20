@@ -13,7 +13,7 @@ export async function runPreparedMediaChecks(check, source=readFileSync(new URL(
   let audioCalls=0,videoCalls=0,summaryMode=false,audioOverride=null,videoOverride=null;
   const api=runInNewContext(source+'\nWarpPreparedMedia',{File,TextEncoder,crypto:webcrypto,
     _demuxMP4Audio(bytes,metadataOnly,selected,validateOnly){audioCalls++;summaryMode=metadataOnly===false&&selected===null&&validateOnly===true;return audioOverride??{codec:'mp4a.40.2',aacSbr:false,channels:2,sampleRate:48000,timelineStart:0,trackCount:2,audioTrackCount:1,videoTrackCount:1};},
-    _demuxMP4Video(){videoCalls++;return videoOverride??{codec:'avc1.42c01e',codedWidth:320,codedHeight:180,samples:[{}]};}});
+    _demuxMP4Video(bytes,summaryOnly){videoCalls++;if(!summaryOnly)throw Error('Inspector must use compact video validation');return videoOverride??{codec:'avc1.42c01e',codedWidth:320,codedHeight:180,sampleCount:1};}});
   const mf=value=>new File([JSON.stringify(value)],'warpdiff-package.json');
   const inspect=(options={})=>api.inspectFiles({manifestFile:mf(manifest),mediaFile:output,sourceFile:input,...options});
   const normalized=api.parseManifest(JSON.stringify({...manifest,ready:true,validated:true,secret:'discard'}));
@@ -52,8 +52,8 @@ export async function runPreparedMediaChecks(check, source=readFileSync(new URL(
     test('actual audio/inventory mismatch '+JSON.stringify(patch)+' rejects',await rejects(()=>inspect(),/one video/));
   }
   audioOverride=null;
-  for(const patch of [{codec:'hvc1.1.6.L93.B0'},{codedWidth:5000},{codedWidth:4096,codedHeight:4096},{samples:[]}]){
-    videoOverride={codec:'avc1.42c01e',codedWidth:320,codedHeight:180,samples:[{}],...patch};
+  for(const patch of [{codec:'hvc1.1.6.L93.B0'},{codedWidth:5000},{codedWidth:4096,codedHeight:4096},{sampleCount:0}]){
+    videoOverride={codec:'avc1.42c01e',codedWidth:320,codedHeight:180,sampleCount:1,...patch};
     test('actual picture mismatch '+JSON.stringify(patch)+' rejects',await rejects(()=>inspect(),/bounded AVC/));
   }
   videoOverride=null;
@@ -68,6 +68,6 @@ export async function runPreparedMediaChecks(check, source=readFileSync(new URL(
   const provider=api.createFileProvider({manifestFile:mf(manifest),mediaFile:output});
   test('file adapter registration shape is versioned and explicit',provider.id==='prepared-package'&&provider.version===1&&provider.mode==='files'&&provider.supports({recipe:manifest.recipe}));
   const result=await provider.prepare({source:{name:input.name}},{input});
-  test('file adapter returns only the inspected selected File',result.kind==='files'&&result.files.length===1&&result.files[0]===output&&!('ready'in result)&&!('validated'in result));
+  test('file adapter returns an immutable snapshot of inspected bytes',result.kind==='files'&&result.files.length===1&&result.files[0]!==output&&await result.files[0].text()==='rendition'&&!('ready'in result)&&!('validated'in result));
   test('one-shot adapter cannot be reused or retain a discoverable selection',!provider.supports({recipe:manifest.recipe})&&await rejects(()=>provider.prepare({source:{name:input.name}},{input}),/consumed/));
 }

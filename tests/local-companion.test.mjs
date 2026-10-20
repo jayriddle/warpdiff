@@ -151,9 +151,9 @@ test('native execution abort waits for a TERM-resistant child to close',async()=
 test('video preparation can encode non-AVC picture; audio-only preparation keeps channels and rate',async()=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-real-preparation-'));
     try {
-        const input=path.join(directory,'source.mov');
+        const input=path.join(directory,'source.mkv');
         await execute('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n','-i',new URL('./fixtures/landscape_a.mp4',import.meta.url).pathname,
-            '-t','0.5','-vf','scale=160:90','-c:v','prores_ks','-profile:v','0','-pix_fmt','yuv422p10le','-c:a','pcm_s16le',input]);
+            '-t','0.5','-vf','scale=160:90,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709','-c:v','ffv1','-pix_fmt','yuv420p10le','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-c:a','pcm_s16le',input]);
         const videoDir=path.join(directory,'video');await fs.mkdir(videoDir);
         const result=await prepareCompatible({input,directory:videoDir,kind:'video'});
         assert.equal(result.preparation.picture,'encoded-h264-up-to-1080p');assert.equal(result.type,'video/mp4');
@@ -215,4 +215,43 @@ test('bridge rejects invalid launch identities before accepting a port and disco
         const probe=launch(origin);probe.connect();assert.equal(probe.ui.allow.disabled,false);probe.ui.disconnect.click();probe.connect();probe.ui.allow.click();
         assert.equal(probe.ui.allow.disabled,true);assert.equal(probe.posted.some(item=>item.type==='ready'),false);
     }
+});
+
+for (const transfer of ['smpte2084','arib-std-b67']) test('HDR '+transfer+' is refused before picture reencoding',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-hdr-policy-'));
+    try {
+        const input=path.join(directory,'hdr.mkv'),out=path.join(directory,'output');await fs.mkdir(out);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=128x72:rate=24:duration=0.25',
+            '-vf','setparams=range=tv:color_primaries=bt2020:color_trc='+transfer+':colorspace=bt2020nc','-c:v','ffv1','-pix_fmt','yuv420p10le','-color_range','tv','-colorspace','bt2020nc','-color_primaries','bt2020','-color_trc',transfer,input]);
+        await assert.rejects(prepareCompatible({input,directory:out,kind:'video'}),/HDR \(PQ\/HLG\)/);
+        assert.deepEqual(await fs.readdir(out),[]);
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('unknown SDR interpretation is not silently assigned BT.709 during encoding',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-unknown-color-'));
+    try {
+        const input=path.join(directory,'unknown.mkv'),out=path.join(directory,'output');await fs.mkdir(out);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=128x72:duration=0.25','-c:v','ffv1',input]);
+        await assert.rejects(prepareCompatible({input,directory:out,kind:'video'}),/known SDR color/);
+        assert.deepEqual(await fs.readdir(out),[]);
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('full-range 10-bit SDR encoding declares and produces limited BT.709 black and white',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-sdr-range-'));
+    try {
+        const w=128,h=72,frame=Buffer.alloc(w*h*3);
+        for(let y=0;y<h;y++)for(let x=0;x<w;x++)frame.writeUInt16LE(x<w/2?0:1023,(y*w+x)*2);
+        for(let i=w*h*2;i<frame.length;i+=2)frame.writeUInt16LE(512,i);
+        const raw=path.join(directory,'source.yuv'),input=path.join(directory,'source.mkv'),out=path.join(directory,'output');
+        await fs.writeFile(raw,Buffer.concat(Array(6).fill(frame)));await fs.mkdir(out);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','rawvideo','-pixel_format','yuv420p10le','-video_size',w+'x'+h,'-framerate','24','-i',raw,
+            '-vf','setparams=range=pc:color_primaries=bt709:color_trc=bt709:colorspace=bt709','-c:v','ffv1','-color_range','pc','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',input]);
+        const result=await prepareCompatible({input,directory:out,kind:'video'});
+        const metadata=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams[0];
+        assert.equal(metadata.color_range,'tv');for(const key of ['color_space','color_primaries','color_transfer'])assert.equal(metadata[key],'bt709');
+        const {spawnSync}=await import('node:child_process');const decoded=spawnSync('ffmpeg',['-v','error','-i',result.file,'-frames:v','1','-pix_fmt','yuv420p','-f','rawvideo','pipe:1']);
+        assert.equal(decoded.status,0);assert(Math.abs(decoded.stdout[Math.floor(h/2)*w+16]-16)<=2);assert(Math.abs(decoded.stdout[Math.floor(h/2)*w+w-16]-235)<=2);
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

@@ -66,6 +66,8 @@ test('source format changes only when the externally prepared AC-3 copy is loade
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures', 'ac3_video.mp4'));
   await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('Dolby Digital');
   await page.evaluate(() => (window as any)._registerFfmpegCommand('editA', 'ac3_video.mp4', 'ac-3'));
+  await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+  await page.locator('#preparationBtn').click();
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await page.locator('#localPreparationDialog summary').click();
   await page.locator('#localPreparationManual').click();

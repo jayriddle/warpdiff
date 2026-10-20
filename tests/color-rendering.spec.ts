@@ -1,7 +1,7 @@
 import {test, expect} from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import {makeFixtures, makeDecoderFixtures} from '../tools/investigations/sdr-color/fixtures.mjs';
+import {makeFixtures, makeDecoderFixtures, ffmpeg} from '../tools/investigations/sdr-color/fixtures.mjs';
 import {difference} from '../tools/investigations/sdr-color/native.mjs';
 import {readSamples, screenshotSamples} from '../tools/investigations/sdr-color/sampling.mjs';
 import {installLegacyFilter} from '../tools/investigations/sdr-color/legacy-filter.mjs';
@@ -32,6 +32,12 @@ async function load(page, files) {
   await page.locator('#playPauseBtn').click();
   await page.waitForFunction(() => [...document.querySelectorAll('.asset-layer video')].every((v:any) => v.currentTime > .05));
   await page.locator('#playPauseBtn').click();
+}
+async function transparentOverlays(page) {
+  return page.locator('.scrub-overlay-canvas').evaluateAll(canvases=>canvases.every(canvas=>{
+    const c=canvas as HTMLCanvasElement;
+    return c.getContext('2d')!.getImageData(0,0,c.width,c.height).data.every((value,index)=>index%4!==3||value===0);
+  }));
 }
 test('video Difference follows RGB subtraction and retires its staging buffer', async ({page, browserName}) => {
   await load(page, fixtures.cases.slice(0,2).map(c => c.file));
@@ -221,4 +227,59 @@ if(process.platform==='darwin') {
       }
     });
   }
+}
+
+for(const container of ['untagged','nclc']) test('non-macOS scrub policy preserves '+container+' decoder input',async({page,browserName},info)=>{
+  await page.addInitScript(()=>Object.defineProperty(navigator,'platform',{configurable:true,get:()=> 'Linux x86_64'}));await page.reload();
+  let file=fixtures.hardwareCases.find(c=>c.name==='nv12-untagged').file;
+  if(container==='nclc'){
+    const mov=info.outputPath('quicktime.mov');fs.mkdirSync(path.dirname(mov),{recursive:true});
+    ffmpeg(['-i',file,'-map','0:v:0','-c:v','copy','-color_primaries','bt709','-color_trc','bt709','-colorspace','bt709','-movflags','write_colr',mov]);
+    expect(fs.readFileSync(mov).includes(Buffer.from('nclc')),'fixture must carry an actual QuickTime nclc box').toBe(true);file=mov;
+  }
+  await load(page,file);
+  const metadata=await page.evaluate(async()=>{const v=document.querySelector('#layerEditA video') as HTMLVideoElement;return (window as any)._demuxMP4Video(new Uint8Array(await(await fetch(v.src)).arrayBuffer()),true)?.colr;});
+  if(container==='nclc')expect(metadata).toMatchObject({type:'nclc',fullRange:null});else expect(metadata).toBeNull();
+  const bar=(await page.locator('#videoProgressContainer').boundingBox())!;await page.mouse.move(bar.x+bar.width*.4,bar.y+bar.height/2);await page.mouse.down();
+  try{
+    if(browserName==='chromium'){
+      expect(await page.evaluate(()=>(window as any)._scrubUseDecoder())).toBe(true);
+      await page.waitForFunction(()=>(window as any).eval('_scrubOverlayLive.editA?.framesPainted > 0'));
+      expect(await page.evaluate(()=>(window as any).eval('_scrubVideoSessions.editA === "failed"'))).toBe(false);
+    }else expect(await page.locator('.scrub-overlay-canvas').count()).toBe(0);
+  }finally{await page.mouse.up();}
+});
+
+if(process.platform==='darwin'){
+  test('unmeasured 8-bit HEVC output keeps native scrubbing on macOS',async({page,browserName},info)=>{
+    const file=info.outputPath('hevc-main.mp4');fs.mkdirSync(path.dirname(file),{recursive:true});
+    ffmpeg(['-i',fixtures.hardwareCases.find(c=>c.name==='nv12-709-limited').file,'-t','0.5','-c:v','libx265','-pix_fmt','yuv420p','-tag:v','hvc1',
+      '-x265-params','pools=1:frame-threads=1:log-level=error','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',file]);
+    await load(page,file);const bar=(await page.locator('#videoProgressContainer').boundingBox())!;
+    await page.mouse.move(bar.x+bar.width*.6,bar.y+bar.height/2);await page.mouse.down();
+    try{
+      if(browserName==='chromium')await page.waitForFunction(()=>(window as any).eval('_scrubVideoSessions.editA === "failed"'));
+      expect(await transparentOverlays(page),'rejected picture cannot cover the native video').toBe(true);expect(await page.evaluate(()=>(window as any).eval('_scrubVideoInputBudget.state.bytes'))).toBe(0);
+    }finally{await page.mouse.up();}
+  });
+  test('gamut change retires a cached scrub without another decoded frame',async({page,browserName})=>{
+    await page.addInitScript(()=>{
+      const real=window.matchMedia.bind(window),target=new EventTarget();let p3=false;
+      Object.defineProperty(target,'matches',{get:()=>p3});
+      window.matchMedia=((query:string)=>query==='(color-gamut: p3)'?target:real(query)) as any;
+      (window as any).setTestGamut=(value:boolean)=>{p3=value;target.dispatchEvent(new Event('change'));};
+    });await page.reload();await load(page,fixtures.hardwareCases.find(c=>c.name==='nv12-709-limited').file);
+    const bar=(await page.locator('#videoProgressContainer').boundingBox())!;await page.mouse.move(bar.x+bar.width*.4,bar.y+bar.height/2);await page.mouse.down();
+    try{
+      if(browserName==='chromium'){
+        await page.waitForFunction(()=>(window as any).eval('_scrubOverlayLive.editA?.cacheStats.frames > 0'));
+        await page.evaluate(()=>(window as any).setTestGamut(true));
+        await page.waitForFunction(()=>(window as any).eval('_scrubVideoSessions.editA === "failed"'));
+        expect(await transparentOverlays(page),'reusable overlay is transparent after rejection').toBe(true);
+        expect(await page.evaluate(()=>(window as any).eval('_scrubVideoInputBudget.state.bytes'))).toBe(0);
+        await page.evaluate(()=>(window as any).setTestGamut(false));await page.mouse.move(bar.x+bar.width*.5,bar.y+bar.height/2);
+        expect(await page.evaluate(()=>(window as any).eval('_scrubVideoSessions.editA === "failed"'))).toBe(true);
+      }else expect(await page.locator('.scrub-overlay-canvas').count()).toBe(0);
+    }finally{await page.mouse.up();}
+  });
 }

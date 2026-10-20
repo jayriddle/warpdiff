@@ -435,7 +435,7 @@ function _openInfoBarEditor() {
     _infoEditorType = slot ? mediaData[slot].type : _infoEditorType;
     _infoEditorSelection = _infoBarProfile(_infoEditorType).elements[0].id;
     _renderInfoEditor();
-    document.getElementById('infoEditorDialog').showModal();
+    _showAppDialog(document.getElementById('infoEditorDialog'));
     document.getElementById('infoEditorButton').setAttribute('aria-expanded','true');
     _renderInfoEditorPreview(); document.getElementById('infoEditorClose').focus();
 }
@@ -516,10 +516,11 @@ function _setupInfoBarEditor() {
     const dialog = document.getElementById('infoEditorDialog');
     document.getElementById('infoEditorClose').addEventListener('click',_closeInfoBarEditor);
     dialog.addEventListener('close',() => {
+        if (dialog.open) return;
         _infoEditorFinishDrag(false);
         _closeInfoBarOverflow(false); _infoBarRestoreSurface(document.getElementById('infoEditorPreview'));
         document.getElementById('infoEditorButton').setAttribute('aria-expanded','false');
-        if (_infoEditorFocus?.isConnected) _infoEditorFocus.focus();_infoEditorFocus = null;
+        if (_infoEditorFocus?.isConnected && !document.querySelector('dialog[open]')) _infoEditorFocus.focus();_infoEditorFocus = null;
     });
     dialog.addEventListener('click',event => {
         const rect = dialog.getBoundingClientRect();
@@ -609,7 +610,7 @@ function _setupInfoBarEditor() {
     // Capture before app hotkeys. Keep all modal controls in the Tab order even
     // when the browser's native preference skips buttons; other inputs stay native.
     document.addEventListener('keydown',event => {
-        if (!dialog.open && !_infoBarOverflow) return;
+        if (!dialog.open && (!_infoBarOverflow || document.querySelector('dialog[open]'))) return;
         if (event.key === 'Escape') {event.preventDefault();if (_infoBarOverflow) _closeInfoBarOverflow();else _closeInfoBarEditor();}
         if (dialog.open && event.key === 'Tab') {
             const focusable = [...dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')].filter(element => element.getClientRects().length);

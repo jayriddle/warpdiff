@@ -13,6 +13,8 @@ test.beforeEach(async({page})=>{
   await page.goto('/');
 });
 async function openCommandFallback(page:any) {
+  await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+  await page.locator('#preparationBtn').click();
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await page.locator('#localPreparationDialog summary').click();
   await page.locator('#localPreparationManual').click();

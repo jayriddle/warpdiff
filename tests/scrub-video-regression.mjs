@@ -5,9 +5,9 @@ import { runInNewContext } from 'node:vm';
 
 export async function runScrubVideoChecks(check, source = readFileSync(new URL('../js/scrub-video.js', import.meta.url), 'utf8')) {
   async function sessionFor({ codec = 'avc1.64001f', count = 300, width = 1280, height = 720,
-      colr = {primaries:1,transfer:1,matrix:1}, frameTransfer = 'bt709', platform = '', onColorRejected } = {}) {
+      colr = {primaries:1,transfer:1,matrix:1}, frameTransfer = 'bt709', platform = '', onColorRejected, constructorThrows = false } = {}) {
     const resources = [], bitmaps = [], draws = [], raf = new Map(), decoders = [];
-    let rafId = 0;
+    let rafId = 0; const gamutListeners=[];let gamutQueries=0;const gamut={matches:false,addEventListener(type,fn){gamutListeners.push(fn);}};
     class Frame {
       constructor(index, format = 'I420', clone = false) {
         this.timestamp = Math.round(index / 24 * 1e6);
@@ -24,6 +24,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     class Decoder {
       static async isConfigSupported(config) { return { supported: true, config }; }
       constructor(callbacks) {
+        if (constructorThrows) throw new Error('Controlled decoder constructor failure');
         this.callbacks = callbacks; this.state = 'unconfigured'; this.decodeQueueSize = 0;
         this.resets = 0; this.flushes = 0; this.chunks = [];
         decoders.push(this);
@@ -51,23 +52,34 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         const bitmap = { closed: false, close() { this.closed = true; } };
         bitmaps.push({ frame, options, bitmap, resolve: () => resolve(bitmap), reject });
       }),
-      URL, navigator: { platform }, window: { location: { href: 'https://example.test/warpdiff/?review=1' } },
+      URL, navigator: { platform }, window: { location: { href: 'https://example.test/warpdiff/?review=1' },matchMedia(){gamutQueries++;return gamut;} },
     };
-    runInNewContext(source, realm);
-    const session = realm._createScrubVideoSession(new Uint8Array(1), onColorRejected);
+    runInNewContext(source+'\nglobalThis.gamutListenerCount = () => _scrubGamutListeners.size;', realm);
+    let session;
+    try { session = realm._createScrubVideoSession(new Uint8Array(1), onColorRejected); }
+    catch (error) {
+      if (!constructorThrows) throw error;
+      return {error,listeners:realm.gamutListenerCount()};
+    }
     if (!session) return { session, decoders };
     await session.ready;
     const canvas = { width: 0, height: 0, style:{filter:''}, getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
     session.attach(canvas, 'srgb');
     const paint = () => { const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(fn => fn()); };
     const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
-    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle, canvas };
+    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle, canvas, setGamut(value){gamut.matches=value;gamutListeners.forEach(fn=>fn());},gamutQueries:()=>gamutQueries };
+  }
+
+  {
+    const failed = await sessionFor({constructorThrows:true});
+    check('scrub[color]: failed decoder construction cannot retain an input through gamut listeners',
+      failed.error?.message === 'Controlled decoder constructor failure' && failed.listeners === 0);
   }
 
   {
     const realm={URL};runInNewContext(source,realm);
-    const filter=realm._scrubVideoPresentationFilter;
-    const native={format:'NV12',colorSpace:{primaries:'bt709',matrix:'bt709',transfer:'bt709'}},url='https://example.test/warpdiff/?review=1#old';
+    const filter=(frame,platform,url,wide=false,codec='avc1.640028')=>realm._scrubVideoPresentationFilter(frame,platform,url,wide,codec);
+    const native={format:'NV12',colorSpace:{primaries:'bt709',matrix:'bt709',transfer:'bt709',fullRange:false}},url='https://example.test/warpdiff/?review=1#old';
     check('scrub[color]: NV12 correction binds to the stable document and retains its query',filter(native,'MacIntel',url)==='url("https://example.test/warpdiff/?review=1#scrubOverlayColorFix")');
     check('scrub[color]: verified High 4:4:4 AVC I420 stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,false,'avc1.f4001f')==='');
     check('scrub[color]: ordinary AVC software I420 retains native seeking',filter({...native,format:'I420'},'MacIntel',url,false,'avc1.640028')===null);
@@ -80,8 +92,21 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     check('scrub[color]: unverified NV12 matrix retains native seeking',filter({...native,colorSpace:{...native.colorSpace,matrix:'smpte170m'}},'MacIntel',url)===null);
     check('scrub[color]: wide-gamut NV12 retains native presentation',filter(native,'MacIntel',url,true)===null);
     check('scrub[color]: wide-gamut software output stays unfiltered',filter({...native,format:'I420'},'MacIntel',url,true,'avc1.f4001f')==='');
-    const untagged = await sessionFor({colr:null});
+    const untagged = await sessionFor({colr:null,platform:'MacIntel'});
     check('scrub[color]: untagged input retains native presentation before decoder allocation', untagged.session === null && untagged.decoders.length === 0);
+    const linux = await sessionFor({colr:null,platform:'Linux x86_64'});
+    check('scrub[color]: untagged non-macOS input keeps the decoder',!!linux.session);linux.session.close();
+    const mov = await sessionFor({colr:{type:'nclc',primaries:1,transfer:1,matrix:1,fullRange:null},platform:'Win32'});
+    check('scrub[color]: nclc non-macOS input keeps the decoder',!!mov.session);mov.session.close();
+    check('scrub[color]: full-range NV12 remains native until measured',filter({...native,colorSpace:{...native.colorSpace,fullRange:true}},'MacIntel',url)===null);
+    check('scrub[color]: 8-bit HEVC NV12 remains native until measured',filter(native,'MacIntel',url,false,'hvc1.1.6.L93.B0')===null);
+    let rejected=0;const moving=await sessionFor({platform:'MacIntel',onColorRejected:()=>rejected++});
+    moving.session.request(0,true);moving.decoder.emit(0,'NV12');
+    moving.bitmaps.forEach(b=>b.resolve());await moving.settle();moving.paint();
+    moving.setGamut(true);
+    check('scrub[color]: P3 change retires cached output without a new decoder output',moving.session.dead && moving.session.cacheStats.frames===0 && rejected===1 && moving.resources.every(f=>f.closed));
+    moving.setGamut(false);moving.session.request(0,true);
+    check('scrub[color]: display fallback is sticky until a new load and query is cached',moving.session.dead && rejected===1 && moving.gamutQueries()===1);
     const tagged = await sessionFor();
     tagged.session.request(0,true);tagged.decoder.emit(0);tagged.paint();
     check('scrub[color]: declared SDR still paints without rewriting color metadata', !tagged.session.dead && tagged.session.framesPainted > 0 && !tagged.decoder.config.colorSpace);

@@ -536,7 +536,7 @@ function _demuxWebMAudio(data, metadataOnly = false) {
 //     samples: [{ offset, size, dts, pts, key }] }  // dts/pts in SECONDS, decode order
 // Used by js/scrub-video.js. See docs/scrub-proxy-spike-2026-05.md for why scrubbing
 // decodes original samples instead of driving a second <video> element.
-function _demuxMP4Video(data) {
+function _demuxMP4Video(data, summaryOnly = false) {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
     function readStr(off, len) {
@@ -551,7 +551,7 @@ function _demuxMP4Video(data) {
     let t = null;      // current trak accumulator
     let video = null;  // committed video track
 
-    function walk(start, end, depth = 0) {
+    function walk(start, end, depth = 0, parent = '') {
         if (depth > 32) return false; // containers are shallow; bound hostile nesting
         let off = start;
         while (off + 8 <= end) {
@@ -570,11 +570,11 @@ function _demuxMP4Video(data) {
 
             if (type === 'moov' || type === 'mdia' || type === 'minf' || type === 'stbl' ||
                 type === 'edts') {
-                if (!walk(s, e, depth + 1)) return false;
+                if (!walk(s, e, depth + 1, type)) return false;
             } else if (type === 'trak') {
                 if (t) return false; // a trak cannot contain another trak
                 t = { handler: null, timescale: 1, elstMediaTime: 0 };
-                if (!walk(s, e, depth + 1)) return false;
+                if (!walk(s, e, depth + 1, type)) return false;
                 if (!video && t.handler === 'vide' && t.codec && t.sizes && t.chunkOffsets && t.dtsDeltas) {
                     video = t;
                 }
@@ -608,7 +608,9 @@ function _demuxMP4Video(data) {
                 if (!t.timescale) return false;
             } else if (type === 'hdlr') {
                 if (e - s < 12) return false;
-                t.handler = readStr(s + 8, 4);
+                // QuickTime also has a data handler in minf (usually 'url ').
+                // Only mdia's handler selects the track's media kind.
+                if (parent === 'mdia') t.handler = readStr(s + 8, 4);
             } else if (type === 'stsd') {
                 if (!parseStsdVideo(s, e)) return false;
             } else if (type === 'stss') {
@@ -728,8 +730,9 @@ function _demuxMP4Video(data) {
                 t.codec = _hevcCodecString(t.description);
             } else if (cType === 'colr') {
                 if (cSize < 12) return false;
-                if (readStr(off + 8, 4) !== 'nclx') { off += cSize; continue; }
-                if (cSize < 19) return false;
+                const colorType = readStr(off + 8, 4);
+                if (colorType !== 'nclx' && colorType !== 'nclc') { off += cSize; continue; }
+                if (cSize < (colorType === 'nclx' ? 19 : 18)) return false;
                 // Color description — lets the scrub decoder refuse HDR content
                 // (PQ transfer=16, HLG=18): Chrome tone-maps HDR <video> for
                 // display, which a canvas drawImage doesn't replicate.
@@ -737,7 +740,8 @@ function _demuxMP4Video(data) {
                     primaries: view.getUint16(off + 12),
                     transfer: view.getUint16(off + 14),
                     matrix: view.getUint16(off + 16),
-                    fullRange: (data[off + 18] & 0x80) !== 0
+                    fullRange: colorType === 'nclx' ? (data[off + 18] & 0x80) !== 0 : null,
+                    type: colorType
                 };
             }
             off += cSize;
@@ -819,6 +823,14 @@ function _demuxMP4Video(data) {
             }
         }
     }
+
+    // The inspector needs complete compact-table/range validation, not a million
+    // offset/sample objects. Both modes share every rejection above.
+    if (summaryOnly) return {
+        codec: video.codec, description: video.description || null,
+        codedWidth: video.width || 0, codedHeight: video.height || 0,
+        timescale: video.timescale || 1, colr: video.colr || null, sampleCount: nSamples
+    };
 
     // All inexpensive rejection paths above precede per-sample allocation.
     const offsets = new Array(nSamples);
