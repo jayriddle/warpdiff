@@ -32,7 +32,7 @@ async function fixture(probes = true) {
     execFileSync('node',['--input-type=module','-e',stageScript,source,output,sha],{cwd:root});
   }
   let revision = A, broken = '', mismatch = false, network = true, legacy = false;
-  let replacement = '', manifestControl = false;
+  let replacement = '', manifestControl = false, workerRevision = '';
   const requests:{url:string,revision:string}[] = [];
   const server = http.createServer((req,res) => {
     const url = new URL(req.url!, 'http://localhost'); requests.push({url:url.pathname,revision});
@@ -42,8 +42,9 @@ async function fixture(probes = true) {
     if (!mount) {res.writeHead(404);res.end();return;}
     const relative = url.pathname.slice(mount.length) || 'index.html';
     if (relative === 'media.png') {res.writeHead(200,{'Content-Type':'image/png'});res.end(fs.readFileSync(path.join(root,'tests/fixtures/red.png')));return;}
-    const file = path.resolve(stages[revision], relative);
-    if (!file.startsWith(stages[revision]+path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {res.writeHead(404);res.end();return;}
+    const servedRevision = relative === 'sw.js' && workerRevision ? workerRevision : revision;
+    const file = path.resolve(stages[servedRevision], relative);
+    if (!file.startsWith(stages[servedRevision]+path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {res.writeHead(404);res.end();return;}
     const ext = path.extname(file);
     const mime:Record<string,string>={'.js':'text/javascript','.html':'text/html','.json':'application/json','.png':'image/png','.txt':'text/plain'};
     res.writeHead(200,{'Content-Type':mime[ext] || 'application/octet-stream',
@@ -63,6 +64,7 @@ async function fixture(probes = true) {
   return {url,directory,requests,stages,server,
     set:(next:string,fail='',wrong=false)=>{revision=next;broken=fail;mismatch=wrong;},
     replaceAfterDocument:(next:string)=>{replacement=next;},
+    deferWorkerUpdate:()=>{workerRevision=A;}, allowWorkerUpdate:()=>{workerRevision='';},
     manifestControl:(enabled:boolean)=>{manifestControl=enabled;},
     legacy:()=>{legacy=true;}, modern:()=>{legacy=false;},
     offline:()=>{network=false;}, online:()=>{network=true;},
@@ -81,13 +83,25 @@ function legacyWorker() {
       e.respondWith(fetch(e.request).then(r=>{if(r.ok&&r.type==='basic'){const c=r.clone();e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.put(e.request,c)));}return r;}).catch(()=>caches.match(e.request)));});`;
 }
 
-async function installed(page:Page, sha:string) {
+async function installed(page:Page, sha:string, explicitUpdate = false, beforeUpdate?:()=>void) {
   await page.waitForFunction(sha => (window as any)._fixtureRelease === sha, sha);
+    // register() may reuse an existing registration without an immediate update
+    // fetch (notably WebKit's warmed path). A synthetic deployment test must
+    // explicitly request its update before waiting for activation. This does not
+    // change production registration or relax the controller/identity assertions.
+    if (explicitUpdate) {
+      beforeUpdate?.();
+      await page.evaluate(async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) throw Error('Missing predecessor registration');
+        await registration.update();
+      });
+    }
   await expect.poll(()=>page.evaluate(async sha => {
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration?.active?.state !== 'activated' || navigator.serviceWorker.controller?.state !== 'activated') return false;
     if (registration.installing) return false;
-    return await new Promise(resolve=>{const channel=new MessageChannel();const timer=setTimeout(()=>resolve(false),2000);channel.port1.onmessage=event=>{clearTimeout(timer);channel.port1.close();resolve(event.data.sha===sha);};navigator.serviceWorker.controller!.postMessage({type:'WARPDIFF_RELEASE_QUERY'},[channel.port2]);});
+    return await new Promise(resolve=>{const channel=new MessageChannel();const finish=value=>{clearTimeout(timer);channel.port1.close();resolve(value);};const timer=setTimeout(()=>finish(false),2000);channel.port1.onmessage=event=>finish(event.data.sha===sha);navigator.serviceWorker.controller!.postMessage({type:'WARPDIFF_RELEASE_QUERY'},[channel.port2]);});
   },sha),{timeout:10000}).toBe(true);
 }
 async function backgroundFiles(page:Page, sha:string) {
@@ -103,14 +117,33 @@ async function backgroundFiles(page:Page, sha:string) {
   expect(result).toEqual({release:sha,algorithm:sha});
 }
 
-test('warmed updates keep open comparisons and lazy audio files on their own release', async ({page,context}) => {
+for (const deferRegistrationUpdate of [false,true]) test('warmed updates keep open comparisons and lazy audio files on their own release'+(deferRegistrationUpdate ? ' with deferred registration update' : ''), async ({page,context}) => {
   const f=await fixture(); const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   try {
     await page.goto(f.url+'?appearance=old'); await installed(page,A);
     await page.locator('#multiFileInput').setInputFiles(path.join(root,'tests/fixtures/red.png'));
     await expect(page.locator('#comparisonView')).toHaveClass(/active/);
     f.set(B);
-    const next=await context.newPage();await next.goto(f.url+'?appearance=new');await installed(next,B);
+    if (deferRegistrationUpdate) f.deferWorkerUpdate();
+    const next=await context.newPage();
+    if (deferRegistrationUpdate) await next.addInitScript(() => {
+      // Reuse the registration. The HTTP fixture also holds sw.js at A until
+      // explicit update, containing independent UA soft-update fetching too.
+      navigator.serviceWorker.register = async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) throw Error('Missing warm registration');
+        return registration;
+      };
+      const update = ServiceWorkerRegistration.prototype.update;
+      (window as any)._fixtureExplicitUpdates = 0;
+      ServiceWorkerRegistration.prototype.update = function() {
+        (window as any)._fixtureExplicitUpdates++;
+        return update.call(this);
+      };
+    });
+    await next.goto(f.url+'?appearance=new');await installed(next,B,true,()=>f.allowWorkerUpdate());
+    if (deferRegistrationUpdate) expect(await next.evaluate(()=>(window as any)._fixtureExplicitUpdates),
+      'Synthetic deployment explicitly requests a native worker update').toBe(1);
     // New controller must neither reload the old page nor move its base URL.
     expect(await page.evaluate(()=>({sha:(window as any)._fixtureRelease,base:document.baseURI}))).toEqual({sha:A,base:f.url+'releases/'+A+'/'});
     await expect(page.locator('#comparisonView')).toHaveClass(/active/);

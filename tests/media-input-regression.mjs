@@ -48,6 +48,15 @@ export async function runMediaInputChecks(check, sources={}) {
   const result=await registry.prepare('test-files',r,input);
   test('provider output always requires normal-load validation',result.validation==='required'&&!('ready'in result)&&!('validated'in result)&&result.files[0]===output);
   test('result envelope and file list are immutable',Object.isFrozen(result)&&Object.isFrozen(result.files));
+  {
+    const scoped=prep.createRegistry();let release,signal;
+    scoped.register({id:'external-files',version:1,mode:'files',supports:()=>true,prepare(req,context){signal=context.signal;return new Promise(resolve=>release=resolve);}});
+    const pending=scoped.prepare('external-files',r,input).then(value=>value,error=>error);
+    await Promise.resolve();scoped.cancel('local-companion');
+    test('closing local preparation cannot cancel another provider',!signal.aborted);
+    release({kind:'files',files:[output]});
+    test('unrelated provider still publishes its normally validated result',(await pending).files?.[0]===output);
+  }
   test('original File bytes are untouched',Array.from(new Uint8Array(await input.arrayBuffer())).join(',')==='1,2,3');
   const mutableFiles=[output],copied=prep.createRegistry();copied.register({id:'copied',version:1,mode:'files',supports:()=>true,prepare:()=>({kind:'files',files:mutableFiles})});
   const stable=await copied.prepare('copied',r,input);mutableFiles.length=0;

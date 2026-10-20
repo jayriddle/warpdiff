@@ -61,7 +61,7 @@ const WarpMediaPreparation = (() => {
     }
     function createRegistry() {
         const providers = new Map();
-        let active = null;
+        let active = null, activeProvider = null;
         function register(provider) {
             if (!provider || typeof provider.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(provider.id) || provider.version !== VERSION ||
                     !['instructions', 'files'].includes(provider.mode) || typeof provider.supports !== 'function' ||
@@ -101,7 +101,9 @@ const WarpMediaPreparation = (() => {
         function cancelled() {
             const error = new Error('Preparation cancelled'); error.name = 'AbortError'; return error;
         }
-        function cancel() { if (active) active.abort(); }
+        function cancel(providerId = null) {
+            if (active && (providerId === null || providerId === activeProvider)) active.abort();
+        }
         async function prepare(id, request, input) {
             request = checkedRequest(request);
             const provider = selected(id, request, 'files');
@@ -109,7 +111,7 @@ const WarpMediaPreparation = (() => {
                 throw new TypeError('Preparation requires the explicitly supplied source File');
             }
             cancel();
-            const controller = new AbortController(); active = controller;
+            const controller = new AbortController(); active = controller; activeProvider = id;
             let onAbort;
             const aborted = new Promise((_, reject) => {
                 onAbort = () => reject(cancelled());
@@ -131,7 +133,7 @@ const WarpMediaPreparation = (() => {
                     validation: 'required', analysisBasis: 'prepared-copy', files: Object.freeze([...result.files])});
             } finally {
                 controller.signal.removeEventListener('abort', onAbort);
-                if (active === controller) active = null;
+                if (active === controller) { active = null; activeProvider = null; }
             }
         }
         return Object.freeze({register, describe, plan, prepare, cancel});

@@ -107,8 +107,8 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.locator('#preparedImportManifest').setInputFiles({name:'manifest.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(forged))});await page.locator('#preparedImportMedia').setInputFiles({name:'review.mp4',mimeType:'video/mp4',buffer:bytes});await check(page);expect(await current(page)).toEqual(['green.png']);await page.locator('#preparedImportLoad').click();
   await expect.poll(()=>page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>!!v.error||v.readyState>=2),{timeout:15000}).toBe(true);
   if(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>!!v.error)) {
-    await expect(page.locator('#localPreparationDialog')).toBeVisible();
-    await page.locator('#localPreparationClose').click();
+    await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
+    await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed');
   }
   await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
   const report=await page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA);
@@ -224,3 +224,40 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await expect(page.locator('#helpAdvanced')).not.toBeVisible();await expect(page.locator('#preparedImportOrdinary')).not.toBeVisible();
   expect(choosers).toBe(0);expect(await current(page)).toEqual(['host.png']);
  });
+
+test('Load consumes the verified snapshot after the selected disk file changes',async({page},info)=>{
+  const dir=info.outputPath('mutable');fs.mkdirSync(dir,{recursive:true});const selected=path.join(dir,'review.mp4');fs.writeFileSync(selected,media);
+  await page.locator('#preparedImportManifest').setInputFiles(prepared.manifest);await page.locator('#preparedImportMedia').setInputFiles(selected);await check(page);
+  const changed=Buffer.from(media);changed[0]^=255;fs.writeFileSync(selected,changed);
+  await page.locator('#preparedImportLoad').click();
+  await expect(page.locator('#quickStartPopup')).not.toHaveClass(/show/);
+  await expect(page.locator('#loadBtn')).toBeFocused();
+  await expect.poll(()=>page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA?.capabilities.decodedAnalysis.state),{timeout:15000}).toBe('available');
+  expect(await current(page)).toEqual(['review.mp4']);
+  expect(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>v.videoWidth)).toBeGreaterThan(0);
+});
+
+test('busy Check retains keyboard focus on its status and keeps Tab inside the dialog',async({page})=>{
+  await delayed(page);await expect(page.locator('#preparedImportStatus')).toBeFocused();
+  await page.keyboard.press('Tab');expect(await page.evaluate(()=>document.getElementById('preparedImportDialog')!.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Shift+Tab');expect(await page.evaluate(()=>document.activeElement!==document.body)).toBe(true);
+  await page.evaluate(async()=>{await (window as any).releaseImportRead();});await expect(page.locator('#preparedImportLoad')).toBeEnabled();
+});
+
+test('a companion cannot repeat the prepared file',async({page})=>{
+  await select(page);await page.locator('#preparedImportOthers').setInputFiles(prepared.rendition);
+  await page.locator('#preparedImportCheck').click();await expect(page.locator('#preparedImportStatus')).toContainText('already included');
+  await expect(page.locator('#preparedImportLoad')).toBeDisabled();expect(await current(page)).toEqual(['green.png']);
+});
+
+test('a companion with no browser type explains how to proceed',async({page})=>{
+  await select(page);
+  await page.locator('#preparedImportOthers').evaluate((input:HTMLInputElement)=>{
+    const transfer=new DataTransfer();transfer.items.add(new File(['unknown'],'clip.unknown'));input.files=transfer.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.locator('#preparedImportCheck').click();
+  await expect(page.locator('#preparedImportStatus')).toContainText('no browser media type');
+  await expect(page.locator('#preparedImportStatus')).toContainText('Use Load files');
+  await expect(page.locator('#preparedImportLoad')).toBeDisabled();expect(await current(page)).toEqual(['green.png']);
+});

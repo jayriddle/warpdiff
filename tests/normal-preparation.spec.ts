@@ -16,7 +16,7 @@ test.beforeAll(async()=>{
   helper=await launchCompanion();
   const run=(args:string[])=>execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n',...args],{timeout:30000});
   run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-c:v','copy','-c:a','dca','-strict','-2',own('dts_video.mp4')]);
-  run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-vf','scale=160:90','-c:v','ffv1','-c:a','flac',own('ffv1.mkv')]);
+  run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-vf','scale=160:90,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709','-c:v','ffv1','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-c:a','flac',own('ffv1.mkv')]);
   run(['-i',fixture('stereo.wav'),'-t','0.5','-c:a','dca','-strict','-2',own('audio.dts')]);
   execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',own('key.pem'),'-out',own('cert.pem'),'-subj','/CN=127.0.0.1','-days','1'],{stdio:'pipe'});
   const allowed:string[]=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',"import {pageFiles} from './scripts/stage-pages.mjs'; console.log(JSON.stringify(pageFiles(process.cwd())))"],{cwd:root}).toString());
@@ -51,7 +51,7 @@ async function connect(page:any,origin=helper.origin,approve=true){
 }
 const names=(page:any)=>page.evaluate(()=>(window as any).eval('assetOrder.filter(s=>mediaData[s]).map(s=>mediaData[s].name)'));
 async function openIssue(page:any,file=own('dts_video.mp4')){
-  await page.locator('#multiFileInput').setInputFiles(file);await expect(page.locator('#localPreparationDialog')).toBeVisible({timeout:45000});
+  await page.locator('#multiFileInput').setInputFiles(file);await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed',{timeout:45000});await expect(page.locator('#localPreparationDialog')).not.toBeVisible();await page.locator('#preparationBtn').click();await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await expect(page.locator('#localPreparationFiles li')).toHaveCount(1);
 }
 async function opened(page:any,filename:string){
@@ -75,6 +75,14 @@ test('helper landing opens the normal app with an explicit prefilled connection'
   expect(await page.evaluate(()=>(window as any).eval('_localPreparationConnection.state().connected'))).toBe(false);
 });
 
+for(const key of ['preparation','%70reparation'])test('helper prefill removes only '+key+' and preserves other fragments',async({page})=>{
+  await page.goto(appOrigin+'/?retained=query#frame=12&'+key+'='+encodeURIComponent(helper.origin)+'&note=a%20b');
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
+  await expect(page.locator('#localPreparationAddress')).toHaveValue(helper.origin);
+  expect(new URL(page.url()).hash).toBe('#frame=12&note=a%20b');
+  expect(new URL(page.url()).search).toBe('?retained=query');
+});
+
 test('secure normal app connects explicitly across origins without sending a file for approval',async({page,context})=>{
   const calls:string[]=[];context.on('request',r=>{if(r.url().includes('/api/'))calls.push(r.url());});
   await openIssue(page);const popup=await connect(page,helper.origin,false);
@@ -96,7 +104,7 @@ for(const filename of ['ffv1.mkv','audio.dts'])test(`${filename} prepares and op
 test('preparation preserves companion files, timestamp-established slot order and normal usage mode',async({page})=>{
   await connect(page);await page.locator('#localPreparationClose').click();
   await page.locator('#multiFileInput').setInputFiles([fixture('red.png'),own('dts_video.mp4')]);
-  await expect(page.locator('#localPreparationDialog')).toBeVisible({timeout:45000});const before=await names(page);
+  await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed',{timeout:45000});await page.locator('#preparationBtn').click();const before=await names(page);
   await page.locator('#localPreparationRun').click();await expect.poll(()=>names(page),{timeout:45000}).toEqual(before.map((n:string)=>n==='dts_video.mp4'?'dts_video_review.mp4':n));
   await expect(page.locator('#comparisonView')).toHaveClass(/active/);expect(await page.evaluate(()=>(window as any).eval('_ihwaMode'))).toBe(false);
 });
@@ -130,7 +138,7 @@ test('a corrupt prepared return fails normal loading and never announces READY t
     await page.evaluate(()=>{const w=window as any;w.hostReady=[];addEventListener('message',e=>{if(e.data?.type==='WARPDIFF_LOAD_READY')w.hostReady.push(e.data);});});
     await connect(page,corrupt.origin);await page.locator('#localPreparationClose').click();await openIssue(page);await page.locator('#localPreparationRun').click();
     await expect(page.locator('#localPreparationStatus')).toContainText('unchanged',{timeout:45000});
-    await expect(page.locator('#comparisonView')).not.toHaveClass(/active/);expect(await page.evaluate(()=>(window as any).hostReady)).toEqual([]);
+    expect(await names(page)).toEqual(['dts_video.mp4']);await expect(page.locator('#localPreparationRun')).toBeEnabled();expect(await page.evaluate(()=>(window as any).hostReady)).toEqual([]);
   }finally{await corrupt.close();}
 });
 
@@ -218,4 +226,32 @@ test('preparation keyboard isolates typing, remapping and native Space from comp
   await page.locator('#localPreparationClose').focus();await page.keyboard.press('Space');
   await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
   expect(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>v.paused)).toBe(true);
+});
+
+test('native dialog.close cancels its job and restores its opener',async({page})=>{
+  const delayed=await launchCompanion('delayed');
+  try{
+    await connect(page,delayed.origin);await page.locator('#localPreparationClose').click();await openIssue(page);await page.locator('#localPreparationRun').click();
+    await expect.poll(()=>delayed.state().started).toBe(true);
+    await page.evaluate(()=> (document.getElementById('localPreparationDialog') as HTMLDialogElement).close());
+    await expect.poll(()=>delayed.state().retired).toBe(true);await expect(page.locator('#preparationBtn')).toBeFocused();
+    expect(await names(page)).toEqual(['dts_video.mp4']);
+  }finally{await delayed.close();}
+});
+
+test('local reload does not wait on optional analysis and can reopen the previous comparison',async({page})=>{
+  await connect(page);await page.locator('#localPreparationClose').click();
+  await page.locator('#multiFileInput').setInputFiles([fixture('red.png'),own('dts_video.mp4'),fixture('landscape_a.mp4')]);
+  await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed',{timeout:45000});const previous=await names(page);
+  await page.evaluate(()=>{
+    const w=window as any;w.restoreAnalysis=w._computeAudioAnalysis;
+    w.heldAnalysis=[];w._computeAudioAnalysis=()=>new Promise(resolve=>w.heldAnalysis.push(resolve));
+  });
+  await page.locator('#preparationBtn').click();await page.locator('#localPreparationRun').click();
+  await expect.poll(()=>names(page),{timeout:45000}).toContain('dts_video_review.mp4');await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  expect(await page.evaluate(()=>(window as any).eval('_hostLoadRequest'))).toBeNull();
+  await page.locator('#preparationBtn').click();await expect(page.locator('#localPreparationRestore')).toBeVisible();
+  await page.evaluate(()=>{const w=window as any;w._computeAudioAnalysis=w.restoreAnalysis;});
+  await page.locator('#localPreparationRestore').click();await expect.poll(()=>names(page)).toEqual(previous);
+  await page.evaluate(()=>{const w=window as any;w.heldAnalysis.forEach(resolve=>resolve(null));});
 });

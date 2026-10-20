@@ -3877,7 +3877,7 @@
         <div class="prepared-import-ordinary">
             <h3>Just want to compare your files?</h3>
             <p>Images, videos and audio files normally use Load or drag and drop. You do not need a package or a details file.</p>
-            <button type="button" class="load-guidance-button" id="preparedImportOrdinary">Load ordinary files…</button>
+            <button type="button" class="load-guidance-button" id="preparedImportOrdinary">Load files…</button>
         </div>
         <details id="preparedImportGuide">
             <summary>How to get prepared files</summary>
@@ -3898,7 +3898,7 @@
             <label>Other comparison files (optional, up to three)<input id="preparedImportOthers" type="file" multiple accept="image/*,video/*"></label>
         </div>
         <div id="preparedImportSummary"></div>
-        <p id="preparedImportStatus" role="status" aria-live="polite"></p>
+        <p id="preparedImportStatus" tabindex="-1" role="status" aria-live="polite"></p>
         <div class="prepared-import-actions"><button type="button" id="preparedImportCancel">Cancel</button><button type="button" id="preparedImportCheck" disabled>Check prepared files</button><button type="button" id="preparedImportLoad" disabled>Load comparison</button></div>
     </dialog>
     <dialog id="localPreparationDialog" aria-labelledby="localPreparationTitle" aria-describedby="localPreparationPolicy">
@@ -3914,7 +3914,7 @@
         </div>
         <p id="localPreparationStatus" role="status" aria-live="polite"></p>
         <details><summary>Other ways to prepare</summary><p>You can also run a safe external command yourself and load the resulting file normally.</p><button type="button" id="localPreparationManual" disabled>Copy an external command…</button></details>
-        <div class="local-preparation-actions"><button type="button" id="localPreparationDisconnect" hidden>Disconnect tool</button><button type="button" id="localPreparationRun" disabled>Prepare and open</button><button type="button" id="localPreparationClose">Close / cancel</button></div>
+        <div class="local-preparation-actions"><button type="button" id="localPreparationDisconnect" hidden>Disconnect tool</button><button type="button" id="localPreparationRestore" hidden>Reopen previous comparison</button><button type="button" id="localPreparationRun" disabled>Prepare and open</button><button type="button" id="localPreparationClose">Close / cancel</button></div>
     </dialog>
     <dialog id="mediaStatusDialog" aria-labelledby="mediaStatusTitle">
         <div class="media-status-heading"><h2 id="mediaStatusTitle">Media status</h2><button type="button" id="mediaStatusRefresh">Refresh</button><button type="button" id="mediaStatusClose" aria-label="Close media status">Close</button></div>
@@ -3941,6 +3941,7 @@
     <script src="js/appearance.js"></script>
     <script src="js/info-bar.js"></script>
     <script src="js/preferences.js"></script>
+    <script src="js/app-dialogs.js"></script>
     <script src="js/audio-viz.js"></script>
     <script src="js/audio-analysis.js"></script>
     <script src="js/scopes.js"></script>
@@ -3968,7 +3969,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.9';
+        const APP_VERSION = '3.19.10';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.8';
@@ -5986,10 +5987,6 @@
             _hostLoadRequest.status = 'ready';
             _mediaInputStatusChanged();
             _hostLoadReply(_hostLoadRequest, 'WARPDIFF_LOAD_READY');
-            if (_hostLoadRequest.standalonePrepared) {
-                _hostLoadRequest.localComplete(true);
-                showLoadToast('Opened the prepared review copy. Analysis uses this copy; originals are unchanged.', false, 6000);
-            }
         }
 
         function _hostLoadBatchReady(generation) {
@@ -6109,8 +6106,7 @@
             // failed conversion leave loading chrome or a partly loaded view.
             _hostLoadAbortController.abort();
             clearAllMedia(true);
-            if (request.standalonePrepared) request.localComplete(false, error);
-            else _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
+            _ihwaPullReset('Could not load supplied media: ' + String(error || 'Invalid media payload'), true);
             _hostLoadReply(request, 'WARPDIFF_LOAD_FAILED', error);
         }
 
@@ -6349,9 +6345,9 @@
             // hiding a not-yet-loaded layer and activating the wrong Grid geometry.
             expectedFileCount = mediaFiles.length;
 
-            // Host labels correspond to the host's array order. Only standalone
-            // loads infer comparison order from oldest-to-newest timestamps.
-            const sortedFiles = opts && opts.loadGeneration ? mediaFiles
+            // Host labels and internal prepared reloads preserve their array
+            // order. Ordinary selections infer order from file timestamps.
+            const sortedFiles = opts && (opts.loadGeneration || opts.preserveOrder) ? mediaFiles
                 : mediaFiles.sort((a, b) => a.lastModified - b.lastModified);
             const loadSlots = {
                 1: ['editA'],
@@ -6367,7 +6363,7 @@
             }
             if (!(opts && (opts.loadGeneration || opts.skipToast))) _usage.enterStandalone();
             _beginLoadingProgress(assignments, assetType, !(opts && opts.skipToast));
-            if (!(opts && opts.loadGeneration) || opts.standalonePrepared) _localPreparationAccept(assignments, opts?.preparedFiles);
+            if (!(opts && opts.loadGeneration)) _localPreparationAccept(assignments, opts?.preparedFiles);
 
             // Check if any two files have near-identical timestamps (within 2 s).
             // This can happen when files are batch-exported and timestamps are equalised.
@@ -13012,6 +13008,7 @@
                     // Host readiness means the complete media batch reached the
                     // same first-frame boundary used by the visible UI.
                     _hostLoadReady(activationGeneration);
+                    _localPreparationActivated();
                     // Count this ready batch once; no media identity enters the adapter.
                     _usage.comparisonReady(activationUsageEpoch, assetOrder
                         .filter(slot => mediaData[slot])
@@ -14189,17 +14186,17 @@
             <p><strong>File requirements:</strong></p>
             <ul>
                 <li>1–4 files (images, videos, or audio)</li>
-                <li>Use one media type per comparison; mixed image/video/audio selections are rejected</li>
+                <li>Load audio-only files together, or compare images and videos together; audio cannot be mixed with images or videos</li>
                 <li>2 files → assigned to <strong>A</strong> and <strong>B</strong></li>
                 <li>3 files → assigned to <strong>Ref</strong>, <strong>A</strong>, and <strong>B</strong> by default; audio labels the reference <strong>GT</strong></li>
                 <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
             <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
-            <p><strong>Prepare and open:</strong> Load or drop files normally. If a video or audio file cannot be used fully, connect the separately running local tool under <strong>Preparation</strong>, approve its connection window, and choose <strong>Prepare and open</strong>. Copies return here automatically with the other comparison files; no package or second picker is needed. Originals remain untouched. Video may become H.264 up to 1080p with stereo AAC; audio-only copies retain channel count/rate in PCM WAV. Analysis describes the loaded copy. Close/cancel, Escape, clear or accepted replacement cancels active work; invalid selections preserve it. Managed hosts retain control of their files. Setup and limits are linked in the Preparation dialog. <strong>Other ways to prepare</strong> retains the copied-command fallback. A local tool/FFmpeg installation is separate; no converter is bundled or downloaded by WarpDiff.</p>
-            <p><strong>Prepared packages (advanced):</strong> Ordinary media uses <strong>Load</strong> or drag and drop; no package is needed. For files from the optional external tool, open <strong>Help → Advanced → Import externally prepared media</strong>. The dialog explains setup under <strong>How to get prepared files</strong> and offers <strong>Load ordinary files</strong> to return to normal loading. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check prepared files</strong> leaves the current comparison in place. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
+            <p><strong>Prepare and open:</strong> Load or drop files normally. If a video or audio file cannot be used fully, connect the separately running local tool under <strong>Preparation</strong>, approve its connection window, and choose <strong>Prepare and open</strong>. Copies return here automatically with the other comparison files; no package or second picker is needed. Originals remain untouched. Video may become H.264 up to 1080p with stereo AAC; audio-only copies retain channel count/rate in PCM WAV. Analysis describes the loaded copy. Close/cancel, Escape, clear or accepted replacement cancels active work; invalid selections preserve it. Managed hosts retain control of their files. Setup and limits are linked in the Preparation dialog. <strong>Other ways to prepare</strong> retains the copied-command fallback. A local tool/FFmpeg installation is separate; no converter is bundled or downloaded by WarpDiff. Preparation is offered without opening a dialog during loading. Choose Preparation when you want to continue. Returned copies are checked before replacement; a failed check keeps the current comparison and allows retry. After opening, Preparation offers <strong>Reopen previous comparison</strong>. Companion files and optional analysis follow ordinary local loading rather than a host deadline. HDR picture reencoding is refused. SDR reencoding requires known range, matrix, primaries and transfer, converts to limited-range BT.709 with dithering, and labels the output explicitly. Compatible picture copies preserve their declared interpretation.</p>
+            <p><strong>Prepared packages (advanced):</strong> Ordinary media uses <strong>Load</strong> or drag and drop; no package is needed. For files from the optional external tool, open <strong>Help → Advanced → Import externally prepared media</strong>. The dialog explains setup under <strong>How to get prepared files</strong> and offers <strong>Load files</strong> to return to normal loading. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check prepared files</strong> leaves the current comparison in place and retains an immutable snapshot of the checked video. Loading uses those checked bytes even if the selected disk file subsequently changes. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
             <p><strong>Media status:</strong> Open <strong>Media status</strong> in the header after loading to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>
-            <p><strong>Unsupported video audio:</strong> WarpDiff opens <strong>Prepare audio externally</strong> when it cannot decode a soundtrack. Follow its numbered steps to install FFmpeg separately, open a terminal in the source folder, run the copied command and reload the output. No package or JSON details file is needed for that workflow. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
+            <p><strong>Unsupported video audio:</strong> When a soundtrack cannot be decoded, use <strong>Preparation → Other ways to prepare</strong> to open <strong>Prepare audio externally</strong>. Follow its numbered steps to install FFmpeg separately, open a terminal in the source folder, run the copied command and reload the output. No package or JSON details file is needed for that workflow. It does not include, download or run FFmpeg. Install FFmpeg separately using its <a href="https://ffmpeg.org/download.html" target="_blank" rel="noopener">download information</a>, then copy the command for a macOS or Linux terminal and run it from the folder containing the original file. The supplied command targets MP4/MOV video (including <strong>.m4v</strong>); other formats need a command suited to their container and video codec. The copied video codec must also work in your browser. The command copies the video and makes a stereo AAC soundtrack. A short soundtrack is padded with silence so the complete video is retained. Keep the original for multichannel or original-source measurements. Use <strong>Load prepared files</strong> in the panel, <strong>Load (L)</strong>, or drag and drop to load the <strong>_aac</strong> output together with the other comparison files; loading starts a new comparison. Managed review users return the prepared file to their host for reloading. Filenames are quoted literally, including spaces, apostrophes and shell characters. Extensionless filenames keep their full name and gain <strong>_aac.mp4</strong>. Rename files containing control characters before copying a terminal command. Copy reports blocked or unavailable clipboard access. Tab and Shift+Tab stay within the preparation panel; Escape closes it and restores focus. Focused controls scroll into view in short windows, and reopening starts at the panel heading. Adding another preparation entry retains focus on Copy, download information, or Load prepared files.</p>
             <p><strong>Timestamp warning:</strong> If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable.</p>
             <p><strong>Duplicate detection:</strong> If two slots contain the same file (matched by name, size, and timestamp), a warning banner appears.</p>
             <p><strong>Audio timing warning:</strong> If a video container does not expose an audio start timestamp, a persistent amber alert names the affected slot and asks you to verify A/V sync. Native playback is not shifted.</p>
@@ -14312,7 +14309,7 @@
             <p><strong>Surround audio:</strong> 5.1 and 7.1 soundtracks use a stereo listening mix for playback and scrub preview. The center channel reaches both ears and surrounds retain left/right placement; LFE is omitted from this mix. Analysis uses the original decoded channels.</p>
             <p><strong>Dialogue listening:</strong> open <strong>Listen: Full Mix</strong> beside volume. <strong>Dialogue Focus</strong> initially reduces other channels by 9 dB; <strong>Center Only</strong> plays the verified center in both ears. Adjust center level (0 to +12 dB) and other channels (0 dB to muted). The same mix applies during playback and scrubbing, with source-peak headroom for boosts and original analysis intact. Full Mix restores the standard mix; new comparisons reset to it. Stereo or unverified layouts explain why center controls are unavailable. Voices can occur outside the center—check Full Mix for complete speaker coverage. Choosing a preset or finishing a mouse adjustment returns focus to Play/Pause so Space works immediately; the panel stays open for further adjustments. Escape closes the panel and returns to playback. Keyboard slider arrows still adjust levels.</p>
             <p><strong>Slow scrubbing:</strong> Audio preview continues while you move slowly within a video frame. It fades when you hold the pointer still or keep dragging beyond a timeline edge. With one visible video, sound stays anchored to the displayed frame; multi-video Grid follows the shared scrub target.</p>
-            <p><strong>Chrome scrubbing:</strong> Supported SDR previews match the measured decoder output path. Untagged files, HDR and unsupported decoder or color combinations keep native seeking, which can be less responsive with sparse keyframes. Returning to native seeking follows the current scrub position immediately. Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
+            <p><strong>Chrome scrubbing:</strong> Supported SDR previews match the measured decoder output path. HDR and unsupported decoder or color combinations keep native seeking, which can be less responsive with sparse keyframes. On macOS, untagged/nclc inputs, full/unknown-range NV12 and HEVC retain native seeking. Other platforms keep available decoder paths for ordinary untagged AVC and nclc inputs. Untagged High 4:4:4 software AVC uses native seeking after the Linux control showed a color mismatch. A display-gamut change immediately retires an incompatible preview; returning to sRGB keeps native seeking until the files are reloaded. Returning to native seeking follows the current scrub position immediately. Direction changes preserve decoding that can still reach the requested frame, and cached frames are reused. Very long gaps between keyframes can still delay a first seek to an uncached position. Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking.</p>
             <p><strong>Loop markers:</strong> Use <kbd>I</kbd> and <kbd>O</kbd> to set in and out points at the current playback position, or <kbd>Shift</kbd>-drag on a waveform to select a region visually. When both markers are set, playback loops between them. The progress bar turns orange and spans only the looped section. Non-looped regions are dimmed at 50% on waveforms and spectrograms. Drag the orange triangle markers to adjust them. Loop points are shared across all clips and stay put when you switch assets.</p>
             <table>
                 <tr><th>Shortcut</th><th>Action</th></tr>

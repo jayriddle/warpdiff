@@ -27,7 +27,8 @@ test.beforeAll(async()=>{
   app=await launchCompanion();directory=fs.mkdtempSync(path.join(os.tmpdir(),'warpdiff-companion-browser-'));
   const run=(args:string[])=>execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n',...args],{timeout:30000,stdio:'pipe'});
   run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-c:v','copy','-c:a','dca','-strict','-2',own('dts_video.mp4')]);
-  run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-vf','scale=160:90','-c:v','ffv1','-c:a','flac',own('ffv1_video.mkv')]);
+  run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-vf','scale=160:90,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709',
+    '-c:v','ffv1','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-c:a','flac',own('ffv1_video.mkv')]);
   run(['-i',fixture('stereo.wav'),'-t','0.5','-c:a','dca','-strict','-2',own('audio.dts')]);
 });
 test.afterAll(async()=>{await app?.close();if(directory)fs.rmSync(directory,{recursive:true,force:true});});

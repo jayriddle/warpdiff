@@ -57,7 +57,9 @@ loses that in-memory comparison.
   8-bit 4:2:0 up to 4096×2160 is copied, including full-range
   `yuvj420p` explicitly marked `pc`. Known range, matrix, primaries and transfer
   labels must survive copying; missing labels are not invented. Other picture streams are encoded to
-  H.264 yuv420p at up to 1920×1080. Video soundtracks become stereo AAC-LC at
+  H.264 yuv420p at up to 1920×1080. Odd picture dimensions are normalized to
+  even dimensions before conversion to 4:2:0; declared SDR interpretation is
+  converted explicitly to limited-range BT.709. Video soundtracks become stereo AAC-LC at
   48 kHz. Source timing is retained by FFmpeg's normal muxing behavior; this
   does not certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count
@@ -154,3 +156,11 @@ expected paused picture after its normal fade. This remains a visible baseline
 limitation, not a verified physical-Safari result.
 
 This workflow is not a promise to open every format.
+
+## Color and execution policy
+
+Compatible bounded AVC pictures are copied with their declared color interpretation preserved. Reencoding accepts known SDR range, matrix, primaries and transfer; it converts to limited-range BT.709, dithers down to 8-bit 4:2:0, and writes and verifies all four output labels. PQ/HLG reencoding and ambiguous SDR interpretation are refused; no tone mapping or color guessing occurs. Keep the original or use a color-managed preparation tool for those inputs. A compatible picture copy does not change source colors.
+
+Six hours is an input-duration admission bound, not a processing-time promise. Encoding and output decode verification each retain their existing ten-minute execution budget and size limits. Long/complex sources can exceed that budget; cancellation waits for native child retirement. These safeguards are deliberately retained.
+
+Preparation notices do not open WarpDiff dialogs during loading. Open Preparation explicitly, connect and approve the local tool, then choose Prepare and open. Returned files receive a native-playability check before replacing the comparison. Check failures retain the current comparison for retry; after replacement, Reopen previous comparison reloads the prior Files. This restores the previous file selection, not a serialized playback/layout session. Optional analysis can complete later; managed-host readiness rules remain strict.

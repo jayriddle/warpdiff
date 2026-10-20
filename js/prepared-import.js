@@ -31,7 +31,7 @@ function _setPreparedImportOpen(open, opener = null) {
         _closeAppearancePanel(); // its capture-phase keyboard owner must retire before this modal opens
         _preparedImportOpener = opener || document.activeElement;
         _preparedImportInvalidate();
-        dialog.showModal();
+        _showAppDialog(dialog);
         dialog.scrollTop = 0;
         // Begin with the explanation, including the ordinary-loading exit, even
         // in a short window; focusing a file input would scroll past it.
@@ -54,8 +54,12 @@ function _preparedImportFiles() {
     const sourceFile = first('preparedImportSource');
     const others = [...document.getElementById('preparedImportOthers').files];
     if (!manifestFile || !mediaFile) throw new Error('Select the manifest and prepared MP4.');
+    if (others.some(file => !file.type)) throw new Error('A companion file has no browser media type. Use Load files to open it separately, or choose an identified image or video.');
     if (others.length > 3 || others.some(file => !file.size || !/^(image|video)\//.test(file.type))) {
         throw new Error('Choose at most three nonempty images or videos as companion files.');
+    }
+    if (others.some(file => file.name === mediaFile.name && file.size === mediaFile.size && file.lastModified === mediaFile.lastModified)) {
+        throw new Error('The prepared video is already included. Choose different companion files.');
     }
     return {manifestFile, mediaFile, sourceFile, others};
 }
@@ -88,16 +92,15 @@ async function _checkPreparedImport() {
     const operation = {controller:new AbortController(), epoch:_preparedImportEpoch};
     _preparedImportOperation = operation;
     status.textContent = 'Checking selected files… Your current comparison is unchanged.';
+    status.focus({preventScroll:true});
     _preparedImportControls();
     try {
-        const report = await WarpPreparedMedia.inspectFiles({...selection, signal:operation.controller.signal});
+        const checked = await WarpPreparedMedia.inspectSnapshot({...selection, signal:operation.controller.signal});
         if (operation.controller.signal.aborted || operation.epoch !== _preparedImportEpoch ||
                 !document.getElementById('preparedImportDialog').open || _managedReviewActive()) return;
         // Inspection establishes MP4 bytes regardless of the OS's MIME guess.
-        const media = selection.mediaFile.type === 'video/mp4' ? selection.mediaFile :
-            new File([selection.mediaFile], selection.mediaFile.name, {type:'video/mp4', lastModified:selection.mediaFile.lastModified});
-        _preparedImportCandidate = {epoch:operation.epoch, files:[media, ...selection.others]};
-        _preparedImportSummary(selection, report);
+        _preparedImportCandidate = {epoch:operation.epoch, files:[checked.mediaFile, ...selection.others]};
+        _preparedImportSummary(selection, checked.report);
         status.textContent = 'Ready to load. Loading starts a new comparison; the normal decoder checks still apply.';
     } catch (error) {
         if (operation.epoch === _preparedImportEpoch && document.getElementById('preparedImportDialog').open) {
@@ -106,7 +109,7 @@ async function _checkPreparedImport() {
     } finally {
         if (_preparedImportOperation === operation) _preparedImportOperation = null;
         if (document.getElementById('preparedImportDialog').open) {
-            if (operation.epoch !== _preparedImportEpoch) status.textContent = 'Previous check cancelled. Select files and check the package again.';
+            if (operation.epoch !== _preparedImportEpoch) status.textContent = 'Previous check cancelled. Check the selected files again.';
             _preparedImportControls();
         }
     }
@@ -117,7 +120,9 @@ function _loadPreparedImport() {
             !document.getElementById('preparedImportDialog').open || _managedReviewActive()) return;
     // handleMultipleFiles owns clear, slot ordering, decoding and activation.
     // Its clear resets this dialog; keep only the local File array for handoff.
+    if (document.getElementById('quickStartPopup').classList.contains('show')) toggleQuickStart();
     handleMultipleFiles(candidate.files);
+    document.getElementById('loadBtn').focus({preventScroll:true});
 }
 function _loadOrdinaryMediaFromHelp() {
     if (_managedReviewActive()) return;
