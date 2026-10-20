@@ -136,6 +136,10 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     // with identical native/decoder CICP and raw RGB. Keep its native picture
     // path rather than inventing source tags or applying a platform tone curve.
     const platform = typeof navigator === 'undefined' ? '' : navigator.platform;
+    // Untagged High 4:4:4 software AVC also differed from native video on
+    // Linux (39 RGB codes in the control). Ordinary untagged HD AVC keeps its
+    // decoder path off macOS; this unverified software path stays native.
+    if (!info.colr && /^avc1\.f4/i.test(info.codec)) return null;
     if (/Mac/.test(platform || '') && (!info.colr || info.colr.type === 'nclc')) return null;
     // Refuse HDR content (PQ transfer=16, HLG=18 in the colr box): Chrome
     // tone-maps HDR <video> for display; drawImage of the decoded frames gets

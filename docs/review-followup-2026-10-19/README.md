@@ -6,7 +6,7 @@ Baseline: published `main` at `9fd06988e22459579fa88d29b212e00d67555a56`, versio
 
 | Item | Change / deliberate boundary |
 |---|---|
-| 1 | Untagged input keeps WebCodecs off macOS. QuickTime nclc is recognized without inventing its absent range flag; minf data handlers cannot overwrite mdia’s video handler. macOS retains its former native fallback for untagged/nclc inputs. |
+| 1 | Ordinary untagged AVC keeps WebCodecs off macOS. Untagged High 4:4:4 software AVC stays native on every platform after the Linux control differed by 39 RGB codes. QuickTime nclc is recognized without inventing its absent range flag; minf data handlers cannot overwrite mdia’s video handler. macOS retains its former native fallback for untagged/nclc inputs. |
 | 2 | macOS NV12 compensation requires AVC plus actual limited-range decoder output; unknown/full-range NV12 and HEVC fall back to native. Full-range source tags can still decode to verified limited output. Explicit sRGB-transfer limited AVC remains unfiltered, as measured in the existing fixture. |
 | 3 | One cached gamut query retires incompatible cached/pending output on change, including cache-only scrubbing. Automatic recovery when returning to sRGB is deliberately deferred: native fallback stays until reload to avoid decoder churn and retry loops. |
 | 4 | Returned prepared copies are checked before clear. Failure retains the old comparison and retry. Success uses ordinary local loading; companions and optional analysis have no strict host deadline. One-level Reopen previous comparison retains the previous Files, not playback/layout state. Managed-host readiness remains unchanged. |
@@ -24,7 +24,7 @@ Smaller items: cancellation is provider-scoped; unrelated hash fragments survive
 
 ## Verification checkpoints
 
-Native preparation: 40 passed, including HDR refusals, unknown SDR rejection, full-range 10-bit black/white conversion and copied full-range packet preservation. Ownership/parser: 1,724 passed locally, including compact/full malformed-table parity, million-sample allocation checks, nclc recognition, gamut retirement and scoped cancellation.
+Native preparation: 40 passed, including HDR refusals, unknown SDR rejection, full-range 10-bit black/white conversion and copied full-range packet preservation. Ownership/parser: 1,725 passed locally, including compact/full malformed-table parity, million-sample allocation checks, nclc recognition, gamut retirement and scoped cancellation.
 
 Initial browser pass: 26 passed and two failures in the newly authored recovery test. Its verifier override incorrectly threw before the ordinary-load function's own no-host early return. Removing that invalid instrumentation retained assertions on public behavior; the corrected recovery scenario passed in Chrome and WebKit (two passes). Initial failed logs and screenshots are retained. Fixture generation also exposed that FFV1 dropped encoder-only primaries/transfer declarations; fixtures now set frame properties explicitly before encoding. Earlier failed native checks remain retained.
 
@@ -39,3 +39,7 @@ Hosted outcomes are maintained in the PR description/checks and the durable loca
 Optional local FFmpeg 6 Docker attempt: **not executed**. The container remained Created/PID 0 and was removed. Hosted Ubuntu preparation checks must establish that result; local FFmpeg 8 passed 40. No dependencies or machine settings were changed.
 
 Final current-source color checks after the constructor-retirement correction: **8 passed** across Chrome/WebKit using serve, zero retries/failures/skips. Final infrastructure: **26 passed**. The structured record includes final public-source hashes. The two additional local ownership checks inspect neighboring WarpCap sources and do not exist in hosted checkout.
+
+First hosted run at 64498f6: Chromium recorded **660 passed, one failed, one existing skip** across complete disjoint shards. The failure was a real Linux untagged High 4:4:4 AVC raw-RGB mismatch (39 codes versus a limit of two). Its color assertion is unchanged. This software profile now retains native seeking before decoder allocation; ordinary untagged HD AVC and nclc keep their off-macOS decoder paths. A fault regression requires the conservative software fallback. This qualifies the broad item 1 request rather than claiming every untagged path is safe. A fresh hosted run is required on the correction.
+
+Linux-color correction controls: **8 passed** locally across Chrome/WebKit; ownership **1,725 passed**. Omitting only the new software-profile guard fails exactly its native-picture regression. No pixel tolerance was changed. These local checks do not substitute for the new hosted Linux run.

@@ -9,7 +9,7 @@
   },
   "verification": {
     "ownership": {
-      "passed": 1724,
+      "passed": 1725,
       "failed": 0,
       "hostedNeighborDifference": 2
     },
@@ -141,6 +141,35 @@
       "retries": 0,
       "durationSeconds": 30.196281,
       "runnerErrors": []
+    },
+    "firstHostedChromium": {
+      "run": 39382836817,
+      "head": "64498f6645dc4bb5258a20e89b7843bddf6f9690",
+      "passed": 660,
+      "failed": 1,
+      "skipped": 1,
+      "retries": 0,
+      "runnerErrors": [],
+      "failure": "Untagged High 4:4:4 software AVC differed by 39 raw RGB codes on Linux; correction preserves native seeking for that unverified profile."
+    },
+    "linuxColorCorrectionFocus": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "retries": 0,
+      "runnerErrors": []
+    },
+    "linuxColorGuardMutation": {
+      "baseline": {
+        "count": 61,
+        "failures": []
+      },
+      "omit-untagged-software-guard": {
+        "count": 61,
+        "failures": [
+          "scrub[color]: unverified untagged software AVC keeps native picture off macOS"
+        ]
+      }
     }
   },
   "limits": [
@@ -164,7 +193,7 @@
     "favicon-32.png": "4e0d797bf4c56fbf3b6ad89b40cef1aaab5f2d38e51643e814a556b938230287",
     "icon-192.png": "12144de4cd21c73b18487a4392a4639fb1d4979d2041d82348a79fd63b724344",
     "icon-512.png": "279243cff62a82addc375eeddc80299fd51d2301c87bb0982383183807104910",
-    "index.html": "3e17176d9bb2b12f3c5a49163aa30d967227e26e435a7645a59a38435426fcf3",
+    "index.html": "13d6a5f21646aad5dbabc2175d8fc8be6f8e1809896b84b34a8c6c0825838a80",
     "js/app-dialogs.js": "266f86a6cadaec68d40dd1cab3148220c05f725b40c4910b1cc3c6d52cbcd407",
     "js/app-updates.js": "095a2ff0e9fb711aa6b5d4fdc35dca479786ec4b21a097e61798520ae8585e1b",
     "js/appearance.js": "e7a6c54b01c13104a254dfdbc1bead319a47f80137f9c87c2dab8e66e8a150ae",
@@ -191,7 +220,7 @@
     "js/scopes.js": "5f9336f62ce5b34229ca42ae1f4ae46bcf6bbd07ff3d29cf936f576de74988d0",
     "js/scrub-audio-core.js": "1073a9e3e0f13fc45195aa65d46d4c4aebf10e91132cfa87aaa758710edf77a1",
     "js/scrub-audio.js": "98ffe98d60a04445ef6e44f733de605c9ae93324febd01485a8b65443db7e98e",
-    "js/scrub-video.js": "507e93825ecce22c707c6941025955815b31985946a7424227bfda2e382ed8fe",
+    "js/scrub-video.js": "fd428090d1021161658c5817aa1e0e40a184f78ef05273b2855841e76c407fb5",
     "js/scrub-worklet.js": "6f2e9c3ed08906d9be2e55efd1721350eca7db0892e87c499c6d2ff5a4316ae6",
     "js/signalsmith-LICENSE.txt": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f",
     "js/signalsmith-worklet.js": "cd4f92cca1f897ba522a63f5d551e49b984a4fe132abd3b673bd20e3b9cfda08",

@@ -96,6 +96,9 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     check('scrub[color]: untagged input retains native presentation before decoder allocation', untagged.session === null && untagged.decoders.length === 0);
     const linux = await sessionFor({colr:null,platform:'Linux x86_64'});
     check('scrub[color]: untagged non-macOS input keeps the decoder',!!linux.session);linux.session.close();
+    const softwareUntagged = await sessionFor({colr:null,platform:'Linux x86_64',codec:'avc1.f4001f'});
+    check('scrub[color]: unverified untagged software AVC keeps native picture off macOS',softwareUntagged.session===null && softwareUntagged.decoders.length===0);
+    softwareUntagged.session?.close();
     const mov = await sessionFor({colr:{type:'nclc',primaries:1,transfer:1,matrix:1,fullRange:null},platform:'Win32'});
     check('scrub[color]: nclc non-macOS input keeps the decoder',!!mov.session);mov.session.close();
     check('scrub[color]: full-range NV12 remains native until measured',filter({...native,colorSpace:{...native.colorSpace,fullRange:true}},'MacIntel',url)===null);
