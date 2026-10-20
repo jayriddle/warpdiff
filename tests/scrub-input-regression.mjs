@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 
-export async function runScrubInputChecks(check) {
+export async function runScrubInputChecks(check, htmlSource = readFileSync(new URL('../index.html',import.meta.url),'utf8')) {
   const source=readFileSync(new URL('../js/scrub-video.js',import.meta.url),'utf8');
   const realm={AbortController};runInNewContext(source,realm);
   const budget=realm._createScrubVideoInputBudget(4,8);
@@ -52,26 +52,79 @@ export async function runScrubInputChecks(check) {
   // rather than leaving a dangling read in the test harness.
   try{waitingController.close();}catch{}await waitingRead;
 
-  const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+  const html=htmlSource;
   const controllerSource=html.slice(html.indexOf('let _scrubVideoSessions ='),html.indexOf('        // The video slots the overlay should engage'));
   function controllerHarness(delayedReady=false) {
-    const pending=[],sessions=[],notices=[];
+    const pending=[],sessions=[],notices=[],seeks=[],videos={};
+    for(const slot of ['a','b','c']) {
+      let time=.2;
+      videos[slot]={duration:3,src:slot,seeking:false,get currentTime(){return time;},set currentTime(t){time=t;seeks.push({slot,time:t});}};
+    }
     const context={AbortController,mediaData:{a:{type:'video',src:'a',size:4},b:{type:'video',src:'b',size:4},c:{type:'video',src:'c',size:4}},
-      isDragging:false,showLoadToast:message=>notices.push(message),
+      isDragging:false,isGridMode:false,currentAudioSource:'a',assetOrder:['a','b','c'],currentAssetIndex:0,
+      document:{hidden:false},videoFrameRates:{},_getEffectiveDuration:v=>v.duration,
+      showLoadToast:message=>notices.push(message),getLayer:slot=>({querySelector:()=>videos[slot]}),
       fetch:(url,options)=>new Promise(resolve=>pending.push({url,options,resolve})),
     };
     runInNewContext(source,context);
     const factory=context._createScrubVideoInputBudget;
     context._createScrubVideoInputBudget=()=>factory(4,8);
-    context._createScrubVideoSession=()=>{
+    context._createScrubVideoSession=(_bytes,onColorRejected)=>{
       let readyResolve;
-      const session={closed:0,suspended:0,close(){this.closed++;},suspend(){this.suspended++;},
+      const session={closed:0,suspended:0,rejectColor:onColorRejected,close(){this.closed++;},suspend(){this.suspended++;},
         ready:delayedReady?new Promise(resolve=>{readyResolve=resolve;}):Promise.resolve(true),resolve:()=>readyResolve(true)};
       sessions.push(session);return session;
     };
     runInNewContext(controllerSource,context);
-    return {context,pending,sessions,notices,state:()=>runInNewContext('_scrubVideoInputBudget.state',context),
+    return {context,pending,sessions,notices,seeks,videos,state:()=>runInNewContext('_scrubVideoInputBudget.state',context),
       map:()=>runInNewContext('_scrubVideoSessions',context),settle:async()=>{for(let i=0;i<12;i++)await Promise.resolve();}};
+  }
+  {
+    const h=controllerHarness(),p=h.context._scrubOverlayGetSession('a');await h.settle();
+    h.pending[0].resolve(new Response(new Uint8Array(4)));await p;
+    h.sessions[0].rejectColor();
+    check('scrub-input: color rejection closes the retained session and releases its reservation immediately',
+      h.sessions[0].closed===1 && h.state().bytes===0 && h.map().a==='failed');
+    h.context._releaseScrubSessions();
+    const next=h.context._scrubOverlayGetSession('a');await h.settle();
+    h.sessions[0].rejectColor();
+    check('scrub-input: late color rejection cannot replace a newer pending owner or release its bytes',h.map().a===next && h.state().bytes===4 && h.seeks.length===0);
+    h.pending[1].resolve(new Response(new Uint8Array(4)));await next;h.context._releaseScrubSessions();
+  }
+  async function heldController() {
+    const h=controllerHarness(),p=h.context._scrubOverlayGetSession('a');await h.settle();
+    h.pending[0].resolve(new Response(new Uint8Array(4)));await p;
+    h.context.isDragging=true;h.context.currentSession=h.sessions[0];h.context.video=h.videos.a;
+    runInNewContext('_scrubOverlayLive.a=currentSession;_scrubSlotByVideo=new Map([[video,"a"]]);_scrubOverlayLastT=2.5;',h.context);
+    return h;
+  }
+  {
+    const h=await heldController();
+    runInNewContext('_scrubSeekPending=true;_scrubNextTime=1.1;',h.context);
+    h.sessions[0].rejectColor();
+    check('scrub-input: color rejection seeks the held native target without a pointer event',h.videos.a.currentTime===2.5 && h.seeks.length===1 && h.state().bytes===0);
+    check('scrub-input: color handoff retires the old active reactive target',runInNewContext('_scrubNextTime===null && _scrubSeekPending',h.context));
+  }
+  {
+    const h=await heldController();h.context.isGridMode=true;h.videos.a.duration=1;h.context.videoFrameRates.a=24;
+    runInNewContext('_scrubNextTime=.9;',h.context);h.sessions[0].rejectColor();
+    check('scrub-input: Grid color fallback clamps each native duration before the end',Math.abs(h.videos.a.currentTime-(1-.5/24))<1e-9 && runInNewContext('_scrubNextTime===.9',h.context));
+  }
+  {
+    const h=await heldController();h.videos.a.currentTime=2.5;h.seeks.length=0;
+    runInNewContext('_scrubSeekPending=true;_scrubNextTime=1;',h.context);h.sessions[0].rejectColor();
+    check('scrub-input: already settled color fallback does not strand the reactive queue',h.seeks.length===0 && runInNewContext('_scrubNextTime===null && !_scrubSeekPending',h.context));
+  }
+  for(const [label,prepare] of [
+    ['ended gesture',h=>{h.context.isDragging=false;}],
+    ['hidden document',h=>{h.context.document.hidden=true;}],
+    ['no held target',h=>runInNewContext('_scrubOverlayLastT=null;',h.context)],
+    ['different live owner',h=>runInNewContext('_scrubOverlayLive.a={};',h.context)],
+    ['replaced native element',h=>{h.videos.a={duration:3,currentTime:.2,src:'replacement'};}],
+    ['unavailable duration',h=>{h.videos.a.duration=NaN;}],
+  ]) {
+    const h=await heldController();prepare(h);h.sessions[0].rejectColor();
+    check('scrub-input: late color fallback does not seek '+label,h.seeks.length===0 && h.videos.a.currentTime===.2 && h.state().bytes===0);
   }
   {
     const h=controllerHarness(),{context}=h;

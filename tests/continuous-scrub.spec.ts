@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 import {useAudioContextRate} from './helpers/audio-context';
+import {sdrDecoderFixture} from './helpers/sdr-decoder-fixture';
 
 for (const direction of [1, -1]) test(`the selected scrub engine keeps ${direction > 0 ? 'forward' : 'reverse'} slow dialogue near its original volume`, async ({ page }) => {
   await page.goto('/');
@@ -53,10 +54,10 @@ for (const direction of [1, -1]) test(`the selected scrub engine keeps ${directi
   expect(result.peak).toBeLessThan(1);
 });
 
-test('continuous scrub is standard, retains center dialogue, and releases its stream', async ({ page }) => {
+test('continuous scrub is standard, retains center dialogue, and releases its stream', async ({ page }, info) => {
   await page.addInitScript(() => localStorage.setItem('pref_scrubAudioMode', JSON.stringify('snippets')));
   await page.goto('/');
-  await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/surround_71.mp4'));
+  await page.locator('#multiFileInput').setInputFiles(sdrDecoderFixture(path.join(__dirname, 'fixtures/surround_71.mp4'),info.outputPath('declared-sdr'),{verifiedSoftware:true}));
   await page.waitForFunction(() => (window as any).eval('!!_videoAudioBuffers.editA'));
   await expect(page.locator('#scrubModeBtn')).toHaveCount(0);
   await page.waitForFunction(() => (window as any).eval('!!_continuousScrubEngine.state.node'));

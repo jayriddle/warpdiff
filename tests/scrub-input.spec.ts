@@ -1,9 +1,11 @@
 import {test, expect} from '@playwright/test';
 import path from 'node:path';
 import {statSync} from 'node:fs';
+import {sdrDecoderFixture} from './helpers/sdr-decoder-fixture';
 
-const videoFile=path.join(__dirname,'fixtures/landscape_a.mp4');
-test.beforeEach(async ({page}) => {
+let videoFile: string;
+test.beforeEach(async ({page},info) => {
+  videoFile=sdrDecoderFixture(path.join(__dirname,'fixtures/landscape_a.mp4'),info.outputPath('decoder-source'));
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles(videoFile);
   await expect(page.locator('#comparisonView')).toHaveClass(/active/);

@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.8
+**Current version:** 3.19.9
 
 ---
 
@@ -91,7 +91,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 
 **Video & audio playback**
 - Unsupported video audio uses a safe external FFmpeg command and numbered reload guidance; no package or JSON details file is needed. WarpDiff does not bundle or run FFmpeg. The supplied command targets MP4/MOV video (including `.m4v`); other formats require a suitable external command. Install FFmpeg separately, make a stereo AAC compatibility copy, then load the output with your other comparison files. Short soundtracks are padded to retain the complete picture. Commands preserve literal filenames; control characters require renaming. See the [manual](MANUAL.md#loading-files) for installation, copying and reload instructions.
-- Desktop Safari mono/stereo playback uses native audio to reduce picture stalls after seeking. Drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
+- Ordinary mono/stereo video retains the browser’s combined native A/V output, avoiding the extra speaker latency of Web Audio routing. Surround mixes, Opus replacement and the slow-playback experiment retain their required processing paths. Safari drag seeks wait for decoded frames, tab return refreshes video surfaces, and an interrupted drag ends paused. Safari scrub preview uses native sound output to avoid silent previews and wakes its separate processing engine on each new gesture.
 - Video info bars show the source audio format, channel layout/count, and sample rate when available (for example, **FLAC · 7.1 · 48 kHz**); hover for details about multiple audio tracks. [Implementation and verification](docs/audio-format-2026-09-15.md)
 - Recognized MP4 inputs need one readable audio track for waveform, spectrogram, loudness and scrub audio. Multiple or unverifiable tracks keep native playback with a preparation notice; export the desired track and reload. WarpDiff does not guess which track the browser plays. [Scope and verification](docs/mp4-audio-hardening-2026-10-16/README.md)
 - Sync-locked playback across all assets — with 2+ videos, **Sync** wraps at the shortest clip for frame comparison while **Full** reviews every clip to its end; clips stay aligned in Stack and Grid (on Safari, alignment is applied at pause rather than continuously — WebKit presents rate-corrected video unevenly)
@@ -161,7 +161,7 @@ The reusable scrub controller and processor are pinned from WarpCap; both WarpDi
 - **No build, no runtime dependencies.** Vanilla HTML / CSS / JS in the app itself. Playwright and the other npm tools are development dependencies only.
 - **Memory-aware by default.** Typed arrays for bulk data, cached buffers reused across frames, blob URLs over base64, audio downsampled for scrub but kept full-quality where sync matters.
 - **Frame-accurate where it matters.** Midpoint seeking `(frame + 0.5) / fps` to avoid IEEE 754 boundary issues; epsilon-based timecode display; `requestVideoFrameCallback` for loop-point detection.
-- **Color-correct by default.** Magnifier uses cloned `<video>` elements to stay on the hardware compositor path, because `drawImage(video, canvas)` produces incorrect colors on macOS P3 displays.
+- **Native video color handling.** The video magnifier retains the native player. Scrub preview uses verified decoder paths: macOS NV12/BT.709 receives compositor compensation, and verified High 4:4:4 AVC/I420 stays unfiltered. Opaque output, ordinary AVC software output, untagged files, HDR and other unverified macOS combinations keep native seeking, which can be less responsive with sparse keyframes. A rejected preview immediately returns the native picture to the held scrub position. Safari video Difference snapshots before RGB subtraction. The preparation tool also copies compatible full-range AVC without changing its declared color interpretation. End-to-end color accuracy is not certified; see the [independent-review corrections](docs/scrub-color-review-fix-2026-10-19/README.md), [reported-file follow-up](docs/scrub-handoff-2026-10-19/README.md), [earlier verification](docs/sdr-color-fixes-2026-10-19/README.md) and [initial investigation](docs/sdr-color-verification-2026-10-19/README.md).
 
 ### Going deeper
 
@@ -185,6 +185,11 @@ npm install
 npx playwright test          # behavioral suite (headless Chromium)
 npm run test:ownership       # structural + pure-logic guards (no browser)
 ```
+
+The optional `npm run test:color` diagnostic generates isolated SDR references and
+checks preparation, browser rendering and inspection surfaces in Chrome/WebKit.
+Focused RGB-preservation regressions also run in the Chrome/WebKit release
+checks. Neither suite certifies physical display accuracy or color conformance. See [commands and limits](tools/investigations/sdr-color/README.md).
 
 Pull requests and pushes to `main` run the complete Chromium suite across three
 isolated jobs, ownership/infrastructure checks, and the focused WebKit profile.

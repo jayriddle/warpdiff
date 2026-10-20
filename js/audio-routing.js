@@ -4,7 +4,7 @@
 // provoking drift corrections and discontinuities after the gain fade finishes.
 const _AUDIO_SWITCH_FADE = 0.015;
 const _nativeAudioRoutes = new Map(); // media element → connected nodes
-const _nativeDirectOutputs = new Map(); // Safari mono/stereo video → native volume envelope
+const _nativeDirectOutputs = new Map(); // ordinary mono/stereo video → native volume envelope
 // Probe a detached, silent element. Platforms that lock native volume must
 // retain the graph path, otherwise inactive videos could become audible.
 const _nativeVideoVolumeWritable = (() => {
@@ -13,7 +13,7 @@ const _nativeVideoVolumeWritable = (() => {
     catch (_) { return false; }
 })();
 
-// One volume writer preserves master level when Safari keeps ordinary video
+// One volume writer preserves master level when the browser keeps ordinary video
 // audio on its native path. Zero volume silences inactive clips without toggling
 // mute or attaching the MediaElementSource that stalls post-seek video frames.
 function _setMediaVolume(media, volume) {
@@ -86,8 +86,12 @@ function _prepareNativeAudio(media, channels) {
     // mixing in charge. Taking over at loadedmetadata would discard dialogue
     // before the 7.1 channel count arrives (or forever if analysis cannot decode).
     const supported = [1, 2, 4, 6, 8].includes(channels);
-    if (!_nativeAudioRoutes.has(media) && _IS_WEBKIT_MEDIA && _nativeVideoVolumeWritable && media.tagName === 'VIDEO' &&
-        [1, 2].includes(channels) && !_opusSyncSlots[media.dataset.slot] && !_slowPlayback.enabled) {
+    // Keep ordinary video on its combined native A/V output. Sending stereo
+    // through Web Audio adds device output latency (168 ms in the reported
+    // case) without moving the native picture. Surround matrices, pending or
+    // active Opus replacement and the playback experiment still need a graph.
+    if (!_nativeAudioRoutes.has(media) && _nativeVideoVolumeWritable && media.tagName === 'VIDEO' &&
+        [1, 2].includes(channels) && !_opusSyncSlots[media.dataset.slot] && !_opusSyncPending[media.dataset.slot] && !_slowPlayback.enabled) {
         if (!_nativeDirectOutputs.has(media)) {
             const level = media.muted ? 0 : 1;
             _nativeDirectOutputs.set(media, { level, target: level, timer: null });

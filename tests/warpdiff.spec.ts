@@ -1,4 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
+import {forceGraphVideoOutput} from './helpers/native-video-output';
+import {sdrDecoderFixture} from './helpers/sdr-decoder-fixture';
 import path from 'path';
 import fs from 'fs';
 
@@ -382,7 +384,7 @@ async function loadImages(page: Page, fileNames: string[]) {
  * so we use the same comparisonView.active + asset-name signals as loadImages.
  */
 async function loadMedia(page: Page, fileNames: string[], timeout = 20000) {
-  const filePaths = fileNames.map(f => path.join(fixturesDir, f));
+  const filePaths = fileNames.map(f => path.isAbsolute(f) ? f : path.join(fixturesDir, f));
   await page.locator('#multiFileInput').setInputFiles(filePaths);
   await page.locator('#comparisonView.active').waitFor({ state: 'visible', timeout });
   await page.locator('.asset-name').first().waitFor({ state: 'attached', timeout: 5000 });
@@ -1198,7 +1200,7 @@ test.describe('Persistent Mute + First-play Nudge', () => {
   const allMuted = (page: Page) => page.evaluate(() =>
     [...document.querySelectorAll('.asset-layer video')].every(v => {
       const gain = (window as any).__testAPI.nativeAudio.gain((v as HTMLVideoElement).dataset.slot);
-      return (v as HTMLVideoElement).muted || gain?._audioEnvelope.target === 0;
+      return (v as HTMLVideoElement).muted || (v as HTMLVideoElement).volume === 0 || gain?._audioEnvelope.target === 0;
     }));
   const btnMuted = (page: Page) => page.evaluate(() =>
     document.getElementById('muteBtn')!.classList.contains('muted'));
@@ -3101,9 +3103,10 @@ test.describe('WebCodecs scrub decoder', () => {
   // keyframe, so probing t=2.5s forces a ~60-frame forward decode — exactly the
   // sparse-GOP case the feature exists for. Skips (loudly) when the environment
   // can't decode H.264 via VideoDecoder.
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page },info) => {
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4'].map(name=>
+      sdrDecoderFixture(path.join(__dirname,'fixtures',name),info.outputPath('declared-sdr'),{verifiedSoftware:true})));
   });
 
   test('multi-video Grid uses the steady pointer clock for scrub audio', async ({ page }) => {
@@ -3226,12 +3229,12 @@ test.describe('WebCodecs scrub decoder', () => {
     expect(await page.evaluate(() => (window as any).__testAPI.scrubVideo.overlayCount())).toBe(0);
   });
 
-  test('HDR (PQ) content is refused — falls back to native scrubbing', async ({ page }) => {
+  test('HDR (PQ) content is refused — falls back to native scrubbing', async ({ page },info) => {
     // Load fresh with an HDR-tagged file: landscape_a (oldest mtime) → editA,
     // pq_hdr (newest) → editB. The overlay must never engage for the HDR slot —
     // Chrome tone-maps HDR <video>, the canvas path doesn't (major darkening).
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'pq_hdr.mp4']);
+    await loadMedia(page, [info.outputPath('declared-sdr','landscape_a.mp4'), 'pq_hdr.mp4']);
     const supported = await page.evaluate(() => (window as any).__testAPI.scrubVideo.supported());
     test.skip(!supported, 'VideoDecoder not available in this browser build');
 
@@ -3330,10 +3333,6 @@ test.describe('Safari native scrub scheduling and restored surfaces', () => {
   });
 
   test('mono/stereo native output preserves volume, selection, mute and cancellation', async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(HTMLMediaElement.prototype, 'fastSeek', { configurable: true, value() {} });
-      (window as any).GestureEvent = class {};
-    });
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
     await page.waitForFunction(() => ['editA', 'editB'].every(slot =>
@@ -3542,7 +3541,7 @@ async function mutedStates(page: Page): Promise<boolean[]> {
   return page.evaluate(() =>
     Array.from(document.querySelectorAll('.asset-layer video')).map(v => {
       const gain = (window as any).__testAPI.nativeAudio.gain((v as HTMLVideoElement).dataset.slot);
-      return (v as HTMLVideoElement).muted || gain?._audioEnvelope.target === 0;
+      return (v as HTMLVideoElement).muted || (v as HTMLVideoElement).volume === 0 || gain?._audioEnvelope.target === 0;
     }));
 }
 
@@ -4134,7 +4133,10 @@ test('managed image inspection retains its task label in Tile Check', async ({pa
 
 test.describe('Audio source handoffs and restart jumps', () => {
   for (const files of [['landscape_a.mp4', 'landscape_b.mp4'], ['vorbis_a.webm', 'vorbis_b.webm']]) {
-    test(`native soundtrack handoffs fade, survive rapid reversal, and retain master volume (${files[0]})`, async ({ page }) => {
+    test(`graph fallback soundtrack handoffs fade, survive rapid reversal, and retain master volume (${files[0]})`, async ({ page }) => {
+      // Keep testing the required graph fallback on volume-locked platforms.
+      // Ordinary stereo video now retains native A/V output instead.
+      await forceGraphVideoOutput(page);
       await page.goto('/');
       await loadMedia(page, files);
       await page.evaluate(() => {
@@ -4236,12 +4238,15 @@ test.describe('Audio source handoffs and restart jumps', () => {
   test('Opus selection ramps both sources and a pending muted start stays silent', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
-    await page.waitForFunction(() => ['editA', 'editB'].every(slot => (window as any).__testAPI.nativeAudio.gain(slot)));
+    await page.waitForFunction(() => ['editA', 'editB'].every(slot => (window as any).__testAPI.nativeAudio.directLevel(slot)));
     const result = await page.evaluate(async () => {
       const app = window as any;
       const opus = app.__testAPI.opus;
       opus.installTestBuffer('editA', 3);
       opus.installTestBuffer('editB', 3);
+      // This synthetic Opus activation follows an ordinary stereo load. Promote
+      // its direct outputs; real Opus is excluded before its first route exists.
+      for(const slot of ['editA','editB'])app._prepareNativeAudio(document.querySelector('#layer'+(slot==='editA'?'EditA':'EditB')+' video'),2);
       app.selectAudioSource('editA');
       opus.start('editA', 0);
       opus.start('editB', 0);
@@ -4306,7 +4311,8 @@ test.describe('Audio source handoffs and restart jumps', () => {
   }
 });
 
-test('arrow-key video switches keep native renderers running and output continuous', async ({ page }) => {
+test('graph fallback arrow-key video switches keep native renderers running and output continuous', async ({ page }) => {
+  await forceGraphVideoOutput(page);
   await page.goto('/');
   await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
   // Visible video is ready before asynchronous audio decode establishes routing.

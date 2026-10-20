@@ -165,6 +165,35 @@ test('video preparation can encode non-AVC picture; audio-only preparation keeps
     } finally {await fs.rm(directory,{recursive:true,force:true});}
 });
 
+test('full-range AVC picture and declared color survive preparation with an AC-3 soundtrack',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-full-range-'));
+    const inventory=async file=>JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-show_packets',
+        '-show_data_hash','sha256','-of','json',file])).stdout);
+    try {
+        for(const matrix of ['bt709','smpte170m']) {
+            const input=path.join(directory,matrix+'.mp4'),output=path.join(directory,matrix);await fs.mkdir(output);
+            await execute('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n','-i',
+                new URL('./fixtures/ac3_video.mp4',import.meta.url).pathname,'-t','0.5','-vf','scale=160:90:out_range=full',
+                '-c:v','libx264','-pix_fmt','yuvj420p','-color_range','pc','-colorspace',matrix,
+                '-color_primaries','bt709','-color_trc','bt709','-c:a','copy',input]);
+            const source=await inventory(input),v=source.streams.find(s=>s.codec_type==='video');
+            assert.equal(v.pix_fmt,'yuvj420p');assert.equal(v.color_range,'pc');
+            const result=await prepareCompatible({input,directory:output,kind:'video'});
+            assert.equal(result.preparation.picture,'copied');assert.equal(result.preparation.audio,'stereo-aac');
+            const prepared=await inventory(result.file),out=prepared.streams.find(s=>s.codec_type==='video');
+            for(const key of ['pix_fmt','color_range','color_space','color_primaries','color_transfer'])assert.equal(out[key],v[key],key);
+            const packets=(data,index)=>data.packets.filter(p=>p.stream_index===index).map(p=>({pts:p.pts,dts:p.dts,duration:p.duration,hash:p.data_hash}));
+            assert.deepEqual(packets(prepared,out.index),packets(source,v.index),'picture packet bytes and timestamps retained');
+            const audio=prepared.streams.find(s=>s.codec_type==='audio');assert.equal(audio.codec_name,'aac');assert.equal(audio.channels,2);
+            // A lying output probe must not certify a changed copied-picture label.
+            const wrapper=path.join(directory,'probe-'+matrix+'.cjs');
+            await fs.writeFile(wrapper,`#!/usr/bin/env node\nconst cp=require('node:child_process');const args=process.argv.slice(2);const data=JSON.parse(cp.execFileSync('ffprobe',args).toString());if(args.at(-1).endsWith('review.mp4'))data.streams.find(s=>s.codec_type==='video').color_space='bt470bg';process.stdout.write(JSON.stringify(data));\n`,{mode:0o700});
+            const bad=path.join(directory,'bad-'+matrix);await fs.mkdir(bad);
+            await assert.rejects(prepareCompatible({input,directory:bad,kind:'video',ffprobe:wrapper}),/retain its declared color interpretation/);
+        }
+    } finally {await fs.rm(directory,{recursive:true,force:true});}
+});
+
 test('bridge rejects invalid launch identities before accepting a port and disconnect is terminal',async()=>{
     const vm=await import('node:vm');
     const source=await fs.readFile(new URL('../tools/media-prepare/companion/bridge.js',import.meta.url),'utf8');
