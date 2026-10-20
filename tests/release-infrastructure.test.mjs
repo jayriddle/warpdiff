@@ -69,12 +69,12 @@ test('publication requires successful checks and staging on a main push only', (
   }
 });
 
-test('real external-preparation checks are part of the protected ownership job', () => {
+test('real preparation and SDR fixture checks are part of the protected ownership job', () => {
   const commands=workflow.jobs.ownership.steps.map(step=>step.run);
   assert(commands.includes('npm run test:preparation'));
   assert(commands.indexOf('npm run test:preparation')>commands.indexOf('npm run test:fixtures'));
   const metadata=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
-  assert.equal(metadata.scripts['test:preparation'],'node --test --test-concurrency=1 tests/media-prepare.test.mjs tests/local-companion.test.mjs');
+  assert.equal(metadata.scripts['test:preparation'],'node --test --test-concurrency=1 tests/media-prepare.test.mjs tests/local-companion.test.mjs tests/sdr-decoder-fixture.test.mjs');
   assert(!pageFiles(root).some(file=>file.startsWith('tools/')||file.includes('ffmpeg')));
 });
 

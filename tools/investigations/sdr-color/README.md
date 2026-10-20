@@ -51,3 +51,5 @@ The automated diagnostic does not drive native Safari. A separate native Safari 
 See the dated project record in `docs/sdr-color-verification-2026-10-19/README.md` for measured results, retained failures and recommended follow-up slices.
 
 The `browserChecks` API also accepts `headless:false` and Chrome-only `colorProfile` values (`native`, `srgb`, `display-p3-d65`) for isolated visible-browser probes. `native` removes Playwright’s default `--force-color-profile=srgb` flag so the browser chooses its automatic display profile. A null profile keeps Playwright’s forced-sRGB default. These launch flags apply only to the temporary test process; no persistent browser or display settings are changed.
+
+Browser regression fixtures retain lossless High 4:4:4 references for Chrome's software compositor checks. WebKit native-video checks select ordinary AVC High with the same authored patch layout and color declarations; the hosted WebKit player did not present the High 4:4:4 inputs. Profile assertions remain explicit, and no color assertion or capability skip is relaxed. CLI diagnostics continue to use the original lossless defaults.

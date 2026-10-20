@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npx playwright test",
     "test:ownership": "node tests/ownership.test.mjs",
-    "test:preparation": "node --test --test-concurrency=1 tests/media-prepare.test.mjs tests/local-companion.test.mjs",
+    "test:preparation": "node --test --test-concurrency=1 tests/media-prepare.test.mjs tests/local-companion.test.mjs tests/sdr-decoder-fixture.test.mjs",
     "test:fixtures": "bash tests/fixtures/generate.sh",
     "test:ci": "playwright test --config=playwright.ci.config.ts --project=chromium --workers=1 --retries=0",
     "test:webkit": "playwright test --config=playwright.webkit.config.ts",

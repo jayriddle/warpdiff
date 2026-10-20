@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-19",
+  "pullRequest": "https://github.com/jayriddle/warpdiff/pull/55",
+  "firstFeature": "9940113ccf75baf43299ebe0bf841da5efb5e009",
+  "firstSyntheticMerge": "954c76c1357864a6617abb54738dc1a2b6f9aec2",
+  "firstRun": "https://github.com/jayriddle/warpdiff/actions/runs/39349265029",
+  "firstResult": {
+    "conclusion": "cancelled after failures",
+    "chromium": {
+      "passed": 644,
+      "failed": 2,
+      "approvedSkipped": 1
+    },
+    "webkit": {
+      "observedReadinessTimeouts": 6,
+      "lastStartedCase": 194,
+      "inventory": 246,
+      "complete": false
+    },
+    "ownership": 1405,
+    "infrastructure": 26,
+    "preparation": 34
+  },
+  "correction": {
+    "scope": "Test fixtures, regression coverage, records only; production bytes unchanged",
+    "ubuntuFfmpeg": "6.1.1-3ubuntu5",
+    "hostFfmpeg": "8.1.2",
+    "originalAudioPackets": 47,
+    "oldCopiedPackets": 46,
+    "newCopiedPackets": 47,
+    "preservedStart": 0.166,
+    "preservedDuration": 4.5,
+    "preservedChannels": 8,
+    "linuxRegressionPasses": 2,
+    "hostRegressionPasses": 2,
+    "linuxOldHelperExpectedFailures": 2,
+    "localBrowserPasses": 38,
+    "localBrowserRetries": 0,
+    "localBrowserSkips": 0,
+    "localOwnership": 1407,
+    "localInfrastructure": 26,
+    "localPreparation": 36,
+    "fixturesPreserved": 37
+  },
+  "hostedPackageFilesVerified": 86,
+  "freshHostedResult": "See PR #55 required checks; no result claimed at this checkpoint",
+  "evidence": "/Users/jay/Documents/warpdiff/output/sdr-color-hosted-2026-10-19-6FHBVJ",
+  "merged": false,
+  "published": false
+}

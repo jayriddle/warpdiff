@@ -97,7 +97,7 @@ export function makePNG(rgb) {
   for (let y = 0; y < height; y++) rgb.copy(scan, y * (width * 3 + 1) + 1, y * width * 3, (y + 1) * width * 3);
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', hdr), chunk('sRGB', Buffer.from([0])), chunk('IDAT', deflateSync(scan)), chunk('IEND', Buffer.alloc(0))]);
 }
-export function makeFixtures(directory) {
+export function makeFixtures(directory, {nativeAvc = false} = {}) {
   fs.mkdirSync(directory, {
     recursive: true
   });
@@ -155,11 +155,13 @@ export function makeFixtures(directory) {
   }]) {
     const file = path.join(directory, spec.name + '.mp4'),
       tags = spec.matrix ? ['-colorspace', spec.matrix, '-color_range', spec.range, '-color_primaries', spec.primaries, '-color_trc', spec.transfer] : [];
-    ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-s', width + 'x' + height, '-framerate', '24', '-stream_loop', '-1', '-i', rawFile, '-t', '0.5', '-an', ...(spec.matrix ? ['-vf', `setparams=range=${spec.range === 'pc' ? 'full' : 'limited'}:color_primaries=${spec.primaries}:color_trc=${spec.transfer}:colorspace=${spec.matrix}`] : []), '-c:v', 'libx264', '-crf', '0', '-preset', 'fast', '-pix_fmt', 'yuv420p', ...tags, '-movflags', '+faststart', file]);
+    ffmpeg(['-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-s', width + 'x' + height, '-framerate', '24', '-stream_loop', '-1', '-i', rawFile, '-t', '0.5', '-an', ...(spec.matrix ? ['-vf', `setparams=range=${spec.range === 'pc' ? 'full' : 'limited'}:color_primaries=${spec.primaries}:color_trc=${spec.transfer}:colorspace=${spec.matrix}`] : []), '-c:v', 'libx264', '-crf', nativeAvc ? '18' : '0', ...(nativeAvc ? ['-profile:v', 'high'] : []), '-preset', 'fast', '-pix_fmt', 'yuv420p', ...tags, '-movflags', '+faststart', file]);
+    const metadata=probe(file).streams.find(s => s.codec_type === 'video');
+    if(metadata.profile !== (nativeAvc ? 'High' : 'High 4:4:4 Predictive'))throw Error('Unexpected reference profile: '+spec.name);
     cases.push({
       ...spec,
       file,
-      metadata: probe(file).streams.find(s => s.codec_type === 'video'),
+      metadata,
       references: {
         bt601: reference(file, 'bt601', spec.range || 'tv'),
         bt709: reference(file, 'bt709', spec.range || 'tv')

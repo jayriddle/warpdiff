@@ -8,10 +8,13 @@ import {installLegacyFilter} from '../tools/investigations/sdr-color/legacy-filt
 
 let fixtures: any, decoderFixtures: any;
 test.use({viewport:{width:1280,height:850}, serviceWorkers:'block'});
-test.beforeAll(async ({}, info) => {
+test.beforeAll(async ({browserName}, info) => {
   const directory = path.join(info.project.outputDir, 'color-fixtures-' + info.workerIndex);
   fs.mkdirSync(directory, {recursive:true});
-  fixtures = makeFixtures(directory);
+  // Hosted WebKit's native player does not present these High 4:4:4 inputs.
+  // Native tests use the same authored patches/tags in ordinary High; Chrome
+  // retains the lossless High 4:4:4 software-path and compensation controls.
+  fixtures = makeFixtures(directory,{nativeAvc:browserName==='webkit'});
   if(process.platform==='darwin')decoderFixtures=makeDecoderFixtures(directory);
 });
 test.beforeEach(async ({page}) => {

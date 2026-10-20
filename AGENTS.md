@@ -172,7 +172,7 @@ There is no named human `CODEOWNERS` assignment. Documentation ownership is inst
 
 ## Testing
 
-`npm run test:preparation` runs real external-tool fixtures and picture/timing/cleanup checks sequentially. It needs existing fixtures and system FFmpeg/ffprobe; CI runs it in the protected ownership job after fixture generation. Package unit/fault checks also run through ownership, and prepared-media.spec.ts runs in Chrome/WebKit.
+`npm run test:preparation` runs real external-tool fixtures, picture/timing/cleanup checks, and SDR test-fixture packet preservation sequentially. The SDR regression uses Node 24+ built-in type stripping and requires complete delayed-FLAC packet/timestamp preservation on FFmpeg 6 and 8. WebKit native-color references use ordinary AVC High; Chrome retains the lossless High 4:4:4 controls. It needs existing fixtures and system FFmpeg/ffprobe; CI runs it in the protected ownership job after fixture generation. Package unit/fault checks also run through ownership, and prepared-media.spec.ts runs in Chrome/WebKit.
 
 Two layers:
 - **Behavioral (Playwright)**: `npm test` / `npx playwright test`. Real headless Chromium; state inspected via `__testAPI`.
