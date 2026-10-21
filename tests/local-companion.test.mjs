@@ -251,6 +251,20 @@ test('missing SDR tags assume BT.601 for SD and BT.709 for HD, and known transfe
     const srgbOnly=interpretSdr({width:160,height:90,color_transfer:'iec61966-2-1',color_range:'tv'});
     assert.equal(srgbOnly.notice,'Missing color tags; assumed BT.709');assert.equal(srgbOnly.transfer,'iec61966-2-1');
     assert.match(srgbOnly.filter,/ispace=bt709:iprimaries=bt709:itrc=iec61966-2-1/);
+    // BT.709 and SMPTE 170M are the same curve, so the transfer alone does not
+    // choose the matrix. Frame size does, and the declared transfer stays.
+    const transferHd=interpretSdr({width:1280,height:720,color_transfer:'bt709',color_range:'tv'});
+    assert.equal(transferHd.notice,'Missing color tags; assumed BT.709');assert.equal(transferHd.transfer,'bt709');
+    assert.match(transferHd.filter,/ispace=bt709:iprimaries=bt709:itrc=bt709/);
+    const transferSd=interpretSdr({width:160,height:90,color_transfer:'bt709',color_range:'tv'});
+    assert.equal(transferSd.notice,'Missing color tags; assumed BT.601');assert.equal(transferSd.transfer,'bt709');
+    assert.match(transferSd.filter,/ispace=smpte170m:iprimaries=smpte170m:itrc=bt709/);
+    const transfer170=interpretSdr({width:1920,height:1080,color_transfer:'smpte170m',color_range:'tv'});
+    assert.equal(transfer170.notice,'Missing color tags; assumed BT.709');assert.equal(transfer170.transfer,'smpte170m');
+    assert.match(transfer170.filter,/ispace=bt709:iprimaries=bt709:itrc=smpte170m/);
+    const bgRgb=interpretSdr({width:160,height:90,pix_fmt:'gbrp',color_space:'bt470bg',color_primaries:'bt470bg',color_transfer:'bt470bg',color_range:'pc'});
+    assert.equal(bgRgb.scaleMatrix,'bt601');assert.equal(bgRgb.notice,null);
+    assert.match(bgRgb.filter,/ispace=bt470bg:iprimaries=bt470bg:itrc=bt470bg/);
     const systemM=interpretSdr({width:1920,height:1080,color_primaries:'bt470m',color_range:'tv'});
     assert.equal(systemM.notice,'Missing color tags; used declared BT.470M');assert.equal(systemM.encoderTransfer,'gamma22');
     assert.match(systemM.filter,/ispace=smpte170m:iprimaries=bt470m:itrc=bt470m/);
@@ -308,6 +322,21 @@ test('untagged HD picture assumes BT.709 and untagged 8-bit H.264 stays copied',
         const converted=await prepareCompatible({input:wide,directory:wideOut,kind:'video'});
         assert.equal(converted.preparation.picture,'encoded-h264-up-to-1080p');
         assert.equal(converted.preparation.colorNotice,'No color tags; assumed BT.601');
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('BT.470BG RGB passes bt601 to scale and bt470bg to colorspace',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-bt470bg-scale-'));
+    try {
+        const input=path.join(directory,'bg.mkv'),out=path.join(directory,'out');await fs.mkdir(out);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','color=c=red:size=160x90:rate=24:duration=0.25',
+            '-vf','setparams=range=pc:color_primaries=bt470bg:color_trc=bt470bg:colorspace=bt470bg','-c:v','ffv1','-pix_fmt','gbrp',
+            '-color_range','pc','-colorspace','bt470bg','-color_primaries','bt470bg','-color_trc','gamma28',input]);
+        const result=await prepareCompatible({input,directory:out,kind:'video'});
+        assert.equal(result.preparation.colorNotice,undefined);
+        const output=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams[0];
+        assert.equal(output.color_space,'bt709');assert.equal(output.color_primaries,'bt709');
+        assert.equal(transferMatches(output.color_transfer,'bt470bg'),true,output.color_transfer);
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 

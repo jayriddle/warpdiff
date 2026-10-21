@@ -63,12 +63,15 @@ loses that in-memory comparison.
   BT.709 when the longer side is at least 1280 or the shorter side is at least 720,
   and BT.601 otherwise. A present matrix, primaries or transfer is never replaced.
   Missing ones are filled from the highest-priority declared tag (matrix, then
-  primaries, then transfer). Frame size applies only when all three are absent.
+  primaries, then transfer). A BT.709 or SMPTE 170M transfer alone does not
+  choose the matrix or primaries, because those curves are the same; frame size
+  does. Frame size also applies when all three are absent.
   BT.470 M fills its matrix as SMPTE 170M. An sRGB-only transfer keeps IEC 61966-2-1
   and assumes BT.709 matrix and primaries. The notice says "used declared" when the
   fill comes from a declared family and "assumed" when that family was not declared.
-  RGB, GBR and palette sources set the scale output matrix to that resolved matrix;
-  the `gbr` layout label is not a YCbCr matrix. The assumption is shown on the
+  RGB, GBR and palette sources set the scale output matrix to that resolved matrix.
+  scale calls BT.470BG `bt601`, which FFmpeg 7.0 through 8.0 accept; the
+  colorspace filter still says `bt470bg`. The `gbr` layout label is not a YCbCr matrix. The assumption is shown on the
   companion header and as a WarpDiff toast. It does not replace the Preparation
   dialog connection status. The source transfer, including sRGB and BT.470, is kept;
   matrix, primaries and range become limited-range BT.709. Video soundtracks become stereo AAC-LC at
@@ -171,7 +174,7 @@ This workflow is not a promise to open every format.
 
 ## Color and execution policy
 
-Compatible bounded AVC pictures are copied with their declared color interpretation preserved. Untagged 8-bit 4:2:0 H.264 is copied without inventing labels. Reencoding dithers other SDR picture to limited-range 8-bit 4:2:0 BT.709 matrix, primaries and range, and keeps the source transfer (including sRGB and BT.470). Missing or unspecified tags assume BT.709 when the longer side is at least 1280 or the shorter side is at least 720, and BT.601 otherwise. A declared tag is kept; missing matrix, primaries and transfer are filled from it in that order, and frame size is used only when all three are absent. An sRGB-only transfer keeps that curve and assumes BT.709 matrix and primaries. RGB, GBR and palette sources convert with the same resolved matrix. The companion header and a WarpDiff toast name an assumption; the Preparation dialog keeps its connection status. PQ/HLG and a declared unsupported tag are refused. No tone mapping is applied. Keep the original or use a color-managed preparation tool for those inputs.
+Compatible bounded AVC pictures are copied with their declared color interpretation preserved. Untagged 8-bit 4:2:0 H.264 is copied without inventing labels. Reencoding dithers other SDR picture to limited-range 8-bit 4:2:0 BT.709 matrix, primaries and range, and keeps the source transfer (including sRGB and BT.470). Missing or unspecified tags assume BT.709 when the longer side is at least 1280 or the shorter side is at least 720, and BT.601 otherwise. A declared tag is kept; missing matrix, primaries and transfer are filled from it in that order. A BT.709 or SMPTE 170M transfer alone does not choose the matrix or primaries, because those curves are the same; frame size does. Frame size is also used when all three tags are absent. An sRGB-only transfer keeps that curve and assumes BT.709 matrix and primaries. RGB, GBR and palette sources convert with the same resolved matrix. scale names BT.470BG `bt601`; the colorspace filter keeps `bt470bg`. The companion header and a WarpDiff toast name an assumption; the Preparation dialog keeps its connection status. PQ/HLG and a declared unsupported tag are refused. No tone mapping is applied. Keep the original or use a color-managed preparation tool for those inputs.
 
 Six hours is an input-duration admission bound, not a processing-time promise. Encoding and output decode verification each retain their existing ten-minute execution budget and size limits. Long/complex sources can exceed that budget; cancellation waits for native child retirement. These safeguards are deliberately retained.
 

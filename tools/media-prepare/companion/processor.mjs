@@ -84,9 +84,11 @@ function rgbPixels(pix) {
     return /^(?:gbr|rgb|bgr|pal8|argb|abgr|rgba|bgra|0rgb|0bgr)/.test(pix || '');
 }
 // A declared tag fills only the tags that are absent. Matrix wins, then
-// primaries, then transfer. Frame size is used only when all three are absent.
-// BT.470 M has no YCbCr matrix of its own, so its matrix is SMPTE 170M.
-// sRGB does not declare a matrix; its missing matrix and primaries are BT.709.
+// primaries, then transfer. Frame size is used when all three are absent.
+// BT.709 and SMPTE 170M transfers are the same curve, so a transfer alone
+// does not choose the matrix or primaries; frame size does. BT.470 M has no
+// YCbCr matrix of its own, so its matrix is SMPTE 170M. sRGB does not declare
+// a matrix; its missing matrix and primaries are BT.709.
 const COLOR_FAMILIES = {
     bt709:{label:'BT.709', matrix:'bt709', primaries:'bt709', transfer:'bt709'},
     smpte170m:{label:'BT.601', matrix:'smpte170m', primaries:'smpte170m', transfer:'smpte170m'},
@@ -116,7 +118,9 @@ export function interpretSdr(stream) {
         (transfer && !SDR_TRANSFERS.includes(transfer)) || (range && !['tv','pc'].includes(range))) {
         throw new PreparationError('Picture conversion needs known SDR color range, matrix, primaries and transfer. Keep this comparison or prepare the source with a color-managed tool.');
     }
-    const declared = (space && COLOR_FAMILIES[space]) || (primaries && COLOR_FAMILIES[primaries]) || (transfer && COLOR_FAMILIES[transfer]) || null;
+    const weakTransfer = !space && !primaries && (transfer === 'bt709' || transfer === 'smpte170m');
+    const declared = (space && COLOR_FAMILIES[space]) || (primaries && COLOR_FAMILIES[primaries]) ||
+        (!weakTransfer && transfer && COLOR_FAMILIES[transfer]) || null;
     const assumedFamily = hdFrame(stream) ? COLOR_FAMILIES.bt709 : COLOR_FAMILIES.smpte170m;
     const source = declared || assumedFamily;
     const resolvedMatrix = space || source.matrix, resolvedPrimaries = primaries || source.primaries;
@@ -130,7 +134,10 @@ export function interpretSdr(stream) {
     return {transfer:resolvedTransfer, range:resolvedRange, notice,
         // swscale's default RGB matrix is BT.601. Name the same matrix colorspace
         // will read, or a later HD conversion treats those samples as BT.709.
-        scaleMatrix:rgbPixels(stream.pix_fmt) ? resolvedMatrix : null,
+        // scale's integer option calls BT.470BG "bt601". FFmpeg 7.0 through 8.0
+        // reject out_color_matrix=bt470bg; 6.1 and 8.1 accept both, and the
+        // samples match. The colorspace filter keeps the name bt470bg.
+        scaleMatrix:rgbPixels(stream.pix_fmt) ? (resolvedMatrix === 'bt470bg' ? 'bt601' : resolvedMatrix) : null,
         encoderTransfer:resolvedTransfer === 'bt470m' || resolvedTransfer === 'gamma22' ? 'gamma22'
             : resolvedTransfer === 'bt470bg' || resolvedTransfer === 'gamma28' ? 'gamma28' : resolvedTransfer,
         filter:'colorspace=ispace='+resolvedMatrix+':iprimaries='+resolvedPrimaries+
