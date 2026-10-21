@@ -192,11 +192,9 @@ function _validateLocalPreparedFile(file, signal) {
             else poll = setTimeout(settle, 50);
         };
         // WebKit does not reach loadeddata on a paused hidden video until a
-        // seek, so the seek starts at loadedmetadata. Hosted WebKit seeked to
-        // both 40 ms and 100 ms on the FFV1 review and stayed at readyState 1
-        // with the network idle, so the one retry returns to the first sample.
-        // A drawn frame is enough; seeked is not required. The parenthetical
-        // is for the hosted failure log.
+        // seek, so the seek starts at loadedmetadata. One retry runs if the
+        // element is still below HAVE_CURRENT_DATA. A drawn frame is enough;
+        // seeked is not required. The parenthetical is for the hosted failure log.
         const seekTo = target => {
             if (done) return;
             seeks += 1; note('seek' + target.toFixed(3));

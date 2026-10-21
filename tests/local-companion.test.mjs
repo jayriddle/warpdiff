@@ -378,7 +378,29 @@ test('reencoded video keeps B-frame delay out of the video edit list',async()=>{
         assert.deepEqual(video.media.filter(time=>time>0),[], JSON.stringify(tracks));
         assert.ok(audio.media.some(time=>time>0));
         const output=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams;
-        assert.equal(output.find(stream=>stream.codec_type==='video').nb_frames,'12');
+        const picture=output.find(stream=>stream.codec_type==='video');
+        const soundtrack=output.find(stream=>stream.codec_type==='audio');
+        assert.equal(picture.nb_frames,'12');
+        assert.ok(Number(soundtrack.duration)+0.001>=Number(picture.duration), soundtrack.duration+' vs '+picture.duration);
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('reencoded soundtrack covers a shorter or longer source',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-cover-'));
+    try {
+        for (const [name,audioDuration] of [['short','0.1'],['long','2']]) {
+            const input=path.join(directory,name+'.mp4'),out=path.join(directory,name);await fs.mkdir(out);
+            // yuv444p keeps this on the reencode path and stores a picture duration,
+            // so a longer soundtrack cannot be mistaken for the picture length.
+            await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=0.5','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration='+audioDuration,'-c:v','libx264','-pix_fmt','yuv444p','-c:a','flac',input]);
+            await prepareCompatible({input,directory:out,kind:'video'});
+            const streams=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',path.join(out,'review.mp4')])).stdout).streams;
+            const video=streams.find(stream=>stream.codec_type==='video'), audio=streams.find(stream=>stream.codec_type==='audio');
+            assert.equal(video.nb_frames,'12', name);
+            assert.ok(Math.abs(Number(video.duration)-0.5)<0.001, name+' video '+video.duration);
+            assert.ok(Number(audio.duration)+0.001>=Number(video.duration), name+' '+audio.duration);
+            assert.ok(Number(audio.duration)<Number(video.duration)+0.05, name+' '+audio.duration);
+        }
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
