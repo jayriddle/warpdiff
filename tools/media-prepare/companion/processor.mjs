@@ -214,9 +214,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     if(limitExceeded)throw new PreparationError('Prepared file exceeds the prototype output limit');
     check(signal);
-    const size=(await fs.stat(file)).size;
+    let size=(await fs.stat(file)).size;
     if(!size||size>OUTPUT_LIMIT)throw new PreparationError('Prepared file is empty or exceeds the output limit');
-    const output=await probe(file,{ffprobe,signal}),outVideos=output.streams.filter(s=>s.codec_type==='video'),
+    let output=await probe(file,{ffprobe,signal}),outVideos=output.streams.filter(s=>s.codec_type==='video'),
         outAudios=output.streams.filter(s=>s.codec_type==='audio');
     if(kind==='video'&&(outVideos.length!==1||!compatiblePicture(outVideos[0])||
        outAudios.length!==audios.length||outAudios.some(s=>s.codec_name!=='aac'||s.profile!=='LC'||s.channels!==2||Number(s.sample_rate)!==48000))) {
@@ -235,14 +235,39 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     if(kind==='audio'&&(outVideos.length||outAudios.length!==1||outAudios[0].codec_name!=='pcm_s24le'||outAudios[0].channels!==audios[0].channels||
        Number(outAudios[0].sample_rate)!==Number(audios[0].sample_rate)))throw new PreparationError('Prepared audio did not retain its channel count and sample rate');
-    const outDuration=Number((kind==='video'?outVideos[0]:outAudios[0]).duration||output.format.duration);
+    let outDuration=Number((kind==='video'?outVideos[0]:outAudios[0]).duration||output.format.duration);
     if(!Number.isFinite(outDuration)||Math.abs(outDuration-duration)>Math.max(.15,duration*.001)) {
         throw new PreparationError('Prepared duration did not match the source');
     }
     if(kind==='video'&&outAudios.length) {
-        const soundtrack=Number(outAudios[0].duration);
+        const soundtrackDuration=()=>Number(outAudios[0].duration);
+        // The first trim uses the source probe. The encoded picture can be a
+        // frame shorter or longer than that probe, which leaves the soundtrack
+        // off. Copy the picture and trim the soundtrack to the duration that
+        // was actually written.
+        if(!Number.isFinite(soundtrackDuration())||Math.abs(soundtrackDuration()-outDuration)>0.001) {
+            const stop=outDuration.toFixed(6), fitted=file+'.aligned.mp4';
+            try {
+                await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-y','-protocol_whitelist','file',
+                    '-format_whitelist',FORMATS,'-i',file,'-map','0:v:0','-c:v','copy','-map','0:a:0','-c:a','aac',
+                    '-ac','2','-ar','48000','-b:a','192k','-af','apad,atrim=end='+stop,'-t',stop,
+                    '-map_metadata','-1','-movflags','+faststart',fitted],{signal,timeout:10*60*1000});
+                await fs.rename(fitted,file);
+            } catch(error) {
+                await fs.rm(fitted,{force:true});
+                throw error;
+            }
+            check(signal);
+            size=(await fs.stat(file)).size;
+            if(!size||size>OUTPUT_LIMIT)throw new PreparationError('Prepared file is empty or exceeds the output limit');
+            output=await probe(file,{ffprobe,signal});
+            outVideos=output.streams.filter(s=>s.codec_type==='video');
+            outAudios=output.streams.filter(s=>s.codec_type==='audio');
+            outDuration=Number(outVideos[0]?.duration||output.format.duration);
+        }
+        const soundtrack=soundtrackDuration();
         if(!Number.isFinite(soundtrack)||Math.abs(soundtrack-outDuration)>0.001) {
-            throw new PreparationError('Prepared soundtrack duration did not match the picture');
+            throw new PreparationError('Prepared soundtrack duration '+soundtrack+'s did not match the picture '+outDuration+'s');
         }
     }
     await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-xerror','-protocol_whitelist','file',

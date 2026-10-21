@@ -75,8 +75,10 @@ loses that in-memory comparison.
   companion header and as a WarpDiff toast. It does not replace the Preparation
   dialog connection status. The source transfer, including sRGB and BT.470, is kept;
   matrix, primaries and range become limited-range BT.709. Video soundtracks become stereo AAC-LC at
-  48 kHz. The soundtrack is padded, then trimmed to the picture duration, so its
-  length matches the picture instead of depending on where the shortest stream ends.
+  48 kHz. The soundtrack is padded and trimmed to the source duration, then, when
+  that misses the encoded picture, copied video is kept and the soundtrack is
+  trimmed again to the duration that was written. Its length matches the picture
+  instead of depending on where the shortest stream ends.
   Source timing otherwise follows FFmpeg's normal muxing behavior; this does not
   certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count

@@ -354,6 +354,42 @@ test('reencoded soundtrack duration matches the picture',async()=>{
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
+test('a soundtrack reported off the picture is trimmed to the written duration',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-align-'));
+    try {
+        const input=path.join(directory,'source.mkv'),out=path.join(directory,'out');await fs.mkdir(out);
+        const realProbe=(await execute('bash',['-lc','command -v ffprobe'])).stdout.trim();
+        const wrapper=path.join(directory,'ffprobe'),state=path.join(directory,'lied');
+        await fs.writeFile(wrapper,`#!/bin/bash
+set -euo pipefail
+target=""
+for arg in "$@"; do
+  case "$arg" in
+    -*) ;;
+    *) target="$arg" ;;
+  esac
+done
+json=$(${JSON.stringify(realProbe)} "$@")
+if [[ "$target" == *review.mp4 && ! -f ${JSON.stringify(state)} ]]; then
+  printf '%s' "$json" > ${JSON.stringify(state)}.json
+  touch ${JSON.stringify(state)}
+  node --input-type=module -e 'import fs from "node:fs"; const report=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const audio=report.streams.find(stream=>stream.codec_type==="audio"); audio.duration=(Number(audio.duration)+0.05).toFixed(6); process.stdout.write(JSON.stringify(report));' ${JSON.stringify(state)}.json
+else
+  printf '%s\\n' "$json"
+fi
+`);
+        await fs.chmod(wrapper,0o755);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=0.5','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=0.5','-c:v','ffv1','-c:a','flac','-shortest',input]);
+        const result=await prepareCompatible({input,directory:out,kind:'video',ffprobe:wrapper});
+        await fs.access(state);
+        const streams=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams;
+        const picture=streams.find(stream=>stream.codec_type==='video');
+        const soundtrack=streams.find(stream=>stream.codec_type==='audio');
+        assert.equal(picture.nb_frames,'12');
+        assert.ok(Math.abs(Number(soundtrack.duration)-Number(picture.duration))<0.001, soundtrack.duration+' vs '+picture.duration);
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
 test('reencoded soundtrack covers a shorter or longer source',async()=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-cover-'));
     try {
