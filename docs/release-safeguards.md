@@ -90,9 +90,13 @@ The same workflow stages the public artifact on PR/manual runs, allowing the
 actual packaging path to be tested without deployment. `Publish verified main`
 requires both protected checks and successful staging. It runs only after
 success on a **push to `refs/heads/main`**. Failed, skipped or cancelled checks
-cannot qualify; PRs and manual dispatch cannot publish. A cancelled main run
-cannot start a later deployment job. A deployment already underway cannot be
-recalled by cancelling an Actions run; verify the served SHA after publication.
+cannot qualify; PRs and manual dispatch cannot publish. That push has to be a
+real `push` event. A merge performed by an integration that does not emit one
+leaves the commit on `main` unpublished: `workflow_dispatch` still runs the
+tests, and `Publish verified main` stays skipped because it requires
+`github.event_name == 'push'`. A cancelled main run cannot start a later
+deployment job. A deployment already underway cannot be recalled by cancelling
+an Actions run; verify the served SHA after publication.
 
 ## Release review and verification
 
