@@ -250,6 +250,27 @@ test('a companion cannot repeat the prepared file',async({page})=>{
   await expect(page.locator('#preparedImportLoad')).toBeDisabled();expect(await current(page)).toEqual(['green.png']);
 });
 
+test('a rejected package load keeps focus in the open dialog',async({page})=>{
+  await select(page);await check(page);
+  await page.evaluate(()=>{(window as any).handleMultipleFiles=()=>false;});
+  await page.locator('#preparedImportLoad').click();
+  await expect(page.locator('#preparedImportDialog')).toBeVisible();
+  await expect(page.locator('#preparedImportStatus')).toBeFocused();
+  await expect(page.locator('#preparedImportStatus')).toContainText('were not loaded');
+  await expect(page.locator('#loadBtn')).not.toBeFocused();
+  expect(await current(page)).toEqual(['green.png']);
+});
+
+test('a thrown package load keeps focus in the open dialog',async({page})=>{
+  await select(page);await check(page);
+  await page.evaluate(()=>{(window as any).handleMultipleFiles=()=>{throw new Error('rejected set');};});
+  await page.locator('#preparedImportLoad').click();
+  await expect(page.locator('#preparedImportDialog')).toBeVisible();
+  await expect(page.locator('#preparedImportStatus')).toBeFocused();
+  await expect(page.locator('#preparedImportStatus')).toContainText('rejected set');
+  await expect(page.locator('#loadBtn')).not.toBeFocused();
+});
+
 test('a companion with no browser type explains how to proceed',async({page})=>{
   await select(page);
   await page.locator('#preparedImportOthers').evaluate((input:HTMLInputElement)=>{

@@ -7,13 +7,34 @@ let _localPreparationOpener = null;
 let _localPreparationMessage = '';
 let _localPreparationDialogOwner = null;
 let _localPreparationRecovery = null;
+let _localPreparationNotices = [];
+const _LOCAL_COLOR_NOTICES = new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601',
+    'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601',
+    'Missing color tags; used declared BT.709','Missing color tags; used declared BT.601',
+    'Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
 const _localPreparationConnection = WarpPreparationConnection.create(() => _renderLocalPreparation());
 
+function _releaseLocalPreparationRecovery() {
+    const recovery = _localPreparationRecovery;
+    if (!recovery) return;
+    _localPreparationRecovery = null;
+    // Callers may still be reading these collections synchronously. Drop the
+    // File blobs on the next turn so a retained object cannot keep them.
+    queueMicrotask(() => { recovery.files.length = 0; recovery.preparedFiles.clear(); });
+}
 function _normalizePreparationInput(file) {
     if (/^(image|video|audio)\//.test(file.type)) return file;
     const ext = file.name.split('.').pop().toLowerCase();
+    // .ts is also TypeScript and Qt Linguist. Only an empty or generic
+    // octet-stream type is MPEG-TS. .mts and .m2ts remain MPEG-TS.
+    if (ext === 'ts') {
+        if (!file.type || file.type === 'application/octet-stream') {
+            return new File([file], file.name, {type:'video/mp2t', lastModified:file.lastModified});
+        }
+        return file;
+    }
     const types = {mkv:'video/x-matroska',mov:'video/quicktime',mxf:'video/mxf',avi:'video/x-msvideo',
-        mts:'video/mp2t',m2ts:'video/mp2t',ts:'video/mp2t',dts:'audio/vnd.dts',ac3:'audio/ac3',
+        mts:'video/mp2t',m2ts:'video/mp2t',dts:'audio/vnd.dts',ac3:'audio/ac3',
         eac3:'audio/eac3',mlp:'audio/mlp',truehd:'audio/true-hd'};
     return types[ext] ? new File([file],file.name,{type:types[ext],lastModified:file.lastModified}) : file;
 }
@@ -25,7 +46,7 @@ function _localPreparationAccept(assignments, preparedFiles = null) {
 function _localPreparationClear() {
     _localPreparationAction?.controller.abort();
     ++_localPreparationEpoch; _localPreparationBatch = null; _localPreparationAction = null;
-    _localPreparationRecovery = null;
+    _releaseLocalPreparationRecovery(); _localPreparationNotices = [];
     _localPreparationDialogOwner = null; _localPreparationOpener = null;
     _localPreparationMessage = '';
     const dialog = document.getElementById('localPreparationDialog');
@@ -37,7 +58,8 @@ function _localPreparationIssue(slot, token) {
     if (_managedReviewActive() || !item || token !== batch.token || token !== _loadingProgressToken ||
         !/^(video|audio)\//.test(item.file.type)) return false;
     const first = !batch.issues.has(slot); batch.issues.add(slot);
-    if (item.prepared) _localPreparationMessage = 'This review copy could not provide all audio tools. Keep the original; another conversion is not started automatically.';
+    const actionable = batch.files.some(entry => batch.issues.has(entry.slot) && !entry.prepared);
+    if (item.prepared && !actionable) _localPreparationMessage = 'This review copy could not provide all audio tools. Keep the original; another conversion is not started automatically.';
     _renderLocalPreparation();
     if (first) showLoadToast('Some tools are unavailable for ' + item.file.name + '. Use Preparation to see your options.', false, 6000);
     return true;
@@ -69,8 +91,10 @@ function _localPreparationClosed() {
 function _renderLocalPreparation() {
     const dialog = document.getElementById('localPreparationDialog');
     if (!dialog) return;
+    if (_localPreparationRecovery && _localPreparationRecovery.token !== _loadingProgressToken) _releaseLocalPreparationRecovery();
     const connection = _localPreparationConnection.state(), batch = _localPreparationBatch;
     const items = batch?.files.filter(item => batch.issues.has(item.slot)) || [];
+    const actionable = items.filter(item => !item.prepared);
     const list = document.getElementById('localPreparationFiles'); list.replaceChildren();
     for (const item of items) { const li = document.createElement('li'); li.textContent = item.file.name; list.append(li); }
     document.getElementById('localPreparationSetup').hidden = connection.connected;
@@ -80,13 +104,17 @@ function _renderLocalPreparation() {
     document.getElementById('localPreparationConnect').disabled = connection.connecting;
     document.getElementById('localPreparationManual').disabled = Object.keys(_ffmpegCommands).length === 0;
     document.getElementById('localPreparationRun').disabled = !connection.connected || connection.busy ||
-        !!_localPreparationAction || !items.length || items.some(item => item.prepared);
+        !!_localPreparationAction || !actionable.length;
+    const preparedOnly = 'This review copy could not provide all audio tools. Keep the original; another conversion is not started automatically.';
     document.getElementById('localPreparationStatus').textContent = _localPreparationMessage || (connection.connecting
         ? 'Approve the connection in the local tool window. No files are sent while connecting.'
-        : connection.connected ? items.length ? 'Ready to prepare the files listed above.' : 'Connected. Load your files normally; preparation is offered only when needed.'
+        : connection.connected ? actionable.length ? 'Ready to prepare the files listed above.'
+        : items.length ? preparedOnly : 'Connected. Load your files normally; preparation is offered only when needed.'
+        : items.length && !actionable.length ? preparedOnly
         : 'Connect the local preparation tool once for this visit. Your current comparison stays in place.');
     const button = document.getElementById('preparationBtn');
-    if (button) {button.hidden = _managedReviewActive();button.textContent = items.length ? 'Preparation needed' : connection.connected ? 'Preparation ✓' : 'Preparation';}
+    if (button) {button.hidden = _managedReviewActive();
+        button.textContent = actionable.length ? 'Preparation needed' : items.length ? 'Preparation' : connection.connected ? 'Preparation ✓' : 'Preparation';}
 }
 async function _connectLocalPreparation() {
     _localPreparationMessage = '';
@@ -100,6 +128,7 @@ async function _runLocalPreparation() {
     const candidates = batch.files.filter(item => batch.issues.has(item.slot) && !item.prepared);
     if (!candidates.length) return;
     const owner = {epoch:batch.epoch,controller:new AbortController()}; _localPreparationAction = owner;
+    _localPreparationNotices = [];
     _localPreparationMessage = 'Preparing review copies on this computer… You can cancel without replacing your files.';
     _renderLocalPreparation();
     const files = batch.files.map(item => item.file), preparedFiles = new Set();
@@ -131,32 +160,99 @@ function _validateLocalPreparedFile(file, signal) {
         const video = file.type.startsWith('video/');
         const probe = document.createElement(video ? 'video' : 'audio');
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
-        const context = canvas.getContext('2d');
-        let done = false, poll = null;
+        const context = canvas.getContext('2d', {willReadFrequently:true});
+        let done = false, poll = null, wake = null, seeks = 0;
+        const events = [];
+        const note = name => { if (events.length < 12) events.push(name); };
+        const diagnose = () => {
+            let code = '';
+            try { if (probe.error) code = ' mediaError=' + probe.error.code; } catch (_) {}
+            const time = Number.isFinite(probe.currentTime) ? probe.currentTime.toFixed(3) : String(probe.currentTime);
+            let draw = '';
+            if (video && context) {
+                try {
+                    context.globalCompositeOperation = 'copy';
+                    context.fillStyle = '#ff00ff';
+                    context.fillRect(0, 0, 1, 1);
+                    context.drawImage(probe, 0, 0, 1, 1);
+                    draw = ', draw ' + Array.from(context.getImageData(0, 0, 1, 1).data).join('.');
+                } catch (error) { draw = ', draw threw ' + (error && error.name || 'Error'); }
+            }
+            return ' (readyState ' + probe.readyState + ', networkState ' + probe.networkState +
+                ', time ' + time + ', size ' + probe.videoWidth + 'x' + probe.videoHeight +
+                ', seeks ' + seeks + ', events ' + (events.join(' ') || 'none') + draw + code + ')';
+        };
         const src = URL.createObjectURL(file);
         const finish = error => {
-            if (done) return; done = true; clearTimeout(timer); clearTimeout(poll);
+            if (done) return; done = true; clearTimeout(timer); clearTimeout(poll); clearTimeout(wake);
             signal.removeEventListener('abort',cancel);
             probe.pause(); probe.removeAttribute('src'); probe.load(); probe.remove();
             URL.revokeObjectURL(src); canvas.width = canvas.height = 0;
             if (error) reject(error); else resolve();
         };
         const cancel = () => finish(new DOMException('Preparation cancelled','AbortError'));
-        const timer = setTimeout(() => finish(new Error('The prepared file did not become playable. Retry or keep your current comparison.')),30000);
-        const check = () => {
+        const timer = setTimeout(() => finish(new Error('The prepared file did not become playable. Retry or keep your current comparison.' + diagnose())),30000);
+        const fail = () => finish(new Error((video ? 'Could not decode the prepared picture.' : 'Could not decode the prepared audio.') + diagnose()));
+        let canPlay = false;
+        const frameReady = () => {
+            if (probe.readyState < 2 || !Number.isFinite(probe.duration) || probe.duration <= 0) return false;
+            if (!video) return true;
+            if (!probe.videoWidth || !probe.videoHeight) return false;
+            if (_hostVideoFrameAvailable(probe, context)) return true;
+            // 533deb8 and 8107cd1 both reached readyState 4 and canplay on the
+            // FFV1 review after one seek to 40 ms. The 1px sample never changed,
+            // so a drawn pixel cannot be the only acceptance signal.
+            return canPlay && probe.readyState >= 3;
+        };
+        const settle = () => {
             if (done) return;
-            if (probe.readyState >= 2 && (!video || probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe,context))) finish();
-            else poll = setTimeout(check,50);
+            clearTimeout(poll);
+            if (frameReady()) finish();
+            else poll = setTimeout(settle, 50);
+        };
+        // WebKit does not reach loadeddata on a paused hidden video until a
+        // seek, so the seek starts at loadedmetadata. One retry runs while no
+        // frame can be accepted. A drawn pixel is enough, and so is canplay
+        // once the element has future data. The parenthetical is for the
+        // hosted failure log.
+        const seekTo = target => {
+            if (done) return;
+            seeks += 1; note('seek' + target.toFixed(3));
+            if (Math.abs(probe.currentTime - target) >= 0.001) {
+                try { probe.currentTime = target; }
+                catch (_) { fail(); return; }
+            }
+            settle();
         };
         probe.muted = true; probe.preload = 'auto'; probe.playsInline = true;
         probe.tabIndex = -1; probe.setAttribute('aria-hidden','true');
-        probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
-        probe.addEventListener('error',() => finish(new Error('Could not open the prepared file in this browser.')),{once:true});
-        signal.addEventListener('abort',cancel,{once:true});
+        // A 1px opacity-0 box reached HAVE_ENOUGH_DATA on WebKit and still
+        // could not be sampled. Keep the probe off-screen at its real size.
+        probe.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none';
+        for (const name of ['loadedmetadata','loadeddata','canplay','seeking','seeked','stalled','waiting','suspend','error'])
+            probe.addEventListener(name, () => { if (name === 'canplay') canPlay = true; note(name); });
+        probe.addEventListener('error', () => finish(new Error('Could not open the prepared file in this browser.' + diagnose())), {once:true});
+        probe.addEventListener('loadedmetadata', () => {
+            if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
+            if (video && probe.videoWidth && probe.videoHeight) {
+                probe.style.width = probe.videoWidth + 'px';
+                probe.style.height = probe.videoHeight + 'px';
+            }
+            seekTo(probe.duration > 0.08 ? Math.min(0.04, probe.duration / 2) : 0);
+            if (done) return;
+            wake = setTimeout(() => {
+                if (done || frameReady()) return;
+                if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
+                const again = Math.abs(probe.currentTime) < 0.001 ? Math.min(0.04, probe.duration / 2) : 0;
+                seekTo(again);
+            }, 300);
+        }, {once:true});
+        probe.addEventListener('loadeddata', settle);
+        probe.addEventListener('seeked', settle);
+        signal.addEventListener('abort', cancel, {once:true});
         if (signal.aborted) { cancel(); return; }
         probe.src = src; document.body.appendChild(probe);
-        if (video) probe.play().catch(() => finish(new Error('Could not decode the prepared picture.')));
-        check();
+        probe.load();
     });
 }
 async function _loadLocalPreparedComparison(files, preparedFiles, owner, batch) {
@@ -169,10 +265,12 @@ async function _loadLocalPreparedComparison(files, preparedFiles, owner, batch) 
     }
     const previous = batch.files.map(item => item.file);
     const previousPrepared = new Set(batch.files.filter(item => item.prepared).map(item => item.file));
+    // clearAllMedia resets the module list. Keep this copy for the toast.
+    const notices = _localPreparationNotices.filter(notice => _LOCAL_COLOR_NOTICES.has(notice));
     _localPreparationAction = null;
     try {
         if (!handleMultipleFiles(files,{preserveOrder:true,preparedFiles})) throw new Error('The prepared files were rejected');
-        _localPreparationRecovery = {files:previous,preparedFiles:previousPrepared,token:_loadingProgressToken,announced:false};
+        _localPreparationRecovery = {files:previous,preparedFiles:previousPrepared,token:_loadingProgressToken,announced:false,notices};
     } catch (error) {
         if (_localPreparationBatch === batch) _localPreparationAction = owner; // rejected before clear
         else if (!_managedReviewActive()) {
@@ -185,9 +283,14 @@ async function _loadLocalPreparedComparison(files, preparedFiles, owner, batch) 
 }
 function _localPreparationActivated() {
     const recovery = _localPreparationRecovery;
-    if (!recovery || recovery.token !== _loadingProgressToken || recovery.announced) return;
+    if (!recovery || recovery.token !== _loadingProgressToken) {
+        if (recovery) _releaseLocalPreparationRecovery();
+        return;
+    }
+    if (recovery.announced) return;
     recovery.announced = true;
-    showLoadToast('Opened the prepared review copy. Analysis uses this copy. Preparation can reopen the previous comparison.',false,6000);
+    const note = [...new Set(recovery.notices || [])].filter(notice => _LOCAL_COLOR_NOTICES.has(notice)).join(' ');
+    showLoadToast('Opened the prepared review copy. '+(note ? note+'. ' : '')+'Analysis uses this copy. Preparation can reopen the previous comparison.',false,6000);
 }
 function _restoreLocalPreparationComparison() {
     const recovery = _localPreparationRecovery;
@@ -199,8 +302,9 @@ function _setupLocalPreparation() {
     _mediaPreparationProviders.register({id:'local-companion',version:1,mode:'files',
         supports:request => request.recipe === 'local-review-copy-v1',
         async prepare(request,{input,signal}) {
-            const file = await _localPreparationConnection.prepare(input,request.source.mediaType,signal);
-            return {kind:'files',files:[file]};
+            const prepared = await _localPreparationConnection.prepare(input,request.source.mediaType,signal);
+            if (_LOCAL_COLOR_NOTICES.has(prepared.notice)) _localPreparationNotices.push(prepared.notice);
+            return {kind:'files',files:[prepared.file]};
         }});
     document.getElementById('preparationBtn').addEventListener('click',event => _showLocalPreparation(event.currentTarget));
     document.getElementById('localPreparationConnect').addEventListener('click',_connectLocalPreparation);

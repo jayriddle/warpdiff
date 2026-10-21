@@ -121,8 +121,22 @@ function _loadPreparedImport() {
     // handleMultipleFiles owns clear, slot ordering, decoding and activation.
     // Its clear resets this dialog; keep only the local File array for handoff.
     if (document.getElementById('quickStartPopup').classList.contains('show')) toggleQuickStart();
-    handleMultipleFiles(candidate.files);
-    document.getElementById('loadBtn').focus({preventScroll:true});
+    let accepted = false;
+    try { accepted = handleMultipleFiles(candidate.files) === true; }
+    catch (error) {
+        const status = document.getElementById('preparedImportStatus');
+        if (document.getElementById('preparedImportDialog').open) {
+            status.textContent = 'These files were not loaded. ' + (error && error.message ? error.message : 'Your current comparison is unchanged.');
+        }
+    }
+    const dialog = document.getElementById('preparedImportDialog');
+    if (dialog.open) {
+        const status = document.getElementById('preparedImportStatus');
+        if (!accepted && !status.textContent.startsWith('These files were not loaded.')) {
+            status.textContent = 'These files were not loaded. Your current comparison is unchanged.';
+        }
+        status.focus({preventScroll:true});
+    } else if (accepted) document.getElementById('loadBtn').focus({preventScroll:true});
 }
 function _loadOrdinaryMediaFromHelp() {
     if (_managedReviewActive()) return;

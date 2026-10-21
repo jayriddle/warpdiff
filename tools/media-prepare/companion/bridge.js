@@ -26,11 +26,11 @@
             post({type:'failed',id:data.id,error:'Invalid preparation request'});return;
         }
         if(job){post({type:'failed',id:data.id,error:'The previous preparation is finishing'});return;}
-        const current={id:data.id,controller:new AbortController()};job=current;let result,error;
+        const current={id:data.id,controller:new AbortController()};job=current;let result,error,metadata;
         status.textContent='Preparing a review copy on this computer…';
         try {
             const response=await fetch('/api/prepare',{method:'POST',headers:{...headers(current.id),'X-WarpDiff-Kind':kind},body:file,signal:current.controller.signal});
-            const metadata=await response.json();if(!response.ok)throw new Error(metadata.error||'Preparation failed');
+            metadata=await response.json();if(!response.ok)throw new Error(metadata.error||'Preparation failed');
             if(metadata.jobId!==current.id||!Number.isSafeInteger(metadata.output?.size)||metadata.output.size<1||metadata.output.size>1024*1024*1024||
                 metadata.output.type!==(kind==='video'?'video/mp4':'audio/wav'))throw new Error('Unexpected preparation result');
             const download=await fetch('/api/result',{method:'POST',headers:headers(current.id),signal:current.controller.signal});
@@ -48,7 +48,9 @@
         if(!connected)return;
         if(current.controller.signal.aborted)error='Preparation cancelled';
         status.textContent=error||'Connected. The review copy has returned to WarpDiff.';
-        post(error?{type:'failed',id:current.id,error}:{type:'result',id:current.id,file:result});
+        const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601','Missing color tags; used declared BT.709','Missing color tags; used declared BT.601','Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
+        const notice=colorNotices.has(metadata?.output?.preparation?.colorNotice)?metadata.output.preparation.colorNotice:'';
+        post(error?{type:'failed',id:current.id,error}:{type:'result',id:current.id,file:result,...(notice?{notice}:{})});
     }
     window.addEventListener('message',event=>{
         if(closed||port||event.source!==window.opener||event.origin!==origin||event.data?.type!=='WARPDIFF_PREPARATION_CONNECT'||event.data.version!==1||event.data.id!==id||event.ports.length!==1)return;

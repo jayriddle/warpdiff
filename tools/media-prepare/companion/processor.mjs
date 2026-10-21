@@ -62,19 +62,113 @@ function compatiblePicture(stream) {
     return stream?.codec_name==='h264' && (stream.pix_fmt==='yuv420p' ||
         stream.pix_fmt==='yuvj420p' && stream.color_range==='pc');
 }
-function sdrConversion(stream) {
+const UNSPECIFIED_COLOR = new Set(['unknown','unspecified','reserved']);
+const SDR_MATRICES = ['bt709','bt470bg','smpte170m'];
+const SDR_PRIMARIES = ['bt709','bt470bg','smpte170m','bt470m'];
+// ffprobe reports BT.470 transfers as bt470m/bt470bg. gamma22/gamma28 are the
+// encoder names for the same curves and are accepted when a probe uses them.
+const SDR_TRANSFERS = ['bt709','smpte170m','iec61966-2-1','bt470m','bt470bg','gamma22','gamma28'];
+function specifiedColor(value) {
+    if (value == null || value === '') return null;
+    const text = String(value);
+    return UNSPECIFIED_COLOR.has(text) ? null : text;
+}
+function hdFrame(stream) {
+    // Orientation-independent. HD when the longer side is at least 1280 or the
+    // shorter side is at least 720: 1280×720, 720×1280, 960×720 and 1920×540.
+    // 540×960, 720×576 and 720×480 stay SD and use BT.601 (SMPTE 170M).
+    const width = Number(stream.width) || 0, height = Number(stream.height) || 0;
+    return Math.max(width, height) >= 1280 || Math.min(width, height) >= 720;
+}
+function rgbPixels(pix) {
+    return /^(?:gbr|rgb|bgr|pal8|argb|abgr|rgba|bgra|0rgb|0bgr)/.test(pix || '');
+}
+// A declared tag fills only the tags that are absent. Matrix wins, then
+// primaries, then transfer. Frame size is used when all three are absent.
+// BT.709 and SMPTE 170M transfers are the same curve, so a transfer alone
+// does not choose the matrix or primaries; frame size does. BT.470 M has no
+// YCbCr matrix of its own, so its matrix is SMPTE 170M. sRGB does not declare
+// a matrix; its missing matrix and primaries are BT.709.
+const COLOR_FAMILIES = {
+    bt709:{label:'BT.709', matrix:'bt709', primaries:'bt709', transfer:'bt709'},
+    smpte170m:{label:'BT.601', matrix:'smpte170m', primaries:'smpte170m', transfer:'smpte170m'},
+    bt470bg:{label:'BT.470BG', matrix:'bt470bg', primaries:'bt470bg', transfer:'bt470bg'},
+    bt470m:{label:'BT.470M', matrix:'smpte170m', primaries:'bt470m', transfer:'bt470m'},
+    gamma22:{label:'BT.470M', matrix:'smpte170m', primaries:'bt470m', transfer:'gamma22'},
+    gamma28:{label:'BT.470BG', matrix:'bt470bg', primaries:'bt470bg', transfer:'gamma28'},
+    'iec61966-2-1':{label:'BT.709', matrix:'bt709', primaries:'bt709', transfer:'iec61966-2-1', assumed:true},
+};
+function specifiedMatrix(value) {
+    const text = specifiedColor(value);
+    // gbr/rgb name an RGB layout, not a YCbCr matrix.
+    return text === 'gbr' || text === 'rgb' ? null : text;
+}
+export function transferMatches(actual, expected) {
+    const aliases = expected === 'bt470m' || expected === 'gamma22' ? ['bt470m','gamma22']
+        : expected === 'bt470bg' || expected === 'gamma28' ? ['bt470bg','gamma28'] : [expected];
+    return aliases.includes(actual);
+}
+export function interpretSdr(stream) {
     if (['smpte2084','arib-std-b67'].includes(stream.color_transfer)) {
         throw new PreparationError('HDR (PQ/HLG) picture conversion is not supported. Keep the original or use a color-managed HDR preparation tool.');
     }
-    const spaces = ['bt709','bt470bg','smpte170m'];
-    const transfers = ['bt709','smpte170m','iec61966-2-1','gamma22','gamma28'];
-    if (!spaces.includes(stream.color_space) || !spaces.includes(stream.color_primaries) ||
-        !transfers.includes(stream.color_transfer) || !['tv','pc'].includes(stream.color_range)) {
+    const space = specifiedMatrix(stream.color_space), primaries = specifiedColor(stream.color_primaries);
+    const transfer = specifiedColor(stream.color_transfer), range = specifiedColor(stream.color_range);
+    if ((space && !SDR_MATRICES.includes(space)) || (primaries && !SDR_PRIMARIES.includes(primaries)) ||
+        (transfer && !SDR_TRANSFERS.includes(transfer)) || (range && !['tv','pc'].includes(range))) {
         throw new PreparationError('Picture conversion needs known SDR color range, matrix, primaries and transfer. Keep this comparison or prepare the source with a color-managed tool.');
     }
-    return 'colorspace=ispace='+stream.color_space+':iprimaries='+stream.color_primaries+
-        ':itrc='+stream.color_transfer+':irange='+stream.color_range+
-        ':all=bt709:range=tv:format=yuv420p:dither=fsb';
+    const weakTransfer = !space && !primaries && (transfer === 'bt709' || transfer === 'smpte170m');
+    const declared = (space && COLOR_FAMILIES[space]) || (primaries && COLOR_FAMILIES[primaries]) ||
+        (!weakTransfer && transfer && COLOR_FAMILIES[transfer]) || null;
+    const assumedFamily = hdFrame(stream) ? COLOR_FAMILIES.bt709 : COLOR_FAMILIES.smpte170m;
+    const source = declared || assumedFamily;
+    const resolvedMatrix = space || source.matrix, resolvedPrimaries = primaries || source.primaries;
+    const resolvedTransfer = transfer || source.transfer;
+    const missing = [space,primaries,transfer].filter(value => !value).length;
+    const notice = missing === 3 ? 'No color tags; assumed '+assumedFamily.label
+        : missing ? (declared && !declared.assumed ? 'Missing color tags; used declared '+declared.label
+            : 'Missing color tags; assumed '+(declared || assumedFamily).label) : null;
+    const resolvedRange = range || (rgbPixels(stream.pix_fmt) || /^yuvj/.test(stream.pix_fmt || '') ? 'pc' : 'tv');
+    const filterTransfer = resolvedTransfer === 'gamma22' ? 'bt470m' : resolvedTransfer === 'gamma28' ? 'bt470bg' : resolvedTransfer;
+    return {transfer:resolvedTransfer, range:resolvedRange, notice,
+        // swscale's default RGB matrix is BT.601. Name the same matrix colorspace
+        // will read, or a later HD conversion treats those samples as BT.709.
+        // scale's integer option calls BT.470BG "bt601". FFmpeg 7.0 through 8.0
+        // reject out_color_matrix=bt470bg; 6.1 and 8.1 accept both, and the
+        // samples match. The colorspace filter keeps the name bt470bg.
+        scaleMatrix:rgbPixels(stream.pix_fmt) ? (resolvedMatrix === 'bt470bg' ? 'bt601' : resolvedMatrix) : null,
+        encoderTransfer:resolvedTransfer === 'bt470m' || resolvedTransfer === 'gamma22' ? 'gamma22'
+            : resolvedTransfer === 'bt470bg' || resolvedTransfer === 'gamma28' ? 'gamma28' : resolvedTransfer,
+        filter:'colorspace=ispace='+resolvedMatrix+':iprimaries='+resolvedPrimaries+
+            ':itrc='+filterTransfer+':irange='+resolvedRange+
+            ':space=bt709:primaries=bt709:trc='+filterTransfer+':range=tv:format=yuv420p:dither=fsb'};
+}
+function clockTag(value) {
+    const match=/^(\d+):(\d+):(\d+(?:\.\d+)?)$/.exec(String(value??'').trim());
+    if(!match)return null;
+    const seconds=Number(match[1])*3600+Number(match[2])*60+Number(match[3]);
+    return Number.isFinite(seconds)?seconds:null;
+}
+// Matroska often omits stream duration and stores the track end in DURATION.
+// The container duration is only the longest of those ends.
+function streamTiming(stream,format) {
+    const startValue=Number(stream?.start_time),start=Number.isFinite(startValue)?startValue:0;
+    const probed=Number(stream?.duration);
+    if(Number.isFinite(probed)&&probed>0)return {start,duration:probed,end:start+probed};
+    const tag=clockTag(stream?.tags?.DURATION);
+    if(tag!=null&&tag>start)return {start,duration:tag-start,end:tag};
+    const formatDuration=Number(format?.duration),formatStart=Number(format?.start_time);
+    if(Number.isFinite(formatDuration)&&formatDuration>0) {
+        const end=(Number.isFinite(formatStart)?formatStart:0)+formatDuration;
+        if(end>start)return {start,duration:end-start,end};
+    }
+    return {start,duration:null,end:null};
+}
+function outputEnd(stream) {
+    const startValue=Number(stream?.start_time),duration=Number(stream?.duration);
+    if(!Number.isFinite(duration))return NaN;
+    return (Number.isFinite(startValue)?startValue:0)+duration;
 }
 export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffmpeg',ffprobe='ffprobe'}) {
     check(signal);
@@ -90,14 +184,16 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     const selected=[...videos,...audios];
     if(selected.some(s=>!Number.isInteger(s.index)||s.index<0||s.index>63))throw new PreparationError('Invalid media stream index');
-    const duration=Number((kind==='video'?videos[0]:audios[0]).duration || source.format?.duration);
+    const pictureTiming=kind==='video'?streamTiming(videos[0],source.format):null;
+    const soundtrackTiming=audios.length?streamTiming(audios[0],source.format):null;
+    const duration=kind==='video'?pictureTiming.duration:soundtrackTiming.duration;
     if(!Number.isFinite(duration)||duration<=0||duration>6*60*60)throw new PreparationError('Could not establish a bounded media duration');
     if(kind==='audio'&&(!Number.isInteger(audios[0].channels)||audios[0].channels<1||audios[0].channels>8)) {
         throw new PreparationError('This prototype supports audio files with one to eight channels');
     }
     const copyPicture=kind==='video'&&compatiblePicture(videos[0])&&
         videos[0].width>0&&videos[0].height>0&&videos[0].width<=4096&&videos[0].height<=2160;
-    const conversion = kind==='video' && !copyPicture ? sdrConversion(videos[0]) : null;
+    const picture = kind==='video' && !copyPicture ? interpretSdr(videos[0]) : null;
     const name=kind==='video'?'review.mp4':'review.wav', file=path.join(directory,name);
     const args=['-hide_banner','-loglevel','error','-nostdin','-n','-protocol_whitelist','file',
         '-format_whitelist',FORMATS,'-i',input];
@@ -110,10 +206,21 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
         // the following conversion interprets them using the source range.
         else args.push('-c:v','libx264','-preset','fast','-crf','18','-pix_fmt','yuv420p',
             '-vf','scale=w=min(iw\\,1920):h=min(ih\\,1080):force_original_aspect_ratio=decrease:force_divisible_by=2'+
-                ':in_range='+videos[0].color_range+':out_range='+videos[0].color_range+','+conversion,
-            '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',
-            '-g','48','-sc_threshold','0');
-        if(audios.length)args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k','-af','apad','-shortest');
+                ':in_range='+picture.range+':out_range='+picture.range+
+                (picture.scaleMatrix ? ':out_color_matrix='+picture.scaleMatrix : '')+','+picture.filter,
+            '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
+            '-g','48','-sc_threshold','0','-fps_mode','passthrough');
+        if(audios.length) {
+            // apad with -shortest does not settle. -t and atrim measure from the
+            // output timeline, which starts at the earliest stream, so the stop
+            // is the picture's end there: its start relative to that stream plus
+            // its duration. Passthrough keeps a late picture from being filled
+            // with extra frames up to that end.
+            const earliest=Math.min(pictureTiming.start,soundtrackTiming.start);
+            const stop=(pictureTiming.end-earliest).toFixed(6);
+            args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k',
+                '-af','apad,atrim=end='+stop,'-t',stop);
+        }
         args.push('-movflags','+faststart');
     } else {
         args.push('-map','0:'+audios[0].index,'-c:a','pcm_s24le');
@@ -138,9 +245,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     if(limitExceeded)throw new PreparationError('Prepared file exceeds the prototype output limit');
     check(signal);
-    const size=(await fs.stat(file)).size;
+    let size=(await fs.stat(file)).size;
     if(!size||size>OUTPUT_LIMIT)throw new PreparationError('Prepared file is empty or exceeds the output limit');
-    const output=await probe(file,{ffprobe,signal}),outVideos=output.streams.filter(s=>s.codec_type==='video'),
+    let output=await probe(file,{ffprobe,signal}),outVideos=output.streams.filter(s=>s.codec_type==='video'),
         outAudios=output.streams.filter(s=>s.codec_type==='audio');
     if(kind==='video'&&(outVideos.length!==1||!compatiblePicture(outVideos[0])||
        outAudios.length!==audios.length||outAudios.some(s=>s.codec_name!=='aac'||s.profile!=='LC'||s.channels!==2||Number(s.sample_rate)!==48000))) {
@@ -153,20 +260,53 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
                 throw new PreparationError('Copied picture did not retain its declared color interpretation');
             }
         }
-    } else if (kind === 'video' && (outVideos[0].color_range !== 'tv' ||
-        ['color_space','color_primaries','color_transfer'].some(key => outVideos[0][key] !== 'bt709'))) {
-        throw new PreparationError('Converted picture did not retain the requested SDR BT.709 interpretation');
+    } else if (kind === 'video' && (outVideos[0].color_range !== 'tv' || outVideos[0].color_space !== 'bt709' ||
+        outVideos[0].color_primaries !== 'bt709' || !transferMatches(outVideos[0].color_transfer, picture.transfer))) {
+        throw new PreparationError('Converted picture did not retain the requested SDR interpretation');
     }
     if(kind==='audio'&&(outVideos.length||outAudios.length!==1||outAudios[0].codec_name!=='pcm_s24le'||outAudios[0].channels!==audios[0].channels||
        Number(outAudios[0].sample_rate)!==Number(audios[0].sample_rate)))throw new PreparationError('Prepared audio did not retain its channel count and sample rate');
-    const outDuration=Number((kind==='video'?outVideos[0]:outAudios[0]).duration||output.format.duration);
+    let outDuration=Number((kind==='video'?outVideos[0]:outAudios[0]).duration||output.format.duration);
     if(!Number.isFinite(outDuration)||Math.abs(outDuration-duration)>Math.max(.15,duration*.001)) {
         throw new PreparationError('Prepared duration did not match the source');
     }
+    if(kind==='video'&&outAudios.length) {
+        const endsMatch=()=>Math.abs(outputEnd(outAudios[0])-outputEnd(outVideos[0]))<=0.001;
+        // A late soundtrack is shorter than the picture and still ends with it.
+        // When the first trim lands off that end, copy the picture and trim the
+        // soundtrack to the end that was actually written.
+        if(!endsMatch()) {
+            const videoStart=Number(outVideos[0].start_time),audioStart=Number(outAudios[0].start_time);
+            const earliest=Math.min(Number.isFinite(videoStart)?videoStart:0,Number.isFinite(audioStart)?audioStart:0);
+            const stop=(outputEnd(outVideos[0])-earliest).toFixed(6),fitted=file+'.aligned.mp4';
+            try {
+                await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-y','-protocol_whitelist','file',
+                    '-format_whitelist',FORMATS,'-i',file,'-map','0:v:0','-c:v','copy','-map','0:a:0','-c:a','aac',
+                    '-ac','2','-ar','48000','-b:a','192k','-af','apad,atrim=end='+stop,'-t',stop,
+                    '-map_metadata','-1','-movflags','+faststart',fitted],{signal,timeout:10*60*1000});
+                await fs.rename(fitted,file);
+            } catch(error) {
+                await fs.rm(fitted,{force:true});
+                throw error;
+            }
+            check(signal);
+            size=(await fs.stat(file)).size;
+            if(!size||size>OUTPUT_LIMIT)throw new PreparationError('Prepared file is empty or exceeds the output limit');
+            output=await probe(file,{ffprobe,signal});
+            outVideos=output.streams.filter(s=>s.codec_type==='video');
+            outAudios=output.streams.filter(s=>s.codec_type==='audio');
+            outDuration=Number(outVideos[0]?.duration||output.format.duration);
+        }
+        const pictureEnd=outputEnd(outVideos[0]),soundtrackEnd=outputEnd(outAudios[0]);
+        if(!Number.isFinite(pictureEnd)||!Number.isFinite(soundtrackEnd)||Math.abs(soundtrackEnd-pictureEnd)>0.001) {
+            throw new PreparationError('Prepared soundtrack ends at '+soundtrackEnd+'s; the picture ends at '+pictureEnd+'s');
+        }
+    }
     await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-xerror','-protocol_whitelist','file',
         '-format_whitelist',FORMATS,'-i',file,'-map','0:v?','-map','0:a?','-f','null','-'],{signal,timeout:10*60*1000});
-    return {file,name,size,type:kind==='video'?'video/mp4':'audio/wav',sha256:await digest(file,signal),
-        preparation:{picture:kind==='video'?(copyPicture?'copied':'encoded-h264-up-to-1080p'):'none',
-            audio:audios.length?(kind==='video'?'stereo-aac':'pcm-original-channel-count'):'none',
-            analysisBasis:'prepared-copy',originalRetained:true,conformance:'not-certified'}};
+    const preparation={picture:kind==='video'?(copyPicture?'copied':'encoded-h264-up-to-1080p'):'none',
+        audio:audios.length?(kind==='video'?'stereo-aac':'pcm-original-channel-count'):'none',
+        analysisBasis:'prepared-copy',originalRetained:true,conformance:'not-certified'};
+    if (picture?.notice) preparation.colorNotice = picture.notice;
+    return {file,name,size,type:kind==='video'?'video/mp4':'audio/wav',sha256:await digest(file,signal),preparation};
 }
