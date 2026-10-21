@@ -161,10 +161,10 @@ function _validateLocalPreparedFile(file, signal) {
         const probe = document.createElement(video ? 'video' : 'audio');
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
         const context = canvas.getContext('2d', {willReadFrequently:true});
-        let done = false, poll = null;
+        let done = false, poll = null, wake = null;
         const src = URL.createObjectURL(file);
         const finish = error => {
-            if (done) return; done = true; clearTimeout(timer); clearTimeout(poll);
+            if (done) return; done = true; clearTimeout(timer); clearTimeout(poll); clearTimeout(wake);
             signal.removeEventListener('abort',cancel);
             probe.pause(); probe.removeAttribute('src'); probe.load(); probe.remove();
             URL.revokeObjectURL(src); canvas.width = canvas.height = 0;
@@ -173,12 +173,8 @@ function _validateLocalPreparedFile(file, signal) {
         const cancel = () => finish(new DOMException('Preparation cancelled','AbortError'));
         const timer = setTimeout(() => finish(new Error('The prepared file did not become playable. Retry or keep your current comparison.')),30000);
         const fail = () => finish(new Error(video ? 'Could not decode the prepared picture.' : 'Could not decode the prepared audio.'));
-        // A seek issued at loadedmetadata stalls WebKit when the file has a
-        // soundtrack: readyState stays at metadata and no frame arrives. Wait
-        // until the first media data is buffered, then seek, then draw.
-        let seekSettled = false;
         const frameReady = () => probe.readyState >= 2 && Number.isFinite(probe.duration) && probe.duration > 0 &&
-            (!video || (seekSettled && probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe, context)));
+            (!video || probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe, context));
         const settle = () => {
             if (done) return;
             clearTimeout(poll);
@@ -186,21 +182,30 @@ function _validateLocalPreparedFile(file, signal) {
             else poll = setTimeout(settle, 50);
         };
         const seek = () => {
-            if (done || seekSettled) return;
+            if (done) return;
             if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
-            const target = probe.duration > 0.08 ? Math.min(0.04, probe.duration / 2) : 0;
-            const settled = () => { seekSettled = true; settle(); };
-            if (Math.abs(probe.currentTime - target) < 0.001) { settled(); return; }
-            probe.addEventListener('seeked', settled, {once:true});
-            try { probe.currentTime = target; }
-            catch (_) { probe.removeEventListener('seeked', settled); fail(); }
+            // 40 ms is inside AAC priming (~44 ms) and on a 24 fps frame
+            // boundary. WebKit then stays at metadata for a short reencoded
+            // soundtrack. 100 ms is inside the next frame and past that priming.
+            // Paint the current frame first: an immediate seek is what stalled it.
+            const target = probe.duration > 0.2 ? Math.min(0.1, probe.duration / 2) : 0;
+            if (Math.abs(probe.currentTime - target) >= 0.001) {
+                try { probe.currentTime = target; }
+                catch (_) { fail(); return; }
+            }
+            settle();
         };
         probe.muted = true; probe.preload = 'auto'; probe.playsInline = true;
         probe.tabIndex = -1; probe.setAttribute('aria-hidden','true');
         probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
         probe.addEventListener('error', () => finish(new Error('Could not open the prepared file in this browser.')), {once:true});
-        probe.addEventListener('loadedmetadata', () => { if (video) settle(); else seek(); }, {once:true});
-        probe.addEventListener('loadeddata', () => { if (video) seek(); else settle(); }, {once:true});
+        probe.addEventListener('loadedmetadata', () => {
+            if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
+            settle();
+            if (!done) wake = setTimeout(seek, 400);
+        }, {once:true});
+        probe.addEventListener('loadeddata', settle);
+        probe.addEventListener('seeked', settle);
         signal.addEventListener('abort', cancel, {once:true});
         if (signal.aborted) { cancel(); return; }
         probe.src = src; document.body.appendChild(probe);
