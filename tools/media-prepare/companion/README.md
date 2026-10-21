@@ -56,10 +56,13 @@ loses that in-memory comparison.
 - Video: one picture stream and at most one soundtrack. Compatible H.264
   8-bit 4:2:0 up to 4096×2160 is copied, including full-range
   `yuvj420p` explicitly marked `pc`. Known range, matrix, primaries and transfer
-  labels must survive copying; missing labels are not invented. Other picture streams are encoded to
+  labels must survive copying; a copied picture does not gain invented labels.
+  Untagged 8-bit 4:2:0 H.264 stays on that copy path. Other picture streams are encoded to
   H.264 yuv420p at up to 1920×1080. Odd picture dimensions are normalized to
-  even dimensions before conversion to 4:2:0; declared SDR interpretation is
-  converted explicitly to limited-range BT.709. Video soundtracks become stereo AAC-LC at
+  even dimensions before conversion to 4:2:0. Missing or unspecified tags assume
+  BT.709 for HD (height at least 720 or width at least 1280) and BT.601 for SD.
+  The source transfer, including sRGB and BT.470, is kept; matrix, primaries and
+  range become limited-range BT.709. Video soundtracks become stereo AAC-LC at
   48 kHz. Source timing is retained by FFmpeg's normal muxing behavior; this
   does not certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count
@@ -159,7 +162,7 @@ This workflow is not a promise to open every format.
 
 ## Color and execution policy
 
-Compatible bounded AVC pictures are copied with their declared color interpretation preserved. Reencoding accepts known SDR range, matrix, primaries and transfer; it converts to limited-range BT.709, dithers down to 8-bit 4:2:0, and writes and verifies all four output labels. PQ/HLG reencoding and ambiguous SDR interpretation are refused; no tone mapping or color guessing occurs. Keep the original or use a color-managed preparation tool for those inputs. A compatible picture copy does not change source colors.
+Compatible bounded AVC pictures are copied with their declared color interpretation preserved. Untagged 8-bit 4:2:0 H.264 is copied without inventing labels. Reencoding dithers other SDR picture to limited-range 8-bit 4:2:0 BT.709 matrix, primaries and range, and keeps the source transfer (including sRGB and BT.470). Missing or unspecified tags assume BT.709 when the picture is at least 720 lines tall or 1280 pixels wide, and BT.601 otherwise; the companion header and WarpDiff name that assumption. PQ/HLG and a declared unsupported tag are refused. No tone mapping is applied. Keep the original or use a color-managed preparation tool for those inputs.
 
 Six hours is an input-duration admission bound, not a processing-time promise. Encoding and output decode verification each retain their existing ten-minute execution budget and size limits. Long/complex sources can exceed that budget; cancellation waits for native child retirement. These safeguards are deliberately retained.
 

@@ -62,19 +62,49 @@ function compatiblePicture(stream) {
     return stream?.codec_name==='h264' && (stream.pix_fmt==='yuv420p' ||
         stream.pix_fmt==='yuvj420p' && stream.color_range==='pc');
 }
-function sdrConversion(stream) {
+const UNSPECIFIED_COLOR = new Set(['unknown','unspecified','reserved']);
+const SDR_MATRICES = ['bt709','bt470bg','smpte170m'];
+const SDR_PRIMARIES = ['bt709','bt470bg','smpte170m','bt470m'];
+// ffprobe reports BT.470 transfers as bt470m/bt470bg. gamma22/gamma28 are the
+// encoder names for the same curves and are accepted when a probe uses them.
+const SDR_TRANSFERS = ['bt709','smpte170m','iec61966-2-1','bt470m','bt470bg','gamma22','gamma28'];
+function specifiedColor(value) {
+    if (value == null || value === '') return null;
+    const text = String(value);
+    return UNSPECIFIED_COLOR.has(text) ? null : text;
+}
+function hdFrame(stream) {
+    // HD at 720 lines or 1280 pixels wide: 1280×720, 960×720 and 1920×540.
+    // 720×576 and 720×480 stay SD and use BT.601 (SMPTE 170M).
+    return (Number(stream.height) || 0) >= 720 || (Number(stream.width) || 0) >= 1280;
+}
+export function transferMatches(actual, expected) {
+    const aliases = expected === 'bt470m' || expected === 'gamma22' ? ['bt470m','gamma22']
+        : expected === 'bt470bg' || expected === 'gamma28' ? ['bt470bg','gamma28'] : [expected];
+    return aliases.includes(actual);
+}
+export function interpretSdr(stream) {
     if (['smpte2084','arib-std-b67'].includes(stream.color_transfer)) {
         throw new PreparationError('HDR (PQ/HLG) picture conversion is not supported. Keep the original or use a color-managed HDR preparation tool.');
     }
-    const spaces = ['bt709','bt470bg','smpte170m'];
-    const transfers = ['bt709','smpte170m','iec61966-2-1','gamma22','gamma28'];
-    if (!spaces.includes(stream.color_space) || !spaces.includes(stream.color_primaries) ||
-        !transfers.includes(stream.color_transfer) || !['tv','pc'].includes(stream.color_range)) {
+    const space = specifiedColor(stream.color_space), primaries = specifiedColor(stream.color_primaries);
+    const transfer = specifiedColor(stream.color_transfer), range = specifiedColor(stream.color_range);
+    if ((space && !SDR_MATRICES.includes(space)) || (primaries && !SDR_PRIMARIES.includes(primaries)) ||
+        (transfer && !SDR_TRANSFERS.includes(transfer)) || (range && !['tv','pc'].includes(range))) {
         throw new PreparationError('Picture conversion needs known SDR color range, matrix, primaries and transfer. Keep this comparison or prepare the source with a color-managed tool.');
     }
-    return 'colorspace=ispace='+stream.color_space+':iprimaries='+stream.color_primaries+
-        ':itrc='+stream.color_transfer+':irange='+stream.color_range+
-        ':all=bt709:range=tv:format=yuv420p:dither=fsb';
+    const hd = hdFrame(stream), family = hd ? 'BT.709' : 'BT.601', assumed = hd ? 'bt709' : 'smpte170m';
+    const resolvedTransfer = transfer || assumed;
+    const missing = [space,primaries,transfer].filter(value => !value).length;
+    const notice = missing === 3 ? 'No color tags; assumed '+family : missing ? 'Missing color tags; assumed '+family : null;
+    const resolvedRange = range || (/^(yuvj|gbr|rgb|bgr)/.test(stream.pix_fmt || '') ? 'pc' : 'tv');
+    const filterTransfer = resolvedTransfer === 'gamma22' ? 'bt470m' : resolvedTransfer === 'gamma28' ? 'bt470bg' : resolvedTransfer;
+    return {transfer:resolvedTransfer, range:resolvedRange, notice,
+        encoderTransfer:resolvedTransfer === 'bt470m' || resolvedTransfer === 'gamma22' ? 'gamma22'
+            : resolvedTransfer === 'bt470bg' || resolvedTransfer === 'gamma28' ? 'gamma28' : resolvedTransfer,
+        filter:'colorspace=ispace='+(space || assumed)+':iprimaries='+(primaries || assumed)+
+            ':itrc='+filterTransfer+':irange='+resolvedRange+
+            ':space=bt709:primaries=bt709:trc='+filterTransfer+':range=tv:format=yuv420p:dither=fsb'};
 }
 export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffmpeg',ffprobe='ffprobe'}) {
     check(signal);
@@ -97,7 +127,7 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     const copyPicture=kind==='video'&&compatiblePicture(videos[0])&&
         videos[0].width>0&&videos[0].height>0&&videos[0].width<=4096&&videos[0].height<=2160;
-    const conversion = kind==='video' && !copyPicture ? sdrConversion(videos[0]) : null;
+    const picture = kind==='video' && !copyPicture ? interpretSdr(videos[0]) : null;
     const name=kind==='video'?'review.mp4':'review.wav', file=path.join(directory,name);
     const args=['-hide_banner','-loglevel','error','-nostdin','-n','-protocol_whitelist','file',
         '-format_whitelist',FORMATS,'-i',input];
@@ -110,8 +140,8 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
         // the following conversion interprets them using the source range.
         else args.push('-c:v','libx264','-preset','fast','-crf','18','-pix_fmt','yuv420p',
             '-vf','scale=w=min(iw\\,1920):h=min(ih\\,1080):force_original_aspect_ratio=decrease:force_divisible_by=2'+
-                ':in_range='+videos[0].color_range+':out_range='+videos[0].color_range+','+conversion,
-            '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709',
+                ':in_range='+picture.range+':out_range='+picture.range+','+picture.filter,
+            '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
             '-g','48','-sc_threshold','0');
         if(audios.length)args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k','-af','apad','-shortest');
         args.push('-movflags','+faststart');
@@ -153,9 +183,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
                 throw new PreparationError('Copied picture did not retain its declared color interpretation');
             }
         }
-    } else if (kind === 'video' && (outVideos[0].color_range !== 'tv' ||
-        ['color_space','color_primaries','color_transfer'].some(key => outVideos[0][key] !== 'bt709'))) {
-        throw new PreparationError('Converted picture did not retain the requested SDR BT.709 interpretation');
+    } else if (kind === 'video' && (outVideos[0].color_range !== 'tv' || outVideos[0].color_space !== 'bt709' ||
+        outVideos[0].color_primaries !== 'bt709' || !transferMatches(outVideos[0].color_transfer, picture.transfer))) {
+        throw new PreparationError('Converted picture did not retain the requested SDR interpretation');
     }
     if(kind==='audio'&&(outVideos.length||outAudios.length!==1||outAudios[0].codec_name!=='pcm_s24le'||outAudios[0].channels!==audios[0].channels||
        Number(outAudios[0].sample_rate)!==Number(audios[0].sample_rate)))throw new PreparationError('Prepared audio did not retain its channel count and sample rate');
@@ -165,8 +195,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-xerror','-protocol_whitelist','file',
         '-format_whitelist',FORMATS,'-i',file,'-map','0:v?','-map','0:a?','-f','null','-'],{signal,timeout:10*60*1000});
-    return {file,name,size,type:kind==='video'?'video/mp4':'audio/wav',sha256:await digest(file,signal),
-        preparation:{picture:kind==='video'?(copyPicture?'copied':'encoded-h264-up-to-1080p'):'none',
-            audio:audios.length?(kind==='video'?'stereo-aac':'pcm-original-channel-count'):'none',
-            analysisBasis:'prepared-copy',originalRetained:true,conformance:'not-certified'}};
+    const preparation={picture:kind==='video'?(copyPicture?'copied':'encoded-h264-up-to-1080p'):'none',
+        audio:audios.length?(kind==='video'?'stereo-aac':'pcm-original-channel-count'):'none',
+        analysisBasis:'prepared-copy',originalRetained:true,conformance:'not-certified'};
+    if (picture?.notice) preparation.colorNotice = picture.notice;
+    return {file,name,size,type:kind==='video'?'video/mp4':'audio/wav',sha256:await digest(file,signal),preparation};
 }

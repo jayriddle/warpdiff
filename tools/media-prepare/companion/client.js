@@ -4,9 +4,12 @@
     const ui=Object.fromEntries(['open','files','prepareAgain','comparison','cover','title','message','notice','names','copyNote','prepare','anyway','cancel'].map(id=>[id,document.getElementById(id)]));
     let generation=0, files=[],needs=[],frame=null,directReady=false,pendingFrame=null,pendingHost=null,job=null,preparation=null,retiring=Promise.resolve();
     const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
     function kind(file) {
         if(/^(image|video|audio)\//.test(file.type))return file.type.split('/')[0];
-        return /\.(mp4|mov|m4v|mkv|webm|avi|mxf|mts|m2ts|ts)$/i.test(file.name)?'video':
+        const ext=file.name.split('.').pop().toLowerCase();
+        if(ext==='ts')return !file.type||file.type==='application/octet-stream'?'video':'';
+        return /\.(mp4|mov|m4v|mkv|webm|avi|mxf|mts|m2ts)$/i.test(file.name)?'video':
             /\.(wav|flac|mp3|ogg|opus|aac|ac3|eac3|dts|mlp|m4a)$/i.test(file.name)?'audio':'';
     }
     function view(title,message,{prepare=false,anyway=false,cancel=false,copy=false,visible=true}={}) {
@@ -106,7 +109,7 @@
     }
     async function prepare() {
         if(preparation||!needs.length)return;
-        const epoch=generation,owner={epoch},selected=[...files],indexes=[...needs];preparation=owner;clearFrame();
+        const epoch=generation,owner={epoch},selected=[...files],indexes=[...needs],notices=[];preparation=owner;clearFrame();
         view('Preparing your files','Creating compatible copies on this computer…',{cancel:true});
         try {
             await retiring;
@@ -123,6 +126,8 @@
                     if(!download.ok||Number(download.headers.get('content-length'))!==metadata.output.size)throw new Error('Incomplete preparation result');
                     const blob=await download.blob();if(blob.size!==metadata.output.size)throw new Error('Incomplete preparation result');
                     if(epoch!==generation||controller.signal.aborted)return;
+                    const colorNotice=metadata.output.preparation?.colorNotice;
+                    if(colorNotices.has(colorNotice)&&!notices.includes(colorNotice))notices.push(colorNotice);
                     const base=source.name.replace(/\.[^.]*$/,'')||'media',suffix=kind(source)==='video'?'.mp4':'.wav';
                     selected[index]=new File([blob],base+'_review'+suffix,{type:metadata.output.type,lastModified:source.lastModified});
                 } finally {
@@ -131,9 +136,10 @@
                 }
             }
             if(epoch!==generation)return;
-            files=selected;needs=[];await openComparison(files,epoch,true);
+            files=selected;needs=[];ui.notice.textContent=notices.join(' ');await openComparison(files,epoch,true);
         } catch(error) {
             if(epoch!==generation)return;
+            ui.notice.textContent='';
             view('Preparation did not finish',error.message+' Your originals are unchanged.',{prepare:true,cancel:true,copy:true});
         } finally {if(preparation===owner){preparation=null;ui.prepare.disabled=false;ui.prepareAgain.hidden=!needs.length;}}
     }

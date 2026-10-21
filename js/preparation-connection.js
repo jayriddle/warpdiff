@@ -35,10 +35,13 @@ const WarpPreparationConnection = (() => {
                     new Error(typeof data.error === 'string' ? data.error.slice(0,500) : 'Preparation failed'));
                 else {
                     const file = data.file, kind = pending.kind;
+                    const notices = new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601',
+                        'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
                     if (!(file instanceof File) || !file.size || file.size > 1024*1024*1024 ||
                         file.type !== (kind === 'video' ? 'video/mp4' : 'audio/wav')) {
                         pending.finish(new Error('The local tool returned an invalid review copy'));
-                    } else pending.finish(pending.signal?.aborted ? abort() : null, file);
+                    } else pending.finish(pending.signal?.aborted ? abort() : null,
+                        {file, notice:notices.has(data.notice) ? data.notice : ''});
                 }
             }
         }

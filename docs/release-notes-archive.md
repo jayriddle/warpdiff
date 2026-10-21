@@ -2,6 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.8 (announced through 3.19.10)
+
+The in-app summary below stayed current while 3.19.9 and 3.19.10 were quiet maintenance releases. 3.19.11 replaced it.
+
+- Start with the labeled Load button to compare your files. Unsupported audio now has numbered preparation steps.
+- Connect a local preparation tool once, then use Prepare and open to automatically load compatible review copies. Originals stay untouched.
+
 ## v3.19.7 (released October 17, 2026)
 
 Released through PR #52 at `72dcec3`. The previous header Package entry is superseded by the 3.19.8 usability candidate.

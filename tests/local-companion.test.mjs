@@ -6,7 +6,7 @@ import os from 'node:os';
 import http from 'node:http';
 import {randomBytes} from 'node:crypto';
 import {createCompanion} from '../tools/media-prepare/companion/server.mjs';
-import {execute,prepareCompatible,INPUT_LIMIT} from '../tools/media-prepare/companion/processor.mjs';
+import {execute,prepareCompatible,interpretSdr,transferMatches,PreparationError,INPUT_LIMIT} from '../tools/media-prepare/companion/processor.mjs';
 
 const sample=await fs.readFile(new URL('./fixtures/ac3_video.mp4',import.meta.url));
 const id=()=>randomBytes(16).toString('hex');
@@ -228,13 +228,91 @@ for (const transfer of ['smpte2084','arib-std-b67']) test('HDR '+transfer+' is r
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
-test('unknown SDR interpretation is not silently assigned BT.709 during encoding',async()=>{
-    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-unknown-color-'));
+test('missing SDR tags assume BT.601 for SD and BT.709 for HD, and known transfers are kept',()=>{
+    const sd=interpretSdr({width:128,height:72,pix_fmt:'yuv420p'});
+    assert.equal(sd.notice,'No color tags; assumed BT.601');
+    assert.equal(sd.transfer,'smpte170m');assert.equal(sd.range,'tv');assert.equal(sd.encoderTransfer,'smpte170m');
+    const hd=interpretSdr({width:1280,height:96,pix_fmt:'yuv420p',color_range:'unknown'});
+    assert.equal(hd.notice,'No color tags; assumed BT.709');assert.equal(hd.transfer,'bt709');
+    const tall=interpretSdr({width:960,height:720});
+    assert.equal(tall.notice,'No color tags; assumed BT.709');
+    const standard=interpretSdr({width:720,height:480,color_space:'unspecified',color_primaries:'',color_transfer:null});
+    assert.equal(standard.notice,'No color tags; assumed BT.601');
+    const partial=interpretSdr({width:160,height:90,color_space:'bt709',color_primaries:'bt709',color_range:'tv'});
+    assert.equal(partial.notice,'Missing color tags; assumed BT.601');assert.equal(partial.transfer,'smpte170m');
+    const srgb=interpretSdr({width:160,height:90,color_space:'bt709',color_primaries:'bt709',color_transfer:'iec61966-2-1',color_range:'tv'});
+    assert.equal(srgb.notice,null);assert.equal(srgb.transfer,'iec61966-2-1');assert.equal(srgb.encoderTransfer,'iec61966-2-1');
+    assert.match(srgb.filter,/trc=iec61966-2-1/);assert.doesNotMatch(srgb.filter,/all=bt709/);
+    for (const [probe,encoder] of [['bt470m','gamma22'],['gamma22','gamma22'],['bt470bg','gamma28'],['gamma28','gamma28']]) {
+        const plan=interpretSdr({width:160,height:90,color_space:'smpte170m',color_primaries:probe==='bt470m'||probe==='gamma22'?'bt470m':'bt470bg',color_transfer:probe,color_range:'tv'});
+        assert.equal(plan.encoderTransfer,encoder);assert.equal(plan.notice,null);
+        assert.equal(transferMatches(probe==='gamma22'?'bt470m':probe==='gamma28'?'bt470bg':probe, plan.transfer),true);
+        assert.equal(transferMatches('bt709', plan.transfer),false);
+    }
+    const full=interpretSdr({width:160,height:90,pix_fmt:'yuvj420p'});
+    assert.equal(full.range,'pc');assert.equal(full.notice,'No color tags; assumed BT.601');
+    assert.throws(()=>interpretSdr({color_transfer:'smpte2084'}),PreparationError);
+    assert.throws(()=>interpretSdr({width:160,height:90,color_space:'bt2020nc',color_primaries:'bt709',color_transfer:'bt709',color_range:'tv'}),/known SDR color/);
+});
+
+test('untagged SD picture is prepared as BT.601 and the assumption is reported',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-assumed-sd-'));
     try {
         const input=path.join(directory,'unknown.mkv'),out=path.join(directory,'output');await fs.mkdir(out);
         await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=128x72:duration=0.25','-c:v','ffv1',input]);
-        await assert.rejects(prepareCompatible({input,directory:out,kind:'video'}),/known SDR color/);
-        assert.deepEqual(await fs.readdir(out),[]);
+        const result=await prepareCompatible({input,directory:out,kind:'video'});
+        assert.equal(result.preparation.picture,'encoded-h264-up-to-1080p');
+        assert.equal(result.preparation.colorNotice,'No color tags; assumed BT.601');
+        const output=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams[0];
+        assert.equal(output.color_space,'bt709');assert.equal(output.color_primaries,'bt709');
+        assert.equal(output.color_transfer,'smpte170m');assert.equal(output.color_range,'tv');
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('untagged HD picture assumes BT.709 and untagged 8-bit H.264 stays copied',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-assumed-hd-'));
+    try {
+        const hd=path.join(directory,'hd.mkv'),hdOut=path.join(directory,'hd');await fs.mkdir(hdOut);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=1280x96:duration=0.25','-c:v','ffv1',hd]);
+        const encoded=await prepareCompatible({input:hd,directory:hdOut,kind:'video'});
+        assert.equal(encoded.preparation.colorNotice,'No color tags; assumed BT.709');
+        const copy=path.join(directory,'copy.mp4'),copyOut=path.join(directory,'copy');await fs.mkdir(copyOut);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:duration=0.25','-c:v','libx264','-pix_fmt','yuv420p',copy]);
+        const copied=await prepareCompatible({input:copy,directory:copyOut,kind:'video'});
+        assert.equal(copied.preparation.picture,'copied');assert.equal(copied.preparation.colorNotice,undefined);
+        const wide=path.join(directory,'422.mp4'),wideOut=path.join(directory,'422');await fs.mkdir(wideOut);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:duration=0.25','-c:v','libx264','-pix_fmt','yuv422p',wide]);
+        const converted=await prepareCompatible({input:wide,directory:wideOut,kind:'video'});
+        assert.equal(converted.preparation.picture,'encoded-h264-up-to-1080p');
+        assert.equal(converted.preparation.colorNotice,'No color tags; assumed BT.601');
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('sRGB and BT.470 transfers are kept instead of rewritten to BT.709',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-transfer-keep-'));
+    const metadata=async file=>JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',file])).stdout).streams[0];
+    try {
+        const srgb=path.join(directory,'srgb.mkv'),srgbOut=path.join(directory,'srgb');await fs.mkdir(srgbOut);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','color=c=red:size=160x90:rate=24:duration=0.25',
+            '-vf','setparams=range=tv:color_primaries=bt709:color_trc=iec61966-2-1:colorspace=bt709','-c:v','ffv1','-pix_fmt','yuv444p',
+            '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','iec61966-2-1',srgb]);
+        assert.equal((await metadata(srgb)).color_transfer,'iec61966-2-1');
+        const prepared=await prepareCompatible({input:srgb,directory:srgbOut,kind:'video'});
+        assert.equal(prepared.preparation.colorNotice,undefined);
+        assert.equal((await metadata(prepared.file)).color_transfer,'iec61966-2-1');
+        for (const [transfer,encoder,primaries,matrix] of [['bt470m','gamma22','bt470m','smpte170m'],['bt470bg','gamma28','bt470bg','bt470bg']]) {
+            const input=path.join(directory,transfer+'.mkv'),output=path.join(directory,transfer);await fs.mkdir(output);
+            await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=0.25',
+                '-vf','setparams=range=tv:color_primaries='+primaries+':color_trc='+transfer+':colorspace='+matrix,'-c:v','ffv1','-pix_fmt','yuv420p',
+                '-color_range','tv','-colorspace',matrix,'-color_primaries',primaries,'-color_trc',encoder,input]);
+            const source=await metadata(input);
+            assert.equal(source.color_transfer,transfer,transfer);
+            const result=await prepareCompatible({input,directory:output,kind:'video'});
+            const converted=await metadata(result.file);
+            assert.equal(transferMatches(converted.color_transfer, transfer),true,converted.color_transfer);
+            assert.notEqual(converted.color_transfer,'bt709');
+            assert.equal(converted.color_space,'bt709');assert.equal(converted.color_range,'tv');
+        }
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 

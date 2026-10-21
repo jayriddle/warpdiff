@@ -85,10 +85,9 @@ function legacyWorker() {
 
 async function installed(page:Page, sha:string, explicitUpdate = false, beforeUpdate?:()=>void) {
   await page.waitForFunction(sha => (window as any)._fixtureRelease === sha, sha);
-    // register() may reuse an existing registration without an immediate update
-    // fetch (notably WebKit's warmed path). A synthetic deployment test must
-    // explicitly request its update before waiting for activation. This does not
-    // change production registration or relax the controller/identity assertions.
+    // Production registration does not call update(). The warmed-navigation
+    // variant leaves that path alone. Only the deferred variant, whose HTTP
+    // worker stays on the previous release until this call, requests update().
     if (explicitUpdate) {
       beforeUpdate?.();
       await page.evaluate(async () => {
@@ -126,6 +125,14 @@ for (const deferRegistrationUpdate of [false,true]) test('warmed updates keep op
     f.set(B);
     if (deferRegistrationUpdate) f.deferWorkerUpdate();
     const next=await context.newPage();
+    await next.addInitScript(() => {
+      const update = ServiceWorkerRegistration.prototype.update;
+      (window as any)._fixtureExplicitUpdates = 0;
+      ServiceWorkerRegistration.prototype.update = function() {
+        (window as any)._fixtureExplicitUpdates++;
+        return update.call(this);
+      };
+    });
     if (deferRegistrationUpdate) await next.addInitScript(() => {
       // Reuse the registration. The HTTP fixture also holds sw.js at A until
       // explicit update, containing independent UA soft-update fetching too.
@@ -134,16 +141,11 @@ for (const deferRegistrationUpdate of [false,true]) test('warmed updates keep op
         if (!registration) throw Error('Missing warm registration');
         return registration;
       };
-      const update = ServiceWorkerRegistration.prototype.update;
-      (window as any)._fixtureExplicitUpdates = 0;
-      ServiceWorkerRegistration.prototype.update = function() {
-        (window as any)._fixtureExplicitUpdates++;
-        return update.call(this);
-      };
     });
-    await next.goto(f.url+'?appearance=new');await installed(next,B,true,()=>f.allowWorkerUpdate());
-    if (deferRegistrationUpdate) expect(await next.evaluate(()=>(window as any)._fixtureExplicitUpdates),
-      'Synthetic deployment explicitly requests a native worker update').toBe(1);
+    await next.goto(f.url+'?appearance=new');
+    await installed(next,B,deferRegistrationUpdate,deferRegistrationUpdate?()=>f.allowWorkerUpdate():undefined);
+    expect(await next.evaluate(()=>(window as any)._fixtureExplicitUpdates),
+      deferRegistrationUpdate ? 'Deferred deployment requests one native update' : 'A warmed navigation updates through register()').toBe(deferRegistrationUpdate ? 1 : 0);
     // New controller must neither reload the old page nor move its base URL.
     expect(await page.evaluate(()=>({sha:(window as any)._fixtureRelease,base:document.baseURI}))).toEqual({sha:A,base:f.url+'releases/'+A+'/'});
     await expect(page.locator('#comparisonView')).toHaveClass(/active/);

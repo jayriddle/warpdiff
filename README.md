@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.10
+**Current version:** 3.19.11
 
 ---
 
@@ -16,7 +16,7 @@ Use **Load** or drag and drop normally. If a video or audio file cannot be used 
 
 Originals stay untouched. Compatible AVC picture is copied; other picture may become H.264 at up to 1080p. Video soundtracks become stereo AAC; audio-only copies retain channel count/sample rate in PCM WAV. Analysis describes the loaded review copy, not original-source fidelity or measurement conformance. The local tool uses separately installed FFmpeg/ffprobe; WarpDiff bundles no converter. **Preparation → Other ways to prepare** retains the safe copied-command fallback. Managed review hosts retain control of their media.
 
-Preparation is offered without opening a dialog during loading. Choose Preparation when you want to continue. Returned copies are checked before replacement; a failed check keeps the current comparison and allows retry. After opening, Preparation offers Reopen previous comparison. Companion files and optional analysis follow ordinary local loading rather than a host deadline. HDR picture reencoding is refused. SDR reencoding requires known range, matrix, primaries and transfer, converts to limited-range BT.709 with dithering, and labels the output explicitly. Compatible picture copies preserve their declared interpretation.
+Preparation is offered without opening a dialog during loading. Choose Preparation when you want to continue. Returned copies are checked before replacement; a failed check keeps the current comparison and allows retry. After opening, Preparation offers Reopen previous comparison. Companion files and optional analysis follow ordinary local loading rather than a host deadline. HDR (PQ/HLG) picture reencoding is refused. Missing or unspecified SDR tags assume BT.709 for HD pictures (height at least 720 or width at least 1280) and BT.601 for SD, and the preparation UI names that assumption. The source transfer, including sRGB and BT.470, is kept and tagged; matrix, primaries and range become limited-range BT.709 with dithering. A declared unsupported tag is still refused. Untagged 8-bit 4:2:0 H.264 is copied unchanged. Compatible picture copies preserve their declared interpretation.
 
 [Local tool setup and limits](tools/media-prepare/companion/README.md). This candidate workflow is awaiting review and is not published yet.
 
