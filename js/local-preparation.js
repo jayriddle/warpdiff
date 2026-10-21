@@ -173,27 +173,34 @@ function _validateLocalPreparedFile(file, signal) {
         const cancel = () => finish(new DOMException('Preparation cancelled','AbortError'));
         const timer = setTimeout(() => finish(new Error('The prepared file did not become playable. Retry or keep your current comparison.')),30000);
         const fail = () => finish(new Error(video ? 'Could not decode the prepared picture.' : 'Could not decode the prepared audio.'));
-        const decoded = () => probe.readyState >= 2 && Number.isFinite(probe.duration) && probe.duration > 0 &&
-            (!video || probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe, context));
+        // A seek issued at loadedmetadata stalls WebKit when the file has a
+        // soundtrack: readyState stays at metadata and no frame arrives. Wait
+        // until the first media data is buffered, then seek, then draw.
+        let seekSettled = false;
+        const frameReady = () => probe.readyState >= 2 && Number.isFinite(probe.duration) && probe.duration > 0 &&
+            (!video || (seekSettled && probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe, context)));
         const settle = () => {
             if (done) return;
-            if (decoded()) finish();
+            clearTimeout(poll);
+            if (frameReady()) finish();
             else poll = setTimeout(settle, 50);
         };
         const seek = () => {
-            if (done) return;
+            if (done || seekSettled) return;
             if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
             const target = probe.duration > 0.08 ? Math.min(0.04, probe.duration / 2) : 0;
-            settle();
-            if (Math.abs(probe.currentTime - target) < 0.001) return;
+            const settled = () => { seekSettled = true; settle(); };
+            if (Math.abs(probe.currentTime - target) < 0.001) { settled(); return; }
+            probe.addEventListener('seeked', settled, {once:true});
             try { probe.currentTime = target; }
-            catch (_) { fail(); }
+            catch (_) { probe.removeEventListener('seeked', settled); fail(); }
         };
         probe.muted = true; probe.preload = 'auto'; probe.playsInline = true;
         probe.tabIndex = -1; probe.setAttribute('aria-hidden','true');
         probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
         probe.addEventListener('error', () => finish(new Error('Could not open the prepared file in this browser.')), {once:true});
-        probe.addEventListener('loadedmetadata', seek, {once:true});
+        probe.addEventListener('loadedmetadata', () => { if (video) settle(); else seek(); }, {once:true});
+        probe.addEventListener('loadeddata', () => { if (video) seek(); else settle(); }, {once:true});
         signal.addEventListener('abort', cancel, {once:true});
         if (signal.aborted) { cancel(); return; }
         probe.src = src; document.body.appendChild(probe);
