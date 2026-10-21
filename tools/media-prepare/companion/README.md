@@ -75,14 +75,10 @@ loses that in-memory comparison.
   companion header and as a WarpDiff toast. It does not replace the Preparation
   dialog connection status. The source transfer, including sRGB and BT.470, is kept;
   matrix, primaries and range become limited-range BT.709. Video soundtracks become stereo AAC-LC at
-  48 kHz. A reencoded soundtrack is padded to the picture duration: stopping at
-  the shortest stream omitted the final AAC frame, about 21 ms, and WebKit then
-  finished its seek while staying at metadata with no frame. Copied pictures
-  keep that shortest cut. Reencoded video stores B-frame delay as version-1
-  composition offsets, so the video edit list starts at the first sample.
-  Copied pictures keep their original edit list. Source timing otherwise follows
-  FFmpeg's normal muxing behavior; this does not certify sample/frame mapping
-  or synchronization conformance.
+  48 kHz. The soundtrack is padded, then trimmed to the picture duration, so its
+  length matches the picture instead of depending on where the shortest stream ends.
+  Source timing otherwise follows FFmpeg's normal muxing behavior; this does not
+  certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count
   and sample rate. This does not certify speaker-layout preservation or
   perceptual/channel fidelity. Ambiguous multiple streams are rejected.

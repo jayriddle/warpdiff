@@ -340,48 +340,17 @@ test('BT.470BG RGB passes bt601 to scale and bt470bg to colorspace',async()=>{
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
-test('reencoded video keeps B-frame delay out of the video edit list',async()=>{
-    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-edit-list-'));
-    const edits=buf=>{
-        const tracks=[];
-        const walk=(start,end,trak)=>{
-            let i=start;
-            while(i+8<=end){
-                let size=buf.readUInt32BE(i); const type=buf.toString('latin1',i+4,i+8); let header=8;
-                if(size===1){size=Number(buf.readBigUInt64BE(i+8)); header=16;}
-                else if(size===0)size=end-i;
-                if(size<8||i+size>end)break;
-                const payload=i+header, boxEnd=i+size;
-                if(type==='trak'){const track={handler:'',media:[]}; tracks.push(track); walk(payload,boxEnd,track);}
-                else if(type==='moov'||type==='edts'||type==='mdia')walk(payload,boxEnd,trak);
-                else if(trak&&type==='hdlr')trak.handler=buf.toString('latin1',payload+8,payload+12);
-                else if(trak&&type==='elst'){
-                    const version=buf[payload], count=buf.readUInt32BE(payload+4); let p=payload+8;
-                    for(let n=0;n<count;n++){
-                        if(version===0){trak.media.push(buf.readInt32BE(p+4)); p+=12;}
-                        else {trak.media.push(Number(buf.readBigInt64BE(p+8))); p+=20;}
-                    }
-                }
-                i+=size;
-            }
-        };
-        walk(0,buf.length,null);
-        return tracks;
-    };
+test('reencoded soundtrack duration matches the picture',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-duration-'));
     try {
         const input=path.join(directory,'source.mkv'),out=path.join(directory,'out');await fs.mkdir(out);
         await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=0.5','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=0.5','-c:v','ffv1','-c:a','flac','-shortest',input]);
         const result=await prepareCompatible({input,directory:out,kind:'video'});
-        const tracks=edits(await fs.readFile(result.file));
-        const video=tracks.find(track=>track.handler==='vide'), audio=tracks.find(track=>track.handler==='soun');
-        assert.ok(video&&audio);
-        assert.deepEqual(video.media.filter(time=>time>0),[], JSON.stringify(tracks));
-        assert.ok(audio.media.some(time=>time>0));
         const output=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams;
         const picture=output.find(stream=>stream.codec_type==='video');
         const soundtrack=output.find(stream=>stream.codec_type==='audio');
         assert.equal(picture.nb_frames,'12');
-        assert.ok(Number(soundtrack.duration)+0.001>=Number(picture.duration), soundtrack.duration+' vs '+picture.duration);
+        assert.ok(Math.abs(Number(soundtrack.duration)-Number(picture.duration))<0.001, soundtrack.duration+' vs '+picture.duration);
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
@@ -398,8 +367,7 @@ test('reencoded soundtrack covers a shorter or longer source',async()=>{
             const video=streams.find(stream=>stream.codec_type==='video'), audio=streams.find(stream=>stream.codec_type==='audio');
             assert.equal(video.nb_frames,'12', name);
             assert.ok(Math.abs(Number(video.duration)-0.5)<0.001, name+' video '+video.duration);
-            assert.ok(Number(audio.duration)+0.001>=Number(video.duration), name+' '+audio.duration);
-            assert.ok(Number(audio.duration)<Number(video.duration)+0.05, name+' '+audio.duration);
+            assert.ok(Math.abs(Number(audio.duration)-Number(video.duration))<0.001, name+' '+audio.duration+' vs '+video.duration);
         }
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

@@ -183,20 +183,14 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
             '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
             '-g','48','-sc_threshold','0');
         if(audios.length) {
-            args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k');
-            // -shortest ends on the video packet, before the AAC encoder emits the
-            // 1024-sample frame that covers that instant. The soundtrack then
-            // finishes ~21 ms before the picture. Hosted WebKit seeked that review
-            // (including back to time 0) and stayed at HAVE_METADATA, with the
-            // network idle and the dimensions already known. Stopping at the
-            // picture duration writes the covering frame. Copied pictures already
-            // opened, so they keep the shortest cut.
-            if(copyPicture) args.push('-af','apad','-shortest');
-            else args.push('-af','apad','-t',duration.toFixed(6));
+            // apad with -shortest does not settle on one length. The same picture
+            // can lose the last AAC frame or keep audio past the video. Pad, then
+            // trim the filter and the output to the picture duration.
+            const stop=duration.toFixed(6);
+            args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k',
+                '-af','apad,atrim=end='+stop,'-t',stop);
         }
-        // Version-1 composition offsets keep B-frame delay out of the video edit
-        // list. Copied pictures keep their original edit list.
-        args.push('-movflags', copyPicture ? '+faststart' : '+faststart+negative_cts_offsets');
+        args.push('-movflags','+faststart');
     } else {
         args.push('-map','0:'+audios[0].index,'-c:a','pcm_s24le');
     }
@@ -245,10 +239,10 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     if(!Number.isFinite(outDuration)||Math.abs(outDuration-duration)>Math.max(.15,duration*.001)) {
         throw new PreparationError('Prepared duration did not match the source');
     }
-    if(kind==='video'&&!copyPicture&&outAudios.length) {
+    if(kind==='video'&&outAudios.length) {
         const soundtrack=Number(outAudios[0].duration);
-        if(!Number.isFinite(soundtrack)||soundtrack+0.001<outDuration) {
-            throw new PreparationError('Prepared soundtrack does not cover the picture');
+        if(!Number.isFinite(soundtrack)||Math.abs(soundtrack-outDuration)>0.001) {
+            throw new PreparationError('Prepared soundtrack duration did not match the picture');
         }
     }
     await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-xerror','-protocol_whitelist','file',

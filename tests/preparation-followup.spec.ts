@@ -25,6 +25,23 @@ test('prepared picture validation decodes a frame without play()', async ({page}
   expect(played).toBe(0);
 });
 
+test('a playable file is accepted when the hidden probe cannot be sampled', async ({page}) => {
+  await page.evaluate(() => {
+    HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('blocked', 'NotAllowedError'));
+  });
+  const played = await page.evaluate(async () => {
+    let calls = 0;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () { calls++; return play.call(this); };
+    (window as any)._hostVideoFrameAvailable = () => false;
+    const bytes = await (await fetch('tests/fixtures/landscape_a.mp4')).arrayBuffer();
+    const file = new File([bytes], 'landscape_a.mp4', {type:'video/mp4'});
+    await (window as any).eval('_validateLocalPreparedFile')(file, new AbortController().signal);
+    return calls;
+  });
+  expect(played).toBe(0);
+});
+
 test('an undecodable prepared file is still rejected', async ({page}) => {
   const message = await page.evaluate(async () => {
     const file = new File([new Uint8Array([0, 1, 2, 3, 4])], 'bad.mp4', {type:'video/mp4'});

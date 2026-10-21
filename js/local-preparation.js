@@ -168,9 +168,19 @@ function _validateLocalPreparedFile(file, signal) {
             let code = '';
             try { if (probe.error) code = ' mediaError=' + probe.error.code; } catch (_) {}
             const time = Number.isFinite(probe.currentTime) ? probe.currentTime.toFixed(3) : String(probe.currentTime);
+            let draw = '';
+            if (video && context) {
+                try {
+                    context.globalCompositeOperation = 'copy';
+                    context.fillStyle = '#ff00ff';
+                    context.fillRect(0, 0, 1, 1);
+                    context.drawImage(probe, 0, 0, 1, 1);
+                    draw = ', draw ' + Array.from(context.getImageData(0, 0, 1, 1).data).join('.');
+                } catch (error) { draw = ', draw threw ' + (error && error.name || 'Error'); }
+            }
             return ' (readyState ' + probe.readyState + ', networkState ' + probe.networkState +
                 ', time ' + time + ', size ' + probe.videoWidth + 'x' + probe.videoHeight +
-                ', seeks ' + seeks + ', events ' + (events.join(' ') || 'none') + code + ')';
+                ', seeks ' + seeks + ', events ' + (events.join(' ') || 'none') + draw + code + ')';
         };
         const src = URL.createObjectURL(file);
         const finish = error => {
@@ -183,8 +193,17 @@ function _validateLocalPreparedFile(file, signal) {
         const cancel = () => finish(new DOMException('Preparation cancelled','AbortError'));
         const timer = setTimeout(() => finish(new Error('The prepared file did not become playable. Retry or keep your current comparison.' + diagnose())),30000);
         const fail = () => finish(new Error((video ? 'Could not decode the prepared picture.' : 'Could not decode the prepared audio.') + diagnose()));
-        const frameReady = () => probe.readyState >= 2 && Number.isFinite(probe.duration) && probe.duration > 0 &&
-            (!video || probe.videoWidth && probe.videoHeight && _hostVideoFrameAvailable(probe, context));
+        let canPlay = false;
+        const frameReady = () => {
+            if (probe.readyState < 2 || !Number.isFinite(probe.duration) || probe.duration <= 0) return false;
+            if (!video) return true;
+            if (!probe.videoWidth || !probe.videoHeight) return false;
+            if (_hostVideoFrameAvailable(probe, context)) return true;
+            // 533deb8 and 8107cd1 both reached readyState 4 and canplay on the
+            // FFV1 review after one seek to 40 ms. The 1px sample never changed,
+            // so a drawn pixel cannot be the only acceptance signal.
+            return canPlay && probe.readyState >= 3;
+        };
         const settle = () => {
             if (done) return;
             clearTimeout(poll);
@@ -192,9 +211,10 @@ function _validateLocalPreparedFile(file, signal) {
             else poll = setTimeout(settle, 50);
         };
         // WebKit does not reach loadeddata on a paused hidden video until a
-        // seek, so the seek starts at loadedmetadata. One retry runs if the
-        // element is still below HAVE_CURRENT_DATA. A drawn frame is enough;
-        // seeked is not required. The parenthetical is for the hosted failure log.
+        // seek, so the seek starts at loadedmetadata. One retry runs while no
+        // frame can be accepted. A drawn pixel is enough, and so is canplay
+        // once the element has future data. The parenthetical is for the
+        // hosted failure log.
         const seekTo = target => {
             if (done) return;
             seeks += 1; note('seek' + target.toFixed(3));
@@ -206,16 +226,22 @@ function _validateLocalPreparedFile(file, signal) {
         };
         probe.muted = true; probe.preload = 'auto'; probe.playsInline = true;
         probe.tabIndex = -1; probe.setAttribute('aria-hidden','true');
-        probe.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';
+        // A 1px opacity-0 box reached HAVE_ENOUGH_DATA on WebKit and still
+        // could not be sampled. Keep the probe off-screen at its real size.
+        probe.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none';
         for (const name of ['loadedmetadata','loadeddata','canplay','seeking','seeked','stalled','waiting','suspend','error'])
-            probe.addEventListener(name, () => note(name));
+            probe.addEventListener(name, () => { if (name === 'canplay') canPlay = true; note(name); });
         probe.addEventListener('error', () => finish(new Error('Could not open the prepared file in this browser.' + diagnose())), {once:true});
         probe.addEventListener('loadedmetadata', () => {
             if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
+            if (video && probe.videoWidth && probe.videoHeight) {
+                probe.style.width = probe.videoWidth + 'px';
+                probe.style.height = probe.videoHeight + 'px';
+            }
             seekTo(probe.duration > 0.08 ? Math.min(0.04, probe.duration / 2) : 0);
             if (done) return;
             wake = setTimeout(() => {
-                if (done || probe.readyState >= 2) return;
+                if (done || frameReady()) return;
                 if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
                 const again = Math.abs(probe.currentTime) < 0.001 ? Math.min(0.04, probe.duration / 2) : 0;
                 seekTo(again);
