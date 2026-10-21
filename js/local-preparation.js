@@ -169,7 +169,8 @@ function _validateLocalPreparedFile(file, signal) {
             try { if (probe.error) code = ' mediaError=' + probe.error.code; } catch (_) {}
             const time = Number.isFinite(probe.currentTime) ? probe.currentTime.toFixed(3) : String(probe.currentTime);
             return ' (readyState ' + probe.readyState + ', networkState ' + probe.networkState +
-                ', time ' + time + ', seeks ' + seeks + ', events ' + (events.join(' ') || 'none') + code + ')';
+                ', time ' + time + ', size ' + probe.videoWidth + 'x' + probe.videoHeight +
+                ', seeks ' + seeks + ', events ' + (events.join(' ') || 'none') + code + ')';
         };
         const src = URL.createObjectURL(file);
         const finish = error => {
@@ -191,11 +192,11 @@ function _validateLocalPreparedFile(file, signal) {
             else poll = setTimeout(settle, 50);
         };
         // WebKit does not reach loadeddata on a paused hidden video until a
-        // seek. Seek from loadedmetadata. This file's AAC priming is one 21 ms
-        // frame, so 40 ms is past it and 1.7 ms before a 24 fps boundary. If
-        // that seek leaves readyState below HAVE_CURRENT_DATA, seek once more
-        // to 100 ms, inside the next frame. A drawn frame is enough; seeked is
-        // not required. The parenthetical is for the hosted failure log.
+        // seek, so the seek starts at loadedmetadata. Hosted WebKit seeked to
+        // both 40 ms and 100 ms on the FFV1 review and stayed at readyState 1
+        // with the network idle, so the one retry returns to the first sample.
+        // A drawn frame is enough; seeked is not required. The parenthetical
+        // is for the hosted failure log.
         const seekTo = target => {
             if (done) return;
             seeks += 1; note('seek' + target.toFixed(3));
@@ -218,8 +219,7 @@ function _validateLocalPreparedFile(file, signal) {
             wake = setTimeout(() => {
                 if (done || probe.readyState >= 2) return;
                 if (!Number.isFinite(probe.duration) || probe.duration <= 0) { fail(); return; }
-                const again = probe.duration > 0.2 ? Math.min(0.1, probe.duration / 2)
-                    : (Math.abs(probe.currentTime) < 0.001 ? Math.min(0.04, probe.duration / 2) : 0);
+                const again = Math.abs(probe.currentTime) < 0.001 ? Math.min(0.04, probe.duration / 2) : 0;
                 seekTo(again);
             }, 300);
         }, {once:true});

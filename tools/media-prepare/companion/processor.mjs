@@ -183,7 +183,12 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
             '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
             '-g','48','-sc_threshold','0');
         if(audios.length)args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k','-af','apad','-shortest');
-        args.push('-movflags','+faststart');
+        // A positive video edit-list media time (B-frame delay) plus AAC priming
+        // makes WebKit fire seeked and stay at HAVE_METADATA: loadeddata never
+        // arrives, so the review copy cannot open. Version-1 composition offsets
+        // keep that delay out of the video edit list. Copied pictures already
+        // opened with their original edit list, so they stay on faststart only.
+        args.push('-movflags', copyPicture ? '+faststart' : '+faststart+negative_cts_offsets');
     } else {
         args.push('-map','0:'+audios[0].index,'-c:a','pcm_s24le');
     }
