@@ -36,7 +36,9 @@ const WarpPreparationConnection = (() => {
                 else {
                     const file = data.file, kind = pending.kind;
                     const notices = new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601',
-                        'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
+                        'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601',
+                        'Missing color tags; used declared BT.709','Missing color tags; used declared BT.601',
+                        'Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
                     if (!(file instanceof File) || !file.size || file.size > 1024*1024*1024 ||
                         file.type !== (kind === 'video' ? 'video/mp4' : 'audio/wav')) {
                         pending.finish(new Error('The local tool returned an invalid review copy'));

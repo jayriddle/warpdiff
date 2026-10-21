@@ -48,7 +48,7 @@
         if(!connected)return;
         if(current.controller.signal.aborted)error='Preparation cancelled';
         status.textContent=error||'Connected. The review copy has returned to WarpDiff.';
-        const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
+        const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601','Missing color tags; used declared BT.709','Missing color tags; used declared BT.601','Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
         const notice=colorNotices.has(metadata?.output?.preparation?.colorNotice)?metadata.output.preparation.colorNotice:'';
         post(error?{type:'failed',id:current.id,error}:{type:'result',id:current.id,file:result,...(notice?{notice}:{})});
     }

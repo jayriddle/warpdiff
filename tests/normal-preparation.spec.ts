@@ -17,6 +17,7 @@ test.beforeAll(async()=>{
   const run=(args:string[])=>execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-nostdin','-n',...args],{timeout:30000});
   run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-c:v','copy','-c:a','dca','-strict','-2',own('dts_video.mp4')]);
   run(['-i',fixture('landscape_a.mp4'),'-t','0.5','-vf','scale=160:90,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709','-c:v','ffv1','-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc','bt709','-c:a','flac',own('ffv1.mkv')]);
+  run(['-f','lavfi','-i','color=c=red:size=1280x96:rate=24:duration=0.5','-c:v','ffv1','-pix_fmt','rgb24',own('untagged-hd.mkv')]);
   run(['-i',fixture('stereo.wav'),'-t','0.5','-c:a','dca','-strict','-2',own('audio.dts')]);
   execFileSync('openssl',['req','-x509','-newkey','rsa:2048','-nodes','-keyout',own('key.pem'),'-out',own('cert.pem'),'-subj','/CN=127.0.0.1','-days','1'],{stdio:'pipe'});
   const allowed:string[]=JSON.parse(execFileSync(process.execPath,['--input-type=module','-e',"import {pageFiles} from './scripts/stage-pages.mjs'; console.log(JSON.stringify(pageFiles(process.cwd())))"],{cwd:root}).toString());
@@ -93,6 +94,21 @@ test('secure normal app connects explicitly across origins without sending a fil
   expect(calls.filter(url=>url.endsWith('/api/prepare'))).toHaveLength(1);
   await expect(page.locator('#ffmpegPanel')).not.toBeVisible();await expect(page.locator('#preparedImportDialog')).not.toBeVisible();
   expect(await page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA.admission.preparedProfile)).toBe('not-validated');
+});
+
+test('prepare and open shows an assumed BT.709 notice without replacing the dialog status',async({page})=>{
+  await connect(page);await page.locator('#localPreparationClose').click();
+  await openIssue(page,own('untagged-hd.mkv'));
+  await page.locator('#localPreparationRun').click();
+  await expect(page.locator('.load-toast')).toContainText('No color tags; assumed BT.709',{timeout:45000});
+  await expect.poll(()=>names(page),{timeout:45000}).toContain('untagged-hd_review.mp4');
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  await page.locator('#preparationBtn').click();
+  const status=await page.locator('#localPreparationStatus').textContent();
+  expect(status).not.toContain('No color tags');
+  expect(status).not.toMatch(/assumed BT|used declared/);
+  expect(status).not.toContain('Preparing review copies');
+  await expect(page.locator('#localPreparationRestore')).toBeVisible();
 });
 
 for(const filename of ['ffv1.mkv','audio.dts'])test(`${filename} prepares and opens through normal admission without a second picker`,async({page})=>{

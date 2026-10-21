@@ -74,9 +74,32 @@ function specifiedColor(value) {
     return UNSPECIFIED_COLOR.has(text) ? null : text;
 }
 function hdFrame(stream) {
-    // HD at 720 lines or 1280 pixels wide: 1280×720, 960×720 and 1920×540.
-    // 720×576 and 720×480 stay SD and use BT.601 (SMPTE 170M).
-    return (Number(stream.height) || 0) >= 720 || (Number(stream.width) || 0) >= 1280;
+    // Orientation-independent. HD when the longer side is at least 1280 or the
+    // shorter side is at least 720: 1280×720, 720×1280, 960×720 and 1920×540.
+    // 540×960, 720×576 and 720×480 stay SD and use BT.601 (SMPTE 170M).
+    const width = Number(stream.width) || 0, height = Number(stream.height) || 0;
+    return Math.max(width, height) >= 1280 || Math.min(width, height) >= 720;
+}
+function rgbPixels(pix) {
+    return /^(?:gbr|rgb|bgr|pal8|argb|abgr|rgba|bgra|0rgb|0bgr)/.test(pix || '');
+}
+// A declared tag fills only the tags that are absent. Matrix wins, then
+// primaries, then transfer. Frame size is used only when all three are absent.
+// BT.470 M has no YCbCr matrix of its own, so its matrix is SMPTE 170M.
+// sRGB does not declare a matrix; its missing matrix and primaries are BT.709.
+const COLOR_FAMILIES = {
+    bt709:{label:'BT.709', matrix:'bt709', primaries:'bt709', transfer:'bt709'},
+    smpte170m:{label:'BT.601', matrix:'smpte170m', primaries:'smpte170m', transfer:'smpte170m'},
+    bt470bg:{label:'BT.470BG', matrix:'bt470bg', primaries:'bt470bg', transfer:'bt470bg'},
+    bt470m:{label:'BT.470M', matrix:'smpte170m', primaries:'bt470m', transfer:'bt470m'},
+    gamma22:{label:'BT.470M', matrix:'smpte170m', primaries:'bt470m', transfer:'gamma22'},
+    gamma28:{label:'BT.470BG', matrix:'bt470bg', primaries:'bt470bg', transfer:'gamma28'},
+    'iec61966-2-1':{label:'BT.709', matrix:'bt709', primaries:'bt709', transfer:'iec61966-2-1', assumed:true},
+};
+function specifiedMatrix(value) {
+    const text = specifiedColor(value);
+    // gbr/rgb name an RGB layout, not a YCbCr matrix.
+    return text === 'gbr' || text === 'rgb' ? null : text;
 }
 export function transferMatches(actual, expected) {
     const aliases = expected === 'bt470m' || expected === 'gamma22' ? ['bt470m','gamma22']
@@ -87,22 +110,30 @@ export function interpretSdr(stream) {
     if (['smpte2084','arib-std-b67'].includes(stream.color_transfer)) {
         throw new PreparationError('HDR (PQ/HLG) picture conversion is not supported. Keep the original or use a color-managed HDR preparation tool.');
     }
-    const space = specifiedColor(stream.color_space), primaries = specifiedColor(stream.color_primaries);
+    const space = specifiedMatrix(stream.color_space), primaries = specifiedColor(stream.color_primaries);
     const transfer = specifiedColor(stream.color_transfer), range = specifiedColor(stream.color_range);
     if ((space && !SDR_MATRICES.includes(space)) || (primaries && !SDR_PRIMARIES.includes(primaries)) ||
         (transfer && !SDR_TRANSFERS.includes(transfer)) || (range && !['tv','pc'].includes(range))) {
         throw new PreparationError('Picture conversion needs known SDR color range, matrix, primaries and transfer. Keep this comparison or prepare the source with a color-managed tool.');
     }
-    const hd = hdFrame(stream), family = hd ? 'BT.709' : 'BT.601', assumed = hd ? 'bt709' : 'smpte170m';
-    const resolvedTransfer = transfer || assumed;
+    const declared = (space && COLOR_FAMILIES[space]) || (primaries && COLOR_FAMILIES[primaries]) || (transfer && COLOR_FAMILIES[transfer]) || null;
+    const assumedFamily = hdFrame(stream) ? COLOR_FAMILIES.bt709 : COLOR_FAMILIES.smpte170m;
+    const source = declared || assumedFamily;
+    const resolvedMatrix = space || source.matrix, resolvedPrimaries = primaries || source.primaries;
+    const resolvedTransfer = transfer || source.transfer;
     const missing = [space,primaries,transfer].filter(value => !value).length;
-    const notice = missing === 3 ? 'No color tags; assumed '+family : missing ? 'Missing color tags; assumed '+family : null;
-    const resolvedRange = range || (/^(yuvj|gbr|rgb|bgr)/.test(stream.pix_fmt || '') ? 'pc' : 'tv');
+    const notice = missing === 3 ? 'No color tags; assumed '+assumedFamily.label
+        : missing ? (declared && !declared.assumed ? 'Missing color tags; used declared '+declared.label
+            : 'Missing color tags; assumed '+(declared || assumedFamily).label) : null;
+    const resolvedRange = range || (rgbPixels(stream.pix_fmt) || /^yuvj/.test(stream.pix_fmt || '') ? 'pc' : 'tv');
     const filterTransfer = resolvedTransfer === 'gamma22' ? 'bt470m' : resolvedTransfer === 'gamma28' ? 'bt470bg' : resolvedTransfer;
     return {transfer:resolvedTransfer, range:resolvedRange, notice,
+        // swscale's default RGB matrix is BT.601. Name the same matrix colorspace
+        // will read, or a later HD conversion treats those samples as BT.709.
+        scaleMatrix:rgbPixels(stream.pix_fmt) ? resolvedMatrix : null,
         encoderTransfer:resolvedTransfer === 'bt470m' || resolvedTransfer === 'gamma22' ? 'gamma22'
             : resolvedTransfer === 'bt470bg' || resolvedTransfer === 'gamma28' ? 'gamma28' : resolvedTransfer,
-        filter:'colorspace=ispace='+(space || assumed)+':iprimaries='+(primaries || assumed)+
+        filter:'colorspace=ispace='+resolvedMatrix+':iprimaries='+resolvedPrimaries+
             ':itrc='+filterTransfer+':irange='+resolvedRange+
             ':space=bt709:primaries=bt709:trc='+filterTransfer+':range=tv:format=yuv420p:dither=fsb'};
 }
@@ -140,7 +171,8 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
         // the following conversion interprets them using the source range.
         else args.push('-c:v','libx264','-preset','fast','-crf','18','-pix_fmt','yuv420p',
             '-vf','scale=w=min(iw\\,1920):h=min(ih\\,1080):force_original_aspect_ratio=decrease:force_divisible_by=2'+
-                ':in_range='+picture.range+':out_range='+picture.range+','+picture.filter,
+                ':in_range='+picture.range+':out_range='+picture.range+
+                (picture.scaleMatrix ? ':out_color_matrix='+picture.scaleMatrix : '')+','+picture.filter,
             '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
             '-g','48','-sc_threshold','0');
         if(audios.length)args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k','-af','apad','-shortest');

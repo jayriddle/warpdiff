@@ -4,7 +4,7 @@
     const ui=Object.fromEntries(['open','files','prepareAgain','comparison','cover','title','message','notice','names','copyNote','prepare','anyway','cancel'].map(id=>[id,document.getElementById(id)]));
     let generation=0, files=[],needs=[],frame=null,directReady=false,pendingFrame=null,pendingHost=null,job=null,preparation=null,retiring=Promise.resolve();
     const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-    const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
+    const colorNotices=new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601','Missing color tags; assumed BT.709','Missing color tags; assumed BT.601','Missing color tags; used declared BT.709','Missing color tags; used declared BT.601','Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
     function kind(file) {
         if(/^(image|video|audio)\//.test(file.type))return file.type.split('/')[0];
         const ext=file.name.split('.').pop().toLowerCase();

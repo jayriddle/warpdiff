@@ -236,10 +236,33 @@ test('missing SDR tags assume BT.601 for SD and BT.709 for HD, and known transfe
     assert.equal(hd.notice,'No color tags; assumed BT.709');assert.equal(hd.transfer,'bt709');
     const tall=interpretSdr({width:960,height:720});
     assert.equal(tall.notice,'No color tags; assumed BT.709');
+    const portraitHd=interpretSdr({width:720,height:1280,pix_fmt:'yuv420p'});
+    assert.equal(portraitHd.notice,'No color tags; assumed BT.709');assert.equal(portraitHd.scaleMatrix,null);
+    const portraitSd=interpretSdr({width:540,height:960,pix_fmt:'yuv420p'});
+    assert.equal(portraitSd.notice,'No color tags; assumed BT.601');
     const standard=interpretSdr({width:720,height:480,color_space:'unspecified',color_primaries:'',color_transfer:null});
     assert.equal(standard.notice,'No color tags; assumed BT.601');
     const partial=interpretSdr({width:160,height:90,color_space:'bt709',color_primaries:'bt709',color_range:'tv'});
-    assert.equal(partial.notice,'Missing color tags; assumed BT.601');assert.equal(partial.transfer,'smpte170m');
+    assert.equal(partial.notice,'Missing color tags; used declared BT.709');assert.equal(partial.transfer,'bt709');
+    assert.match(partial.filter,/ispace=bt709:iprimaries=bt709:itrc=bt709/);
+    const onlyMatrix=interpretSdr({width:160,height:90,color_space:'bt709',color_range:'tv'});
+    assert.equal(onlyMatrix.notice,'Missing color tags; used declared BT.709');
+    assert.match(onlyMatrix.filter,/iprimaries=bt709:itrc=bt709/);
+    const srgbOnly=interpretSdr({width:160,height:90,color_transfer:'iec61966-2-1',color_range:'tv'});
+    assert.equal(srgbOnly.notice,'Missing color tags; assumed BT.709');assert.equal(srgbOnly.transfer,'iec61966-2-1');
+    assert.match(srgbOnly.filter,/ispace=bt709:iprimaries=bt709:itrc=iec61966-2-1/);
+    const systemM=interpretSdr({width:1920,height:1080,color_primaries:'bt470m',color_range:'tv'});
+    assert.equal(systemM.notice,'Missing color tags; used declared BT.470M');assert.equal(systemM.encoderTransfer,'gamma22');
+    assert.match(systemM.filter,/ispace=smpte170m:iprimaries=bt470m:itrc=bt470m/);
+    const mixed=interpretSdr({width:160,height:90,color_space:'bt709',color_primaries:'bt470bg',color_range:'tv'});
+    assert.equal(mixed.notice,'Missing color tags; used declared BT.709');
+    assert.match(mixed.filter,/ispace=bt709:iprimaries=bt470bg:itrc=bt709/);
+    const rgb=interpretSdr({width:1280,height:96,pix_fmt:'rgb24'});
+    assert.equal(rgb.scaleMatrix,'bt709');assert.equal(rgb.range,'pc');
+    const palette=interpretSdr({width:160,height:90,pix_fmt:'pal8'});
+    assert.equal(palette.scaleMatrix,'smpte170m');assert.equal(palette.range,'pc');
+    const layout=interpretSdr({width:1280,height:96,pix_fmt:'bgr0',color_space:'gbr',color_range:'pc'});
+    assert.equal(layout.notice,'No color tags; assumed BT.709');assert.equal(layout.scaleMatrix,'bt709');
     const srgb=interpretSdr({width:160,height:90,color_space:'bt709',color_primaries:'bt709',color_transfer:'iec61966-2-1',color_range:'tv'});
     assert.equal(srgb.notice,null);assert.equal(srgb.transfer,'iec61966-2-1');assert.equal(srgb.encoderTransfer,'iec61966-2-1');
     assert.match(srgb.filter,/trc=iec61966-2-1/);assert.doesNotMatch(srgb.filter,/all=bt709/);
@@ -285,6 +308,31 @@ test('untagged HD picture assumes BT.709 and untagged 8-bit H.264 stays copied',
         const converted=await prepareCompatible({input:wide,directory:wideOut,kind:'video'});
         assert.equal(converted.preparation.picture,'encoded-h264-up-to-1080p');
         assert.equal(converted.preparation.colorNotice,'No color tags; assumed BT.601');
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
+test('untagged RGB and palette pictures use the assumed matrix instead of swscale BT.601',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-rgb-matrix-'));
+    const sample=async file=>{
+        const frame=path.join(directory,path.basename(file)+'.yuv');
+        await execute('ffmpeg',['-v','error','-nostdin','-i',file,'-frames:v','1','-f','rawvideo','-pix_fmt','yuv420p',frame]);
+        const bytes=await fs.readFile(frame), meta=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',file])).stdout).streams[0];
+        const plane=meta.width*meta.height;
+        return {y:bytes[0],u:bytes[plane],v:bytes[plane+Math.floor(plane/4)]};
+    };
+    try {
+        for (const [name,args] of [
+            ['qtrle.mov',['-f','lavfi','-i','color=c=red:size=1280x96:rate=24:duration=0.25','-c:v','qtrle','-pix_fmt','rgb24']],
+            ['rgb.mkv',['-f','lavfi','-i','color=c=red:size=1280x96:rate=24:duration=0.25','-c:v','ffv1','-pix_fmt','gbrp']],
+            ['pal.avi',['-f','lavfi','-i','color=c=red:size=1280x96:rate=24:duration=0.25','-c:v','rawvideo','-pix_fmt','pal8']],
+        ]) {
+            const input=path.join(directory,name),out=path.join(directory,name+'-out');await fs.mkdir(out);
+            await execute('ffmpeg',['-v','error','-nostdin','-n',...args,input]);
+            const result=await prepareCompatible({input,directory:out,kind:'video'});
+            assert.equal(result.preparation.colorNotice,'No color tags; assumed BT.709',name);
+            const pixel=await sample(result.file);
+            assert.ok(pixel.y>=55&&pixel.y<=70&&pixel.u>=96&&pixel.u<=110&&pixel.v>=230,name+' '+JSON.stringify(pixel));
+        }
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 

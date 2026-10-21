@@ -9,7 +9,9 @@ let _localPreparationDialogOwner = null;
 let _localPreparationRecovery = null;
 let _localPreparationNotices = [];
 const _LOCAL_COLOR_NOTICES = new Set(['No color tags; assumed BT.709','No color tags; assumed BT.601',
-    'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601']);
+    'Missing color tags; assumed BT.709','Missing color tags; assumed BT.601',
+    'Missing color tags; used declared BT.709','Missing color tags; used declared BT.601',
+    'Missing color tags; used declared BT.470BG','Missing color tags; used declared BT.470M']);
 const _localPreparationConnection = WarpPreparationConnection.create(() => _renderLocalPreparation());
 
 function _releaseLocalPreparationRecovery() {
@@ -208,12 +210,12 @@ async function _loadLocalPreparedComparison(files, preparedFiles, owner, batch) 
     }
     const previous = batch.files.map(item => item.file);
     const previousPrepared = new Set(batch.files.filter(item => item.prepared).map(item => item.file));
+    // clearAllMedia resets the module list. Keep this copy for the toast.
+    const notices = _localPreparationNotices.filter(notice => _LOCAL_COLOR_NOTICES.has(notice));
     _localPreparationAction = null;
     try {
         if (!handleMultipleFiles(files,{preserveOrder:true,preparedFiles})) throw new Error('The prepared files were rejected');
-        const notices = _localPreparationNotices.filter(notice => _LOCAL_COLOR_NOTICES.has(notice));
         _localPreparationRecovery = {files:previous,preparedFiles:previousPrepared,token:_loadingProgressToken,announced:false,notices};
-        if (notices.length) _localPreparationMessage = [...new Set(notices)].join(' ');
     } catch (error) {
         if (_localPreparationBatch === batch) _localPreparationAction = owner; // rejected before clear
         else if (!_managedReviewActive()) {
