@@ -43,6 +43,7 @@ test('a playable file is accepted when the hidden probe cannot be sampled', asyn
 });
 
 test('a valid container with corrupt frames is rejected when the browser reports it', async ({page, browserName}) => {
+  test.fail(browserName === 'webkit', 'WebKit accepts damaged samples once canplay fires. The companion ffmpeg -xerror full decode is the real guard.');
   const message = await page.evaluate(async () => {
     const bytes = new Uint8Array(await (await fetch('tests/fixtures/landscape_a.mp4')).arrayBuffer());
     const view = new DataView(bytes.buffer);
@@ -70,11 +71,7 @@ test('a valid container with corrupt frames is rejected when the browser reports
       return 'accepted';
     } catch (error) { return (error as Error).message; }
   });
-  // On 9eea8fd WebKit returned "accepted" for this damage. That is the same
-  // canplay signal that lets the FFV1 review through. Chromium reports the file
-  // undecodable and is rejected.
-  if (browserName === 'webkit') expect(message).toBe('accepted');
-  else expect(message).toMatch(/could not|did not become playable/i);
+  expect(message).toMatch(/could not|did not become playable/i);
 });
 
 test('an undecodable prepared file is still rejected', async ({page}) => {
