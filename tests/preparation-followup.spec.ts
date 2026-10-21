@@ -42,6 +42,38 @@ test('a playable file is accepted when the hidden probe cannot be sampled', asyn
   expect(played).toBe(0);
 });
 
+test('a valid container with corrupt frames is still rejected', async ({page}) => {
+  const message = await page.evaluate(async () => {
+    const bytes = new Uint8Array(await (await fetch('tests/fixtures/landscape_a.mp4')).arrayBuffer());
+    const view = new DataView(bytes.buffer);
+    let offset = 0;
+    while (offset + 8 <= bytes.length) {
+      let size = view.getUint32(offset);
+      const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+      let header = 8;
+      if (size === 1) {
+        size = Number(view.getBigUint64(offset + 8));
+        header = 16;
+      }
+      if (type === 'mdat' && size > header + 64) {
+        const start = offset + header + 32;
+        const end = Math.min(offset + size, start + 8192);
+        for (let index = start; index < end; index++) bytes[index] ^= 0xff;
+        break;
+      }
+      if (!size || size < header) break;
+      offset += size;
+    }
+    const file = new File([bytes], 'corrupt-frames.mp4', {type:'video/mp4'});
+    try {
+      await (window as any).eval('_validateLocalPreparedFile')(file, new AbortController().signal);
+      return 'accepted';
+    } catch (error) { return (error as Error).message; }
+  });
+  expect(message).toMatch(/could not|did not become playable/i);
+  expect(message).not.toBe('accepted');
+});
+
 test('an undecodable prepared file is still rejected', async ({page}) => {
   const message = await page.evaluate(async () => {
     const file = new File([new Uint8Array([0, 1, 2, 3, 4])], 'bad.mp4', {type:'video/mp4'});

@@ -75,10 +75,12 @@ loses that in-memory comparison.
   companion header and as a WarpDiff toast. It does not replace the Preparation
   dialog connection status. The source transfer, including sRGB and BT.470, is kept;
   matrix, primaries and range become limited-range BT.709. Video soundtracks become stereo AAC-LC at
-  48 kHz. The soundtrack is padded and trimmed to the source duration, then, when
-  that misses the encoded picture, copied video is kept and the soundtrack is
-  trimmed again to the duration that was written. Its length matches the picture
-  instead of depending on where the shortest stream ends.
+  48 kHz. The soundtrack is padded and trimmed to the picture's end on the
+  output timeline: the picture's start relative to the earliest stream, plus its
+  duration. A later pass compares those end times, not the stream lengths, and
+  trims the soundtrack to the written picture end when the first pass misses.
+  Matroska duration tags supply a track end when the stream duration is absent.
+  This does not depend on where the shortest stream ends.
   Source timing otherwise follows FFmpeg's normal muxing behavior; this does not
   certify sample/frame mapping or synchronization conformance.
 - Audio-only: one stream, 1–8 channels. PCM24 WAV retains the channel count

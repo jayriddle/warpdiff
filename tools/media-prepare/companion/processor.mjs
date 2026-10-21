@@ -144,6 +144,32 @@ export function interpretSdr(stream) {
             ':itrc='+filterTransfer+':irange='+resolvedRange+
             ':space=bt709:primaries=bt709:trc='+filterTransfer+':range=tv:format=yuv420p:dither=fsb'};
 }
+function clockTag(value) {
+    const match=/^(\d+):(\d+):(\d+(?:\.\d+)?)$/.exec(String(value??'').trim());
+    if(!match)return null;
+    const seconds=Number(match[1])*3600+Number(match[2])*60+Number(match[3]);
+    return Number.isFinite(seconds)?seconds:null;
+}
+// Matroska often omits stream duration and stores the track end in DURATION.
+// The container duration is only the longest of those ends.
+function streamTiming(stream,format) {
+    const startValue=Number(stream?.start_time),start=Number.isFinite(startValue)?startValue:0;
+    const probed=Number(stream?.duration);
+    if(Number.isFinite(probed)&&probed>0)return {start,duration:probed,end:start+probed};
+    const tag=clockTag(stream?.tags?.DURATION);
+    if(tag!=null&&tag>start)return {start,duration:tag-start,end:tag};
+    const formatDuration=Number(format?.duration),formatStart=Number(format?.start_time);
+    if(Number.isFinite(formatDuration)&&formatDuration>0) {
+        const end=(Number.isFinite(formatStart)?formatStart:0)+formatDuration;
+        if(end>start)return {start,duration:end-start,end};
+    }
+    return {start,duration:null,end:null};
+}
+function outputEnd(stream) {
+    const startValue=Number(stream?.start_time),duration=Number(stream?.duration);
+    if(!Number.isFinite(duration))return NaN;
+    return (Number.isFinite(startValue)?startValue:0)+duration;
+}
 export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffmpeg',ffprobe='ffprobe'}) {
     check(signal);
     if(!['video','audio'].includes(kind))throw new PreparationError('This prototype prepares video and audio files');
@@ -158,7 +184,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
     }
     const selected=[...videos,...audios];
     if(selected.some(s=>!Number.isInteger(s.index)||s.index<0||s.index>63))throw new PreparationError('Invalid media stream index');
-    const duration=Number((kind==='video'?videos[0]:audios[0]).duration || source.format?.duration);
+    const pictureTiming=kind==='video'?streamTiming(videos[0],source.format):null;
+    const soundtrackTiming=audios.length?streamTiming(audios[0],source.format):null;
+    const duration=kind==='video'?pictureTiming.duration:soundtrackTiming.duration;
     if(!Number.isFinite(duration)||duration<=0||duration>6*60*60)throw new PreparationError('Could not establish a bounded media duration');
     if(kind==='audio'&&(!Number.isInteger(audios[0].channels)||audios[0].channels<1||audios[0].channels>8)) {
         throw new PreparationError('This prototype supports audio files with one to eight channels');
@@ -181,12 +209,15 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
                 ':in_range='+picture.range+':out_range='+picture.range+
                 (picture.scaleMatrix ? ':out_color_matrix='+picture.scaleMatrix : '')+','+picture.filter,
             '-color_range','tv','-colorspace','bt709','-color_primaries','bt709','-color_trc',picture.encoderTransfer,
-            '-g','48','-sc_threshold','0');
+            '-g','48','-sc_threshold','0','-fps_mode','passthrough');
         if(audios.length) {
-            // apad with -shortest does not settle on one length. The same picture
-            // can lose the last AAC frame or keep audio past the video. Pad, then
-            // trim the filter and the output to the picture duration.
-            const stop=duration.toFixed(6);
+            // apad with -shortest does not settle. -t and atrim measure from the
+            // output timeline, which starts at the earliest stream, so the stop
+            // is the picture's end there: its start relative to that stream plus
+            // its duration. Passthrough keeps a late picture from being filled
+            // with extra frames up to that end.
+            const earliest=Math.min(pictureTiming.start,soundtrackTiming.start);
+            const stop=(pictureTiming.end-earliest).toFixed(6);
             args.push('-map','0:'+audios[0].index,'-c:a','aac','-ac','2','-ar','48000','-b:a','192k',
                 '-af','apad,atrim=end='+stop,'-t',stop);
         }
@@ -240,13 +271,14 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
         throw new PreparationError('Prepared duration did not match the source');
     }
     if(kind==='video'&&outAudios.length) {
-        const soundtrackDuration=()=>Number(outAudios[0].duration);
-        // The first trim uses the source probe. The encoded picture can be a
-        // frame shorter or longer than that probe, which leaves the soundtrack
-        // off. Copy the picture and trim the soundtrack to the duration that
-        // was actually written.
-        if(!Number.isFinite(soundtrackDuration())||Math.abs(soundtrackDuration()-outDuration)>0.001) {
-            const stop=outDuration.toFixed(6), fitted=file+'.aligned.mp4';
+        const endsMatch=()=>Math.abs(outputEnd(outAudios[0])-outputEnd(outVideos[0]))<=0.001;
+        // A late soundtrack is shorter than the picture and still ends with it.
+        // When the first trim lands off that end, copy the picture and trim the
+        // soundtrack to the end that was actually written.
+        if(!endsMatch()) {
+            const videoStart=Number(outVideos[0].start_time),audioStart=Number(outAudios[0].start_time);
+            const earliest=Math.min(Number.isFinite(videoStart)?videoStart:0,Number.isFinite(audioStart)?audioStart:0);
+            const stop=(outputEnd(outVideos[0])-earliest).toFixed(6),fitted=file+'.aligned.mp4';
             try {
                 await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-y','-protocol_whitelist','file',
                     '-format_whitelist',FORMATS,'-i',file,'-map','0:v:0','-c:v','copy','-map','0:a:0','-c:a','aac',
@@ -265,9 +297,9 @@ export async function prepareCompatible({input,directory,kind,signal,ffmpeg='ffm
             outAudios=output.streams.filter(s=>s.codec_type==='audio');
             outDuration=Number(outVideos[0]?.duration||output.format.duration);
         }
-        const soundtrack=soundtrackDuration();
-        if(!Number.isFinite(soundtrack)||Math.abs(soundtrack-outDuration)>0.001) {
-            throw new PreparationError('Prepared soundtrack duration '+soundtrack+'s did not match the picture '+outDuration+'s');
+        const pictureEnd=outputEnd(outVideos[0]),soundtrackEnd=outputEnd(outAudios[0]);
+        if(!Number.isFinite(pictureEnd)||!Number.isFinite(soundtrackEnd)||Math.abs(soundtrackEnd-pictureEnd)>0.001) {
+            throw new PreparationError('Prepared soundtrack ends at '+soundtrackEnd+'s; the picture ends at '+pictureEnd+'s');
         }
     }
     await execute(ffmpeg,['-hide_banner','-loglevel','error','-nostdin','-xerror','-protocol_whitelist','file',

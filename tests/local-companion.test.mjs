@@ -390,6 +390,43 @@ fi
     }finally{await fs.rm(directory,{recursive:true,force:true});}
 });
 
+test('offset picture and soundtrack end together',async()=>{
+    const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-offset-'));
+    try {
+        const video=path.join(directory,'video.mp4'),picture=path.join(directory,'picture.mkv'),audio=path.join(directory,'audio.wav');
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=1','-c:v','libx264','-pix_fmt','yuv420p','-an',video]);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','testsrc2=size=160x90:rate=24:duration=1','-c:v','ffv1','-an',picture]);
+        await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=1','-c:a','pcm_s16le',audio]);
+        const cases=[
+            ['copied picture late','mp4',video,'0.3',audio,null,'pcm_s16le'],
+            ['copied sound late','mp4',video,null,audio,'0.3','pcm_s16le'],
+            ['reencoded picture late','mov',picture,'0.3',audio,null,'pcm_s16le'],
+            ['reencoded sound late','mov',picture,null,audio,'0.3','pcm_s16le'],
+            ['mpegts picture late','ts',video,'0.3',audio,null,'aac'],
+            ['mkv picture late','mkv',picture,'0.3',audio,null,'flac'],
+            ['mkv sound late','mkv',picture,null,audio,'0.3','flac'],
+        ];
+        for(const [name,extension,videoFile,videoOffset,audioFile,audioOffset,audioCodec] of cases) {
+            const input=path.join(directory,name.replaceAll(' ','-')+'.'+extension),out=path.join(directory,name.replaceAll(' ','-'));
+            await fs.mkdir(out);
+            const args=['-v','error','-nostdin','-n'];
+            if(videoOffset)args.push('-itsoffset',videoOffset);
+            args.push('-i',videoFile);
+            if(audioOffset)args.push('-itsoffset',audioOffset);
+            args.push('-i',audioFile,'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a',audioCodec,input);
+            await execute('ffmpeg',args);
+            await prepareCompatible({input,directory:out,kind:'video'});
+            const streams=JSON.parse((await execute('ffprobe',['-v','error','-show_entries','stream=codec_type,start_time,duration,nb_frames','-of','json',path.join(out,'review.mp4')])).stdout).streams;
+            const preparedVideo=streams.find(stream=>stream.codec_type==='video'),preparedAudio=streams.find(stream=>stream.codec_type==='audio');
+            const videoEnd=Number(preparedVideo.start_time)+Number(preparedVideo.duration);
+            const audioEnd=Number(preparedAudio.start_time)+Number(preparedAudio.duration);
+            assert.equal(preparedVideo.nb_frames,'24',name);
+            assert.ok(Math.abs(Number(preparedVideo.duration)-1)<0.05,name+' picture '+preparedVideo.duration);
+            assert.ok(Math.abs(audioEnd-videoEnd)<=0.001,name+' ends '+audioEnd+' vs '+videoEnd);
+        }
+    }finally{await fs.rm(directory,{recursive:true,force:true});}
+});
+
 test('reencoded soundtrack covers a shorter or longer source',async()=>{
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'warpdiff-audio-cover-'));
     try {
