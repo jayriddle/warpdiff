@@ -2049,6 +2049,33 @@ runMediaAdmissionChecks(check);
     const r=prepareProbe(opts);
     check('native-output: '+name+' retains its required graph',!r.direct && r.graph && r.sources===1);
   }
+  const decodeTimeout = async ({chrome=false, opus=false} = {}) => {
+    const bytes = new Uint8Array(16);
+    if (opus) bytes.set([0x4F, 0x70, 0x75, 0x73], 0);
+    const pending = {};
+    let fallback = 0;
+    const realm = {
+      _opusSyncPending: pending, _videoAudioDecodeGen: {}, _loadingProgressToken: 1, _byteScannedCodec: {},
+      _UNSUPPORTED_CODEC_LABELS: {}, _isChrome: chrome, AudioDecoder: function AudioDecoder() {}, File: function File() {},
+      console: {warn(){}}, _nextAudioDecodeGeneration: () => 1, _videoAudioDecodeIsCurrent: () => true,
+      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _isMP4AudioContainer: () => false,
+      WarpScrubAudio: {monitor: {waveLayout(){ return null; }}}, _mediaInputAudioMetadata(){},
+      getAudioContext: () => ({decodeAudioData: () => new Promise(() => {})}),
+      setTimeout: (fn) => { fn(); return 0; },
+      _decodeAudioWebCodecs(){ fallback++; },
+    };
+    runInNewContext('async ' + extractFn('decodeAndComputeAudioViz'), realm);
+    await realm.decodeAndComputeAudioViz('editA', bytes.buffer);
+    return {pending: Object.hasOwn(pending, 'editA'), fallback};
+  };
+  for (const chrome of [false, true]) {
+    const timedOut = await decodeTimeout({chrome});
+    check('native-output: non-Opus timeout on ' + (chrome ? 'Chrome' : 'WebKit') + ' keeps analysis fallback without Opus pending',
+      timedOut.fallback === 1 && timedOut.pending === false);
+  }
+  const safariOpus = await decodeTimeout({opus:true});
+  check('native-output: WebKit Opus timeout still falls back without marking replacement pending',
+    safariOpus.fallback === 1 && safariOpus.pending === false);
   check('safari-native-output: clear cancels native fades and hiding settles the selected output',
     extractFn('_clearNativeAudioRoutes').includes('_nativeDirectOutputs.clear()') &&
     SRC.includes('_setDirectNativeAudioMuted(media, state.target === 0, false)'));

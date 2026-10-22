@@ -227,7 +227,10 @@ async function decodeAndComputeAudioViz(slot, source) {
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         if (typeof AudioDecoder !== 'undefined') {
             console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
-            _opusSyncPending[slot] = true;
+            // Pending means Chrome will replace Opus. A slow decodeAudioData on
+            // ordinary AAC still needs this analysis fallback, but the flag would
+            // refuse native direct output for the rest of the visit.
+            if (_isChrome && isOpus) _opusSyncPending[slot] = true;
             _decodeAudioWebCodecs(slot, arrayBuffer, gen);
         } else {
             console.warn('Audio decode failed for', slot, e);

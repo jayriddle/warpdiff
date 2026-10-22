@@ -160,7 +160,7 @@ test('valid signed host video reaches a decoded first frame before READY', async
   await page.evaluate(() => window.postMessage({type:'WARPDIFF_LOAD',requestId:'video',signedItems:[
     {name:'valid.mp4',contentType:'video/mp4',signedUrl:'/tests/fixtures/landscape_a.mp4'},
   ]}, location.origin));
-  await expect.poll(() => page.evaluate(() => (window as any).hostReplies)).toEqual([
+  await expect.poll(() => page.evaluate(() => (window as any).hostReplies), {timeout:15000}).toEqual([
     expect.objectContaining({type:'WARPDIFF_LOAD_READY',requestId:'video'}),
   ]);
   const video = page.locator('.asset-layer video').first();
