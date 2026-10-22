@@ -2,6 +2,10 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.12 (quiet maintenance)
+
+The in-app summary stays on 3.19.11. A slow native audio decode no longer treats ordinary mono/stereo video as pending Opus replacement, so native A/V output remains. WebCodecs still supplies the analysis fallback.
+
 ## v3.19.8 (announced through 3.19.10)
 
 The in-app summary below stayed current while 3.19.9 and 3.19.10 were quiet maintenance releases. 3.19.11 replaced it.
