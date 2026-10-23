@@ -2,9 +2,25 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.13
+
+What's New was rewritten in plain language. The in-app summary is now:
+
+- Videos with missing color info open correctly again. WarpDiff picks the most likely color setting and shows a short note when it does.
+- Prepared copies keep the original colors instead of shifting them. HDR video is still left untouched.
+- Sound stays in sync with the picture, even when a large video is slow to open.
+
 ## v3.19.12 (quiet maintenance)
 
 The in-app summary stays on 3.19.11. A slow native audio decode no longer treats ordinary mono/stereo video as pending Opus replacement, so native A/V output remains. WebCodecs still supplies the analysis fallback.
+
+## v3.19.11
+
+Shown in the app through 3.19.12. 3.19.13 replaced it with the plain-language summary above.
+
+- Untagged video can be prepared again. HD is the longer side at least 1280 or the shorter side at least 720, in either orientation, and uses BT.709; smaller pictures use BT.601. A declared color tag is kept. A BT.709 or SMPTE 170M transfer alone still follows the frame size, because that curve is shared. A short notice names anything that was assumed.
+- Prepared copies keep the source transfer, including sRGB, instead of rewriting it to BT.709. PQ and HLG are still refused.
+- A returned review copy is checked by decoding a frame. A blocked autoplay prompt no longer rejects a playable file.
 
 ## v3.19.8 (announced through 3.19.10)
 

@@ -3969,10 +3969,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.12';
+        const APP_VERSION = '3.19.13';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.11';
+        const _CHANGELOG_VERSION = '3.19.13';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -14524,9 +14524,9 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li>Untagged video can be prepared again. HD is the longer side at least 1280 or the shorter side at least 720, in either orientation, and uses BT.709; smaller pictures use BT.601. A declared color tag is kept. A BT.709 or SMPTE 170M transfer alone still follows the frame size, because that curve is shared. A short notice names anything that was assumed.</li>
-                <li>Prepared copies keep the source transfer, including sRGB, instead of rewriting it to BT.709. PQ and HLG are still refused.</li>
-                <li>A returned review copy is checked by decoding a frame. A blocked autoplay prompt no longer rejects a playable file.</li>
+                <li><strong>Videos with missing color info open correctly again.</strong> WarpDiff picks the most likely color setting and shows a short note when it does.</li>
+                <li><strong>Prepared copies keep the original colors</strong> instead of shifting them. HDR video is still left untouched.</li>
+                <li><strong>Sound stays in sync with the picture,</strong> even when a large video is slow to open.</li>
             </ul>
         </div>
     </div>
