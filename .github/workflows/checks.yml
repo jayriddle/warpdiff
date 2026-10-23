@@ -28,7 +28,7 @@ jobs:
           node-version: '24'
           cache: npm
       - name: Install fixture tools
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: bash scripts/ci-install-ffmpeg.sh
       - run: npm ci
       - run: npm run test:fixtures
       - run: npm run test:infra
@@ -55,10 +55,16 @@ jobs:
           node-version: '24'
           cache: npm
       - name: Install fixture tools
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg zsh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends zsh
+          bash scripts/ci-install-ffmpeg.sh
       - run: npm ci
       - name: Install Chrome for native media codecs
-        run: npx playwright install --with-deps chrome
+        run: npx playwright install chrome
+      - name: Verify Chrome launches
+        run: |
+          node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({ channel: 'chrome', headless: true }); console.log(browser.version()); await browser.close();"
       - run: npm run test:fixtures
       - name: Run Chromium shard
         run: npm run test:ci -- --shard=${{ matrix.shard }}/3 --reporter=line,json,html
