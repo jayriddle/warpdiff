@@ -62,39 +62,6 @@ function _soloLoopConstraint(media) {
     return _customLoopBoundsForMedia(media);
 }
 
-function _reconcileSoloEffectiveDuration(slot) {
-    if (!_isSoloPlayback() || slot !== _soloPlaybackSlot) {
-        _applyNativeLoopPolicy();
-        return false;
-    }
-    const layer = getLayer(slot);
-    const video = layer && layer.querySelector('video');
-    if (!video) return false;
-    const duration = _getEffectiveDuration(video);
-    const constraint = _soloLoopConstraint(video);
-    const beyondEnd = Number.isFinite(duration) && video.currentTime >= duration - 0.001;
-    const unavailableLoop = !!(constraint && constraint.invalid);
-    if (!beyondEnd && !unavailableLoop) {
-        _applyNativeLoopPolicy();
-        return false;
-    }
-    const anchorTime = _soloHeldTimelineTime !== null ? _soloHeldTimelineTime : video.currentTime;
-    _cancelPendingPlayIntent();
-    _cancelLoopWrapTimer();
-    _bulkSyncActive = true;
-    video.pause();
-    _stopAllOpusSyncAudio();
-    video.currentTime = _lastPlayableTime(video);
-    _setSoloHeldTimelineTime(anchorTime);
-    _applyNativeLoopPolicy();
-    _updatePlayPauseBtn(false);
-    showToast(unavailableLoop
-        ? 'Solo: ' + slotLabel(slot) + ' — loop starts after this video ends; held at final frame'
-        : 'Solo: ' + slotLabel(slot) + ' — corrected duration ends before this time; held at final frame');
-    setTimeout(() => { _bulkSyncActive = false; }, 50);
-    return true;
-}
-
 function _selectedVideoSlot() {
     const candidates = [currentAudioSource, assetOrder[currentAssetIndex]];
     for (const slot of candidates) {

@@ -17,7 +17,6 @@
 const _isChrome = /Chrome\//.test(navigator.userAgent) && !/Edge|Edg/.test(navigator.userAgent);
 let _opusSyncPending = {};     // { slot: true } — slots that went through WebCodecs (Opus)
 let _opusSyncSlots = {};       // { slot: true } — slots needing Web Audio replacement
-let _opusSyncDuration = {};    // { slot: number } — corrected duration from decoded buffer
 let _opusSyncSources = {};     // { slot: AudioBufferSourceNode }
 let _opusSyncGains = {};       // { slot: GainNode }
 let _opusSyncStartCtx = {};    // { slot: number } — scheduled source.start() time (up to _OPUS_FADE in the future during the deferred-start window)

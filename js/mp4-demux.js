@@ -356,13 +356,22 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
 
 // --- WebM demuxer ---
 function _demuxWebMAudio(data, metadataOnly = false) {
-    let audioTrackNum = -1;
+    // Resolve the complete track inventory before copying any packets. Native
+    // playback does not expose a portable selected-track identity, so even an
+    // unsupported second soundtrack makes automatic extraction ambiguous.
+    const metadata = metadataOnly ? null : _demuxWebMAudio(data, true);
+    if (!metadataOnly && (!metadata || !metadata.trackSelectionVerified || metadata.audioTracks.length !== 1)) return null;
+    const selected = metadata && metadata.audioTracks[0];
+    if (selected && !['A_OPUS', 'A_VORBIS'].includes(selected.codec)) return null;
+    let audioTrackNum = selected ? selected.trackId : -1;
     let codecPrivate = null;
     let sampleRate = 48000;
     let channels = 2;
     let timestampScale = 1000000;
     const chunks = [];
     const audioTracks = [];
+    const trackNumbers = new Set();
+    let trackSelectionVerified = true;
     let foundTracks = false;
 
     function readVint(d, offset) {
@@ -443,7 +452,12 @@ function _demuxWebMAudio(data, metadataOnly = false) {
             } else if (el.id === ID.Tracks) {
                 foundTracks = true;
                 let o = el.dataOffset;
-                while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TrackEntry) parseTrackEntry(d, e2.dataOffset, e2.dataOffset + e2.dataSize); o = e2.dataOffset + e2.dataSize; }
+                while (o < dEnd) {
+                    const e2 = readEl(d, o);
+                    if (!e2 || e2.dataOffset + e2.dataSize > dEnd) { trackSelectionVerified = false; break; }
+                    if (e2.id === ID.TrackEntry) parseTrackEntry(d, e2.dataOffset, e2.dataOffset + e2.dataSize);
+                    o = e2.dataOffset + e2.dataSize;
+                }
             } else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) {
                 parseCluster(d, el.dataOffset, dEnd);
             }
@@ -454,10 +468,16 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     function parseTrackEntry(d, start, end) {
         let num = -1, type = -1, codec = '', priv = null, sr = 48000, ch = 2;
         let sourceRate = 8000, sourceChannels = 1, outputRate = null; // Matroska defaults
+        const fields = new Set();
         let off = start;
         while (off < end) {
-            const el = readEl(d, off); if (!el) break;
+            const el = readEl(d, off);
+            if (!el || el.dataOffset + el.dataSize > end) { trackSelectionVerified = false; break; }
             const dEnd = el.dataOffset + el.dataSize;
+            if ([ID.TrackNumber, ID.TrackType, ID.CodecID].includes(el.id)) {
+                if (fields.has(el.id)) trackSelectionVerified = false;
+                fields.add(el.id);
+            }
             if (el.id === ID.TrackNumber) num = readUint(d, el.dataOffset, el.dataSize);
             else if (el.id === ID.TrackType) type = readUint(d, el.dataOffset, el.dataSize);
             else if (el.id === ID.CodecID) codec = readString(d, el.dataOffset, Math.min(el.dataSize, 128));
@@ -474,7 +494,9 @@ function _demuxWebMAudio(data, metadataOnly = false) {
             }
             off = dEnd;
         }
-        if (type === 2) audioTracks.push({codec, channels:sourceChannels,
+        if (!Number.isSafeInteger(num) || num <= 0 || trackNumbers.has(num) || type < 0 || !codec) trackSelectionVerified = false;
+        trackNumbers.add(num);
+        if (type === 2) audioTracks.push({trackId:num, codec, channels:sourceChannels,
             sampleRate:codec === 'A_OPUS' ? 48000 : outputRate || sourceRate, channelLayout:null});
         if (type === 2 && (codec === 'A_OPUS' || codec === 'A_VORBIS')) {
             audioTrackNum = num; codecPrivate = priv; sampleRate = sr; channels = ch;
@@ -509,18 +531,18 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         off = el.dataOffset + el.dataSize;
     }
 
-    if (metadataOnly) return foundTracks ? { audioTracks } : null;
+    if (metadataOnly) return foundTracks ? { audioTracks, trackSelectionVerified } : null;
     if (chunks.length === 0) return null;
     // OpusHead pre-skip is at bytes 10-11, little-endian
     let preSkip = 0;
-    if (codecPrivate && codecPrivate.length >= 12) {
+    if (selected.codec === 'A_OPUS' && codecPrivate && codecPrivate.length >= 12) {
         preSkip = codecPrivate[10] | (codecPrivate[11] << 8);
     }
     return {
         chunks: chunks,
         sampleRate: sampleRate,
         channels: channels,
-        codec: 'opus',
+        codec: selected.codec === 'A_OPUS' ? 'opus' : 'vorbis',
         description: codecPrivate ? codecPrivate.buffer.slice(codecPrivate.byteOffset, codecPrivate.byteOffset + codecPrivate.byteLength) : null,
         preSkip: preSkip
     };

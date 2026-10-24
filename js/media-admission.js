@@ -17,7 +17,8 @@ function _mediaInputObserve(slot, loadingToken, facts) {
 function _mediaInputAudioMetadata(slot, loadingToken, container, metadata) {
     const tracks = metadata?.audioTracks;
     _mediaInputObserve(slot, loadingToken, {container,
-        inventoryKnown: Array.isArray(tracks), audioTrackCount: Array.isArray(tracks) ? tracks.length : null,
+        inventoryKnown: Array.isArray(tracks) && (container !== 'webm' || metadata?.trackSelectionVerified === true),
+        audioTrackCount: Array.isArray(tracks) ? tracks.length : null,
         metadataTimelineVerified: container !== 'mp4' || metadata?.timelineVerified === true,
         metadataAudioStart: Number.isFinite(metadata?.timelineStart) ? metadata.timelineStart : null});
 }
