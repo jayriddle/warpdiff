@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Ubuntu CI fixture/preparation FFmpeg. A specific BtbN GPL static build,
-# checksum-verified, instead of the distro package. The noble ffmpeg package
+# Ubuntu CI fixture/preparation FFmpeg. A WarpDiff-hosted copy of the BtbN
+# autobuild-2026-10-23-13-04 archive, because BtbN prunes daily autobuilds.
+# Checksum-verified, instead of the distro package. The noble ffmpeg package
 # pulls about 100 MB of hard dependencies and has stalled for ~16 minutes on a
 # slow Ubuntu archive mirror. This script is the only pin; both Ubuntu jobs
 # call it. It does not change the macOS Homebrew install.
 set -euo pipefail
 
-FFMPEG_URL='https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-10-23-13-04/ffmpeg-n8.1.3-24-g92611900bb-linux64-gpl-8.1.tar.xz'
+FFMPEG_URL='https://github.com/jayriddle/warpdiff/releases/download/ci-ffmpeg-n8.1.3/ffmpeg-n8.1.3-24-g92611900bb-linux64-gpl-8.1.tar.xz'
 FFMPEG_SHA256='d0eb612b8994407f78413e2929cb4b073bc699c8ab79e198b31624736fdc2f93'
 
 root=$(mktemp -d)

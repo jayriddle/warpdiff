@@ -21,7 +21,8 @@ enables test-level sharding, including the large legacy spec, with **one
 worker and zero retries per machine**. The tests themselves and their
 assertions do not change. Ubuntu jobs install one pinned static FFmpeg and
 ffprobe build for fixtures, preparation, and command verification, and reject
-it when the SHA-256 does not match. zsh still comes from apt with recommended
+it when the SHA-256 does not match. The pinned build is hosted on the
+ci-ffmpeg-n8.1.3 release. zsh still comes from apt with recommended
 packages omitted. The installed Chrome channel supplies the native codecs
 absent from an earlier bundled Linux Chromium experiment; its install does not
 pull the apt font and xvfb bundle. This uses more runner
