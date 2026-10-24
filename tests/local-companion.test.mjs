@@ -332,8 +332,13 @@ test('BT.470BG RGB passes bt601 to scale and bt470bg to colorspace',async()=>{
         await execute('ffmpeg',['-v','error','-nostdin','-n','-f','lavfi','-i','color=c=red:size=160x90:rate=24:duration=0.25',
             '-vf','setparams=range=pc:color_primaries=bt470bg:color_trc=bt470bg:colorspace=bt470bg','-c:v','ffv1','-pix_fmt','gbrp',
             '-color_range','pc','-colorspace','bt470bg','-color_primaries','bt470bg','-color_trc','gamma28',input]);
+        // FFmpeg 7+ stores an RGB pixel format with matrix gbr (AVCOL_SPC_RGB) even
+        // when this command asks for bt470bg. FFmpeg 6 stores bt470bg. The scale
+        // and colorspace conversion below are the same either way.
+        const source=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',input])).stdout).streams[0];
         const result=await prepareCompatible({input,directory:out,kind:'video'});
-        assert.equal(result.preparation.colorNotice,undefined);
+        assert.ok(source.color_space==='bt470bg'||source.color_space==='gbr',source.color_space);
+        assert.equal(result.preparation.colorNotice,source.color_space==='gbr'?'Missing color tags; used declared BT.470BG':undefined);
         const output=JSON.parse((await execute('ffprobe',['-v','error','-show_streams','-of','json',result.file])).stdout).streams[0];
         assert.equal(output.color_space,'bt709');assert.equal(output.color_primaries,'bt709');
         assert.equal(transferMatches(output.color_transfer,'bt470bg'),true,output.color_transfer);
