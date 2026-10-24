@@ -3668,13 +3668,11 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     }, {}, { timeout: 2000 });
   });
 
-  test('dragging past a corrected timeline end does not resume playback', async ({ page }) => {
+  test('dragging past the native video end stays paused with a shorter Opus buffer', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm']);
-    // Model a container whose raw video duration extends beyond the decoded
-    // audio timeline (the Chrome Opus correction case). The old release guard
-    // compared currentTime with raw video.duration, decided this was not the
-    // end, and restarted playback one animation frame after mouseup.
+    // A shorter replacement soundtrack must not shorten the seek range. The
+    // final release still has to suppress deferred resume at the video end.
     await page.evaluate(() => (window as any).__testAPI.opus.installTestBuffer('editA', 2));
     await startPlayback(page);
 
@@ -3688,10 +3686,12 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
 
     const state = await page.evaluate(() => {
       const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
-      return { paused: video.paused, time: video.currentTime };
+      return { paused: video.paused, time: video.currentTime, duration: video.duration };
     });
     expect(state.paused).toBe(true);
-    expect(state.time).toBeLessThanOrEqual(2.01);
+    expect(state.duration).toBeGreaterThan(2.5);
+    expect(state.time).toBeGreaterThan(state.duration - 0.1);
+    expect(state.time).toBeLessThanOrEqual(state.duration + 0.01);
   });
 
   test('an ended signal during a paused scrub cannot start a managed loop', async ({ page }) => {
