@@ -2,15 +2,19 @@
 // Pure policy. Browser decoding, host readiness and playback keep their owners.
 const WarpMediaInput = (() => {
     const VERSION = 1;
-    function assessMP4Audio(metadata) {
+    function audioSelectionIssue(metadata, container) {
         const tracks = metadata && Array.isArray(metadata.audioTracks) ? metadata.audioTracks : null;
         const count = tracks && tracks.length <= 64 ? tracks.length : null;
         const code = count === null ? 'audio-inventory-unverified'
             : count > 1 ? 'audio-track-selection-required' : null;
         const message = code === 'audio-inventory-unverified'
-            ? 'The MP4 audio track could not be verified. Analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback stays browser-managed.'
+            ? 'The ' + container + ' audio track could not be verified. Analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback stays browser-managed.'
             : code === 'audio-track-selection-required'
-                ? 'Multiple MP4 audio tracks: analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback uses the browser’s track choice.' : '';
+                ? 'Multiple ' + container + ' audio tracks: analysis and scrub audio are unavailable. Prepare a file with one audio track. Playback uses the browser’s track choice.' : '';
+        return {count, code, message};
+    }
+    function assessMP4Audio(metadata) {
+        const {count, code, message} = audioSelectionIssue(metadata, 'MP4');
         return Object.freeze({
             contract: 'warpdiff.media-input', version: VERSION,
             profile: 'mp4-audio-selection-v1', evidence: 'container-metadata',
@@ -30,8 +34,9 @@ const WarpMediaInput = (() => {
         const container = ['mp4', 'webm'].includes(facts.container) ? facts.container : 'unknown';
         const count = facts.inventoryKnown === true && Number.isInteger(facts.audioTrackCount) &&
             facts.audioTrackCount >= 0 && facts.audioTrackCount <= 64 ? facts.audioTrackCount : null;
-        const selection = container === 'mp4' ? assessMP4Audio(count === null ? null : {audioTracks: Array(count)}) : null;
-        const blocked = selection?.decodedAudio === 'withheld';
+        const selection = container !== 'unknown'
+            ? audioSelectionIssue(count === null ? null : {audioTracks: Array(count)}, container === 'mp4' ? 'MP4' : 'WebM') : null;
+        const blocked = !!selection?.code;
         const absent = count === 0, image = kind === 'image', audio = kind === 'audio';
         const failed = facts.mediaFailed === true;
         const noSound = image || absent;

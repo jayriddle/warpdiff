@@ -1795,7 +1795,7 @@ test.describe('Solo video playback', () => {
     }
   });
 
-  test('effective duration belongs to the supplied video, including corrected Opus tails', async ({ page }) => {
+  test('effective duration belongs to the supplied video even with a shorter Opus buffer', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     const durations = await page.evaluate(() => {
@@ -1803,12 +1803,12 @@ test.describe('Solo video playback', () => {
       const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
       return videos.map(video => (window as any)._getEffectiveDuration(video));
     });
-    expect(durations[0]).toBeCloseTo(2, 3);
+    expect(durations[0]).toBeCloseTo(3, 1);
     expect(durations[1]).toBeCloseTo(3, 1);
-    expect((await getVar(page, '_loopBounds')).outP).toBeCloseTo(2, 3);
+    expect((await getVar(page, '_loopBounds')).outP).toBeCloseTo(3, 1);
   });
 
-  test('a late corrected duration reconciles an active Solo target to a paused final frame', async ({ page }) => {
+  test('a late shorter audio buffer preserves the active Solo picture position', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await page.keyboard.press('Shift+s');
@@ -1816,14 +1816,12 @@ test.describe('Solo video playback', () => {
       const video = document.querySelector('#layerEditA video') as HTMLVideoElement;
       video.currentTime = 2.5;
       (window as any).__testAPI.opus.installTestBuffer('editA', 2);
-      (window as any)._reconcileSoloEffectiveDuration('editA');
     });
     await page.waitForTimeout(150);
     const videoStates = await states(page);
     expect(videoStates[0].paused).toBe(true);
-    expect(videoStates[0].t).toBeGreaterThan(1.9);
-    expect(videoStates[0].t).toBeLessThanOrEqual(2);
-    expect(await getVar(page, '_soloHeldTimelineTime')).toBeCloseTo(2.5, 1);
+    expect(videoStates[0].t).toBeCloseTo(2.5, 1);
+    expect(await getVar(page, '_soloHeldTimelineTime')).toBeNull();
   });
 });
 
@@ -3670,13 +3668,11 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
     }, {}, { timeout: 2000 });
   });
 
-  test('dragging past a corrected timeline end does not resume playback', async ({ page }) => {
+  test('dragging past the native video end stays paused with a shorter Opus buffer', async ({ page }) => {
     await page.goto('/');
     await loadMedia(page, ['vorbis_a.webm']);
-    // Model a container whose raw video duration extends beyond the decoded
-    // audio timeline (the Chrome Opus correction case). The old release guard
-    // compared currentTime with raw video.duration, decided this was not the
-    // end, and restarted playback one animation frame after mouseup.
+    // A shorter replacement soundtrack must not shorten the seek range. The
+    // final release still has to suppress deferred resume at the video end.
     await page.evaluate(() => (window as any).__testAPI.opus.installTestBuffer('editA', 2));
     await startPlayback(page);
 
@@ -3690,10 +3686,12 @@ test.describe('Scrub drag lost-mouseup recovery (v3.11.7)', () => {
 
     const state = await page.evaluate(() => {
       const video = document.querySelector('.asset-layer video') as HTMLVideoElement;
-      return { paused: video.paused, time: video.currentTime };
+      return { paused: video.paused, time: video.currentTime, duration: video.duration };
     });
     expect(state.paused).toBe(true);
-    expect(state.time).toBeLessThanOrEqual(2.01);
+    expect(state.duration).toBeGreaterThan(2.5);
+    expect(state.time).toBeGreaterThan(state.duration - 0.1);
+    expect(state.time).toBeLessThanOrEqual(state.duration + 0.01);
   });
 
   test('an ended signal during a paused scrub cannot start a managed loop', async ({ page }) => {

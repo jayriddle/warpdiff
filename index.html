@@ -3969,7 +3969,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.13';
+        const APP_VERSION = '3.19.14';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.13';
@@ -4387,10 +4387,8 @@
         function setLoopPoint(type) {
             const media = getTransportPlayableMedia()[0];
             if (!media) return;
-            // Clamp to the effective duration — raw video.currentTime can sit past
-            // _opusSyncDuration[slot] for Opus videos (container duration > decoded
-            // audio duration), which makes loop markers overflow the timeline and
-            // prevents the RVFC out-point check from ever firing.
+            // Keep markers inside the media timeline, independently of the
+            // decoded soundtrack's start and end.
             const effDur = _getEffectiveDuration(media);
             const t = (effDur && isFinite(effDur)) ? Math.min(media.currentTime, effDur) : media.currentTime;
             if (type === 'in') {
@@ -8747,10 +8745,7 @@
 
         function updateDurationDisplay(slot, duration, fps) {
             if (!duration) return;
-            // Prefer the Opus-corrected duration when available — raw video.duration
-            // reflects container metadata which can extend past the actual audio end.
-            const effective = _opusSyncDuration[slot] || duration;
-            const durationStr = _formatTcForCopy(effective, fps || null);
+            const durationStr = _formatTcForCopy(duration, fps || null);
             updateAssetInfoBar(slot, { duration: durationStr });
         }
 
@@ -8765,7 +8760,7 @@
                 const media = layer.querySelector('video, audio');
                 if (!media || !media.duration) continue;
                 const fps = videoFrameRates[media.src] || null;
-                const effective = _opusSyncDuration[slot] || media.duration;
+                const effective = _getEffectiveDuration(media);
                 durEl.innerHTML = _STOPWATCH_SVG + _formatTcForCopy(effective, fps);
             }
             _queueInfoBarRefresh();
@@ -8921,24 +8916,6 @@
                     // Video-to-video drift lock: hold followers on the primary's clock
                     // (see _driftLockTick → js/transport.js)
                     if (!hasAudios) _driftLockTick(primary);
-                    // Force loop at effective duration for ALL Opus sync slots
-                    // (native video.duration is longer than trimmed audio). Skipped
-                    // when a managed loop region is active — _loopWrapToInPoint
-                    // already wraps every video together (outP is the min effective
-                    // duration, which includes Opus-corrected durations); wrapping a
-                    // single slot here would desync it from the others.
-                    if (_opusSyncActive && _loopInPoint === null && _getLoopBounds() === null) {
-                        for (const s of getTransportSlots()) {
-                            if (!_opusSyncDuration[s]) continue;
-                            const layer = getLayer(s);
-                            const v = layer && layer.querySelector('video');
-                            if (v && !v.paused && v.currentTime >= _opusSyncDuration[s] - 0.05) {
-                                v.currentTime = 0;
-                                _resetTransportProgress(0);
-                                _startOpusSyncAudio(s, 0);
-                            }
-                        }
-                    }
                     if (!hasAudios && magnifierEnabled && _lastMouseEvent) updateMagnifier(_lastMouseEvent);
                     if (!hasAudios && videoScopesVisible) updateVideoScopes();
                     if (!hasAudios && _diffMode) drawDiffComposite();
@@ -9088,10 +9065,8 @@
         }
 
         function _getEffectiveDuration(video) {
-            // For Opus sync slots, use the trimmed audio buffer duration
-            // instead of video.duration (which includes trailing audio)
-            const slot = getMediaSlot(video);
-            if (slot && _opusSyncDuration[slot]) return _opusSyncDuration[slot];
+            // Audio PCM does not establish picture duration. Let the native
+            // media timeline own seeking, loop bounds and duration displays.
             return video.duration;
         }
 
@@ -10488,10 +10463,7 @@
             const media    = activeLayer.querySelector('video') || activeLayer.querySelector('audio');
             const mediaFps = (media && media.tagName === 'VIDEO') ? (videoFrameRates[media.src] || 0) : 0;
             const rawDur   = media && !isNaN(media.duration) && media.duration > 0 ? media.duration : 0;
-            // Prefer the Opus-corrected duration when available (raw video.duration
-            // reflects container metadata that can extend past the actual audio end).
-            const effDur   = _opusSyncDuration[slot] || rawDur;
-            const duration = effDur > 0 ? _formatTcForCopy(effDur, mediaFps) : '';
+            const duration = rawDur > 0 ? _formatTcForCopy(rawDur, mediaFps) : '';
 
             // Slot-color class on strip root (drives CSS-colored name pill)
             const customInfo = strip.classList.contains('info-custom');
@@ -11034,7 +11006,6 @@
             _stopAllOpusSyncAudio();
             _opusSyncPending = {};
             _opusSyncSlots = {};
-            _opusSyncDuration = {};
             _opusSyncSources = {};
             _opusSyncGains = {};
             _opusSyncStartCtx = {};
@@ -14022,9 +13993,6 @@
                     _audioTimelineStarts[slot] = timelineStart;
                     _opusSyncSlots[slot] = true;
                     _opusSyncActive = true;
-                    // Match the production finalize path: the corrected media
-                    // duration is the decoded buffer plus any leading timeline gap.
-                    _opusSyncDuration[slot] = timelineStart + seconds;
                 },
                 state(slot) {
                     return {
@@ -14298,6 +14266,8 @@
             <p>Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
+            <p>Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing.</p>
+
             <h2>Audio Timeline Interaction</h2>
             <p>In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.</p>
             <table>
@@ -14397,7 +14367,7 @@
             <p>Damaged settings recover individually, preserving valid preferences and shortcut entries. If browser storage is blocked or full, ordinary changes still work for this visit and a notice explains failed saves. Reloading may restore an older value or the default. Unreadable usage permission keeps sharing off; privacy and info-bar saves retain their own warnings.</p>
 
             <h2>Info Bar</h2>
-            <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Recognized MP4 files need one readable audio track for decoded analysis and scrub audio. Multiple or unverifiable tracks keep browser-managed playback with a preparation notice; export the desired track and reload to enable those tools. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
+            <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Recognized MP4 and WebM files need one readable audio track for decoded analysis and scrub audio. Multiple or unverifiable tracks keep browser-managed playback with a preparation notice; export the desired track and reload to enable those tools. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
             <p>Open <strong>Customize info bar</strong> (the sliders icon in the header) and choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in <strong>Left aligned</strong> and <strong>Right aligned</strong> sections: drag their <strong>⠿ handles</strong> to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.</p>
             <p>Add <strong>spacers</strong> after the selected row in the same section to group related items. Move them between sections, hide or remove them, and set their width from 12–48 pixels. Empty edge groups and adjacent gaps collapse within each section. Narrow bars compress gaps, preserve right-edge fields first, then put remaining selected fields into <strong>More</strong> (<strong>⋯</strong> in compact Grid bars). Portrait bars can extend within their own cells to keep controls reachable; customized Stack information moves to its own header row when space is tight. Hidden fields stay excluded even after audio analysis arrives. Multiple source tracks are numbered within each selected field. A red ! retains the above −9 LUFS warning with custom colors. Slot controls, the image wipe pair chooser and managed host display retain their existing behavior. Escape closes More or the editor and returns focus.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>

@@ -649,10 +649,11 @@ runMediaAdmissionChecks(check);
   check('playback-scope: custom loops clamp per Solo target and invalid ranges disable native looping',
         extractFn('_getLoopBounds').includes('_customLoopBoundsForMedia(media)') &&
         extractFn('_applyNativeLoopPolicy').includes('custom && custom.invalid'));
-  check('playback-scope: effective duration resolves the supplied media element’s slot',
-        extractFn('_getEffectiveDuration').includes('getMediaSlot(video)'));
-  check('playback-scope: late Opus duration discovery reconciles the active Solo target',
-        extractFn('_finalizeAudioViz').includes('_reconcileSoloEffectiveDuration(slot)'));
+  const mediaDuration = runInNewContext('(' + extractFn('_getEffectiveDuration') + ')');
+  check('playback-scope: duration belongs to the supplied media, independent of audio',
+        mediaDuration({duration:5}) === 5 && mediaDuration({duration:2}) === 2);
+  check('playback-scope: decoded audio cannot shorten the timeline or wrap picture early',
+        !SRC.includes('_opusSyncDuration'));
   check('playback-scope: clearing media resets to Sync through the scope owner',
         extractFn('clearAllMedia').includes('_resetPlaybackScope()'));
 }
@@ -2017,6 +2018,43 @@ runMediaAdmissionChecks(check);
   } else console.log('  ⊘ demux[opus]: generate fixtures to check multistream Opus');
 }
 
+// WebM selects one complete track inventory before any packet/config copy.
+{
+  const realm = {};
+  runInNewContext(readFileSync(new URL('js/mp4-demux.js', ROOT), 'utf8'), realm);
+  const el = (id,...parts) => {
+    const body = Buffer.concat(parts);
+    return Buffer.concat([Buffer.from(id,'hex'),Buffer.from([0x40 | (body.length >> 8),body.length & 255]),body]);
+  };
+  const track = (num,codec='A_OPUS',extra=Buffer.alloc(0)) => el('ae',
+    el('d7',Buffer.from([num])),el('83',Buffer.from([2])),el('86',Buffer.from(codec)),
+    el('63a2',Buffer.from([1,2,3])),extra);
+  const block = num => el('1f43b675',el('e7',Buffer.from([0])),el('a3',Buffer.from([0x80|num,0,0,0x80,7,8,9])));
+  const webm = (...parts) => new Uint8Array(Buffer.concat([el('1a45dfa3'),el('18538067',...parts)]));
+  const one = webm(el('1654ae6b',track(1)),block(1));
+  check('webm-selection: one identified Opus track still extracts its packets',
+    realm._demuxWebMAudio(one)?.codec === 'opus' && realm._demuxWebMAudio(one)?.chunks[0].data[0] === 7);
+  const vorbis = realm._demuxWebMAudio(webm(el('1654ae6b',track(1,'A_VORBIS')),block(1)));
+  check('webm-selection: Vorbis extraction cannot authorize Opus replacement',vorbis?.codec === 'vorbis' && vorbis.preSkip === 0);
+  for (const [name,parts] of [
+    ['two Opus tracks',[el('1654ae6b',track(1),track(2)),block(2)]],
+    ['unsupported second soundtrack',[el('1654ae6b',track(1),track(2,'A_FLAC')),block(1)]],
+    ['later track inventory',[el('1654ae6b',track(1)),block(1),el('1654ae6b',track(2))]],
+    ['duplicate track numbers',[el('1654ae6b',track(1),track(1)),block(1)]],
+    ['zero track number',[el('1654ae6b',track(0)),block(0)]],
+    ['duplicate codec fields',[el('1654ae6b',track(1,'A_OPUS',el('86',Buffer.from('A_VORBIS')))),block(1)]],
+  ]) {
+    const bytes = webm(...parts);
+    bytes.slice = () => {throw Error('Packet/configuration copied before track selection');};
+    let rejected = false;
+    try { rejected = realm._demuxWebMAudio(bytes) === null; } catch (_) {}
+    check('webm-selection: '+name+' rejected before packet copies',rejected);
+  }
+  const metadata = realm._demuxWebMAudio(one,true);
+  check('webm-selection: metadata has one verified track and no packet copies',
+    metadata.trackSelectionVerified && metadata.audioTracks[0].trackId === 1 && !metadata.chunks);
+}
+
 // Native output routing and Opus switching share one envelope owner.
 {
   check('one-owner[media-volume]: initial load and master control share one volume writer',
@@ -2051,14 +2089,16 @@ runMediaAdmissionChecks(check);
   }
   const decodeTimeout = async ({chrome=false, opus=false} = {}) => {
     const bytes = new Uint8Array(16);
-    if (opus) bytes.set([0x4F, 0x70, 0x75, 0x73], 0);
+    bytes.set([0x4F, 0x70, 0x75, 0x73], 0); // Unrelated bytes alone never authorize Opus.
     const pending = {};
     let fallback = 0;
     const realm = {
       _opusSyncPending: pending, _videoAudioDecodeGen: {}, _loadingProgressToken: 1, _byteScannedCodec: {},
       _UNSUPPORTED_CODEC_LABELS: {}, _isChrome: chrome, AudioDecoder: function AudioDecoder() {}, File: function File() {},
       console: {warn(){}}, _nextAudioDecodeGeneration: () => 1, _videoAudioDecodeIsCurrent: () => true,
-      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _isMP4AudioContainer: () => false,
+      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _isMP4AudioContainer: () => true,
+      _isWebMAudioContainer: () => false, _mp4AudioAnalysisIssue: () => '',
+      _demuxMP4Audio: () => ({audioTracks:[{codec:opus ? 'Opus' : 'aac'}]}),
       WarpScrubAudio: {monitor: {waveLayout(){ return null; }}}, _mediaInputAudioMetadata(){},
       getAudioContext: () => ({decodeAudioData: () => new Promise(() => {})}),
       setTimeout: (fn) => { fn(); return 0; },
@@ -2073,6 +2113,8 @@ runMediaAdmissionChecks(check);
     check('native-output: non-Opus timeout on ' + (chrome ? 'Chrome' : 'WebKit') + ' keeps analysis fallback without Opus pending',
       timedOut.fallback === 1 && timedOut.pending === false);
   }
+  const chromeOpus = await decodeTimeout({chrome:true,opus:true});
+  check('native-output: verified Chrome Opus still selects replacement',chromeOpus.fallback === 1 && chromeOpus.pending);
   const safariOpus = await decodeTimeout({opus:true});
   check('native-output: WebKit Opus timeout still falls back without marking replacement pending',
     safariOpus.fallback === 1 && safariOpus.pending === false);

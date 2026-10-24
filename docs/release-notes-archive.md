@@ -2,6 +2,13 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.14 (prepared October 23, 2026; quiet maintenance)
+
+- Multi-track WebM retains browser-selected playback and withholds decoded analysis/scrub audio, matching the MP4 policy.
+- Video seeking and loops retain the native media duration when Opus sound ends early.
+- Opus replacement requires parsed track identity and an Opus decode; unrelated metadata cannot change AAC routing.
+- The prior in-app summary remains. [Changes and verification](audio-review-fixes-2026-10-23.md).
+
 ## v3.19.13
 
 What's New was rewritten in plain language. The in-app summary is now:

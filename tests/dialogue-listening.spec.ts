@@ -50,7 +50,9 @@ for(const channels of [6,8]) for(const output of ['native','continuous','replace
         const video=document.querySelector('#layerEditA video') as HTMLVideoElement;
         const raw=await evaluate('getAudioContext()').decodeAudioData(await (await fetch(video.src)).arrayBuffer());
         (window as any).__rawDialogue=raw;
-        await evaluate(`(async()=>{_opusSyncPending.editA=true;await _finalizeAudioViz('editA',window.__rawDialogue,undefined,0,'${channels===6?'5.1':'7.1'}');})()`);
+        // This matrix test deliberately installs synthetic replacement PCM.
+        // Supply its codec identity explicitly; real codec admission is covered separately.
+        await evaluate(`(async()=>{_opusSyncPending.editA=true;await _finalizeAudioViz('editA',window.__rawDialogue,undefined,0,'${channels===6?'5.1':'7.1'}','opus');})()`);
       }
       const ctx=evaluate('getAudioContext()'); await ctx.resume();
       const a=ctx.createAnalyser();a.fftSize=8192;(window as any).__dialogueAnalyser=a;

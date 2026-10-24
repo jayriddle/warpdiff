@@ -35,6 +35,10 @@ export function runMediaAdmissionChecks(check, source = readFileSync(new URL('..
   test('multi-track native picture/playback remain available', blocked.capabilities.picture.state === 'available' && blocked.capabilities.nativePlayback.state === 'available');
   test('multi-track issue is structured', blocked.issues[0].code === 'audio-track-selection-required');
   test('unverified MP4 inventory cannot borrow successful decode claims', assess({...good, inventoryKnown:false}).capabilities.decodedAnalysis.state === 'unavailable');
+  const webm = assess({...good,container:'webm',audioTrackCount:2});
+  test('multiple WebM tracks withhold decoded tools with the matching container notice',
+    webm.capabilities.decodedAnalysis.state === 'unavailable' && webm.capabilities.scrubAudio.state === 'unavailable' && webm.issues[0].message.includes('Multiple WebM'));
+  test('unverified WebM inventory cannot borrow successful decode claims',assess({...good,container:'webm',inventoryKnown:false}).capabilities.decodedAnalysis.state === 'unavailable');
   const silent = assess({...good, audioTrackCount:0});
   test('verified absence is not an unsupported codec', silent.capabilities.audioDecode.state === 'not-applicable' && silent.timing.audioStart.state === 'not-applicable');
   test('heuristic no-audio is not verified absence', assess({kind:'video', noAudioDetected:true}).capabilities.audioDecode.state === 'unavailable');

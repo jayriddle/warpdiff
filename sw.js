@@ -1,5 +1,5 @@
 // Keep in sync with APP_VERSION in index.html
-const CACHE_NAME = 'warpdiff-v3.19.13';
+const CACHE_NAME = 'warpdiff-v3.19.14';
 // Staging fills this with the exact public bundle; checkout serving remains build-free.
 const RELEASE = null;
 const ASSETS = ['./', 'index.html', 'js/app-updates.js', 'js/app-dialogs.js', 'js/preferences.js', 'js/appearance.js', 'js/info-bar.js', 'js/usage.js', 'js/audio-viz.js', 'js/audio-analysis.js', 'js/audio-analysis-worker.js', 'js/scopes.js', 'js/hotkeys.js',
