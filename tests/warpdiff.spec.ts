@@ -1955,7 +1955,19 @@ test.describe('Multi-video sync-lock', () => {
 
     const drift = await page.evaluate(async () => {
       const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
-      const settle = () => new Promise(r => setTimeout(r, 40));
+      // Decode/presentation queues progress independently. A fixed 40 ms can
+      // sample different in-flight targets; wait only for completion, never
+      // for the alignment value whose correctness this test must measure.
+      const settle = () => new Promise<void>((resolve, reject) => {
+        const deadline = performance.now() + 5000;
+        const poll = () => {
+          const pending = window.eval('typeof _frameStepSeeks !== "undefined" && _frameStepSeeks.size > 0');
+          if (!pending && vids.every(v => !v.seeking && v.readyState >= 2)) { resolve(); return; }
+          if (performance.now() >= deadline) { reject(new Error('Frame-step completion timed out')); return; }
+          requestAnimationFrame(poll);
+        };
+        poll();
+      });
       (window as any).stepFrame(1); await settle();   // land on the aligned grid first
       (window as any).stepFrame(-1); await settle();
       let worst = 0;
@@ -1978,7 +1990,10 @@ test.describe('Multi-video sync-lock', () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: '.', code: 'Period', bubbles: true }));
       }
     });
-    await page.waitForTimeout(300);
+    await page.waitForFunction(() =>
+      !window.eval('typeof _frameStepSeeks !== "undefined" && _frameStepSeeks.size > 0') &&
+      Array.from(document.querySelectorAll('.asset-layer video')).every((v:any) => !v.seeking && v.readyState >= 2),
+      null, {timeout:5000});
     const rapidTime = (await videoTimes(page))[0].t;
     expect(rapidTime).toBeCloseTo(10.5 / 24, 3);
   });

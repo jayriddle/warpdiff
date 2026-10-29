@@ -19,6 +19,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { runInNewContext } from 'node:vm';
+import { runFrameStepChecks } from './frame-step-regression.mjs';
 import { runScrubVideoChecks } from './scrub-video-regression.mjs';
 import { runMalformedVideoChecks } from './mp4-video-malformed.mjs';
 import { runMalformedAudioChecks } from './mp4-audio-malformed.mjs';
@@ -718,7 +719,7 @@ runMediaAdmissionChecks(check);
   check('one-owner[playback-start]: shared preparation is defined once',
         countOf(SRC, 'function _preparePlaybackStart(') === 1);
   check('one-owner[playback-start]: preparation cancels stale play intent and validates Solo before starting',
-        prepare.includes('_resetFrameStepCursor()') && prepare.includes('_cancelPendingPlayIntent()') &&
+        prepare.includes('_resetFrameStepCursor(true)') && prepare.includes('_cancelPendingPlayIntent()') &&
         prepare.includes('_scrubAtTimelineEnd = false') && prepare.includes('_soloLoopConstraint(soloVideo)') &&
         prepare.includes('return null;') && prepare.includes('_setSoloHeldTimelineTime(null)'));
   check('one-owner[scrub-session]: shared preparation suspends decoders outside a drag and retains their cache',
@@ -860,13 +861,13 @@ runMediaAdmissionChecks(check);
         step.includes('_frameStepCursorFrame(_frameStepCursor, ref, observedFrame, refFps, refTotal, now)') &&
         step.includes('frame: targetFrame') && step.includes('targetTime: refTime'));
   check('one-owner[frame-step-cursor]: playback, pause, restart, play events, and both scrub entry points reset it',
-        countOf(SRC, '_resetFrameStepCursor();') === 5 &&
-        extractFn('_preparePlaybackStart').includes('_resetFrameStepCursor();') &&
+        countOf(SRC, '_resetFrameStepCursor();') === 9 &&
+        extractFn('_preparePlaybackStart').includes('_resetFrameStepCursor(true);') &&
         extractFn('pauseAllMedia').includes('_resetFrameStepCursor();') &&
         extractFn('playAllMedia').includes('_preparePlaybackStart();') &&
         extractFn('restartAllVideos').includes('_preparePlaybackStart();') &&
         extractFn('setupVideoHandlers').includes("video.addEventListener('play', function() {\n        _resetFrameStepCursor();") &&
-        countOf(HTML, '_resetFrameStepCursor();') === 2);
+        countOf(HTML, '_resetFrameStepCursor();') === 4);
   check('pause-snap: tolerance uses the COARSER grid, matching the drift lock\'s engage band',
         snap.includes('Math.min(refFps, fps)'));
 }
@@ -2465,6 +2466,7 @@ runMediaAdmissionChecks(check);
 }
 
 // ── summary ───────────────────────────────────────────────────────────────────
+runFrameStepChecks(check);
 await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);

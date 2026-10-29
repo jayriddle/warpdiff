@@ -56,7 +56,7 @@ Host loads retain input order and validate every converted file after either tra
 
 ### Frame & timecode
 - Frame stepping uses midpoint seeking `(frame+0.5)/fps` to avoid IEEE 754 boundary issues.
-- Repeated `,` / `.` presses use the burst-local `_frameStepCursor` while a precise seek is unresolved; it expires after 750 ms and resets on playback, pause, restart, and scrub entry.
+- Repeated `,` / `.` presses use the burst-local `_frameStepCursor` while a precise seek is unresolved; it expires after 750 ms only once native work has settled. `_queueFrameStepSeek` retains one native seek and the latest target per video, waits for decode plus presentation (150 ms fallback after decode for hidden layers), and fences each issuance. Play commits the queued target before takeover; pause/restart/scope/scrub/clear/visibility retire callbacks and references.
 - Timecode display uses `Math.floor(time * fps + 0.01)` epsilon to match frame numbers.
 - Passive fps detection (`_setupFpsDetection`) accumulates frame timestamps across normal-playback sessions, normalizes coalesced callbacks with `metadata.presentedFrames`, and snaps to standard rates (23.976 / 24 / 25 / 29.97 / 30 / 48 / 50 / 59.94 / 60). No active probing at load time.
 

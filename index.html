@@ -3969,7 +3969,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.15';
+        const APP_VERSION = '3.19.16';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.15';
@@ -10944,6 +10944,7 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia(preserveHostRequest = false) {
+            _resetFrameStepCursor(); // retire pending paused-frame seeks before replacement
             _localPreparationClear(); // normal preparation lifecycle → js/local-preparation.js
             _resetPreparedImport(); // retire explicit package inspection → js/prepared-import.js
             _mediaInputClear();
@@ -13827,6 +13828,7 @@
         }
         window.addEventListener('pageshow', e => { if (e.persisted) _onPageRestore(); });
         document.addEventListener('visibilitychange', () => {
+            if (document.hidden) _resetFrameStepCursor();
             if (document.visibilityState === 'visible') _onPageRestore();
         });
 
@@ -14302,7 +14304,7 @@
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
-            <p>Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames. A file whose frame timing varies keeps the 30 fps start until that measurement finishes.</p>
+            <p>Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames. A file whose frame timing varies keeps the 30 fps start until that measurement finishes. Rapid steps keep advancing the requested position while each native video finishes decoding and presenting. After a burst, the pictures settle on the latest requested frames. With different frame rates, the follower is aligned by time and may legitimately repeat or skip a frame.</p>
             <p><strong>Playback scope:</strong> The adjacent <strong>Playback: Sync / Solo</strong> and <strong>Range: Sync / Full</strong> controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip <strong>Range: Sync / Full</strong> control is hidden while Solo is active.</p>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
