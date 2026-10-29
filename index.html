@@ -3969,10 +3969,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.14';
+        const APP_VERSION = '3.19.15';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.13';
+        const _CHANGELOG_VERSION = '3.19.15';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -8539,6 +8539,49 @@
 
         // ── loadVideoFile ────────────────────────────────────────────────
 
+        function _readFileRange(file, start, length) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(new Uint8Array(reader.result));
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file.slice(start, start + length));
+            });
+        }
+
+        // Read only the movie box. A leading media-data box is skipped from its
+        // header, so a long file is not copied just to learn its frame rate.
+        async function _readMp4Moov(file) {
+            let offset = 0;
+            while (offset + 8 <= file.size) {
+                const head = await _readFileRange(file, offset, Math.min(16, file.size - offset));
+                const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+                let size = view.getUint32(0);
+                const type = String.fromCharCode(head[4], head[5], head[6], head[7]);
+                let header = 8;
+                if (size === 1) {
+                    if (head.length < 16) return null;
+                    size = Number(view.getBigUint64(8));
+                    header = 16;
+                } else if (size === 0) size = file.size - offset;
+                if (!Number.isSafeInteger(size) || size < header || offset + size > file.size) return null;
+                if (type === 'moov') {
+                    if (size > 32 * 1024 * 1024) return null;
+                    return _readFileRange(file, offset, size);
+                }
+                offset += size;
+            }
+            return null;
+        }
+
+        function _primeContainerFrameRate(slot, file, video, loadingToken) {
+            _readMp4Moov(file).then(moov => {
+                if (loadingToken !== _loadingProgressToken || !moov || !video.isConnected) return;
+                const rate = _mp4ConstantFrameRate(moov);
+                if (!(rate > 0)) return;
+                _seedVideoFrameRate(video, slot, rate);
+            }).catch(() => {});
+        }
+
         function loadVideoFile(slot, file) {
             const loadingToken = _loadingProgressToken;
             _setLoadingSlotState(slot, 'Reading metadata…');
@@ -8630,6 +8673,7 @@
             // Store File for lazy audio decode (read on demand, not upfront)
             audioFileBuffers[slot] = file;
             _hostLoadVerifyVideo(slot, video, loadingToken);
+            _primeContainerFrameRate(slot, file, video, loadingToken);
         }
 
         // ── loadImageFile ────────────────────────────────────────────────
@@ -14258,6 +14302,7 @@
                 <tr><td><kbd>Shift+W</kbd></td><td>Toggle linear / log frequency scale</td></tr>
                 <tr><td><kbd>P</kbd></td><td>Cycle spectrogram color palette</td></tr>
             </table>
+            <p>Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames. A file whose frame timing varies keeps the 30 fps start until that measurement finishes.</p>
             <p><strong>Playback scope:</strong> The adjacent <strong>Playback: Sync / Solo</strong> and <strong>Range: Sync / Full</strong> controls define how clips participate and how much of them plays. In Solo, Space, restart, frame stepping, speed changes, scrubbing, custom loop points, progress, and audio all follow the selected video. Choose another video with the asset controls or audio-source buttons to hand playback off at the same absolute time. If that time is beyond a shorter target, WarpDiff holds it paused on its final frame instead of wrapping and retains the longer time for switching back or rejoining Full Sync. Returning to range-limited Sync from outside the shared range restarts at its shared in-point. Custom loop markers remain shared; their effective out-point is clamped to the Solo video, and a loop whose in-point is beyond its end holds there with an explanation. The multi-clip <strong>Range: Sync / Full</strong> control is hidden while Solo is active.</p>
             <p>Only one audio track plays at a time. If the active source is muted, audio automatically switches to the next unmuted source.</p>
             <p><strong>Sync and clip length:</strong> Multiple videos share one transport and stay frame-aligned. Different-length clips default to <strong>Full</strong>, where shorter clips hold on their last frame; <strong>Sync</strong> wraps at the shortest clip so every frame has a counterpart.</p>
@@ -14340,6 +14385,7 @@
                 <tr><td><kbd>?</kbd></td><td>Getting Started help</td></tr>
                 <tr><td><kbd>Esc</kbd></td><td>Dismiss loupe / close panel</td></tr>
             </table>
+            <p>Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames.</p>
 
             <h2>Scrub Audio</h2>
             <p><strong>Continuous</strong> is the standard preview for video and audio-only timelines. Dragging changes speed while preserving pitch; backward drags traverse the audio backward. Short previews also retain original pitch, independent of your selected normal playback speed. Click for a short preview, and hold still to fade out. There is no mode selector.</p>
@@ -14494,9 +14540,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li><strong>Videos with missing color info open correctly again.</strong> WarpDiff picks the most likely color setting and shows a short note when it does.</li>
-                <li><strong>Prepared copies keep the original colors</strong> instead of shifting them. HDR video is still left untouched.</li>
-                <li><strong>Sound stays in sync with the picture,</strong> even when a large video is slow to open.</li>
+                <li><strong>Frame stepping follows the video’s own rate as soon as the file opens.</strong> Comma and period no longer assume 30 frames per second until you press play.</li>
+                <li>If the frame timing varies, stepping still starts at 30. Playback measures the rate from the picture and uses that once it has seen enough frames.</li>
             </ul>
         </div>
     </div>

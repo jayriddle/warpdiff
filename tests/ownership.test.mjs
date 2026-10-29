@@ -1453,6 +1453,11 @@ runMediaAdmissionChecks(check);
         fps.includes('cancelVideoFrameCallback(detectionRvfcId)'));
   check('fps-detect: completed detection stops requesting presentation callbacks',
         fps.includes('if (detected) detecting = false;\n        else requestNextFrame();'));
+  check('fps-detect: a sample-table rate already stored is kept until measurement replaces it',
+        fps.includes('if (!(videoFrameRates[video.src] > 0)) videoFrameRates[video.src] = 30') &&
+        fps.includes('video._fpsMeasured = true') &&
+        fps.includes('videoFrameRates[video.src] = snapped') &&
+        extractFn('_seedVideoFrameRate').includes('video._fpsMeasured'));
 
   // C6: the RVFC exact-time loop wrap suppresses handlers under _bulkSyncActive.
   const wrap = extractFn('_loopWrapToInPoint');
@@ -1946,6 +1951,38 @@ runMediaAdmissionChecks(check);
         countOf(SRC, 'function _scrubGrainLengths(') === 1 &&
         play.includes('_scrubGrainLengths(rate, buf.duration - offset)') &&
         play.includes('const outputSnippetLen = grainLengths.output'));
+}
+
+// Constant sample-table frame rate. Variable deltas stay null so stepping
+// keeps its 30 fps default until playback measurement.
+{
+  const { _mp4ConstantFrameRate } = new Function(extractFn('_mp4ConstantFrameRate') + '\nreturn { _mp4ConstantFrameRate };')();
+  const u32 = n => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+  const box = (type, payload) => new Uint8Array([...u32(8 + payload.length), ...type.split('').map(c => c.charCodeAt(0)), ...payload]);
+  const mdhd = box('mdhd', new Uint8Array([
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ...u32(24000), ...u32(48000), 0, 0, 0, 0
+  ]));
+  const hdlr = kind => box('hdlr', new Uint8Array([
+    0, 0, 0, 0, 0, 0, 0, 0, ...kind.split('').map(c => c.charCodeAt(0)), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+  ]));
+  const stts = deltas => {
+    const payload = [0, 0, 0, 0, ...u32(deltas.length)];
+    for (const delta of deltas) payload.push(...u32(1), ...u32(delta));
+    return box('stts', new Uint8Array(payload));
+  };
+  const movie = (handler, deltas) => box('moov', box('trak', box('mdia', new Uint8Array([
+    ...mdhd, ...hdlr(handler), ...box('minf', box('stbl', stts(deltas)))
+  ]))));
+  check('frame-rate: one sample duration is timescale / delta',
+        _mp4ConstantFrameRate(movie('vide', [1000])) === 24);
+  check('frame-rate: repeated equal durations stay constant',
+        _mp4ConstantFrameRate(movie('vide', [1000, 1000])) === 24);
+  check('frame-rate: unequal durations are not a constant rate',
+        _mp4ConstantFrameRate(movie('vide', [1000, 2000])) === null);
+  check('frame-rate: a non-video track does not supply a rate',
+        _mp4ConstantFrameRate(movie('soun', [1000])) === null);
+  check('frame-rate: a non-MP4 buffer supplies no rate',
+        _mp4ConstantFrameRate(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])) === null);
 }
 
 // MP4 VIDEO demuxer (WebCodecs scrub path) — same fixture, video track.

@@ -974,12 +974,28 @@ function _resolveVideoProgressTime(video, candidate, now = performance.now()) {
     return time;
 }
 
-function _setupFpsDetection(video, slot) {
-    if (typeof video.requestVideoFrameCallback !== 'function') {
-        videoFrameRates[video.src] = 30;
-        return;
+// A constant sample-table rate may already be stored. Do not put 30 back on
+// top of it. Playback measurement still replaces either value when it completes.
+function _seedVideoFrameRate(video, slot, rate) {
+    if (!video || video._fpsMeasured || !(rate > 0) || rate > 480) return;
+    const src = video.currentSrc || video.src;
+    if (!src) return;
+    let fps = rate;
+    if (typeof _FPS_STANDARD_RATES !== 'undefined') {
+        const nearest = _FPS_STANDARD_RATES.reduce((a, b) =>
+            Math.abs(b - rate) < Math.abs(a - rate) ? b : a);
+        if (Math.abs(nearest - rate) <= 0.02) fps = nearest;
     }
-    videoFrameRates[video.src] = 30; // default until detected
+    videoFrameRates[src] = fps;
+    if (typeof updateAssetInfoBar === 'function') {
+        const text = (Math.abs(fps - Math.round(fps)) < 1e-3 ? String(Math.round(fps)) : String(fps)) + ' fps';
+        updateAssetInfoBar(slot, { fps: text });
+    }
+}
+
+function _setupFpsDetection(video, slot) {
+    if (!(videoFrameRates[video.src] > 0)) videoFrameRates[video.src] = 30;
+    if (typeof video.requestVideoFrameCallback !== 'function') return;
     // Frame-to-frame deltas, ACCUMULATED across play sessions (see the 'play'
     // handler). lastTs anchors the current run only, so a pause/seek boundary
     // never contributes a bogus interval.
@@ -1038,6 +1054,7 @@ function _setupFpsDetection(video, slot) {
             const snapped = _FPS_STANDARD_RATES.reduce((a, b) =>
                 Math.abs(b - rawFps) < Math.abs(a - rawFps) ? b : a);
             console.log(`[fps] ${slot}: raw=${rawFps.toFixed(4)} → snapped=${snapped} (${good.length}/${intervals.length} good intervals)`);
+            video._fpsMeasured = true;
             videoFrameRates[video.src] = snapped;
             updateAssetInfoBar(slot, { fps: `${snapped} fps` });
             updateDurationDisplay(slot, video.duration, snapped);
