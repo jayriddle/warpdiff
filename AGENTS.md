@@ -185,7 +185,7 @@ Two layers:
 - `tests/fixtures/*.{mp4,wav,mp3}` are gitignored (deterministic outputs of the generator script — don't commit them).
 - Tests use the `__testAPI` global on `window` to inspect internal state (`zoomLevel`, `fitZoom`, `isGridMode`, `_loopInPoint`, etc.) — add to `__testAPI` when introducing testable state.
 - `npm run test:infra` checks workflow failure gates, complete/disjoint browser reports, and the public-asset staging boundary. Run it for changes to testing, packaging or release infrastructure. CI retains the protected check names `Chromium and ownership` and `WebKit preparation workflow`; do not weaken or rename them accidentally.
-- `playwright.ci.config.ts` enables test-level sharding with one worker and zero retries per machine. All cases keep fresh pages; shared fixtures are generated before testing. Do not increase media-test concurrency on one machine as a substitute for separate runners.
+- `playwright.ci.config.ts` keeps one worker and zero retries per machine. Hosted Chromium and WebKit split files in `scripts/ci-shards.mjs` (three runners each); the protected names `Chromium and ownership` and `WebKit preparation workflow` are the aggregate jobs. All cases keep fresh pages; shared fixtures are generated before testing. Do not increase media-test concurrency on one machine as a substitute for separate runners.
 - `output/` and `blob-report/` contain generated local evidence and must stay ignored and unpublished. Commit compact verification summaries to `docs/`; reusable investigation tooling belongs in `tools/investigations/`.
 - Server: `./start.sh` runs `npx serve -l 8080 .` from project root; Playwright auto-detects and reuses it (`reuseExistingServer: true`).
 

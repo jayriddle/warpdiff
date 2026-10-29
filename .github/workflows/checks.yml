@@ -67,7 +67,7 @@ jobs:
           node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({ channel: 'chrome', headless: true }); console.log(browser.version()); await browser.close();"
       - run: npm run test:fixtures
       - name: Run Chromium shard
-        run: npm run test:ci -- --shard=${{ matrix.shard }}/3 --reporter=line,json,html
+        run: npm run test:ci -- --reporter=line,json,html $(node scripts/ci-shards.mjs chromium ${{ matrix.shard }})
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
@@ -115,11 +115,17 @@ jobs:
           merge-multiple: true
           path: output/reports
       - name: Require complete, disjoint, zero-retry results
-        run: node scripts/verify-test-reports.mjs output/inventory.json output/reports
+        run: node scripts/verify-test-reports.mjs output/inventory.json output/reports chromium 3
 
-  webkit:
-    name: WebKit preparation workflow
+  webkit-shards:
+    name: WebKit shard ${{ matrix.shard }}/3
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      PLAYWRIGHT_JSON_OUTPUT_FILE: output/webkit-${{ matrix.shard }}.json
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -135,15 +141,55 @@ jobs:
       - run: npm ci
       - run: npx playwright install webkit
       - run: npm run test:fixtures
-      - run: npm run test:webkit
+      - name: Run WebKit shard
+        run: npm run test:webkit -- --reporter=line,json,html $(node scripts/ci-shards.mjs webkit ${{ matrix.shard }})
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
-          name: webkit-results
+          name: webkit-${{ matrix.shard }}
+          if-no-files-found: error
+          path: output/webkit-${{ matrix.shard }}.json
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: webkit-${{ matrix.shard }}-diagnostics
           path: |
             playwright-report/
             test-results/
           retention-days: 14
+
+  webkit:
+    # Preserve the existing required protection context; never accept partial CI.
+    name: WebKit preparation workflow
+    needs: [webkit-shards]
+    if: ${{ always() }}
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - name: Require every WebKit shard to succeed
+        env:
+          WEBKIT_RESULT: ${{ needs.webkit-shards.result }}
+        run: test "$WEBKIT_RESULT" = success
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: List the complete WebKit inventory
+        run: |
+          mkdir -p output
+          npx playwright test --config=playwright.webkit.config.ts --list --reporter=json > output/inventory.json
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: webkit-?
+          merge-multiple: true
+          path: output/reports
+      - name: Require complete, disjoint, zero-retry results
+        run: node scripts/verify-test-reports.mjs output/inventory.json output/reports webkit 3
 
   pages-artifact:
     name: Stage public files

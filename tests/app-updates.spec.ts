@@ -83,8 +83,8 @@ function legacyWorker() {
       e.respondWith(fetch(e.request).then(r=>{if(r.ok&&r.type==='basic'){const c=r.clone();e.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.put(e.request,c)));}return r;}).catch(()=>caches.match(e.request)));});`;
 }
 
-async function installed(page:Page, sha:string, explicitUpdate = false, beforeUpdate?:()=>void) {
-  await page.waitForFunction(sha => (window as any)._fixtureRelease === sha, sha);
+async function installed(page:Page, sha:string, explicitUpdate = false, beforeUpdate?:()=>void, timeout = 10000) {
+  await page.waitForFunction(expected => (window as any)._fixtureRelease === expected, sha);
     // Production registration does not call update(). The warmed-navigation
     // variant leaves that path alone. Only the deferred variant, whose HTTP
     // worker stays on the previous release until this call, requests update().
@@ -96,12 +96,88 @@ async function installed(page:Page, sha:string, explicitUpdate = false, beforeUp
         await registration.update();
       });
     }
-  await expect.poll(()=>page.evaluate(async sha => {
+  // Wait until the active worker and the controller are 'activated' and no
+  // newer worker is still installing or waiting, then ask that controller for
+  // its release. A fixed poll kept querying the previous controller — a legacy
+  // worker never answers — and each attempt could spend 2s of a 10s budget.
+  // Querying that controller while the next worker is waiting also stalled
+  // activation for the whole budget.
+  const observed = await page.evaluate(async ({sha, timeout}) => {
     const registration = await navigator.serviceWorker.getRegistration();
-    if (registration?.active?.state !== 'activated' || navigator.serviceWorker.controller?.state !== 'activated') return false;
-    if (registration.installing) return false;
-    return await new Promise(resolve=>{const channel=new MessageChannel();const finish=value=>{clearTimeout(timer);channel.port1.close();resolve(value);};const timer=setTimeout(()=>finish(false),2000);channel.port1.onmessage=event=>finish(event.data.sha===sha);navigator.serviceWorker.controller!.postMessage({type:'WARPDIFF_RELEASE_QUERY'},[channel.port2]);});
-  },sha),{timeout:10000}).toBe(true);
+    const describe = (worker: ServiceWorker | null) => worker ? {state: worker.state, scriptURL: worker.scriptURL} : null;
+    const diagnostics = () => ({
+      installing: describe(registration?.installing ?? null),
+      waiting: describe(registration?.waiting ?? null),
+      active: describe(registration?.active ?? null),
+      controller: describe(navigator.serviceWorker.controller),
+    });
+    if (!registration) return {ok: false, diagnostics: diagnostics()};
+    const query = (worker: ServiceWorker) => new Promise<boolean>(resolve => {
+      let settled = false;
+      const channel = new MessageChannel();
+      const finish = (value: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        channel.port1.onmessage = null;
+        channel.port1.close();
+        resolve(value);
+      };
+      const timer = setTimeout(() => finish(false), 2000);
+      channel.port1.onmessage = event => finish(event.data?.sha === sha);
+      try { worker.postMessage({type:'WARPDIFF_RELEASE_QUERY'}, [channel.port2]); }
+      catch { finish(false); }
+    });
+    const readyController = () => {
+      const controller = navigator.serviceWorker.controller;
+      if (registration.installing || registration.waiting) return null;
+      if (registration.active?.state !== 'activated' || controller?.state !== 'activated') return null;
+      return controller;
+    };
+    let pending = false;
+    let resolveWait: (() => void) | null = null;
+    const watched = new Set<ServiceWorker>();
+    const onChange = () => { pending = true; resolveWait?.(); };
+    const watch = (worker: ServiceWorker | null) => {
+      if (!worker || watched.has(worker)) return;
+      watched.add(worker);
+      worker.addEventListener('statechange', onChange);
+    };
+    const onUpdate = () => { watch(registration.installing); onChange(); };
+    watch(registration.installing);
+    watch(registration.waiting);
+    watch(registration.active);
+    watch(navigator.serviceWorker.controller);
+    registration.addEventListener('updatefound', onUpdate);
+    navigator.serviceWorker.addEventListener('controllerchange', onChange);
+    const deadline = performance.now() + timeout;
+    try {
+      while (performance.now() < deadline) {
+        pending = false;
+        watch(registration.installing);
+        watch(registration.waiting);
+        watch(registration.active);
+        watch(navigator.serviceWorker.controller);
+        const controller = readyController();
+        if (controller && await query(controller)) return {ok: true, diagnostics: diagnostics()};
+        if (pending) continue;
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) break;
+        await new Promise<void>(resolve => {
+          if (pending) { resolve(); return; }
+          const timer = setTimeout(() => { resolveWait = null; resolve(); }, remaining);
+          resolveWait = () => { clearTimeout(timer); resolveWait = null; resolve(); };
+          if (pending) resolveWait();
+        });
+      }
+      return {ok: false, diagnostics: diagnostics()};
+    } finally {
+      registration.removeEventListener('updatefound', onUpdate);
+      navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+      for (const worker of watched) worker.removeEventListener('statechange', onChange);
+    }
+  }, {sha, timeout});
+  expect(observed.ok, JSON.stringify(observed.diagnostics)).toBe(true);
 }
 async function backgroundFiles(page:Page, sha:string) {
   const result = await page.evaluate(async sha => {
@@ -318,7 +394,10 @@ test('a warmed legacy tab survives the first release-pinned upgrade', async ({pa
   try {
     f.legacy();await page.goto(f.url);await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
     await expect.poll(()=>page.evaluate(()=>(window as any)._fixtureRelease)).toBe(A);
-    f.modern();f.set(B);const next=await context.newPage();await next.goto(f.url+'?first-upgrade=1');await installed(next,B);
+    f.modern();f.set(B);const next=await context.newPage();await next.goto(f.url+'?first-upgrade=1');
+    // The legacy tab never answers the activation ping, so install/activate can
+    // outlast the ordinary 10s budget when the runner is busy. The check is the same.
+    await installed(next,B,false,undefined,30_000);
     expect(await page.evaluate(()=>(window as any)._fixtureRelease)).toBe(A);
     f.offline();await next.reload();await installed(next,B);await backgroundFiles(next,B);
     expect(await page.evaluate(async()=> (await caches.keys()).includes('warpdiff-v3.19.3'))).toBe(true);
