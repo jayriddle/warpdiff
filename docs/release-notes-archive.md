@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.15
+
+- Frame stepping follows a steady frame rate read from the file as soon as it opens, instead of assuming 30 fps until playback.
+- Files whose frame timing varies still start at 30. Playback measurement replaces either starting rate once it has seen enough frames.
+
 ## v3.19.14 (prepared October 23, 2026; quiet maintenance)
 
 - Multi-track WebM retains browser-selected playback and withholds decoded analysis/scrub audio, matching the MP4 policy.
