@@ -901,3 +901,67 @@ function _demuxMP4Video(data, summaryOnly = false) {
         samples: samples
     };
 }
+
+// Constant video frame rate from the sample table, or null when the table is
+// missing, unreadable, or not a single duration. Edit lists shift timing but
+// do not change this media-timescale sample delta. Variable-rate files stay
+// on the caller's 30 fps default until playback measurement replaces it.
+function _mp4ConstantFrameRate(data) {
+    try {
+        if (!data || data.length < 16) return null;
+        const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+        const str = (off, len) => {
+            let s = '';
+            for (let i = 0; i < len; i++) s += String.fromCharCode(data[off + i]);
+            return s;
+        };
+        let found = null;
+        function walk(start, end, depth, parent, track) {
+            if (depth > 32 || found) return;
+            let off = start;
+            while (off + 8 <= end && !found) {
+                let size = view.getUint32(off);
+                const type = str(off + 4, 4);
+                let header = 8;
+                if (size === 1) {
+                    if (off + 16 > end) return;
+                    size = Number(view.getBigUint64(off + 8));
+                    header = 16;
+                } else if (size === 0) size = end - off;
+                if (!Number.isSafeInteger(size) || size < header || off + size > end) return;
+                const s = off + header, e = off + size;
+                if (type === 'moov' || type === 'mdia' || type === 'minf' || type === 'stbl') {
+                    walk(s, e, depth + 1, type, track);
+                } else if (type === 'trak') {
+                    const next = { handler: '', timescale: 0, delta: null };
+                    walk(s, e, depth + 1, type, next);
+                    if (!found && next.handler === 'vide' && next.timescale > 0 && next.delta > 0) found = next;
+                } else if (track && type === 'mdhd' && parent === 'mdia') {
+                    if (data[s] <= 1 && e - s >= (data[s] === 1 ? 24 : 16)) {
+                        const ts = view.getUint32(data[s] === 1 ? s + 20 : s + 12);
+                        if (ts) track.timescale = ts;
+                    }
+                } else if (track && type === 'hdlr' && parent === 'mdia' && e - s >= 12) {
+                    track.handler = str(s + 8, 4);
+                } else if (track && type === 'stts' && parent === 'stbl' && e - s >= 8 && data[s] <= 1) {
+                    const count = view.getUint32(s + 4);
+                    if (count > 0 && count <= 100000 && e - s >= 8 + count * 8) {
+                        const first = view.getUint32(s + 12);
+                        let same = first > 0;
+                        for (let i = 0; same && i < count; i++) {
+                            const samples = view.getUint32(s + 8 + i * 8);
+                            const delta = view.getUint32(s + 12 + i * 8);
+                            if (!samples || delta !== first) same = false;
+                        }
+                        track.delta = same ? first : 0;
+                    }
+                }
+                off += size;
+            }
+        }
+        walk(0, data.length, 0, '', null);
+        if (!found) return null;
+        const rate = found.timescale / found.delta;
+        return rate >= 1 && rate <= 480 && Number.isFinite(rate) ? rate : null;
+    } catch (_) { return null; }
+}
