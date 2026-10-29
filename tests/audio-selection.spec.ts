@@ -120,7 +120,9 @@ test('short Opus audio cannot wrap the picture before its native end',async({pag
 
 test('Solo and custom loops can inspect the picture after its Opus audio ends',async({page})=>{
   await page.locator('#multiFileInput').setInputFiles([files.short,files.aac]);
-  await expect.poll(()=>page.evaluate(()=>(window as any).eval('Object.keys(_videoAudioBuffers).length'))).toBe(2);
+  // Metrics can finish before the scrub preview buffer is stored. WebKit sometimes
+  // needs longer than the default 5s poll; the required count stays two.
+  await expect.poll(()=>page.evaluate(()=>(window as any).eval('Object.keys(_videoAudioBuffers).length')),{timeout:15000}).toBe(2);
   await page.keyboard.press('Shift+s');
   const bounds=await page.evaluate(()=>(window as any).eval(`(() => {
     const slot=assetOrder.find(s=>mediaData[s]?.name==='opus-short.mp4');selectAudioSource(slot);
