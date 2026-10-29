@@ -197,7 +197,7 @@ Video controls appear at the bottom of the screen when videos are loaded. Playba
 | **Shift+L** | Playback range: Sync (shortest) ↔ Full (longest) |
 | **M** | Mute / Unmute (persists across loads and sessions) |
 
-Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames. A file whose frame timing varies keeps the 30 fps start until that measurement finishes.
+Frame stepping uses the video’s own frame rate as soon as a steady rate can be read from the file. Playback still measures the picture and replaces that rate once it has seen enough frames. A file whose frame timing varies keeps the 30 fps start until that measurement finishes. Rapid steps keep advancing the requested position while each native video finishes decoding and presenting. After a burst, the pictures settle on the latest requested frames. With different frame rates, the follower is aligned by time and may legitimately repeat or skip a frame.
 
 After scrubbing, **Space** resumes playback and **R** restarts at the loop in-point or beginning. Both preserve your playback scope and loop range, including automatic looping for a single video.
 

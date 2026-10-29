@@ -33,7 +33,7 @@ export const webkitShards = [
     'dialog-keyboard.spec.ts', 'prepared-media.spec.ts', 'audio-format.spec.ts', 'media-input.spec.ts'],
   // ~390s
   ['normal-preparation.spec.ts', 'prepared-import.spec.ts', 'app-updates.spec.ts', 'warpdiff.spec.ts',
-    'scrub-pitch.spec.ts', 'scrub-input.spec.ts', 'info-bar.spec.ts'],
+    'scrub-pitch.spec.ts', 'scrub-input.spec.ts', 'info-bar.spec.ts', 'frame-rate-step.spec.ts'],
 ];
 
 const partitions = {chromium: chromiumShards, webkit: webkitShards};

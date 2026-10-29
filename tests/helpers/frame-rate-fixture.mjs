@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // 24 fps picture, shorter AAC, B-frames and an edit list. Each frame number is
-// stored in six large bars (bit 0 at the left) and also drawn as text.
+// stored in six large bars (bit 0 at the left). No drawtext/font dependency.
 export function prepareFrameRateFixture(directory) {
   const file = path.join(directory, 'frame-numbers.mp4');
   const bars = "color=c=black:s=320x180:r=24:d=2,format=yuv420p,geq=lum='if(lt(mod(X\\,40)\\,30)\\,if(gte(bitand(N\\,pow(2\\,floor(X/40)))\\,1)\\,235\\,16)\\,16)':cb=128:cr=128";
@@ -14,7 +14,6 @@ export function prepareFrameRateFixture(directory) {
     '-map', '0:v', '-map', '1:a',
     '-c:v', 'libx264', '-bf', '2', '-g', '12', '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart',
-    '-vf', "drawtext=fontfile=/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf:text='%{n}':fontsize=48:fontcolor=white:x=200:y=80",
     file
   ], { timeout: 30000 });
   const probe = execFileSync('ffprobe', [
@@ -70,4 +69,18 @@ function openingEdit(file) {
     return false;
   }
   return walk(0, data.length, 0);
+}
+
+// Independent visible-picture controls: seven frame-ID bars and a fixed white
+// guard at the right so blank/hidden captures cannot masquerade as frame zero.
+export function prepareFrameStepPair(directory, rates = [24, 24]) {
+  return rates.map((fps, index) => {
+    if (![24, 30].includes(fps)) throw new Error('Unsupported frame-step fixture rate');
+    const file = path.join(directory, 'steps-' + index + '-' + fps + '.mp4');
+    const bars = "color=c=black:s=320x180:r=" + fps + ":d=4,format=yuv420p,geq=lum='if(gt(X\\,280)\\,235\\,if(lt(mod(X\\,40)\\,30)\\,if(gte(bitand(N\\,pow(2\\,floor(X/40)))\\,1)\\,235\\,16)\\,16))':cb=128:cr=128";
+    execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-nostdin', '-n',
+      '-f', 'lavfi', '-i', bars, '-c:v', 'libx264', '-crf', '10', '-bf', '3',
+      '-g', '48', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', file], {timeout:30000});
+    return file;
+  });
 }

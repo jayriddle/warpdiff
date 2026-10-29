@@ -102,6 +102,7 @@ function _isTransportMedia(media) {
 }
 
 function _commitPlaybackScope(scope, slot) {
+    _resetFrameStepCursor();
     _playbackScope = scope;
     if (scope === 'solo') _usage.feature('solo');
     _soloPlaybackSlot = scope === 'solo' ? slot : null;
@@ -379,7 +380,7 @@ function _applyNativeLoopPolicy() {
 // playback policy and release that decoder before starting native playback.
 // Return null when the current Solo loop cannot play on the selected clip.
 function _preparePlaybackStart() {
-    _resetFrameStepCursor();
+    _resetFrameStepCursor(true);
     _cancelPendingPlayIntent();
     _scrubAtTimelineEnd = false;
     const soloVideo = _isSoloPlayback() ? getTransportVideos()[0] : null;
@@ -459,16 +460,125 @@ function _syncReferenceVideo(videos) {
 // A browser may keep reporting the last SETTLED currentTime while a precise
 // seek is still decoding. Frame-step key presses that arrive in that window
 // must advance from our last requested frame, not request the same frame again.
-// The cursor is deliberately burst-scoped and reference-video-specific: normal
-// transport/scrub owners clear it, and a stale/different reference falls back
-// to the element's observed time.
+// Pending work retains that authority even between seeked and the next rAF.
+// Once settled, the cursor is burst-scoped and reference-video-specific.
 const _FRAME_STEP_BURST_MS = 750;
 let _frameStepCursor = null;
-function _resetFrameStepCursor() { _frameStepCursor = null; }
+const _frameStepSeeks = new Map();
+function _resetFrameStepCursor(commitPending = false) {
+    _frameStepCursor = null;
+    for (const [video, state] of _frameStepSeeks) {
+        video.removeEventListener('seeked', state.seeked);
+        if (state.raf !== null) cancelAnimationFrame(state.raf);
+        if (state.rvfc !== null) video.cancelVideoFrameCallback(state.rvfc);
+        clearTimeout(state.timer);
+        // Play takes over at the last requested position, including a queued
+        // target that native decode has not reached yet. Restart overrides it.
+        const target = state.target !== null ? state.target : state.inFlight;
+        if (commitPending && target !== null && video.isConnected && getTransportVideos().includes(video)) {
+            try { video.currentTime = target; } catch (_) { /* replaced media */ }
+        }
+    }
+    _frameStepSeeks.clear();
+}
+function _frameStepSeekIsPending(video) { return _frameStepSeeks.has(video); }
+
+// Overwriting a paused native seek can leave Chrome's composited picture on an
+// earlier frame even after currentTime and drawImage(video) reach the new one.
+// Keep only the latest requested target while decoding, with a paint opportunity
+// after seeked before another native seek. Hidden Stack followers have a bounded
+// post-decode fallback rather than depending on a presentation callback.
+function _queueFrameStepSeek(video, time) {
+    let state = _frameStepSeeks.get(video);
+    if (!state) {
+        state = { target: null, inFlight: null, landed: null, issue: 0, src: video.currentSrc || video.src,
+            raf: null, rvfc: null, timer: null, decoded: false, presented: true, seeked: null, flush: null };
+        const retire = () => {
+            video.removeEventListener('seeked', state.seeked);
+            if (state.raf !== null) cancelAnimationFrame(state.raf);
+            if (state.rvfc !== null) video.cancelVideoFrameCallback(state.rvfc);
+            clearTimeout(state.timer);
+            _frameStepSeeks.delete(video);
+        };
+        const advance = () => {
+            if (_frameStepSeeks.get(video) !== state || !state.decoded || !state.presented) return;
+            if (state.rvfc !== null) video.cancelVideoFrameCallback(state.rvfc);
+            clearTimeout(state.timer);
+            state.rvfc = state.timer = null;
+            state.inFlight = null;
+            if (state.raf !== null) return;
+            state.raf = requestAnimationFrame(() => {
+                state.raf = null;
+                state.flush();
+            });
+        };
+        state.flush = () => {
+            if (_frameStepSeeks.get(video) !== state) return;
+            if (!video.isConnected || state.src !== (video.currentSrc || video.src) || !video.paused || document.hidden ||
+                !getTransportVideos().includes(video)) { retire(); return; }
+            if (state.inFlight !== null || video.seeking) return;
+            if (state.landed !== null && Math.abs(video.currentTime - state.landed) > 1e-4) {
+                _resetFrameStepCursor();
+                return;
+            }
+            if (state.target === null) { retire(); return; }
+            const target = state.target;
+            state.target = null;
+            // A same-time assignment need not produce seeked.
+            if (Math.abs(video.currentTime - target) < 1e-7) { retire(); return; }
+            state.inFlight = target;
+            const issue = ++state.issue;
+            state.decoded = false;
+            state.presented = typeof video.requestVideoFrameCallback !== 'function';
+            if (!state.presented) {
+                const onFrame = (now, metadata) => {
+                    if (_frameStepSeeks.get(video) !== state || state.issue !== issue || state.inFlight !== target) return;
+                    state.rvfc = null;
+                    const fps = videoFrameRates[video.src] || 30;
+                    if (metadata.mediaTime >= target - 0.5 / fps - 1e-6 &&
+                        metadata.mediaTime < target + 0.5 / fps - 1e-6) {
+                        state.presented = true;
+                        advance();
+                    } else state.rvfc = video.requestVideoFrameCallback(onFrame);
+                };
+                state.rvfc = video.requestVideoFrameCallback(onFrame);
+            }
+            try { video.currentTime = target; }
+            catch (_) { retire(); }
+        };
+        state.seeked = () => {
+            if (_frameStepSeeks.get(video) !== state) return;
+            // An unrelated seek takes ownership; never overwrite its result.
+            const expected = state.inFlight !== null ? state.inFlight : state.landed;
+            if (expected !== null && Math.abs(video.currentTime - expected) > 1e-4) {
+                _resetFrameStepCursor();
+                return;
+            }
+            state.landed = video.currentTime;
+            state.decoded = true;
+            if (!state.presented && state.timer === null) {
+                // Start the presentation budget AFTER decode; a long seek must
+                // not consume it before its frame has any chance to present.
+                const issue = state.issue;
+                state.timer = setTimeout(() => {
+                    if (_frameStepSeeks.get(video) !== state || state.issue !== issue) return;
+                    state.presented = true;
+                    advance();
+                }, 150);
+            }
+            advance();
+        };
+        _frameStepSeeks.set(video, state);
+        video.addEventListener('seeked', state.seeked);
+    }
+    state.target = time;
+    if (state.raf === null) state.flush();
+}
 function _frameStepCursorFrame(cursor, ref, observedFrame, fps, total, nowMs) {
     if (!cursor || cursor.ref !== ref || cursor.src !== (ref.currentSrc || ref.src) ||
-        Math.abs(cursor.fps - fps) > 1e-6 || cursor.total !== total ||
-        nowMs - cursor.updatedAt > _FRAME_STEP_BURST_MS) return observedFrame;
+        Math.abs(cursor.fps - fps) > 1e-6 || cursor.total !== total) return observedFrame;
+    if (ref.seeking || (typeof _frameStepSeekIsPending === 'function' && _frameStepSeekIsPending(ref))) return cursor.frame;
+    if (nowMs - cursor.updatedAt > _FRAME_STEP_BURST_MS) return observedFrame;
     const landedOnTarget = Math.abs(ref.currentTime - cursor.targetTime) <= 0.25 / fps;
     return (ref.seeking || landedOnTarget) ? cursor.frame : observedFrame;
 }
@@ -1357,7 +1467,7 @@ function stepFrame(direction) {
         const frame = Math.floor(refTime * fps + 0.01);
         // A follower shorter than the reference holds on its last frame rather
         // than wrapping to unrelated content (matches the Full-mode tail).
-        v.currentTime = Math.min(Math.max((frame + 0.5) / fps, 0), _lastPlayableTime(v));
+        _queueFrameStepSeek(v, Math.min(Math.max((frame + 0.5) / fps, 0), _lastPlayableTime(v)));
     });
     // Update progress display after seek completes (seeked event handles
     // the visual update). Also update optimistically for responsive feel.
