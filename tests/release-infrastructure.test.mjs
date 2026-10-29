@@ -8,7 +8,8 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {parse} from 'yaml';
-import {inventory, verifyReports} from '../scripts/verify-test-reports.mjs';
+import {inventory, verifyReports, expectedReportNames} from '../scripts/verify-test-reports.mjs';
+import {chromiumShards, webkitShards} from '../scripts/ci-shards.mjs';
 import {pageFiles, stagePages} from '../scripts/stage-pages.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -25,9 +26,27 @@ test('pushes run only on main; PRs and explicit dispatch retain complete checks'
   assert(workflow.concurrency.group.includes('github.event_name'), 'Manual checks must not cancel a main-push release');
   assert.equal(workflow.jobs.chromium.name, 'Chromium and ownership');
   assert.equal(workflow.jobs.webkit.name, 'WebKit preparation workflow');
+  assert.equal(workflow.jobs['chromium-shards'].name, 'Chromium shard ${{ matrix.shard }}/3');
+  assert.equal(workflow.jobs['webkit-shards'].name, 'WebKit shard ${{ matrix.shard }}/3');
   assert.deepEqual(workflow.jobs['chromium-shards'].strategy, {'fail-fast': false, matrix: {shard: [1, 2, 3]}});
+  assert.deepEqual(workflow.jobs['webkit-shards'].strategy, {'fail-fast': false, matrix: {shard: [1, 2, 3]}});
+  assert.equal(workflow.jobs['webkit-shards']['runs-on'], 'macos-15');
+  assert.equal(workflow.jobs.webkit['runs-on'], 'macos-15');
   assert.deepEqual(workflow.jobs.chromium.needs, ['ownership', 'chromium-shards']);
+  assert.deepEqual(workflow.jobs.webkit.needs, ['webkit-shards']);
   assert.equal(workflow.jobs.chromium.if, '${{ always() }}');
+  assert.equal(workflow.jobs.webkit.if, '${{ always() }}');
+  const chromiumRuns = workflow.jobs['chromium-shards'].steps.map(step => step.run).filter(Boolean);
+  const webkitRuns = workflow.jobs['webkit-shards'].steps.map(step => step.run).filter(Boolean);
+  assert(chromiumRuns.some(run => run.includes('scripts/ci-shards.mjs chromium')));
+  assert(webkitRuns.some(run => run.includes('scripts/ci-shards.mjs webkit')));
+  assert(webkitRuns.some(run => run.includes('--config=playwright.webkit.config.ts') || run.includes('npm run test:webkit')));
+  assert.equal(workflow.jobs.chromium.steps.map(step => step.run).find(run => run && run.includes('verify-test-reports')),
+    'node scripts/verify-test-reports.mjs output/inventory.json output/reports chromium 3');
+  assert.equal(workflow.jobs.webkit.steps.map(step => step.run).find(run => run && run.includes('verify-test-reports')),
+    'node scripts/verify-test-reports.mjs output/inventory.json output/reports webkit 3');
+  assert.deepEqual(expectedReportNames('chromium', 3), ['chromium-1.json', 'chromium-2.json', 'chromium-3.json']);
+  assert.deepEqual(expectedReportNames('webkit', 3), ['webkit-1.json', 'webkit-2.json', 'webkit-3.json']);
   const commands = workflow.jobs.ownership.steps.map(s => s.run);
   assert(commands.indexOf('npm run test:fixtures') < commands.indexOf('npm run test:ownership'));
   assert(commands.includes('npm run test:fixtures'), 'Ownership demux checks require actual media fixtures');
@@ -80,7 +99,38 @@ test('real preparation and SDR fixture checks are part of the protected ownershi
 
 test('report gate accepts a complete disjoint inventory', () => {
   assert.deepEqual(verifyReports(report([spec('one'), spec('two')]), [report([spec('one')]), report([spec('two')])]),
-    {total: 2, passed: 2, skipped: 0, reports: 2});
+    {total: 2, passed: 2, skipped: 0, expectedFailures: 0, reports: 2});
+});
+
+test('hosted shards partition every browser file exactly once', () => {
+  const specs = fs.readdirSync(path.join(root, 'tests')).filter(file => file.endsWith('.spec.ts')).sort();
+  const flat = shards => shards.flat();
+  assert.deepEqual(flat(chromiumShards).slice().sort(), specs);
+  assert.equal(new Set(flat(chromiumShards)).size, flat(chromiumShards).length);
+  const webkitConfig = fs.readFileSync(path.join(root, 'playwright.webkit.config.ts'), 'utf8');
+  const webkitFiles = [...new Set([...webkitConfig.matchAll(/['"]([^'"]+\.spec\.ts)['"]/g)].map(match => match[1]))].sort();
+  assert(webkitFiles.length > 10, 'WebKit project files must stay explicit');
+  assert.deepEqual(flat(webkitShards).slice().sort(), webkitFiles);
+  assert.equal(new Set(flat(webkitShards)).size, flat(webkitShards).length);
+  assert.equal(workflow.jobs['chromium-shards'].strategy.matrix.shard.length, chromiumShards.length);
+  assert.equal(workflow.jobs['webkit-shards'].strategy.matrix.shard.length, webkitShards.length);
+  assert.deepEqual(execFileSync('node', ['scripts/ci-shards.mjs', 'webkit', '2'], {cwd: root, encoding: 'utf8'}).trim().split(/\s+/),
+    webkitShards[1].map(file => 'tests/' + file));
+  assert.throws(() => execFileSync('node', ['scripts/ci-shards.mjs', 'chromium', '9'], {cwd: root, stdio: 'pipe'}));
+});
+
+test('webkit aggregate requires every shard', () => {
+  const gate = workflow.jobs.webkit.steps[0];
+  assert.equal(gate.run, 'test "$WEBKIT_RESULT" = success');
+  for (const result of ['success', 'failure', 'cancelled', 'skipped']) {
+    try {
+      execFileSync('bash', ['-c', gate.run], {env: {...process.env, WEBKIT_RESULT: result}, stdio: 'pipe'});
+      assert.equal(result, 'success');
+    } catch (error) {
+      if (result === 'success') throw error;
+      assert.equal(error.status, 1);
+    }
+  }
 });
 
 for (const [name, mutate] of [
@@ -100,6 +150,33 @@ for (const [name, mutate] of [
   const baseline = report([spec('one'), spec('two')]);
   const changed = copy(baseline); mutate(changed);
   assert.throws(() => verifyReports(baseline, [changed]));
+});
+
+test('report gate accepts only the documented WebKit expected failure', () => {
+  const title = 'a valid container with corrupt frames is rejected when the browser reports it';
+  const expected = report([spec(title)]);
+  const suite = expected.suites[0];
+  suite.title = 'preparation-followup.spec.ts';
+  suite.specs[0].file = 'preparation-followup.spec.ts';
+  suite.specs[0].tests[0].projectName = 'webkit-preparation-followup';
+  const actual = copy(expected);
+  const testCase = actual.suites[0].specs[0].tests[0];
+  testCase.expectedStatus = 'failed';
+  testCase.status = 'expected';
+  testCase.annotations = [{type: 'fail', description: 'WebKit accepts damaged samples once canplay fires. The companion ffmpeg -xerror full decode is the real guard.'}];
+  testCase.results[0].status = 'failed';
+  testCase.results[0].errors = [{message: 'accepted'}];
+  assert.equal(verifyReports(expected, [actual]).expectedFailures, 1);
+  testCase.results[0].status = 'passed';
+  testCase.results[0].errors = [];
+  assert.throws(() => verifyReports(expected, [actual]));
+  testCase.results[0].status = 'failed';
+  testCase.results[0].errors = [{message: 'accepted'}];
+  testCase.annotations = [];
+  assert.throws(() => verifyReports(expected, [actual]));
+  const other = report([spec('some other failure')]);
+  other.suites[0].specs[0].tests[0].expectedStatus = 'failed';
+  assert.throws(() => verifyReports(other, [copy(other)]));
 });
 
 test('report gate accepts only the documented pre-existing dynamic skip', () => {

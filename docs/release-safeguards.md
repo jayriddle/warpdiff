@@ -16,10 +16,11 @@ existing workflow explicitly against the feature branch when hosted evidence
 is needed. A manual run cannot publish, even when its selected ref is `main`.
 No path filters can leave required PR checks pending.
 
-Chromium runs in three separate Ubuntu 24.04 jobs. `playwright.ci.config.ts`
-enables test-level sharding, including the large legacy spec, with **one
-worker and zero retries per machine**. The tests themselves and their
-assertions do not change. Ubuntu jobs install one pinned static FFmpeg and
+Chromium runs in three separate Ubuntu 24.04 jobs. `scripts/ci-shards.mjs`
+assigns every `tests/*.spec.ts` file to exactly one shard so the slow files are
+not all on the first runner. `playwright.ci.config.ts` keeps **one worker and
+zero retries per machine**. The tests themselves and their assertions do not
+change. Ubuntu jobs install one pinned static FFmpeg and
 ffprobe build for fixtures, preparation, and command verification, and reject
 it when the SHA-256 does not match. The pinned build is hosted on the
 ci-ffmpeg-n8.1.3 release. zsh still comes from apt with recommended
@@ -36,6 +37,8 @@ then compares the three reports against the complete current test inventory.
 Missing tests, duplicates, missing reports, retries, runner errors, flaky results,
 and additional skips fail the gate. The single existing timestamp-collision
 skip is accepted only by its exact test identity and documented reason.
+A new spec file has to be added to exactly one Chromium shard; the
+infrastructure test rejects a missing or repeated file.
 
 The separate ownership job generates actual media fixtures before the harness,
 so its fixture-backed parsing checks cannot silently disappear in a fresh
@@ -44,11 +47,22 @@ and publication-gate scenarios. Two local ownership checks inspect neighboring
 WarpCap sources unavailable in GitHub's checkout; hosted totals therefore
 remain two lower than local totals.
 
-The macOS 15 WebKit job retains the complete focused profile: external commands,
+WebKit runs the same focused profile on three macOS 15 shards: external commands,
 preparation/reload, source-format replacement, preview pitch and eight Opus
-scheduling cases. It does not certify installed Safari or native 7.1 FLAC
+scheduling cases. `scripts/ci-shards.mjs` assigns each `playwright.webkit.config.ts`
+file to one shard, and that config's project `testMatch` / `grep` filters still
+apply on every shard. The protected **WebKit preparation workflow** job is the
+aggregate. It runs on macOS 15, even when a shard fails, requires all three
+shard jobs, and checks their JSON reports against a macOS inventory with the
+same gate as Chromium. The inventory has to be listed on macOS because a few
+picture tests are registered only there.
+Publish still waits on that aggregate, so a shard failure cannot publish.
+The profile does not certify installed Safari or native 7.1 FLAC
 support. The two broader WebKit surround capability failures remain documented
-separately, with their assertions retained. Scheduling tests do not render PCM.
+separately, with their assertions retained. One in-suite WebKit expectation
+(`preparation-followup.spec.ts`, corrupt frames) is an expected failure with a
+fixed reason; the gate accepts that identity only, requires the failure, and
+does not count it as a pass. Scheduling tests do not render PCM.
 
 Actions are pinned to exact commits. Repository access defaults to read-only;
 checkout credentials are not persisted. Only the deployment job requests Pages
@@ -142,9 +156,15 @@ verify that any reused server serves this checkout. Run the complete behavioral
 suite and ownership checks before pushing, as required by `AGENTS.md`; focused
 checks are appropriate during individual edits.
 
-To run one hosted-equivalent portion locally, append `-- --shard=1/3` to
-`npm run test:ci` (then 2/3 and 3/3 as needed). Separate hosted runners provide
-the speedup; concurrent media suites on one machine are not the benchmark.
+To run one hosted-equivalent portion locally:
+
+```sh
+npm run test:ci -- $(node scripts/ci-shards.mjs chromium 1)
+npm run test:webkit -- $(node scripts/ci-shards.mjs webkit 1)
+```
+
+Use `2` and `3` for the other shards. Separate hosted runners provide the
+speedup; concurrent media suites on one machine are not the benchmark.
 
 `npm run test:mutations` is the manual Opus mutation runner in
 `tools/investigations/opus-timing/`. It needs an existing localhost:8080 server
