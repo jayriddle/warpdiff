@@ -5,7 +5,7 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 ## v3.19.17
 
 - Loudness readings are now more accurate. Low notes and the highest peaks between samples follow the broadcast meter.
-- A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of the loudness number. If the layout is not recognized, every channel is included.
+- A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of the loudness number. If the layout is not recognized, every channel is included and the loudness number is marked as approximate.
 
 ## v3.19.16
 

@@ -462,7 +462,9 @@ function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH
 // reconstruction used for that annex. 4× below 96 kHz, 2× from 96 kHz up to
 // 192 kHz, and the sample peak at 192 kHz and above (the grid is already there).
 // Quiet stretches are skipped when they cannot exceed the peak found so far.
-// The filter state is a few taps, not a second copy of the file.
+// After the last sample, the delay line is drained with zeros so phases that
+// land after that sample are still examined. Appending silence cannot reveal
+// a higher peak. The filter state is a few taps, not a second copy of the file.
 
 const _BS1770_SURROUND = 1.41;
 
@@ -588,6 +590,23 @@ function _truePeakCh(data, sampleRate) {
     const delay = phases.delay, gain = phases.gain, list = phases.list;
     const hist = new Float64Array(delay);
     let zi = 0;
+    // One writer for the delay line. Quiet blocks rebuild the same tail the
+    // next sample would have seen, so a skipped stretch cannot change a later peak.
+    function write(sample) {
+        hist[zi] = sample;
+        for (let f = 0; f < list.length; f++) {
+            const coeff = list[f].coeff, index = list[f].index, count = list[f].count;
+            let acc = 0;
+            for (let t = 0; t < count; t++) {
+                let k = zi - index[t];
+                if (k < 0) k += delay;
+                acc += hist[k] * coeff[t];
+            }
+            if (acc < 0) acc = -acc;
+            if (acc > peak) peak = acc;
+        }
+        if (++zi === delay) zi = 0;
+    }
     for (let start = 0; start < n;) {
         const end = Math.min(n, start + 4096);
         let local = 0;
@@ -604,23 +623,13 @@ function _truePeakCh(data, sampleRate) {
             start = end;
             continue;
         }
-        for (let i = start; i < end; i++) {
-            hist[zi] = data[i];
-            for (let f = 0; f < list.length; f++) {
-                const coeff = list[f].coeff, index = list[f].index, count = list[f].count;
-                let acc = 0;
-                for (let t = 0; t < count; t++) {
-                    let k = zi - index[t];
-                    if (k < 0) k += delay;
-                    acc += hist[k] * coeff[t];
-                }
-                if (acc < 0) acc = -acc;
-                if (acc > peak) peak = acc;
-            }
-            if (++zi === delay) zi = 0;
-        }
+        for (let i = start; i < end; i++) write(data[i]);
         start = end;
     }
+    // Drain every phase that still depends on the final samples. These zeros
+    // are filter flush, not part of the file, and a quiet tail already in the
+    // delay line cannot outgrow the peak the skip bound allowed.
+    for (let i = 0; i < delay; i++) write(0);
     return peak;
 }
 

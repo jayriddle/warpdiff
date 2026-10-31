@@ -153,6 +153,24 @@ export function runBs1770Checks(check) {
         const peak = api._truePeakCh(data, 96000);
         return sample < 0.75 && peak > 0.95 && Number((20 * Math.log10(peak)).toFixed(1)) === 0;
     });
+    // The causal oversampler emits some phases only after later samples arrive.
+    // Two final full-scale samples are the reviewer's case. FFmpeg's unpadded
+    // reading misses the same peak, so the padded signal is the reference.
+    for (const rate of [44100, 48000, 96000]) ok(`silence after the file does not change the true peak at ${rate} Hz`, () => {
+        const signal = new Float32Array(rate);
+        signal[rate - 2] = 1; signal[rate - 1] = 1;
+        const padded = new Float32Array(rate + 64);
+        padded.set(signal);
+        const short = new Float32Array(2);
+        short[0] = 1; short[1] = 1;
+        const eight = new Float32Array(8);
+        eight[6] = 1; eight[7] = 1;
+        const bare = api._truePeakCh(signal, rate);
+        const extended = api._truePeakCh(padded, rate);
+        const tiny = api._truePeakCh(short, rate);
+        const brief = api._truePeakCh(eight, rate);
+        return bare > 1 && Math.abs(bare - extended) < 1e-9 && Math.abs(bare - tiny) < 1e-9 && Math.abs(bare - brief) < 1e-9;
+    });
     ok('192 kHz true peak is the sample peak', () => {
         const data = tone(1000, 192000, 0.25, 0.5, 0, 0);
         return Math.abs(api._truePeakCh(data, 192000) - 0.5) < 1e-6;

@@ -141,6 +141,8 @@ function _infoBarValueSource(slot) {
         const source = field.source && bar && bar.querySelector('.'+field.source);
         if (source) text = source.textContent.trim();
         if (text === '-') text = '';
+        // Loudness spans carry the plain explanation when the number is approximate.
+        if ((field.id === 'lufs' || field.id === 'lra') && source && source.title) detail = source.title;
         if (field.id === 'filename') text = md.name || '';
         if (field.id === 'fileSize') text = Number.isFinite(md.size) ? formatFileSize(md.size) : text;
         if (md.type === 'video' && ['audioCodec','channels','sampleRate'].includes(field.id)) {
