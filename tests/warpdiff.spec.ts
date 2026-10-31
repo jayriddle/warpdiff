@@ -460,7 +460,7 @@ test.describe('Page Load & Initial State', () => {
 
   for (const [lastSeen, showNotes] of [
     ['3.17.5', true], ['3.18.11', true], ['3.18.12', true],
-    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', false], ['4.0.0', false]
+    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', false], ['4.0.0', false]
   ] as const) test(`release notes ${showNotes ? 'show' : 'stay quiet'} after ${lastSeen}`, async ({ page }) => {
     await page.addInitScript(version => {
       if (!localStorage.getItem('lastSeenVersion')) localStorage.setItem('lastSeenVersion', version);
@@ -468,10 +468,11 @@ test.describe('Page Load & Initial State', () => {
     await page.goto('/');
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(showNotes ? /show/ : /^(?!.*show)/);
-    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.15');
+    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.17');
     const notes = page.locator('#changelogPopup .quick-start-body');
     await expect(notes.locator('li')).toHaveCount(2);
-    await expect(notes).toContainText('own rate');
+    await expect(notes).toContainText('more accurate');
+    await expect(notes).toContainText('bass-effects');
     await expect(notes).not.toContainText('daily');
     if (showNotes) {
       // Dismissing missed news records the actual app version and won't repeat.
