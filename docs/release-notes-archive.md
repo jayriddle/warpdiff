@@ -5,7 +5,7 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 ## v3.19.17
 
 - WebM videos keep their full soundtrack, including files recorded in a browser.
-- Replaces the in-app summary. The 3.19.15 frame-stepping notes remain below.
+- This maintenance update retains the previous What’s New announcement.
 
 ## v3.19.16
 

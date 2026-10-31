@@ -3972,7 +3972,7 @@
         const APP_VERSION = '3.19.17';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.17';
+        const _CHANGELOG_VERSION = '3.19.15';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -14542,7 +14542,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li><strong>WebM videos keep their full soundtrack.</strong> That includes files recorded in a browser.</li>
+                <li><strong>Frame stepping follows the video’s own rate as soon as the file opens.</strong> Comma and period no longer assume 30 frames per second until you press play.</li>
+                <li>If the frame timing varies, stepping still starts at 30. Playback measures the rate from the picture and uses that once it has seen enough frames.</li>
             </ul>
         </div>
     </div>
