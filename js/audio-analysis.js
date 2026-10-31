@@ -4,14 +4,14 @@
 const _audioAnalysisQueue = [];
 let _audioAnalysisJob = null;
 
-function _computeAudioAnalysis(audioBuffer, buckets, isCurrent = () => true) {
+function _computeAudioAnalysis(audioBuffer, buckets, isCurrent = () => true, channelLayout = null) {
     const usageTicket = _usage.startOperation('analysis');
     if (_audioAnalysisJob && !_audioAnalysisJob.isCurrent()) {
         _audioAnalysisJob.cancelled = true;
         if (_audioAnalysisJob.cancel) _audioAnalysisJob.cancel();
     }
     return new Promise((resolve, reject) => {
-        _audioAnalysisQueue.push({ audioBuffer, buckets, isCurrent, resolve, reject, usageTicket, cancelled: false });
+        _audioAnalysisQueue.push({ audioBuffer, buckets, isCurrent, channelLayout, resolve, reject, usageTicket, cancelled: false });
         _pumpAudioAnalysis();
     });
 }
@@ -47,7 +47,8 @@ async function _runAudioAnalysisWorker(job) {
     try {
         const buffer = job.audioBuffer;
         await request({ type: 'init', sampleRate: buffer.sampleRate, length: buffer.length,
-            duration: buffer.duration, channels: buffer.numberOfChannels, buckets: job.buckets });
+            duration: buffer.duration, channels: buffer.numberOfChannels, buckets: job.buckets,
+            channelLayout: job.channelLayout === '5.1' || job.channelLayout === '7.1' ? job.channelLayout : null });
         for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
             if (job.cancelled || !job.isCurrent()) return null;
             const original = buffer.getChannelData(channel);
@@ -85,7 +86,7 @@ async function _pumpAudioAnalysis() {
                     result = {
                         waveform: computeWaveformData(job.audioBuffer, job.buckets),
                         spectrogram: computeSpectrogramData(job.audioBuffer),
-                        metrics: computeAudioMetrics(job.audioBuffer)
+                        metrics: computeAudioMetrics(job.audioBuffer, job.channelLayout)
                     };
                     _usage.outcome(job.usageTicket, 'analysis-fallback');
                 } catch (fallbackError) {

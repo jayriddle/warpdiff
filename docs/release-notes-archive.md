@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.17
+
+- Loudness readings are now more accurate. Low notes and the highest peaks between samples follow the broadcast meter.
+- A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of the loudness number. If the layout is not recognized, every channel is included.
+
 ## v3.19.16
 
 - Rapid frame stepping keeps two native video pictures updating to the latest requested frames. Different frame rates remain aligned by time. This maintenance update retains the previous What’s New announcement.

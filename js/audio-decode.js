@@ -311,7 +311,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // Keep the original-analysis aggregates for both the small panel and N view.
     // The latter must never recompute its graphs from the stereo listening copy.
     const buckets = Math.max(600, Math.min(Math.ceil(audioBuffer.duration * 1000), Math.round(window.innerWidth * (window.devicePixelRatio || 1))));
-    const analysis = await _computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen));
+    const analysis = await _computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen), channelLayout);
     if (!analysis || !_videoAudioDecodeIsCurrent(slot, gen)) return;
     waveformData[slot] = analysis.waveform;
     spectrogramData[slot] = analysis.spectrogram;
@@ -627,11 +627,12 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         const dpr = window.devicePixelRatio || 1;
         const maxPx = Math.round(window.innerWidth * dpr);
         const numBuckets = Math.min(Math.ceil(audioBuffer.duration * 1000), maxPx);
-        const analysis = await _computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen);
+        const channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
+        const analysis = await _computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen, channelLayout);
         if (!analysis || _audioDecodeGen[slot] !== gen) return;
         const { waveform, spectrogram, metrics: _m } = analysis;
         audioMetrics[slot] = _m;
-        await _prepareAudioMonitorSlot(slot, audioBuffer, WarpScrubAudio.monitor.waveLayout(new Uint8Array(arrayBuffer)), () => _audioDecodeGen[slot] === gen);
+        await _prepareAudioMonitorSlot(slot, audioBuffer, channelLayout, () => _audioDecodeGen[slot] === gen);
         if (_audioDecodeGen[slot] !== gen) return;
         _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer, lufsEnvelope: _m ? _m.stBlks : null };
         _updateMetricSpans(slot);

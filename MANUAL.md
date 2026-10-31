@@ -468,7 +468,7 @@ By default, each asset displays an info bar (Grid mode) or a header strip (Stack
 - **Duration** — video/audio length with a stopwatch icon; `—` for images
 - **Resolution** and **aspect ratio** — for images and video (e.g. `1920×1080`, `16:9`)
 - **Source audio** — for videos: codec, verified layout or channel count, and sample rate when readable (e.g. `FLAC · 7.1 · 48 kHz`). Hover over this field in Grid or the header strip in Stack for full details. Multiple audio tracks are counted and listed; the browser chooses the playback track. `Audio: Unknown` means the container metadata could not be read, while `No audio track` means the container declares none. Listening presets and stereo output do not change this label. A transcoded video reports the newly loaded audio format.
-- **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple)
+- **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple). Loudness and true peak follow the broadcast meter. A recognized 5.1 or 7.1 layout counts surround channels a little more and leaves the bass-effects channel out of the loudness number. Mono and stereo are measured directly. If the layout is not recognized, every channel is included equally
 - **Zoom** — current scale percentage, right-aligned
 - For audio files: sample rate, channels, bit depth/codec, file size
 
