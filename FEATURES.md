@@ -139,7 +139,7 @@ Each video preview and the selected Continuous stream have a 64 MiB PCM limit. O
 
 ## Audio visualization
 
-Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
+Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. If the audio file cannot be read, playback continues and the notice stays up; open the waveform again to try the read once more. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing.
 
@@ -167,7 +167,7 @@ Spectrogram scale and palette controls (`Shift+W`, `P`) apply to all audio slots
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions when browser storage is available. Damaged saved preferences recover individually; valid shortcut entries remain usable. Ordinary settings still work for the current visit if saving fails, with a notice that they could not be saved. Unreadable usage-sharing permission keeps sharing off.
+Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions when browser storage is available. Text fields, menus, and sliders keep the keys they use; Space and Enter activate a focused button. Damaged saved preferences recover individually; valid shortcut entries remain usable. Ordinary settings still work for the current visit if saving fails, with a notice that they could not be saved. Unreadable usage-sharing permission keeps sharing off.
 
 ## Installable
 

@@ -21,7 +21,7 @@ export const chromiumShards = [
   ['appearance-usage.spec.ts', 'info-bar.spec.ts', 'safari-preview-output.spec.ts', 'app-updates.spec.ts',
     'usage-daily.spec.ts', 'local-companion.spec.ts', 'audio-format.spec.ts', 'grid-order.spec.ts',
     'media-admission.spec.ts', 'multichannel.spec.ts', 'prepared-media.spec.ts', 'playhead-clock.spec.ts',
-    'native-video-output.spec.ts', 'scrub-color-handoff.spec.ts', 'frame-rate-step.spec.ts'],
+    'native-video-output.spec.ts', 'scrub-color-handoff.spec.ts', 'frame-rate-step.spec.ts', 'audit-quick-fixes.spec.ts'],
 ];
 
 export const webkitShards = [

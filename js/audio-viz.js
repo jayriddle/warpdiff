@@ -79,15 +79,25 @@ const paletteNames = Object.keys(spectrogramPalettes);
 // --- Waveform computation ---
 
 function computeWaveformChannel(channelData, numBuckets) {
-    const samplesPerBucket = Math.floor(channelData.length / numBuckets);
-    const result = new Float32Array(numBuckets * 2);
-    for (let i = 0; i < numBuckets; i++) {
-        let min = 1, max = -1;
-        const start = i * samplesPerBucket;
-        const end = Math.min(start + samplesPerBucket, channelData.length);
-        for (let j = start; j < end; j++) {
-            if (channelData[j] < min) min = channelData[j];
-            if (channelData[j] > max) max = channelData[j];
+    const buckets = Number.isFinite(numBuckets) ? Math.max(0, Math.floor(numBuckets)) : 0;
+    const result = new Float32Array(buckets * 2);
+    const length = channelData && channelData.length > 0 ? channelData.length : 0;
+    // Empty input and empty buckets stay at [0, 0]. A leftover [1, -1]
+    // sentinel is a full-scale spike, not silence.
+    if (!buckets || !length) return result;
+    for (let i = 0; i < buckets; i++) {
+        // Proportional edges cover every sample, including a short remainder
+        // that an equal floored width would drop. When there are more buckets
+        // than samples, some ranges are empty and stay silent.
+        const start = Math.floor(i * length / buckets);
+        const end = Math.floor((i + 1) * length / buckets);
+        if (end <= start) continue;
+        let min = channelData[start];
+        let max = min;
+        for (let j = start + 1; j < end; j++) {
+            const sample = channelData[j];
+            if (sample < min) min = sample;
+            if (sample > max) max = sample;
         }
         result[i * 2] = min;
         result[i * 2 + 1] = max;

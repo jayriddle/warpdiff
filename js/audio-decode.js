@@ -138,10 +138,23 @@ async function decodeAndComputeAudioViz(slot, source) {
     // Each decode is authoritative about Opus-pending — clear any stale flag so a
     // previous file's pending state can't spuriously activate sync on this one.
     delete _opusSyncPending[slot];
-    // Read file once upfront — avoid re-reading in the catch path
-    const arrayBuffer = source instanceof File
-        ? await source.arrayBuffer()
-        : source;
+    // Read the file once. A rejected File.arrayBuffer() used to escape this
+    // function, leave the one-shot decode flag set, and block every retry.
+    // Only the current generation may publish that failure.
+    let arrayBuffer;
+    try {
+        arrayBuffer = source instanceof File ? await source.arrayBuffer() : source;
+    } catch (error) {
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        console.warn('[audio]', slot, ': could not read audio file', error);
+        const message = 'Could not read the audio file. Playback continues. Open the waveform again to try again.';
+        _audioReadRetry[slot] = true;
+        _setAudioTrackIssue(slot, message);
+        _videoScrubStatus[slot] = {unavailable:true, message};
+        updateAudioVisForSlot(slot);
+        if (_noVideoMode) _drawDecodingPlaceholder(slot);
+        return;
+    }
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
 
     // Only the uniquely selected container track can identify Opus. Free-form

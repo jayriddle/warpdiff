@@ -2,6 +2,15 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.17
+
+- Typing in a text field, choosing from a menu, and using the volume slider no longer sets off keyboard shortcuts. Space and Enter still activate a highlighted button.
+- If a soundtrack cannot be read, playback continues and a notice explains that opening the waveform again tries the read once more.
+- Waveforms include the very end of the sound, including a short peak that used to disappear.
+- Copying a timecode says so when the copy did not succeed. A video with no audio track keeps its notice on screen long enough to read.
+- The volume slider and loaded pictures have names that assistive tools can read.
+- This maintenance update retains the previous What’s New announcement.
+
 ## v3.19.16
 
 - Rapid frame stepping keeps two native video pictures updating to the latest requested frames. Different frame rates remain aligned by time. This maintenance update retains the previous What’s New announcement.
