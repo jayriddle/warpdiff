@@ -34,10 +34,10 @@ export function runWebmClusterChecks(check, source = readFileSync(new URL('../js
     do { bytes.unshift(rest & 255); rest = Math.floor(rest / 256); } while (rest > 0);
     return Buffer.from(bytes);
   }
-  function frame(id, track, rel, payload) {
+  function frame(id, track, rel, payload, flags = 0x80) {
     const timed = (rel + 0x10000) & 0xFFFF;
     return el(id, Buffer.concat([
-      Buffer.from([0x80 | track, timed >> 8, timed & 0xFF, 0x80]),
+      Buffer.from([0x80 | track, timed >> 8, timed & 0xFF, flags]),
       Buffer.from(payload)
     ]));
   }
@@ -115,6 +115,62 @@ export function runWebmClusterChecks(check, source = readFileSync(new URL('../js
     ])
   ]));
   check('webm-cluster: an unbounded block does not publish a shorter soundtrack', unfinished === null);
+
+  const prefix = frame('a3', 1, 0, [1, 2, 3]);
+  for (const [lace, flags] of [['Xiph', 0x02], ['fixed-size', 0x04], ['EBML', 0x06]]) {
+    for (const [kind, id] of [['SimpleBlock', 'a3'], ['BlockGroup', 'a1']]) {
+      const laced = frame(id, 1, 20, [0x01, 0xf8, 0xff, 0xfe, 0xf8, 0xff, 0xfe], flags);
+      const damaged = id === 'a1' ? el('a0', Buffer.concat([laced, el('9b', Buffer.from([0x28]))])) : laced;
+      check('webm-cluster: ' + lace + ' lacing in ' + kind + ' publishes no extraction',
+        parse(webm([el('1654ae6b', track()), cluster(0, [prefix, damaged])])) === null);
+    }
+  }
+  const otherTrackLaced = frame('a3', 2, 0, [9, 9, 9], 0x06);
+  const kept = parse(webm([
+    el('1654ae6b', track()),
+    cluster(0, [otherTrackLaced, frame('a3', 1, 0, [4, 5, 6])])
+  ]));
+  check('webm-cluster: lacing on another track does not discard the selected soundtrack',
+    kept?.chunks.length === 1 && kept.chunks[0].data.join(',') === '4,5,6');
+
+  function reject(name, bytes) {
+    check('webm-cluster: ' + name + ' does not publish the valid prefix', parse(bytes) === null);
+  }
+  const truncated = Buffer.from('a340', 'hex');
+  reject('truncated header after a packet in a known cluster', webm([
+    el('1654ae6b', track()), cluster(0, [prefix, truncated])
+  ]));
+  reject('truncated header after a packet in an unknown cluster', webm([
+    el('1654ae6b', track()), cluster(0, [prefix, truncated], 1)
+  ]));
+  reject('selected-track block header missing its timestamp', webm([
+    el('1654ae6b', track()), cluster(0, [prefix, el('a3', Buffer.from([0x81]))])
+  ]));
+  reject('selected-track block header missing its timestamp in an unknown cluster', webm([
+    el('1654ae6b', track()), cluster(0, [prefix, el('a3', Buffer.from([0x81]))], 1)
+  ]));
+
+  const overflow = el('a3', Buffer.alloc(30, 7));
+  const overflowBody = Buffer.concat([el('e7', uint(0)), prefix, overflow]);
+  const overflowKeep = overflowBody.length - overflow.length + 4;
+  reject('block declaring data past its known cluster', webm([
+    el('1654ae6b', track()),
+    Buffer.concat([Buffer.from('1f43b675', 'hex'), vint(overflowKeep), overflowBody])
+  ]));
+  const unknownOverflow = Buffer.concat([
+    el('1654ae6b', track()),
+    el('1f43b675', overflowBody, unknownVint(1))
+  ]);
+  // Shrink the file so the last block's declared size crosses EOF while a packet remains.
+  const eofBody = Buffer.concat([el('e7', uint(0)), prefix, Buffer.from([0xa3, 0xfe]), Buffer.alloc(7, 1)]);
+  reject('declared block size clamped at EOF in a known cluster', webm([
+    el('1654ae6b', track()), el('1f43b675', eofBody)
+  ]));
+  reject('declared block size clamped at EOF in an unknown cluster', webm([
+    el('1654ae6b', track()), el('1f43b675', eofBody, unknownVint(1))
+  ]));
+  check('webm-cluster: parent-boundary fixture actually extends past the cluster size',
+    overflow.length > 4 && overflowKeep < overflowBody.length && unknownOverflow.length > overflowKeep);
 
   const tracksAfter = webm([
     cluster(0, [frame('a3', 1, 0, [3, 3, 3])], 1),

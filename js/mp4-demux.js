@@ -373,8 +373,9 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     const trackNumbers = new Set();
     let trackSelectionVerified = true;
     let foundTracks = false;
-    // Set when an unknown-size element cannot be finished. A partial packet list
-    // must not become the Chrome Opus replacement.
+    // A partial packet list must not become the Chrome Opus replacement. This
+    // includes an unfinished unknown-size element, laced audio, a block header
+    // that cannot be read, and a known size that crosses EOF or its parent.
     let incomplete = false;
 
     function readVint(d, offset) {
@@ -418,14 +419,16 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         const hLen = idI.length + szI.length;
         const dataOffset = offset + hLen;
         const room = Math.max(0, d.length - dataOffset);
-        // Clamp a declared size to the bytes actually present. An EBML VINT can
-        // encode a size up to 2^56, which a truncated/crafted file uses to drive
-        // readUint/readString/slice into multi-billion-iteration spins and multi-GB
-        // allocations. Unknown size (every data bit set) is not that length: the
-        // element ends at the next same-or-higher-level element, and the search
-        // still cannot pass EOF.
-        const dataSize = szI.unknown ? room : Math.min(szI.value, room);
-        return { id: idI.id, headerLen: hLen, dataSize: dataSize, dataOffset: dataOffset, unknown: szI.unknown };
+        // dataSize is only the readable extent. A hostile VINT can claim 2^56
+        // bytes and must not drive a loop or allocation; callers still cannot
+        // treat that clamp as a complete element. declaredSize keeps the real
+        // claim so a short read at EOF fails extraction instead of publishing
+        // a trimmed block. Unknown size is the all-ones sentinel, not a length.
+        const declaredSize = szI.unknown || !Number.isSafeInteger(szI.value) ? null : szI.value;
+        const fits = !!szI.unknown || (declaredSize !== null && declaredSize <= room);
+        const dataSize = declaredSize === null ? room : Math.min(declaredSize, room);
+        return { id: idI.id, headerLen: hLen, dataSize: dataSize, declaredSize: declaredSize,
+            fits: fits, dataOffset: dataOffset, unknown: !!szI.unknown };
     }
 
     function readUint(d, off, sz) {
@@ -477,7 +480,7 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         let off = start;
         while (off < hardEnd) {
             const el = readEl(d, off);
-            if (!el) return off;
+            if (!el) { incomplete = true; return off; }
             if (isEnd(el.id)) return off;
             if (el.unknown) {
                 if (!isMaster(el.id)) { incomplete = true; return off; }
@@ -486,8 +489,8 @@ function _demuxWebMAudio(data, metadataOnly = false) {
                 off = next;
                 continue;
             }
-            const next = el.dataOffset + el.dataSize;
-            if (!(next > off) || next > hardEnd) { incomplete = true; return off; }
+            const next = boundedEnd(el, hardEnd);
+            if (!(next > off)) { incomplete = true; return off; }
             off = next;
         }
         return off;
@@ -519,7 +522,7 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         let off = start;
         while (off < end) {
             const el = readEl(d, off);
-            if (!el) break;
+            if (!el) { if (!metadataOnly) incomplete = true; break; }
             if (isTopLevel(el.id)) return off;
             if (el.unknown) {
                 let next = off;
@@ -532,10 +535,15 @@ function _demuxWebMAudio(data, metadataOnly = false) {
                 off = next;
                 continue;
             }
-            const dEnd = Math.min(el.dataOffset + el.dataSize, end);
+            const strictEnd = boundedEnd(el, end);
+            if (!metadataOnly && strictEnd < 0) { incomplete = true; break; }
+            const dEnd = strictEnd < 0 ? Math.min(el.dataOffset + el.dataSize, end) : strictEnd;
             if (el.id === ID.Info) parseInfo(d, el.dataOffset, dEnd, false);
             else if (el.id === ID.Tracks) parseTracks(d, el.dataOffset, dEnd, false);
-            else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) parseCluster(d, el.dataOffset, dEnd, false);
+            else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) {
+                parseCluster(d, el.dataOffset, dEnd, false);
+                if (incomplete) break;
+            }
             off = dEnd;
         }
         return off;
@@ -600,11 +608,26 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         return off;
     }
 
+    // Known-size end within the parent and the buffer. -1 means the claim crosses
+    // one of those limits; dataSize may still be clamped and must not be used.
+    function boundedEnd(el, parentEnd) {
+        if (el.unknown || !el.fits || !Number.isSafeInteger(el.declaredSize)) return -1;
+        const end = el.dataOffset + el.declaredSize;
+        if (end < el.dataOffset || end > parentEnd) return -1;
+        return end;
+    }
+
     function parseBlockPayload(d, dataOffset, dataEnd, clusterTs) {
         const tv = readVint(d, dataOffset);
-        if (!tv || tv.unknown || tv.value !== audioTrackNum) return;
+        // A header that stops early cannot be assigned to another track and skipped.
+        if (!tv || tv.unknown) { incomplete = true; return; }
         const tsOff = dataOffset + tv.length;
-        if (tsOff + 3 > dataEnd) return;
+        if (tsOff + 3 > dataEnd) { incomplete = true; return; }
+        if (tv.value !== audioTrackNum) return;
+        const flags = d[tsOff + 2];
+        // Xiph (0x02), fixed-size (0x04) and EBML (0x06) lacing. One laced block
+        // is several packets; publishing the bytes whole is a shortened soundtrack.
+        if (flags & 0x06) { incomplete = true; return; }
         const rel = (d[tsOff] << 8 | d[tsOff + 1]);
         const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
         const frameStart = tsOff + 3;
@@ -616,20 +639,22 @@ function _demuxWebMAudio(data, metadataOnly = false) {
 
     function parseBlockGroup(d, start, end, clusterTs, open) {
         let off = start;
-        while (off < end) {
+        while (off < end && !incomplete) {
             const el = readEl(d, off);
-            if (!el) break;
+            if (!el) { incomplete = true; return off; }
             if (!isBlockGroupChild(el.id)) {
-                if (open || el.unknown) { if (el.unknown) incomplete = true; return off; }
-                const skip = el.dataOffset + el.dataSize;
-                if (!(skip > off) || skip > end) break;
+                if (open) return off;
+                if (el.unknown) { incomplete = true; return off; }
+                const skip = boundedEnd(el, end);
+                if (skip < 0) { incomplete = true; return off; }
                 off = skip;
                 continue;
             }
             if (el.unknown) { incomplete = true; return off; }
-            const dEnd = el.dataOffset + el.dataSize;
-            if (dEnd > end) break;
+            const dEnd = boundedEnd(el, end);
+            if (dEnd < 0) { incomplete = true; return off; }
             if (!metadataOnly && el.id === ID.Block) parseBlockPayload(d, el.dataOffset, dEnd, clusterTs);
+            if (incomplete) return off;
             off = dEnd;
         }
         return off;
@@ -637,18 +662,16 @@ function _demuxWebMAudio(data, metadataOnly = false) {
 
     function parseCluster(d, start, end, open) {
         let clusterTs = 0, off = start;
-        while (off < end) {
+        while (off < end && !incomplete) {
             const el = readEl(d, off);
-            if (!el) {
-                if (open && findId(d, off, end, ID.Cluster) >= 0) incomplete = true;
-                break;
-            }
+            if (!el) { incomplete = true; return off; }
             if (open && endsCluster(el.id)) return off;
             if (el.id === ID.SimpleBlock || el.id === ID.Block) {
                 if (el.unknown) { incomplete = true; return off; }
-                const dEnd = el.dataOffset + el.dataSize;
-                if (dEnd > end) break;
+                const dEnd = boundedEnd(el, end);
+                if (dEnd < 0) { incomplete = true; return off; }
                 if (!metadataOnly) parseBlockPayload(d, el.dataOffset, dEnd, clusterTs);
+                if (incomplete) return off;
                 off = dEnd;
                 continue;
             }
@@ -659,9 +682,10 @@ function _demuxWebMAudio(data, metadataOnly = false) {
                     off = next;
                     continue;
                 }
-                const dEnd = el.dataOffset + el.dataSize;
-                if (dEnd > end) break;
+                const dEnd = boundedEnd(el, end);
+                if (dEnd < 0) { incomplete = true; return off; }
                 parseBlockGroup(d, el.dataOffset, dEnd, clusterTs, false);
+                if (incomplete) return off;
                 off = dEnd;
                 continue;
             }
@@ -672,9 +696,9 @@ function _demuxWebMAudio(data, metadataOnly = false) {
                 off = next;
                 continue;
             }
-            const dEnd = el.dataOffset + el.dataSize;
-            if (dEnd > end) break;
-            if (el.id === ID.Timecode) clusterTs = readUint(d, el.dataOffset, el.dataSize);
+            const dEnd = boundedEnd(el, end);
+            if (dEnd < 0) { incomplete = true; return off; }
+            if (el.id === ID.Timecode) clusterTs = readUint(d, el.dataOffset, Math.min(el.declaredSize, 8));
             off = dEnd;
         }
         return off;
