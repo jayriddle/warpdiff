@@ -1,5 +1,7 @@
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {readFileSync, writeFileSync} from 'node:fs';
+import {patchFirstClusterUnknown} from './webm-cluster.mjs';
 
 // Fresh temporary directory per test worker; no checked-in binary fixtures.
 export function prepareAudioSelectionFiles(directory) {
@@ -9,7 +11,8 @@ export function prepareAudioSelectionFiles(directory) {
   const tone = (duration,hz=440) => ['-f','lavfi','-i',`sine=frequency=${hz}:sample_rate=48000:duration=${duration}`];
   const files = {aac:file('aac-control.mp4'),comment:file('aac-opus-comment.mp4'),short:file('opus-short.mp4'),
     delayed:file('opus-delayed.mp4'),long:file('opus-long.mp4'),multi:file('two-audio.webm'),
-    mixed:file('opus-vorbis.webm'),single:file('one-audio.webm'),audio:file('two-audio-audio.webm')};
+    mixed:file('opus-vorbis.webm'),single:file('one-audio.webm'),audio:file('two-audio-audio.webm'),
+    unknownCluster:file('unknown-cluster.webm')};
   for (const [name,codec,pictureSeconds,audioSeconds,delay] of [
     ['aac','aac',5,2,0],['short','libopus',5,2,0],['delayed','libopus',5,2,1],['long','libopus',2,5,0]
   ]) run([...picture(pictureSeconds),...(delay?['-itsoffset',String(delay)]:[]),...tone(audioSeconds),
@@ -22,5 +25,9 @@ export function prepareAudioSelectionFiles(directory) {
   run(['-i',files.multi,'-map','0','-c','copy','-c:a:1','vorbis','-strict','-2','-ac:a:1','2',files.mixed]);
   run(['-i',files.multi,'-map','0:v','-map','0:a:0','-c','copy',files.single]);
   run(['-i',files.multi,'-map','0:a','-c','copy',files.audio]);
+  const clustered = file('known-clusters.webm');
+  run([...picture(4),...tone(4),'-map','0:v','-map','1:a','-c:v','libvpx-vp9','-deadline','realtime','-cpu-used','8',
+    '-b:v','80k','-c:a','libopus','-b:a','32k','-cluster_time_limit','250',clustered]);
+  writeFileSync(files.unknownCluster, patchFirstClusterUnknown(readFileSync(clustered)));
   return files;
 }

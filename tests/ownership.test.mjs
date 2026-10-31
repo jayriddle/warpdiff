@@ -28,6 +28,7 @@ import { runPreferenceChecks } from './preferences-regression.mjs';
 import { runMediaInputChecks } from './media-input-regression.mjs';
 import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
 import { runPreparedMediaChecks } from './prepared-media-regression.mjs';
+import { runWebmClusterChecks } from './webm-cluster-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -1300,13 +1301,17 @@ runMediaAdmissionChecks(check);
   check('demux[webm]: readUint caps width at 8 bytes',
         Number.isFinite(readUint(new Uint8Array(8), 0, 1000)) &&
         readUint(new Uint8Array([0,0,0,0,0,0,0,1, 9,9]), 0, 1000) === 1);
-  // readEl clamps a declared VINT size to the remaining buffer. Element =
-  // id(0x80) + 8-byte size VINT declaring ~2^56 + 3 data bytes → dataSize clamps
-  // to 3, not 2^56.
+  // id(0x80) + 8-byte all-ones size is the unknown-size sentinel, not a 2^56-byte
+  // allocation. The search stays inside the three bytes that are actually present.
+  // A huge known size (not the sentinel) is still clamped to those bytes.
   const buf = new Uint8Array([0x80, 0x01,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF, 1,2,3]);
   const el = readEl(buf, 0);
-  check('demux[webm]: readEl clamps declared element size to remaining bytes',
-        el && el.dataOffset === 9 && el.dataSize === buf.length - el.dataOffset);
+  check('demux[webm]: all-ones size is unknown and stays inside the buffer',
+        el && el.unknown === true && el.dataOffset === 9 && el.dataSize === buf.length - el.dataOffset);
+  const declared = new Uint8Array([0x80, 0x01,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF, 1,2,3]);
+  const declaredEl = readEl(declared, 0);
+  check('demux[webm]: a large known size still clamps to the remaining bytes',
+        declaredEl && declaredEl.unknown === false && declaredEl.dataOffset === 9 && declaredEl.dataSize === 3);
 
   // MP4 stsz clamps live in closures (parseStsz / walk) — assert the guard is in
   // the shipped demuxers so a revert fails here.
@@ -2471,6 +2476,7 @@ await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);
 runMalformedAudioChecks(check);
+runWebmClusterChecks(check);
 await runScrubInputChecks(check);
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
