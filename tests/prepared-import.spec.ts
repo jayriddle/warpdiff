@@ -51,13 +51,24 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.locator('#preparedImportLoad').click();await expect.poll(()=>current(page)).toEqual(['blue.png','red.png','review.mp4']);
   // The initially hidden video has no observed frame yet. Select and play it
   // before asking Media status to verify its pixels.
-  await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowRight');
-  // Load keeps focus, and a focused button owns Space. Leave it before playing.
-  await page.evaluate(()=>{const el=document.activeElement;if(el instanceof HTMLElement)el.blur();});
-  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowRight');await page.keyboard.press('Space');
   await expect.poll(()=>page.locator('#layerEditB video').evaluate((v:HTMLVideoElement)=>v.currentTime),{timeout:15000}).toBeGreaterThan(.01);await page.keyboard.press('Space');
   await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
   await expect.poll(()=>page.evaluate(()=>Object.values((window as any).WarpDiffHostAPI.readMediaInputReports()).every((r:any)=>r.capabilities.picture.state==='available')),{timeout:15000}).toBe(true);
+ });
+ test('Space after an ordinary load starts playback instead of reopening Load',async({page})=>{
+  await page.locator('#preparedImportCancel').click();
+  await page.evaluate(()=>{
+    document.getElementById('multiFileInput')!.addEventListener('change',()=>document.getElementById('loadBtn')!.focus(),true);
+  });
+  await page.locator('#multiFileInput').setInputFiles(fixture('landscape_a.mp4'));
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  await expect(page.locator('#loadBtn')).not.toBeFocused();
+  const focused=page.locator(':focus');
+  await expect(focused).toBeVisible();
+  expect(await focused.evaluate(el=>el.getClientRects().length)).toBeGreaterThan(0);
+  await page.keyboard.press('Space');
+  await expect.poll(()=>page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>v.currentTime),{timeout:15000}).toBeGreaterThan(.01);
  });
  for(const target of ['source','rendition'])test(`changed ${target} bytes reject without clearing the current comparison`,async({page})=>{
   await select(page,true);const source=target==='source'?fs.readFileSync(fixture('ac3_video.mp4')):media,bytes=Buffer.from(source);bytes[bytes.length-1]^=1;
@@ -234,7 +245,8 @@ test('Load consumes the verified snapshot after the selected disk file changes',
   const changed=Buffer.from(media);changed[0]^=255;fs.writeFileSync(selected,changed);
   await page.locator('#preparedImportLoad').click();
   await expect(page.locator('#quickStartPopup')).not.toHaveClass(/show/);
-  await expect(page.locator('#loadBtn')).toBeFocused();
+  await expect(page.locator('#loadBtn')).not.toBeFocused();
+  await expect(page.locator(':focus')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA?.capabilities.decodedAnalysis.state),{timeout:15000}).toBe('available');
   expect(await current(page)).toEqual(['review.mp4']);
   expect(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>v.videoWidth)).toBeGreaterThan(0);

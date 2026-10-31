@@ -4,7 +4,7 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 
 ## v3.19.17
 
-- Typing in a text field, choosing from a menu, and using the volume slider no longer sets off keyboard shortcuts. Space and Enter still activate a highlighted button.
+- Typing in a text field, choosing from a menu, and using the volume slider no longer sets off keyboard shortcuts. Space and Enter still activate a highlighted button. After files finish loading, Space starts playback.
 - If a soundtrack cannot be read, playback continues and a notice explains that opening the waveform again tries the read once more.
 - Waveforms include the very end of the sound, including a short peak that used to disappear.
 - Copying a timecode says so when the copy did not succeed. A video with no audio track keeps its notice on screen long enough to read.

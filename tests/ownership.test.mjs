@@ -1765,6 +1765,18 @@ runMediaAdmissionChecks(check);
   check('names: volume slider and loaded comparison images have accessible names',
         HTML.includes('id="volumeSlider"') && HTML.includes('aria-label="Volume"')
         && extractFn('loadImageFile').includes('img.alt = file.name || slotLabel(slot)'));
+  const afterLoad = extractFn('_focusComparisonAfterLoad');
+  check('load-focus: a finished comparison moves Space off Load and onto a visible target',
+        countOf(SRC, 'function _focusComparisonAfterLoad(') === 1
+        && afterLoad.includes("document.querySelector('dialog[open]')")
+        && afterLoad.includes('playPauseBtn')
+        && afterLoad.includes('comparisonView')
+        && extractFn('handleMultipleFiles').includes('_focusComparisonAfterLoad()')
+        && extractFn('checkAllLoaded').includes('_focusComparisonAfterLoad()')
+        && extractFn('_loadPreparedImport').includes('_focusComparisonAfterLoad()')
+        && !extractFn('_loadPreparedImport').includes("getElementById('loadBtn').focus")
+        && !extractFn('_restoreLocalPreparationComparison').includes("getElementById('loadBtn').focus")
+        && extractFn('_loadOrdinaryMediaFromHelp').includes("getElementById('loadBtn').focus"));
 }
 
 // Safari preview output has one comparison-scoped owner. Both preview engines

@@ -296,7 +296,7 @@ function _restoreLocalPreparationComparison() {
     const recovery = _localPreparationRecovery;
     if (!recovery || recovery.token !== _loadingProgressToken || _managedReviewActive()) return;
     handleMultipleFiles(recovery.files,{preserveOrder:true,preparedFiles:recovery.preparedFiles});
-    document.getElementById('loadBtn').focus({preventScroll:true});
+    _focusComparisonAfterLoad();
 }
 function _setupLocalPreparation() {
     _mediaPreparationProviders.register({id:'local-companion',version:1,mode:'files',

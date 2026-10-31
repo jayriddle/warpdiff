@@ -366,7 +366,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 
 ## Keyboard Shortcuts Reference
 
-All hotkeys are customizable — press **H** to open the shortcuts panel, then click any key to rebind it. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button.
+All hotkeys are customizable — press **H** to open the shortcuts panel, then click any key to rebind it. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
 
 ### Files
 | Key | Action |

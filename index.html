@@ -766,6 +766,8 @@
             display: flex;
             flex-direction: column;
         }
+        #comparisonView:focus { outline: none; }
+        #comparisonView:focus-visible { outline: 2px solid #a9c9ff; outline-offset: -2px; }
 
         .asset-container {
             width: 100%;
@@ -3616,10 +3618,10 @@
                 <p>Help improve WarpDiff with optional counts of visits, daily activity, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way. <button type="button" id="usageDetails">What’s shared and who receives it</button></p>
                 <div class="usage-actions"><button type="button" data-usage-choice="no">No thanks</button><button type="button" data-usage-choice="yes">Share usage counts</button></div>
             </aside>
-            <div class="landing-status" id="landingStatus" role="status" aria-live="polite">Loading…</div>
+            <div class="landing-status" id="landingStatus" role="status" aria-live="polite" tabindex="-1">Loading…</div>
         </div>
 
-        <div class="comparison-view" id="comparisonView">
+        <div class="comparison-view" id="comparisonView" role="region" aria-label="Comparison" tabindex="-1">
             <div class="audio-level-toolbar" id="audioLevelAudioToolbar" role="group" aria-label="Waveform and spectrogram scale">
                 <span class="audio-level-label">Scale</span>
                 <button class="audio-level-btn active" data-audio-level="fit" aria-pressed="true" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
@@ -6387,7 +6389,40 @@
             if (!(opts && opts.skipToast) && hasTimestampCollision) {
                 showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
             }
+            _focusComparisonAfterLoad();
+            requestAnimationFrame(() => _focusComparisonAfterLoad());
             return true;
+        }
+
+        // After a load or preparation, Space must start playback. Leave Load
+        // only when focus is still the handoff (Load, the file input, the
+        // loading panel, or nowhere). A button or field the user focused keeps
+        // Space and Enter.
+        function _focusComparisonAfterLoad() {
+            if (_managedReviewActive() || document.querySelector('dialog[open]')) return;
+            const active = document.activeElement;
+            const load = document.getElementById('loadBtn');
+            const file = document.getElementById('multiFileInput');
+            const landing = document.getElementById('landingCta');
+            const header = document.querySelector('.header');
+            const unplaced = !active || active === document.body || active === document.documentElement;
+            const onLoad = active === load || active === file;
+            const onHeader = !!(active && header && header.contains(active));
+            const onLoading = !!(active && landing && landing.contains(active));
+            const invisible = !!(active && active !== document.body && active.getClientRects().length === 0);
+            if (!unplaced && !onLoad && !onHeader && !onLoading && !invisible) return;
+            const play = document.getElementById('playPauseBtn');
+            if (play && play.getClientRects().length) {
+                play.focus({ preventScroll: true });
+                return;
+            }
+            const view = document.getElementById('comparisonView');
+            if (view && view.classList.contains('active') && view.getClientRects().length) {
+                view.focus({ preventScroll: true });
+                return;
+            }
+            const status = document.getElementById('landingStatus');
+            if (status && status.getClientRects().length && active !== status) status.focus({ preventScroll: true });
         }
 
         // ── Audio Visualization ──────────────────────────────────────────
@@ -13026,6 +13061,7 @@
                 function startFadeIn() {
                     if (activationGeneration !== _viewLoadGeneration) return;
                     hideLoading();
+                    _focusComparisonAfterLoad();
                     // Apply the persisted global mute to the freshly loaded media
                     // (and refresh the button) — a muted user stays muted on load.
                     _applyMuteState();
@@ -13117,6 +13153,7 @@
                 } else {
                     vcEl.classList.add('images-only');
                 }
+                _focusComparisonAfterLoad();
 
                 // Restore persisted analysis panels (deferred to avoid blocking view activation)
                 setTimeout(() => {
@@ -14381,7 +14418,7 @@
             </table>
 
             <h2>Keyboard Shortcuts Reference</h2>
-            <p>Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button.</p>
+            <p>Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison.</p>
             <table>
                 <tr><th>Key</th><th>Action</th></tr>
                 <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
