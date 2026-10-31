@@ -6394,35 +6394,46 @@
             return true;
         }
 
-        // After a load or preparation, Space must start playback. Leave Load
-        // only when focus is still the handoff (Load, the file input, the
-        // loading panel, or nowhere). A button or field the user focused keeps
-        // Space and Enter.
+        // After a load or preparation, Space must start playback. The first
+        // handoff leaves Load, the file input, the header, or an empty focus.
+        // A later pass only follows the loading panel once it is hidden, so a
+        // Load button the user focuses after that stays in place.
+        let _loadFocusHandoff = null;
         function _focusComparisonAfterLoad() {
             if (_managedReviewActive() || document.querySelector('dialog[open]')) return;
+            const token = _loadingProgressToken;
             const active = document.activeElement;
+            const landing = document.getElementById('landingCta');
+            const onLoading = !!(active && landing && landing.contains(active));
+            if (_loadFocusHandoff === token && !(onLoading && !active.getClientRects().length)) return;
             const load = document.getElementById('loadBtn');
             const file = document.getElementById('multiFileInput');
-            const landing = document.getElementById('landingCta');
             const header = document.querySelector('.header');
             const unplaced = !active || active === document.body || active === document.documentElement;
             const onLoad = active === load || active === file;
             const onHeader = !!(active && header && header.contains(active));
-            const onLoading = !!(active && landing && landing.contains(active));
-            const invisible = !!(active && active !== document.body && active.getClientRects().length === 0);
-            if (!unplaced && !onLoad && !onHeader && !onLoading && !invisible) return;
+            const invisible = !!(active && active !== document.body && !active.getClientRects().length);
+            if (!unplaced && !onLoad && !onHeader && !onLoading && !invisible) {
+                _loadFocusHandoff = token;
+                return;
+            }
             const play = document.getElementById('playPauseBtn');
             if (play && play.getClientRects().length) {
                 play.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
                 return;
             }
             const view = document.getElementById('comparisonView');
             if (view && view.classList.contains('active') && view.getClientRects().length) {
                 view.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
                 return;
             }
             const status = document.getElementById('landingStatus');
-            if (status && status.getClientRects().length && active !== status) status.focus({ preventScroll: true });
+            if (status && status.getClientRects().length && active !== status) {
+                status.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
+            }
         }
 
         // ── Audio Visualization ──────────────────────────────────────────

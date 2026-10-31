@@ -1770,6 +1770,7 @@ runMediaAdmissionChecks(check);
         countOf(SRC, 'function _focusComparisonAfterLoad(') === 1
         && afterLoad.includes("document.querySelector('dialog[open]')")
         && afterLoad.includes('playPauseBtn')
+        && afterLoad.includes('_loadFocusHandoff === token')
         && afterLoad.includes('comparisonView')
         && extractFn('handleMultipleFiles').includes('_focusComparisonAfterLoad()')
         && extractFn('checkAllLoaded').includes('_focusComparisonAfterLoad()')
