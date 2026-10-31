@@ -112,7 +112,7 @@ function _isWebMAudioContainer(bytes) {
 }
 
 let _audioTrackIssues = Object.create(null);
-function _setAudioTrackIssue(slot, message) {
+function _setAudioTrackIssue(slot, message, reportPreparation = true) {
     if (slot === null) _audioTrackIssues = Object.create(null);
     else if (message) _audioTrackIssues[slot] = message;
     else delete _audioTrackIssues[slot];
@@ -122,7 +122,9 @@ function _setAudioTrackIssue(slot, message) {
         .map(s => slotLabel(s) + ' — ' + _audioTrackIssues[s]);
     alert.textContent = messages.join('\n');
     alert.hidden = messages.length === 0;
-    if (message) _localPreparationIssue(slot, _loadingProgressToken);
+    // reportPreparation is false for a transient file-read failure. That is not
+    // a codec or container problem and must not stay eligible for conversion.
+    if (message && reportPreparation) _localPreparationIssue(slot, _loadingProgressToken);
 }
 
 async function decodeAndComputeAudioViz(slot, source) {
@@ -149,13 +151,15 @@ async function decodeAndComputeAudioViz(slot, source) {
         console.warn('[audio]', slot, ': could not read audio file', error);
         const message = 'Could not read the audio file. Playback continues. Open the waveform again to try again.';
         _audioReadRetry[slot] = true;
-        _setAudioTrackIssue(slot, message);
+        _localPreparationTransientRead(slot, loadingToken);
+        _setAudioTrackIssue(slot, message, false);
         _videoScrubStatus[slot] = {unavailable:true, message};
         updateAudioVisForSlot(slot);
         if (_noVideoMode) _drawDecodingPlaceholder(slot);
         return;
     }
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+    _localPreparationResolveTransientRead(slot, loadingToken);
 
     // Only the uniquely selected container track can identify Opus. Free-form
     // tags and compressed packet bytes cannot authorize replacement playback.

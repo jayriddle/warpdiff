@@ -1748,6 +1748,9 @@ runMediaAdmissionChecks(check);
         && read.indexOf('catch (error)', readAt) > readAt
         && read.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return;')
         && read.includes('_audioReadRetry[slot] = true')
+        && read.includes('_localPreparationTransientRead(slot, loadingToken)')
+        && read.includes('_setAudioTrackIssue(slot, message, false)')
+        && read.includes('_localPreparationResolveTransientRead(slot, loadingToken)')
         && read.includes('Could not read the audio file')
         && extractFn('_ensureAudioVizDecoded').includes('_audioReadRetry[s]')
         && extractFn('clearAllMedia').includes('_audioReadRetry = Object.create(null)'));
@@ -2220,7 +2223,8 @@ runMediaAdmissionChecks(check);
       _opusSyncPending: pending, _videoAudioDecodeGen: {}, _loadingProgressToken: 1, _byteScannedCodec: {},
       _UNSUPPORTED_CODEC_LABELS: {}, _isChrome: chrome, AudioDecoder: function AudioDecoder() {}, File: function File() {},
       console: {warn(){}}, _nextAudioDecodeGeneration: () => 1, _videoAudioDecodeIsCurrent: () => true,
-      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _isMP4AudioContainer: () => true,
+      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _localPreparationResolveTransientRead(){},
+      _isMP4AudioContainer: () => true,
       _isWebMAudioContainer: () => false, _mp4AudioAnalysisIssue: () => '',
       _demuxMP4Audio: () => ({audioTracks:[{codec:opus ? 'Opus' : 'aac'}]}),
       WarpScrubAudio: {monitor: {waveLayout(){ return null; }}}, _mediaInputAudioMetadata(){},

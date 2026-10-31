@@ -139,7 +139,7 @@ Each video preview and the selected Continuous stream have a 64 MiB PCM limit. O
 
 ## Audio visualization
 
-Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. If the audio file cannot be read, playback continues and the notice stays up; open the waveform again to try the read once more. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
+Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. If the audio file cannot be read, playback continues and the notice stays up; open the waveform again to try the read once more. That temporary read problem does not ask for preparation. Another file that still needs preparation stays listed. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing.
 
