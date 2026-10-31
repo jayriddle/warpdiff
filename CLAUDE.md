@@ -174,7 +174,7 @@ Two layers:
 - `playwright.config.ts` declares `globalSetup: './tests/global-setup.ts'`, which auto-generates the gitignored MP4 / WebM / WAV / MP3 fixtures via `tests/fixtures/generate.sh` if any sentinel (`tests/fixtures/landscape_a.mp4`, `vorbis_a.webm`, or `vorbis_long.webm`) is missing. Requires `ffmpeg` on PATH; setup errors out with an install hint if it isn't.
 - `tests/fixtures/*.{mp4,webm,wav,mp3}` are gitignored (deterministic outputs of the generator script — don't commit them).
 - Tests use the `__testAPI` global on `window` to inspect internal state (`zoomLevel`, `fitZoom`, `isGridMode`, `_loopInPoint`, etc.) — add to `__testAPI` when introducing testable state.
-- Server: `./start.sh` runs `npx serve -l 8080 .` from project root; Playwright auto-detects and reuses it (`reuseExistingServer: true`).
+- Server: `./start.sh` runs `node scripts/dev-server.mjs` from project root (loopback port 8080, public app files plus `tests/fixtures`; the browser opens only after that port is serving). Playwright uses the same server and reuses it locally (`reuseExistingServer: true`).
 
 ## Additional Resources
 

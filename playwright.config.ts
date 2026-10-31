@@ -29,8 +29,9 @@ export default defineConfig({
         }
     } },
   ],
+  // Loopback only: public app files plus tests/fixtures. scripts/dev-server.mjs
   webServer: {
-    command: 'npx serve -l 8080 --no-clipboard .',
+    command: 'WARPDIFF_DEV_PORT=8080 node scripts/dev-server.mjs',
     port: 8080,
     reuseExistingServer: !process.env.CI,
   },
