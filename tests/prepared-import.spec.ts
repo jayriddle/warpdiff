@@ -51,7 +51,10 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.locator('#preparedImportLoad').click();await expect.poll(()=>current(page)).toEqual(['blue.png','red.png','review.mp4']);
   // The initially hidden video has no observed frame yet. Select and play it
   // before asking Media status to verify its pixels.
-  await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowRight');await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowRight');
+  // Load keeps focus, and a focused button owns Space. Leave it before playing.
+  await page.evaluate(()=>{const el=document.activeElement;if(el instanceof HTMLElement)el.blur();});
+  await page.keyboard.press('Space');
   await expect.poll(()=>page.locator('#layerEditB video').evaluate((v:HTMLVideoElement)=>v.currentTime),{timeout:15000}).toBeGreaterThan(.01);await page.keyboard.press('Space');
   await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
   await expect.poll(()=>page.evaluate(()=>Object.values((window as any).WarpDiffHostAPI.readMediaInputReports()).every((r:any)=>r.capabilities.picture.state==='available')),{timeout:15000}).toBe(true);
