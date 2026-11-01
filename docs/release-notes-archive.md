@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.19
+
+- WebM videos keep their full soundtrack, including files recorded in a browser.
+- This maintenance update retains the previous What’s New announcement.
+
 ## v3.19.18
 
 - Loudness readings are now more accurate. Low notes and the highest peaks between samples follow the broadcast meter.
@@ -14,7 +19,6 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 - Waveforms include the very end of the sound, including a short peak that used to disappear.
 - Copying a timecode says so when the copy did not succeed. A video with no audio track keeps its notice on screen long enough to read.
 - The volume slider and loaded pictures have names that assistive tools can read.
-- This maintenance update retains the previous What’s New announcement.
 
 ## v3.19.16
 

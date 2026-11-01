@@ -373,6 +373,10 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     const trackNumbers = new Set();
     let trackSelectionVerified = true;
     let foundTracks = false;
+    // A partial packet list must not become the Chrome Opus replacement. This
+    // includes an unfinished unknown-size element, laced audio, a block header
+    // that cannot be read, and a known size that crosses EOF or its parent.
+    let incomplete = false;
 
     function readVint(d, offset) {
         if (offset >= d.length) return null;
@@ -380,11 +384,15 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         while (len <= 8 && !(first & mask)) { len++; mask >>= 1; }
         if (len > 8) return null;
         let value = first & (mask - 1);
+        // All data bits set is the reserved unknown-size sentinel, not a length.
+        let unknown = value === mask - 1;
         for (let i = 1; i < len; i++) {
             if (offset + i >= d.length) return null;
-            value = value * 256 + d[offset + i];
+            const byte = d[offset + i];
+            if (byte !== 0xFF) unknown = false;
+            value = value * 256 + byte;
         }
-        return { value: value, length: len };
+        return { value: value, length: len, unknown: unknown };
     }
 
     function readElementId(d, offset) {
@@ -410,13 +418,17 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         if (!szI) return null;
         const hLen = idI.length + szI.length;
         const dataOffset = offset + hLen;
-        // Clamp the declared data size to the bytes actually present. An EBML VINT
-        // can encode a size up to 2^56, which a truncated/crafted file uses to
-        // drive readUint/readString/slice into multi-billion-iteration spins and
-        // multi-GB allocations. A valid element never runs past EOF. Callers that
-        // care about container bounds still Math.min against their own `end`.
-        const dataSize = Math.min(szI.value, Math.max(0, d.length - dataOffset));
-        return { id: idI.id, headerLen: hLen, dataSize: dataSize, dataOffset: dataOffset };
+        const room = Math.max(0, d.length - dataOffset);
+        // dataSize is only the readable extent. A hostile VINT can claim 2^56
+        // bytes and must not drive a loop or allocation; callers still cannot
+        // treat that clamp as a complete element. declaredSize keeps the real
+        // claim so a short read at EOF fails extraction instead of publishing
+        // a trimmed block. Unknown size is the all-ones sentinel, not a length.
+        const declaredSize = szI.unknown || !Number.isSafeInteger(szI.value) ? null : szI.value;
+        const fits = !!szI.unknown || (declaredSize !== null && declaredSize <= room);
+        const dataSize = declaredSize === null ? room : Math.min(declaredSize, room);
+        return { id: idI.id, headerLen: hLen, dataSize: dataSize, declaredSize: declaredSize,
+            fits: fits, dataOffset: dataOffset, unknown: !!szI.unknown };
     }
 
     function readUint(d, off, sz) {
@@ -436,33 +448,120 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         Segment: 0x18538067, Tracks: 0x1654AE6B, TrackEntry: 0xAE,
         TrackNumber: 0xD7, TrackType: 0x83, CodecID: 0x86, CodecPrivate: 0x63A2,
         Audio: 0xE1, SampleRate: 0xB5, OutputSampleRate: 0x78B5, Channels: 0x9F,
-        Cluster: 0x1F43B675, Timecode: 0xE7, SimpleBlock: 0xA3,
-        Info: 0x1549A966, TimestampScale: 0x2AD7B1
+        Cluster: 0x1F43B675, Timecode: 0xE7, SimpleBlock: 0xA3, BlockGroup: 0xA0, Block: 0xA1,
+        Info: 0x1549A966, TimestampScale: 0x2AD7B1, EBML: 0x1A45DFA3, Audio: 0xE1
     };
+    // Segment children. An unknown-size Cluster ends when one of these, or a
+    // top-level element, begins. Short IDs inside the cluster are its children.
+    const SEGMENT_CHILD = new Set([
+        0x114D9B74, 0x1549A966, 0x1654AE6B, 0x1F43B675, 0x1C53BB6B, 0x1941A469, 0x1043A770, 0x1254C367
+    ]);
+
+    function isTopLevel(id) { return id === ID.EBML || id === ID.Segment; }
+    function endsCluster(id) { return isTopLevel(id) || SEGMENT_CHILD.has(id); }
+    function isGlobal(id) { return id === 0xEC || id === 0xBF; } // Void, CRC-32
+    function isMaster(id) {
+        return isTopLevel(id) || SEGMENT_CHILD.has(id) || id === ID.TrackEntry || id === ID.BlockGroup
+            || id === ID.Audio || id === 0xE0 || id === 0x5854 || id === 0x75A1 || id === 0xBB || id === 0xB7;
+    }
+    function isBlockGroupChild(id) {
+        return isGlobal(id) || id === ID.Block || id === 0x9B || id === 0xFA || id === 0xFB
+            || id === 0xA4 || id === 0x75A1 || id === 0x75A2 || id === 0x8E;
+    }
+    function isDirectClusterChild(id) {
+        return id === ID.Timecode || id === ID.SimpleBlock || id === ID.BlockGroup || id === ID.Block
+            || id === 0xA7 || id === 0xAB || id === 0x5854 || id === 0xAF || isGlobal(id);
+    }
+
+    // Skip an unknown-size master until the next element that ends it. Binary
+    // elements (blocks, codec private) are not scanned; their bytes are not elements.
+    function resumeAt(d, start, hardEnd, isEnd, depth) {
+        if (depth > 32) { incomplete = true; return start; }
+        let off = start;
+        while (off < hardEnd) {
+            const el = readEl(d, off);
+            if (!el) { incomplete = true; return off; }
+            if (isEnd(el.id)) return off;
+            if (el.unknown) {
+                if (!isMaster(el.id)) { incomplete = true; return off; }
+                const next = resumeAt(d, el.dataOffset, hardEnd, isEnd, depth + 1);
+                if (!(next > off)) { incomplete = true; return off; }
+                off = next;
+                continue;
+            }
+            const next = boundedEnd(el, hardEnd);
+            if (!(next > off)) { incomplete = true; return off; }
+            off = next;
+        }
+        return off;
+    }
+
+    function parseInfo(d, start, end, open) {
+        let off = start;
+        while (off < end) {
+            const el = readEl(d, off);
+            if (!el) break;
+            if (open && (isTopLevel(el.id) || SEGMENT_CHILD.has(el.id))) return off;
+            if (el.unknown) {
+                const next = isMaster(el.id)
+                    ? resumeAt(d, el.dataOffset, end, id => isTopLevel(id) || SEGMENT_CHILD.has(id), 0)
+                    : off;
+                if (!(next > off)) { incomplete = true; break; }
+                off = next;
+                continue;
+            }
+            const dEnd = el.dataOffset + el.dataSize;
+            if (dEnd > end) break;
+            if (el.id === ID.TimestampScale) timestampScale = readUint(d, el.dataOffset, el.dataSize);
+            off = dEnd;
+        }
+        return off;
+    }
 
     function parseSegment(d, start, end) {
         let off = start;
         while (off < end) {
             const el = readEl(d, off);
-            if (!el) break;
-            const dEnd = Math.min(el.dataOffset + el.dataSize, end);
-            if (el.id === ID.Info) {
-                let o = el.dataOffset;
-                while (o < dEnd) { const e2 = readEl(d, o); if (!e2) break; if (e2.id === ID.TimestampScale) timestampScale = readUint(d, e2.dataOffset, e2.dataSize); o = e2.dataOffset + e2.dataSize; }
-            } else if (el.id === ID.Tracks) {
-                foundTracks = true;
-                let o = el.dataOffset;
-                while (o < dEnd) {
-                    const e2 = readEl(d, o);
-                    if (!e2 || e2.dataOffset + e2.dataSize > dEnd) { trackSelectionVerified = false; break; }
-                    if (e2.id === ID.TrackEntry) parseTrackEntry(d, e2.dataOffset, e2.dataOffset + e2.dataSize);
-                    o = e2.dataOffset + e2.dataSize;
-                }
-            } else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) {
-                parseCluster(d, el.dataOffset, dEnd);
+            if (!el) { if (!metadataOnly) incomplete = true; break; }
+            if (isTopLevel(el.id)) return off;
+            if (el.unknown) {
+                let next = off;
+                if (el.id === ID.Info) next = parseInfo(d, el.dataOffset, end, true);
+                else if (el.id === ID.Tracks) next = parseTracks(d, el.dataOffset, end, true);
+                else if (el.id === ID.Cluster) next = parseCluster(d, el.dataOffset, end, true);
+                else if (isMaster(el.id) || SEGMENT_CHILD.has(el.id)) next = resumeAt(d, el.dataOffset, end, id => isTopLevel(id) || SEGMENT_CHILD.has(id), 0);
+                else incomplete = true;
+                if (incomplete || !(next > off)) { incomplete = true; break; }
+                off = next;
+                continue;
+            }
+            const strictEnd = boundedEnd(el, end);
+            if (!metadataOnly && strictEnd < 0) { incomplete = true; break; }
+            const dEnd = strictEnd < 0 ? Math.min(el.dataOffset + el.dataSize, end) : strictEnd;
+            if (el.id === ID.Info) parseInfo(d, el.dataOffset, dEnd, false);
+            else if (el.id === ID.Tracks) parseTracks(d, el.dataOffset, dEnd, false);
+            else if (el.id === ID.Cluster && audioTrackNum >= 0 && !metadataOnly) {
+                parseCluster(d, el.dataOffset, dEnd, false);
+                if (incomplete) break;
             }
             off = dEnd;
         }
+        return off;
+    }
+
+    function parseTracks(d, start, end, open) {
+        foundTracks = true;
+        let off = start;
+        while (off < end) {
+            const el = readEl(d, off);
+            if (!el) { if (off < end) trackSelectionVerified = false; break; }
+            if (open && (isTopLevel(el.id) || SEGMENT_CHILD.has(el.id))) return off;
+            if (el.unknown) { trackSelectionVerified = false; return open ? end : off; }
+            if (el.dataOffset + el.dataSize > end) { trackSelectionVerified = false; break; }
+            if (el.id === ID.TrackEntry) parseTrackEntry(d, el.dataOffset, el.dataOffset + el.dataSize);
+            off = el.dataOffset + el.dataSize;
+        }
+        return off;
     }
 
     function parseTrackEntry(d, start, end) {
@@ -470,9 +569,20 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         let sourceRate = 8000, sourceChannels = 1, outputRate = null; // Matroska defaults
         const fields = new Set();
         let off = start;
+        const finish = () => {
+            if (!Number.isSafeInteger(num) || num <= 0 || trackNumbers.has(num) || type < 0 || !codec) trackSelectionVerified = false;
+            trackNumbers.add(num);
+            if (type === 2) audioTracks.push({trackId:num, codec, channels:sourceChannels,
+                sampleRate:codec === 'A_OPUS' ? 48000 : outputRate || sourceRate, channelLayout:null});
+            if (type === 2 && (codec === 'A_OPUS' || codec === 'A_VORBIS')) {
+                audioTrackNum = num; codecPrivate = priv; sampleRate = sr; channels = ch;
+            }
+        };
         while (off < end) {
             const el = readEl(d, off);
-            if (!el || el.dataOffset + el.dataSize > end) { trackSelectionVerified = false; break; }
+            // The next track, or a segment element, ends an unknown-size entry.
+            if (el && (el.id === ID.TrackEntry || isTopLevel(el.id) || SEGMENT_CHILD.has(el.id))) { finish(); return off; }
+            if (!el || el.unknown || el.dataOffset + el.dataSize > end) { trackSelectionVerified = false; break; }
             const dEnd = el.dataOffset + el.dataSize;
             if ([ID.TrackNumber, ID.TrackType, ID.CodecID].includes(el.id)) {
                 if (fields.has(el.id)) trackSelectionVerified = false;
@@ -485,7 +595,7 @@ function _demuxWebMAudio(data, metadataOnly = false) {
             else if (el.id === ID.Audio) {
                 let ao = el.dataOffset;
                 while (ao < dEnd) {
-                    const ae = readEl(d, ao); if (!ae || ae.dataOffset + ae.dataSize > dEnd) break;
+                    const ae = readEl(d, ao); if (!ae || ae.unknown || ae.dataOffset + ae.dataSize > dEnd) break;
                     if (ae.id === ID.SampleRate && [4,8].includes(ae.dataSize)) sr = sourceRate = readFloat(d, ae.dataOffset, ae.dataSize);
                     else if (ae.id === ID.OutputSampleRate && [4,8].includes(ae.dataSize)) outputRate = readFloat(d, ae.dataOffset, ae.dataSize);
                     else if (ae.id === ID.Channels) ch = sourceChannels = readUint(d, ae.dataOffset, ae.dataSize);
@@ -494,45 +604,139 @@ function _demuxWebMAudio(data, metadataOnly = false) {
             }
             off = dEnd;
         }
-        if (!Number.isSafeInteger(num) || num <= 0 || trackNumbers.has(num) || type < 0 || !codec) trackSelectionVerified = false;
-        trackNumbers.add(num);
-        if (type === 2) audioTracks.push({trackId:num, codec, channels:sourceChannels,
-            sampleRate:codec === 'A_OPUS' ? 48000 : outputRate || sourceRate, channelLayout:null});
-        if (type === 2 && (codec === 'A_OPUS' || codec === 'A_VORBIS')) {
-            audioTrackNum = num; codecPrivate = priv; sampleRate = sr; channels = ch;
+        finish();
+        return off;
+    }
+
+    // Known-size end within the parent and the buffer. -1 means the claim crosses
+    // one of those limits; dataSize may still be clamped and must not be used.
+    function boundedEnd(el, parentEnd) {
+        if (el.unknown || !el.fits || !Number.isSafeInteger(el.declaredSize)) return -1;
+        const end = el.dataOffset + el.declaredSize;
+        if (end < el.dataOffset || end > parentEnd) return -1;
+        return end;
+    }
+
+    function parseBlockPayload(d, dataOffset, dataEnd, clusterTs) {
+        const tv = readVint(d, dataOffset);
+        // A header that stops early cannot be assigned to another track and skipped.
+        if (!tv || tv.unknown) { incomplete = true; return; }
+        const tsOff = dataOffset + tv.length;
+        if (tsOff + 3 > dataEnd) { incomplete = true; return; }
+        if (tv.value !== audioTrackNum) return;
+        const flags = d[tsOff + 2];
+        // Xiph (0x02), fixed-size (0x04) and EBML (0x06) lacing. One laced block
+        // is several packets; publishing the bytes whole is a shortened soundtrack.
+        if (flags & 0x06) { incomplete = true; return; }
+        const rel = (d[tsOff] << 8 | d[tsOff + 1]);
+        const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
+        const frameStart = tsOff + 3;
+        if (frameStart < dataEnd) {
+            const tsMs = (clusterTs + relSigned) * timestampScale / 1000000;
+            chunks.push({ timestamp: Math.round(tsMs * 1000), data: d.slice(frameStart, dataEnd) });
         }
     }
 
-    function parseCluster(d, start, end) {
-        let clusterTs = 0; let off = start;
-        while (off < end) {
-            const el = readEl(d, off); if (!el) break;
-            const dEnd = Math.min(el.dataOffset + el.dataSize, end);
-            if (el.id === ID.Timecode) clusterTs = readUint(d, el.dataOffset, el.dataSize);
-            else if (el.id === ID.SimpleBlock) {
-                const tv = readVint(d, el.dataOffset); if (!tv || tv.value !== audioTrackNum) { off = dEnd; continue; }
-                const tsOff = el.dataOffset + tv.length;
-                const rel = (d[tsOff] << 8 | d[tsOff + 1]); const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
-                const frameStart = tsOff + 3;
-                if (frameStart < el.dataOffset + el.dataSize) {
-                    const tsMs = (clusterTs + relSigned) * timestampScale / 1000000;
-                    chunks.push({ timestamp: Math.round(tsMs * 1000), data: d.slice(frameStart, el.dataOffset + el.dataSize) });
-                }
+    function parseBlockGroup(d, start, end, clusterTs, open) {
+        let off = start;
+        while (off < end && !incomplete) {
+            const el = readEl(d, off);
+            if (!el) { incomplete = true; return off; }
+            if (!isBlockGroupChild(el.id)) {
+                if (open) return off;
+                if (el.unknown) { incomplete = true; return off; }
+                const skip = boundedEnd(el, end);
+                if (skip < 0) { incomplete = true; return off; }
+                off = skip;
+                continue;
             }
+            if (el.unknown) { incomplete = true; return off; }
+            const dEnd = boundedEnd(el, end);
+            if (dEnd < 0) { incomplete = true; return off; }
+            if (!metadataOnly && el.id === ID.Block) parseBlockPayload(d, el.dataOffset, dEnd, clusterTs);
+            if (incomplete) return off;
             off = dEnd;
         }
+        return off;
+    }
+
+    function parseCluster(d, start, end, open) {
+        let clusterTs = 0, off = start;
+        while (off < end && !incomplete) {
+            const el = readEl(d, off);
+            if (!el) { incomplete = true; return off; }
+            if (open && endsCluster(el.id)) return off;
+            if (el.id === ID.SimpleBlock || el.id === ID.Block) {
+                if (el.unknown) { incomplete = true; return off; }
+                const dEnd = boundedEnd(el, end);
+                if (dEnd < 0) { incomplete = true; return off; }
+                if (!metadataOnly) parseBlockPayload(d, el.dataOffset, dEnd, clusterTs);
+                if (incomplete) return off;
+                off = dEnd;
+                continue;
+            }
+            if (el.id === ID.BlockGroup) {
+                if (el.unknown) {
+                    const next = parseBlockGroup(d, el.dataOffset, end, clusterTs, true);
+                    if (incomplete || !(next > off)) { incomplete = true; return off; }
+                    off = next;
+                    continue;
+                }
+                const dEnd = boundedEnd(el, end);
+                if (dEnd < 0) { incomplete = true; return off; }
+                parseBlockGroup(d, el.dataOffset, dEnd, clusterTs, false);
+                if (incomplete) return off;
+                off = dEnd;
+                continue;
+            }
+            if (el.unknown) {
+                if (!isMaster(el.id)) { incomplete = true; return off; }
+                const next = resumeAt(d, el.dataOffset, end, id => endsCluster(id) || isDirectClusterChild(id), 0);
+                if (incomplete || !(next > off)) { incomplete = true; return off; }
+                off = next;
+                continue;
+            }
+            const dEnd = boundedEnd(el, end);
+            if (dEnd < 0) { incomplete = true; return off; }
+            if (el.id === ID.Timecode) clusterTs = readUint(d, el.dataOffset, Math.min(el.declaredSize, 8));
+            off = dEnd;
+        }
+        return off;
+    }
+
+    function findId(d, start, end, id) {
+        const bytes = [];
+        let value = id;
+        while (value > 0) { bytes.push(value & 255); value = Math.floor(value / 256); }
+        bytes.reverse();
+        const last = end - bytes.length;
+        for (let i = start; i <= last; i++) {
+            let match = true;
+            for (let j = 0; j < bytes.length; j++) if (d[i + j] !== bytes[j]) { match = false; break; }
+            if (match) return i;
+        }
+        return -1;
     }
 
     // Walk top-level
     let off = 0;
     while (off < data.length) {
         const el = readEl(data, off); if (!el) break;
-        if (el.id === ID.Segment) { parseSegment(data, el.dataOffset, Math.min(el.dataOffset + el.dataSize, data.length)); break; }
-        off = el.dataOffset + el.dataSize;
+        if (el.id === ID.Segment) {
+            const next = parseSegment(data, el.dataOffset, Math.min(el.dataOffset + el.dataSize, data.length));
+            if (!el.unknown) break;
+            if (incomplete || !(next > off)) { incomplete = true; break; }
+            off = next;
+            continue;
+        }
+        if (el.unknown) { incomplete = true; break; }
+        const next = el.dataOffset + el.dataSize;
+        if (!(next > off)) break;
+        off = next;
     }
 
     if (metadataOnly) return foundTracks ? { audioTracks, trackSelectionVerified } : null;
-    if (chunks.length === 0) return null;
+    if (incomplete || chunks.length === 0) return null;
     // OpusHead pre-skip is at bytes 10-11, little-endian
     let preSkip = 0;
     if (selected.codec === 'A_OPUS' && codecPrivate && codecPrivate.length >= 12) {

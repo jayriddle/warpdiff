@@ -110,6 +110,21 @@ for(const kind of ['short','delayed','long'] as const) test(`Opus ${kind} soundt
   expect(await page.evaluate(()=>(window as any).__testAPI._loopOutPoint)).toBeGreaterThan(4.4);
 });
 
+test('unknown-size WebM cluster keeps the decoded soundtrack with the video',async({page,browserName})=>{
+  await loadDecoded(page,files.unknownCluster);
+  const timing=await page.evaluate(()=>(window as any).eval(`({native:getLayer('editA').querySelector('video').duration,
+    audio:_videoAudioBuffers.editA.duration,opus:!!_opusSyncSlots.editA})`));
+  expect(timing.native).toBeGreaterThan(3.5);
+  expect(timing.audio).toBeGreaterThan(3.5);
+  expect(Math.abs(timing.audio-timing.native)).toBeLessThan(.35);
+  expect(timing.opus).toBe(browserName==='chromium');
+  if(browserName==='chromium'){
+    await page.evaluate(()=>{const video=document.querySelector('#layerEditA video') as HTMLVideoElement;video.currentTime=0;(window as any).playAllMedia();});
+    await expect.poll(()=>page.evaluate(()=>(document.querySelector('#layerEditA video') as HTMLVideoElement).currentTime),{timeout:5000}).toBeGreaterThan(1.2);
+    expect(await page.evaluate(()=>(window as any).eval('!!_opusSyncSources.editA'))).toBe(true);
+  }
+});
+
 test('short Opus audio cannot wrap the picture before its native end',async({page,browserName})=>{
   await loadDecoded(page,files.short);
   await page.evaluate(()=>{const w=window as any;const v=document.querySelector('#layerEditA video') as HTMLVideoElement;v.currentTime=1.6;w.playAllMedia();});
