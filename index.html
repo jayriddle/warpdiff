@@ -3971,7 +3971,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.19';
+        const APP_VERSION = '3.19.20';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.18';
@@ -14441,7 +14441,7 @@
             <p>Clearing or replacing a comparison releases its old media and preview resources. You can load the next comparison immediately while the previous audio system finishes its brief cleanup.</p>
             <p><strong>Fit / Ref audio scaling:</strong> The contextual <strong>Scale</strong> control beside the waveform—or above the canvases in audio-only review—applies to both waveform and spectrogram. <strong>Fit</strong> normalizes each asset to reveal its detail. <strong>Ref</strong> preserves true waveform amplitude against 0 dBFS and uses a common −70 to 0 dBFS spectrogram range for direct level comparisons. The choice persists across sessions.</p>
 
-            <p>Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser.</p>
+            <p>Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser. An unusually dense WebM soundtrack keeps the browser's own playback instead of a very large audio copy.</p>
 
             <h2>Audio Timeline Interaction</h2>
             <p>In audio comparison mode, the waveform and spectrogram canvases are interactive — click and drag to scrub through audio or select a loop region.</p>
