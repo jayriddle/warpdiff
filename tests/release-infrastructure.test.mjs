@@ -152,7 +152,7 @@ for (const [name, mutate] of [
   assert.throws(() => verifyReports(baseline, [changed]));
 });
 
-test('report gate accepts only the documented WebKit expected failure', () => {
+test('report gate rejects an expected failure', () => {
   const title = 'a valid container with corrupt frames is rejected when the browser reports it';
   const expected = report([spec(title)]);
   const suite = expected.suites[0];
@@ -163,16 +163,9 @@ test('report gate accepts only the documented WebKit expected failure', () => {
   const testCase = actual.suites[0].specs[0].tests[0];
   testCase.expectedStatus = 'failed';
   testCase.status = 'expected';
-  testCase.annotations = [{type: 'fail', description: 'WebKit accepts damaged samples once canplay fires. The companion ffmpeg -xerror full decode is the real guard.'}];
+  testCase.annotations = [{type: 'fail', description: 'WebKit accepts damaged samples once canplay fires.'}];
   testCase.results[0].status = 'failed';
   testCase.results[0].errors = [{message: 'accepted'}];
-  assert.equal(verifyReports(expected, [actual]).expectedFailures, 1);
-  testCase.results[0].status = 'passed';
-  testCase.results[0].errors = [];
-  assert.throws(() => verifyReports(expected, [actual]));
-  testCase.results[0].status = 'failed';
-  testCase.results[0].errors = [{message: 'accepted'}];
-  testCase.annotations = [];
   assert.throws(() => verifyReports(expected, [actual]));
   const other = report([spec('some other failure')]);
   other.suites[0].specs[0].tests[0].expectedStatus = 'failed';

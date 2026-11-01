@@ -240,19 +240,56 @@ async function decodeAndComputeAudioViz(slot, source) {
         const ctx = getAudioContext();
         const decodePromise = ctx.decodeAudioData(arrayBuffer.slice(0));
         const hasWebCodecs = typeof AudioDecoder !== 'undefined';
-        const audioBuffer = await Promise.race([
-            decodePromise,
-            new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('decode timeout')), hasWebCodecs ? 1000 : 30000))
-        ]);
-        await _finalizeAudioViz(slot, audioBuffer, gen, timelineStart, channelLayout);
-    } catch (e) {
-        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
-        if (typeof AudioDecoder !== 'undefined') {
+        // Ordinary AAC on a busy runner often needs more than a second.
+        // Promise.race used to abandon that in-flight buffer and hand the
+        // slot to WebCodecs. WebKit's AAC decoder can then stall, so native
+        // direct output — published only from a finished buffer — never
+        // appeared. The short timer may still start the fallback. A native
+        // buffer that resolves later is kept unless a buffer was already
+        // published for this generation.
+        const native = decodePromise.then(buffer => ({buffer}), error => ({error}));
+        let timer;
+        const timeout = new Promise(resolve => {
+            timer = setTimeout(() => resolve('timeout'), hasWebCodecs ? 1000 : 30000);
+        });
+        const first = await Promise.race([native, timeout]);
+        clearTimeout(timer);
+        const startFallback = () => {
+            if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
             console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
             // Pending means Chrome will replace Opus. A slow decodeAudioData on
             // ordinary AAC still needs this analysis fallback, but the flag would
             // refuse native direct output for the rest of the visit.
+            if (_isChrome && isOpus) _opusSyncPending[slot] = true;
+            _decodeAudioWebCodecs(slot, arrayBuffer, gen);
+        };
+        if (first && first.buffer) {
+            await _finalizeAudioViz(slot, first.buffer, gen, timelineStart, channelLayout);
+            return;
+        }
+        if (first && first.error) {
+            if (hasWebCodecs) startFallback();
+            else {
+                console.warn('Audio decode failed for', slot, first.error);
+                _onAllDecodeFailed(slot, !!audioTracks?.length, gen);
+            }
+            return;
+        }
+        if (hasWebCodecs) {
+            native.then(result => {
+                if (result.buffer) return _finalizeAudioViz(slot, result.buffer, gen, timelineStart, channelLayout);
+            }).catch(error => {
+                if (_videoAudioDecodeIsCurrent(slot, gen)) console.warn('Late audio decode could not be published for', slot, error);
+            });
+            startFallback();
+            return;
+        }
+        console.warn('Audio decode failed for', slot, 'decode timeout');
+        _onAllDecodeFailed(slot, !!audioTracks?.length, gen);
+    } catch (e) {
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        if (typeof AudioDecoder !== 'undefined') {
+            console.warn('Audio decode failed/timeout for', slot, '— trying WebCodecs fallback');
             if (_isChrome && isOpus) _opusSyncPending[slot] = true;
             _decodeAudioWebCodecs(slot, arrayBuffer, gen);
         } else {
@@ -264,6 +301,9 @@ async function decodeAndComputeAudioViz(slot, source) {
 
 function _onAllDecodeFailed(slot, audioConfirmed, gen) {
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+    // A native buffer may already own this generation. A stalled fallback
+    // must not replace that result with a preparation notice.
+    if (_videoAudioDecodeClaim[slot] === gen) return;
     if (_ffmpegCommands[slot]) return; // already registered
     const filename = mediaData[slot] && mediaData[slot].name;
     if (!filename) return;
@@ -320,6 +360,11 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // viz/metrics/buffer, activate Opus sync, and mute the new video.
     if (gen !== undefined && _videoAudioDecodeGen[slot] !== gen) return;
     if (gen === undefined) gen = _videoAudioDecodeGen[slot] = _nextAudioDecodeGeneration();
+    // Native decode and the WebCodecs fallback can both resolve. The first
+    // buffer for this generation owns routing and analysis; a later one must
+    // not rebuild the graph or restart the worker.
+    if (_videoAudioDecodeClaim[slot] === gen) return;
+    _videoAudioDecodeClaim[slot] = gen;
     if (decodedCodec !== 'opus') delete _opusSyncPending[slot];
     _mediaInputObserve(slot, _loadingProgressToken, {audioDecoded: audioBuffer.length > 0});
     const layerForOutput = getLayer(slot);
@@ -430,7 +475,7 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         // no audio track — not a codec problem. Avoid offering unnecessary external preparation.
         const confirmed = !!(isMP4 ? _demuxMP4Audio(bytes, true) : _demuxWebMAudio(bytes, true))?.audioTracks.length;
         if (mediaData[slot] && mediaData[slot].type === 'video' && !_byteScannedCodec[slot] && !confirmed) {
-            if (_videoAudioDecodeIsCurrent(slot, gen)) _markSlotNoAudio(slot);
+            if (_videoAudioDecodeIsCurrent(slot, gen) && _videoAudioDecodeClaim[slot] !== gen) _markSlotNoAudio(slot);
         } else {
             _onAllDecodeFailed(slot, confirmed, gen);
         }

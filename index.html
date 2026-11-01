@@ -4043,7 +4043,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.22';
+        const APP_VERSION = '3.19.23';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.22';
@@ -6165,8 +6165,12 @@
                         probe.src = video.src;
                         document.body.appendChild(probe);
                         try {
-                            probe.play().catch(() => finish(failure));
-                        } catch (_) { finish(failure); }
+                            // A rejected play is not a failed picture. WebKit can
+                            // reject the hidden probe while the comparison element
+                            // still presents a frame on a later sample. Keep polling
+                            // until that frame arrives or the deadline says it will not.
+                            probe.play().catch(() => {});
+                        } catch (_) {}
                         if (done) return;
                     }
                 }
@@ -7229,6 +7233,7 @@
                 if (_audioVizDecodeStarted && !_audioReadRetry[s]) continue;
                 slots.push(s);
             }
+            if (!slots.length) return;
             _audioVizDecodeStarted = true;
             for (const s of slots) {
                 delete _audioReadRetry[s];
@@ -8208,6 +8213,7 @@
         // decoders run (SlotViz at load + Viz lazily via _ensureAudioVizDecoded), so a shared
         // counter would let one decoder's bump invalidate the other's in-flight completion.
         let _videoAudioDecodeGen = {};
+        let _videoAudioDecodeClaim = {};
         let _lastPrimaryAudioTime = 0;
         let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
@@ -11396,6 +11402,7 @@
             // reuse a token that an older async decode may still hold.
             _audioDecodeGen = {};
             _videoAudioDecodeGen = {};
+            _videoAudioDecodeClaim = {};
             _webcodecsPending.clear();
             _ffmpegLoadEpoch += 1;
             _byteScannedCodec = {};
