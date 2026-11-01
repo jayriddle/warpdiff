@@ -3,9 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const allowedSkip = JSON.stringify(['warpdiff.spec.ts', 'File Loading & Slot Assignment',
-  'shows warning toast for timestamp collision', 'chromium']);
-
 export function expectedReportNames(prefix, count) {
   if (!/^[a-z]+$/.test(prefix) || !Number.isInteger(count) || count < 1 || count > 9)
     throw new Error('Report prefix and shard count must identify one hosted partition');
@@ -38,13 +35,8 @@ export function verifyReports(expected, reports) {
       assert(wanted.has(key), 'Unexpected test: ' + key);
       assert(!seen.has(key), 'Repeated test across shards: ' + key);
       seen.add(key);
-      // This pre-existing skip is declared inside the test body, so --list
-      // reports "passed". No other dynamic or static skips may pass the gate.
-      if (test.expectedStatus === 'skipped') {
-        assert.equal(key, allowedSkip, 'Unapproved skipped test: ' + key);
-        assert(test.annotations.some(a => a.type === 'skip' &&
-          a.description === 'Needs fixtures with near-identical lastModified timestamps'), 'Missing existing skip reason');
-      } else assert.equal(test.expectedStatus, 'passed', 'Expected failures are not release passes');
+      assert.notEqual(test.expectedStatus, 'skipped', 'Unapproved skipped test: ' + key);
+      assert.equal(test.expectedStatus, 'passed', 'Expected failures are not release passes');
       assert.equal(test.results.length, 1, 'Missing execution or retry: ' + key);
       const result = test.results[0];
       assert.equal(result.retry, 0, 'Retries are not accepted: ' + key);
