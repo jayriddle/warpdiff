@@ -513,9 +513,11 @@ runMediaAdmissionChecks(check);
   check('one-owner[decode-failure]: terminal failure owner rejects stale generations',
         failOwner.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return'));
   check('one-owner[decode-failure]: native and WebCodecs async paths carry generation to failure routing',
-        /_onAllDecodeFailed\(slot, [^;\n]+, gen\)/.test(native) &&
-        webcodecs.includes('_onAllDecodeFailed(slot, false, gen)') &&
-        decoder.includes('_onAllDecodeFailed(slot, true, gen)'));
+        /_fallbackDecodeFailed\(slot, [^;\n]+, gen\)/.test(native) &&
+        webcodecs.includes('_fallbackDecodeFailed(slot, false, gen)') &&
+        decoder.includes('_fallbackDecodeFailed(slot, true, gen)') &&
+        extractFn('_fallbackDecodeFailed').includes('_onAllDecodeFailed(slot, audioConfirmed, gen)') &&
+        extractFn('_fallbackDecodeFailed').includes('_videoAudioDecodeClaim[slot] === gen'));
   const webcodecsFinished = extractFn('_webcodecsFinished');
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&

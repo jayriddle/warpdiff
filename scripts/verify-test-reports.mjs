@@ -3,13 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-// Dynamic test.fail inside the body. --list still inventories it as a normal
-// test. The run must actually fail, once, with this reason. It is not a pass.
-const allowedExpectedFailure = JSON.stringify(['preparation-followup.spec.ts',
-  'a valid container with corrupt frames is rejected when the browser reports it',
-  'webkit-preparation-followup']);
-const allowedExpectedFailureReason = 'WebKit accepts damaged samples once canplay fires. The companion ffmpeg -xerror full decode is the real guard.';
-
 export function expectedReportNames(prefix, count) {
   if (!/^[a-z]+$/.test(prefix) || !Number.isInteger(count) || count < 1 || count > 9)
     throw new Error('Report prefix and shard count must identify one hosted partition');
@@ -43,21 +36,10 @@ export function verifyReports(expected, reports) {
       assert(!seen.has(key), 'Repeated test across shards: ' + key);
       seen.add(key);
       assert.notEqual(test.expectedStatus, 'skipped', 'Unapproved skipped test: ' + key);
-      if (key === allowedExpectedFailure) {
-        assert.equal(test.expectedStatus, 'failed', 'Documented WebKit failure must still be expected to fail');
-        assert(test.annotations.some(a => a.type === 'fail' && a.description === allowedExpectedFailureReason),
-          'Missing existing expected-failure reason');
-      } else assert.equal(test.expectedStatus, 'passed', 'Expected failures are not release passes');
+      assert.equal(test.expectedStatus, 'passed', 'Expected failures are not release passes');
       assert.equal(test.results.length, 1, 'Missing execution or retry: ' + key);
       const result = test.results[0];
       assert.equal(result.retry, 0, 'Retries are not accepted: ' + key);
-      if (key === allowedExpectedFailure && test.expectedStatus === 'failed') {
-        assert.equal(test.status, 'expected', 'Flaky/failed test: ' + key);
-        assert.equal(result.status, 'failed', 'Expected failure did not fail: ' + key);
-        assert(result.errors?.length > 0, 'Expected failure produced no error: ' + key);
-        expectedFailures++;
-        continue;
-      }
       assert.equal(test.status, test.expectedStatus === 'skipped' ? 'skipped' : 'expected', 'Flaky/failed test: ' + key);
       assert.equal(result.status, test.expectedStatus, 'Unexpected execution status: ' + key);
       assert.deepEqual(result.errors || [], [], 'Test errors: ' + key);

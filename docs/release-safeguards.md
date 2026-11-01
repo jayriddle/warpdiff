@@ -59,10 +59,9 @@ picture tests are registered only there.
 Publish still waits on that aggregate, so a shard failure cannot publish.
 The profile does not certify installed Safari or native 7.1 FLAC
 support. The two broader WebKit surround capability failures remain documented
-separately, with their assertions retained. One in-suite WebKit expectation
-(`preparation-followup.spec.ts`, corrupt frames) is an expected failure with a
-fixed reason; the gate accepts that identity only, requires the failure, and
-does not count it as a pass. Scheduling tests do not render PCM.
+separately, with their assertions retained. Chromium still rejects a container
+whose samples were damaged; that case is not part of the WebKit run, and the
+report gate does not accept an expected failure. Scheduling tests do not render PCM.
 
 Actions are pinned to exact commits. Repository access defaults to read-only;
 checkout credentials are not persisted. Only the deployment job requests Pages

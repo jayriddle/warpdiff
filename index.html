@@ -3971,7 +3971,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.20';
+        const APP_VERSION = '3.19.21';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.18';
@@ -6039,7 +6039,7 @@
             const context = canvas.getContext('2d', {willReadFrequently:true});
             const deadline = performance.now() + 10000;
             const failure = 'Could not decode first video frame of ' + mediaData[slot].name;
-            let timer = null, probe = null, done = false;
+            let timer = null, probe = null, done = false, probeBlockedTicks = 0;
             function current() {
                 return loadingToken === _loadingProgressToken && _hostLoadRequest === request
                     && !request.terminal && !request.signal.aborted;
@@ -6094,10 +6094,19 @@
                         probe.src = video.src;
                         document.body.appendChild(probe);
                         try {
-                            probe.play().catch(() => finish(failure));
-                        } catch (_) { finish(failure); }
+                            // A blocked probe is a failure only when the comparison
+                            // element still has no frame after a few more samples.
+                            // WebKit can reject play() in the same turn the picture
+                            // becomes drawable; failing immediately dropped valid loads.
+                            probe.play().catch(() => { probeBlockedTicks = 1; });
+                        } catch (_) { probeBlockedTicks = 1; }
                         if (done) return;
                     }
+                }
+                if (probeBlockedTicks) {
+                    // About a second of further samples, still inside the caller's
+                    // deadline. A stub that never draws a frame still fails once.
+                    if (probeBlockedTicks++ >= 20) { finish(failure); return; }
                 }
                 if (performance.now() >= deadline) { finish(failure); return; }
                 timer = setTimeout(check, 50);
@@ -7048,6 +7057,7 @@
                 if (_audioVizDecodeStarted && !_audioReadRetry[s]) continue;
                 slots.push(s);
             }
+            if (!slots.length) return;
             _audioVizDecodeStarted = true;
             for (const s of slots) {
                 delete _audioReadRetry[s];
@@ -8027,6 +8037,7 @@
         // decoders run (SlotViz at load + Viz lazily via _ensureAudioVizDecoded), so a shared
         // counter would let one decoder's bump invalidate the other's in-flight completion.
         let _videoAudioDecodeGen = {};
+        let _videoAudioDecodeClaim = {};
         let _lastPrimaryAudioTime = 0;
         let _blobUrls = [];          // track blob URLs for revocation on cleanup
         let _audioMaxDuration = 0;   // uniform time scale across all audio slots
@@ -11177,6 +11188,7 @@
             // reuse a token that an older async decode may still hold.
             _audioDecodeGen = {};
             _videoAudioDecodeGen = {};
+            _videoAudioDecodeClaim = {};
             _webcodecsPending.clear();
             _ffmpegLoadEpoch += 1;
             _byteScannedCodec = {};

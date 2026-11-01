@@ -112,10 +112,10 @@ async function installed(page:Page, sha:string, explicitUpdate = false, beforeUp
       controller: describe(navigator.serviceWorker.controller),
     });
     if (!registration) return {ok: false, diagnostics: diagnostics()};
-    const query = (worker: ServiceWorker) => new Promise<boolean>(resolve => {
+    const query = (worker: ServiceWorker) => new Promise<'match' | 'mismatch' | 'timeout'>(resolve => {
       let settled = false;
       const channel = new MessageChannel();
-      const finish = (value: boolean) => {
+      const finish = (value: 'match' | 'mismatch' | 'timeout') => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
@@ -123,10 +123,15 @@ async function installed(page:Page, sha:string, explicitUpdate = false, beforeUp
         channel.port1.close();
         resolve(value);
       };
-      const timer = setTimeout(() => finish(false), 2000);
-      channel.port1.onmessage = event => finish(event.data?.sha === sha);
+      // A busy activate handler can miss one message. A short attempt leaves
+      // room to ask the same controller again inside the caller's deadline.
+      // Sleeping out the rest of that deadline after a single miss was the
+      // flake: the worker answered on the next turn, and the test had already
+      // given up.
+      const timer = setTimeout(() => finish('timeout'), 500);
+      channel.port1.onmessage = event => finish(event.data?.sha === sha ? 'match' : 'mismatch');
       try { worker.postMessage({type:'WARPDIFF_RELEASE_QUERY'}, [channel.port2]); }
-      catch { finish(false); }
+      catch { finish('timeout'); }
     });
     const readyController = () => {
       const controller = navigator.serviceWorker.controller;
@@ -159,13 +164,20 @@ async function installed(page:Page, sha:string, explicitUpdate = false, beforeUp
         watch(registration.active);
         watch(navigator.serviceWorker.controller);
         const controller = readyController();
-        if (controller && await query(controller)) return {ok: true, diagnostics: diagnostics()};
+        if (controller) {
+          const answer = await query(controller);
+          if (answer === 'match') return {ok: true, diagnostics: diagnostics()};
+          // Timeout: ask again. The previous port is closed, so a late reply
+          // cannot satisfy a newer question. Mismatch means this controller
+          // is still the previous release; fall through and wait for a change.
+          if (answer === 'timeout') continue;
+        }
         if (pending) continue;
         const remaining = deadline - performance.now();
         if (remaining <= 0) break;
         await new Promise<void>(resolve => {
           if (pending) { resolve(); return; }
-          const timer = setTimeout(() => { resolveWait = null; resolve(); }, remaining);
+          const timer = setTimeout(() => { resolveWait = null; resolve(); }, Math.min(remaining, 250));
           resolveWait = () => { clearTimeout(timer); resolveWait = null; resolve(); };
           if (pending) resolveWait();
         });
