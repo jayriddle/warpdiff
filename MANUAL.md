@@ -2,7 +2,7 @@
 
 WarpDiff is a browser-based comparison tool for reviewing 1–4 images, videos, or audio files in Stack or Grid mode. Installable as a PWA for offline use.
 
-WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.
+WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Media status, Reset, Help, and Appearance and privacy reachable during review.
 
 ---
 
@@ -46,6 +46,8 @@ The developer-only [local test preview](docs/appearance-usage-2026-09-29/README.
 - Manually loaded files are automatically sorted oldest → newest by last-modified timestamp; host loads retain the supplied order
 
 **Loading progress:** While WarpDiff prepares a comparison, it lists every assigned slot and filename with live states for opening the file, reading metadata, decoding the first visible frame, and readiness. Completed files are checked off while slower files continue to animate. When one video finishes first, the message identifies which file is still being prepared and explains that WarpDiff is waiting to reveal the complete comparison together. A longer wait adds a reminder about large or complex files. Click **Cancel** to stop a manual load and return to the landing screen.
+
+**Pictures that cannot be opened:** WarpDiff checks new images before replacing what you are viewing. If none of them can be opened, the current comparison stays and a message remains, with **Load files** so you can choose again. If you did not have a comparison yet, that message is the screen instead of a blank view. When one picture in a set opens and another does not, the comparison opens and the failed picture stays marked in its own slot with **Load files**.
 
 **Timestamp warning:** If two or more files have timestamps within 2 seconds of each other, a toast warns that the sort order may be unreliable — check that the right file landed in the right slot.
 
@@ -504,7 +506,7 @@ WarpDiff is a Progressive Web App — install it from Chrome, Edge, or Safari fo
 
 ## Welcome & Changelog
 
-On your first visit, a **Getting Started** popup appears with an overview of the main features. On subsequent visits after an update, a **What's New** popup shows what changed in the latest version. Both dismiss automatically when you load files, or you can close them with the ✕ button, Escape key, or clicking the backdrop.
+On your first visit, a **Getting Started** popup appears with an overview of the main features and takes the keyboard. Tab and Shift+Tab stay inside that window, and inside **What's New**, until you close it. On subsequent visits after an update, **What's New** shows what changed in the latest version. Both dismiss automatically when you load files, or you can close them with the ✕ button, Escape key, or clicking the backdrop. Focus returns to the control that opened the window.
 
 Press **?** or click the **Help** button in the header to reopen the Getting Started popup at any time.
 
