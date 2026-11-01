@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.20
+
+- Checks were added so loudness, loudness range and true peak can be compared with the usual broadcast test signals.
+- This maintenance update retains the previous What’s New announcement.
+
 ## v3.19.19
 
 - WebM videos keep their full soundtrack, including files recorded in a browser.

@@ -30,6 +30,7 @@ import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
 import { runPreparedMediaChecks } from './prepared-media-regression.mjs';
 import { runWebmClusterChecks } from './webm-cluster-regression.mjs';
 import { runBs1770Checks } from './bs1770-regression.mjs';
+import { runLoudnessConformanceChecks } from './loudness-conformance.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -2571,6 +2572,7 @@ runMediaAdmissionChecks(check);
 // ── summary ───────────────────────────────────────────────────────────────────
 runFrameStepChecks(check);
 runBs1770Checks(check);
+runLoudnessConformanceChecks(check);
 await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);
