@@ -271,7 +271,7 @@ async function decodeAndComputeAudioViz(slot, source) {
             if (hasWebCodecs) startFallback();
             else {
                 console.warn('Audio decode failed for', slot, first.error);
-                _onAllDecodeFailed(slot, !!audioTracks?.length, gen);
+                _fallbackDecodeFailed(slot, !!audioTracks?.length, gen);
             }
             return;
         }
@@ -285,7 +285,7 @@ async function decodeAndComputeAudioViz(slot, source) {
             return;
         }
         console.warn('Audio decode failed for', slot, 'decode timeout');
-        _onAllDecodeFailed(slot, !!audioTracks?.length, gen);
+        _fallbackDecodeFailed(slot, !!audioTracks?.length, gen);
     } catch (e) {
         if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
         if (typeof AudioDecoder !== 'undefined') {
@@ -294,16 +294,21 @@ async function decodeAndComputeAudioViz(slot, source) {
             _decodeAudioWebCodecs(slot, arrayBuffer, gen);
         } else {
             console.warn('Audio decode failed for', slot, e);
-            _onAllDecodeFailed(slot, !!audioTracks?.length, gen);
+            _fallbackDecodeFailed(slot, !!audioTracks?.length, gen);
         }
     }
 }
 
+function _fallbackDecodeFailed(slot, audioConfirmed, gen) {
+    // Automatic fallback only. An explicit _onAllDecodeFailed still registers
+    // preparation after a native buffer, which is how an AC-3 file that the
+    // browser agrees to decode stays on the external-command path.
+    if (_videoAudioDecodeClaim[slot] === gen) return;
+    _onAllDecodeFailed(slot, audioConfirmed, gen);
+}
+
 function _onAllDecodeFailed(slot, audioConfirmed, gen) {
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
-    // A native buffer may already own this generation. A stalled fallback
-    // must not replace that result with a preparation notice.
-    if (_videoAudioDecodeClaim[slot] === gen) return;
     if (_ffmpegCommands[slot]) return; // already registered
     const filename = mediaData[slot] && mediaData[slot].name;
     if (!filename) return;
@@ -464,7 +469,7 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         extracted = _demuxWebMAudio(bytes);
     } else {
         console.warn('Unknown container format for', slot);
-        _onAllDecodeFailed(slot, false, gen);
+        _fallbackDecodeFailed(slot, false, gen);
         _webcodecsFinished(slot, gen);
         return;
     }
@@ -477,7 +482,7 @@ function _decodeAudioWebCodecs(slot, arrayBuffer, gen) {
         if (mediaData[slot] && mediaData[slot].type === 'video' && !_byteScannedCodec[slot] && !confirmed) {
             if (_videoAudioDecodeIsCurrent(slot, gen) && _videoAudioDecodeClaim[slot] !== gen) _markSlotNoAudio(slot);
         } else {
-            _onAllDecodeFailed(slot, confirmed, gen);
+            _fallbackDecodeFailed(slot, confirmed, gen);
         }
         _webcodecsFinished(slot, gen);
         return;
@@ -552,7 +557,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
     } catch (err) {
         console.warn('AudioDecoder configure failed for', slot, err);
         try { decoder.close(); } catch (_) {}  // sole decode exit that skipped close()
-        _onAllDecodeFailed(slot, true, gen); // audio packets were already demuxed
+        _fallbackDecodeFailed(slot, true, gen); // audio packets were already demuxed
         _webcodecsFinished(slot, gen);
         return;
     }
@@ -577,7 +582,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
             // If some chunks decoded before the error, use what we have
             if (decodedChunks.length === 0) {
                 console.warn('WebCodecs decode produced no output for', slot);
-                _onAllDecodeFailed(slot, true, gen); // audio packets were demuxed
+                _fallbackDecodeFailed(slot, true, gen); // audio packets were demuxed
                 _webcodecsFinished(slot, gen);
                 return;
             }
@@ -627,7 +632,7 @@ function _decodeWithAudioDecoder(slot, extracted, gen) {
             _webcodecsFinished(slot, gen);
             return;
         }
-        if (decodedChunks.length === 0) _onAllDecodeFailed(slot, true, gen); // audio packets were demuxed
+        if (decodedChunks.length === 0) _fallbackDecodeFailed(slot, true, gen); // audio packets were demuxed
         // If some chunks decoded before the error, use what we got
         if (decodedChunks.length > 0) {
             // Re-enter the success path with partial data
