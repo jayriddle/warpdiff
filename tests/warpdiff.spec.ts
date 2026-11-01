@@ -460,7 +460,7 @@ test.describe('Page Load & Initial State', () => {
 
   for (const [lastSeen, showNotes] of [
     ['3.17.5', true], ['3.18.11', true], ['3.18.12', true],
-    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', true], ['3.19.18', false], ['4.0.0', false]
+    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', true], ['3.19.18', true], ['3.19.19', true], ['3.19.20', false], ['4.0.0', false]
   ] as const) test(`release notes ${showNotes ? 'show' : 'stay quiet'} after ${lastSeen}`, async ({ page }) => {
     await page.addInitScript(version => {
       if (!localStorage.getItem('lastSeenVersion')) localStorage.setItem('lastSeenVersion', version);
@@ -468,11 +468,12 @@ test.describe('Page Load & Initial State', () => {
     await page.goto('/');
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(showNotes ? /show/ : /^(?!.*show)/);
-    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.18');
+    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.20');
     const notes = page.locator('#changelogPopup .quick-start-body');
-    await expect(notes.locator('li')).toHaveCount(2);
-    await expect(notes).toContainText('more accurate');
-    await expect(notes).toContainText('bass-effects');
+    await expect(notes.locator('li')).toHaveCount(3);
+    await expect(notes).toContainText('Help stays with you');
+    await expect(notes).toContainText('narrow window');
+    await expect(notes).toContainText('cannot be opened');
     await expect(notes).not.toContainText('daily');
     if (showNotes) {
       // Dismissing missed news records the actual app version and won't repeat.
@@ -739,6 +740,7 @@ test.describe('Video Scopes', () => {
 test.describe('Keyboard Shortcuts', () => {
   test('L key opens file input', async ({ page }) => {
     await page.goto('/');
+    await page.keyboard.press('Escape'); // first-visit Help keeps the keyboard until it closes
     await page.evaluate(() => {
       (window as any).__fileInputClicked = false;
       const input = document.getElementById('multiFileInput');
@@ -751,6 +753,7 @@ test.describe('Keyboard Shortcuts', () => {
 
   test('H or ? opens shortcuts or help panel', async ({ page }) => {
     await page.goto('/');
+    await page.keyboard.press('Escape'); // close first-visit Help before the shortcut keys
     await page.keyboard.press('h');
     await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);  // "shortcuts-panel open"
     await page.keyboard.press('Escape'); // Close it

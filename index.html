@@ -931,6 +931,30 @@
         /* Info bars always visible in split modes */
         body.grid-mode .asset-info-bar {
             display: flex;
+            min-width: 0;
+        }
+        /* Default bars are not the custom fit owner. Let secondary fields give
+           up space so Zoom, the right edge, stays inside the picture label. */
+        body.grid-mode .asset-info-bar > :not(.asset-name):not(.asset-zoom):not(.info-items) {
+            flex: 0 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.grid-mode .asset-info-bar .asset-audio-format:not(:empty) {
+            flex: 1 1 50px;
+            min-width: 50px;
+            max-width: 220px;
+        }
+        body.grid-mode .asset-info-bar .asset-lufs,
+        body.grid-mode .asset-info-bar .asset-lra,
+        body.grid-mode .asset-info-bar .asset-tp {
+            flex-shrink: 1;
+            min-width: 0;
+        }
+        body.grid-mode .asset-info-bar .asset-zoom {
+            flex: 0 0 auto;
+            margin-left: auto;
         }
 
         body.side-by-side .asset-layer {
@@ -1269,9 +1293,9 @@
         #layerEditC.active-audio    .asset-info-bar .asset-name { background: var(--slot-editC-bg);    color: var(--slot-editC-txt); }
 
         /* Per-field color hierarchy — matches Stack header strip opacity levels */
-        .asset-info-bar .asset-resolution { color: rgba(255,255,255,0.48); }
-        .asset-info-bar .asset-aspect     { color: rgba(255,255,255,0.30); }
-        .asset-info-bar .asset-fps        { color: rgba(255,255,255,0.38); }
+        .asset-info-bar .asset-resolution { color: rgba(255,255,255,0.62); }
+        .asset-info-bar .asset-aspect     { color: rgba(255,255,255,0.62); }
+        .asset-info-bar .asset-fps        { color: rgba(255,255,255,0.62); }
         .asset-info-bar .asset-duration   { color: rgba(255,255,255,0.82); }
         .asset-info-bar .asset-audio-format,
         #stackInfoStrip .sih-audio-format {
@@ -1295,7 +1319,7 @@
         .asset-info-bar .asset-audio-format:not(:empty) { min-width: 50px; }
         /* Dim the --fps placeholder until the real value is known */
         .asset-fps:not(:empty) { transition: color 0.2s; }
-        .asset-info-bar .asset-fps[data-placeholder] { color: rgba(255,255,255,0.15); }
+        .asset-info-bar .asset-fps[data-placeholder] { color: rgba(255,255,255,0.50); }
 
         /* Stopwatch icon prefix on duration spans */
         .asset-duration .dur-icon,
@@ -1338,8 +1362,8 @@
         .info-item { flex: 0 0 auto; margin-inline-start: 8px; white-space: nowrap; font-size: 12px; color: #bcbcbc; pointer-events: auto; }
         .info-item:first-child, .info-gap + .info-item { margin-inline-start: 0; }
         .info-gap { flex: 0 0 auto; height: 1px; }
-        .info-field-resolution { color: #a5a5a5; }
-        .info-field-aspect, .info-field-fps { color: #929292; }
+        .info-field-resolution { color: #b5b5b5; }
+        .info-field-aspect, .info-field-fps { color: #b5b5b5; }
         .info-field-duration { color: #dedede; }
         .info-field-filename { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
         .info-field-lufs, .info-field-lra, .info-field-tp { padding: 1px 5px; background: #0005; border-radius: 3px; font-size: 11px; }
@@ -1685,7 +1709,7 @@
         #stackInfoStrip .sih-fps {
             flex: 0 1 auto;
             min-width: 0;
-            color: rgba(255,255,255,0.38);
+            color: rgba(255,255,255,0.62);
             font-size: 12px;
             white-space: nowrap;
             overflow: hidden;
@@ -1694,7 +1718,7 @@
         #stackInfoStrip .sih-resolution {
             flex: 0 1 auto;
             min-width: 0;
-            color: rgba(255,255,255,0.48);
+            color: rgba(255,255,255,0.62);
             font-size: 12px;
             white-space: nowrap;
             overflow: hidden;
@@ -1703,7 +1727,7 @@
         #stackInfoStrip .sih-aspect {
             flex: 0 1 auto;
             min-width: 0;
-            color: rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.62);
             font-size: 12px;
             white-space: nowrap;
             overflow: hidden;
@@ -1753,7 +1777,7 @@
             line-height: 1.7;
         }
         #sihTooltip .sih-tr { display: flex; gap: 14px; }
-        #sihTooltip .sih-td-lbl { color: rgba(255,255,255,0.35); min-width: 54px; text-align: right; flex-shrink: 0; }
+        #sihTooltip .sih-td-lbl { color: rgba(255,255,255,0.62); min-width: 54px; text-align: right; flex-shrink: 0; }
         #sihTooltip .sih-td-val { color: rgba(255,255,255,0.82); }
         #sihTooltip .sih-audio-detail { white-space: pre-line; }
 
@@ -2854,7 +2878,7 @@
             border: none;
             cursor: pointer;
             background: transparent;
-            color: #777;
+            color: #848484; /* 4.88:1 on the #151515 header */
             transition: background 0.15s, color 0.15s;
             font-family: inherit;
         }
@@ -2875,7 +2899,7 @@
             cursor: pointer;
             padding: 4px;
             border-radius: 4px;
-            color: #777;
+            color: #848484; /* 4.88:1 on the #151515 header */
             transition: color 0.15s, background 0.15s;
             display: flex;
             align-items: center;
@@ -3189,6 +3213,50 @@
         .load-toast.visible {
             opacity: 1;
         }
+        .image-load-notice {
+            position: fixed;
+            z-index: 1200;
+            left: 12px;
+            right: 12px;
+            bottom: 16px;
+            width: min(480px, calc(100vw - 24px));
+            margin: 0 auto;
+            padding: 14px 16px;
+            border: 1px solid #8a4d4d;
+            border-radius: 8px;
+            background: #2a1717;
+            color: #f3e6e6;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+        }
+        .image-load-notice[hidden] { display: none; }
+        .image-load-notice p { margin: 0 0 10px; line-height: 1.45; overflow-wrap: anywhere; }
+        .image-load-notice-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .image-load-notice button,
+        .slot-load-error button {
+            font: inherit;
+            color: #1a1a1a;
+            background: #f0d0d0;
+            border: 1px solid #f0d0d0;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        .slot-load-error {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            background: #1a1212;
+            color: #f3e6e6;
+            text-align: center;
+            pointer-events: auto;
+        }
+        .slot-load-error p { margin: 0; overflow-wrap: anywhere; }
 
         /* ── Timecode copy format panel ── */
         .tc-backdrop { display: none; position: fixed; inset: 0; z-index: 1299; }
@@ -3466,10 +3534,14 @@
         body.managed-review #usageInvitation, body.managed-review .landing-atmosphere { display: none; }
         @media (max-width: 700px) { #appearanceLabel { display: none; } }
         @media (max-width: 600px) {
-            /* Keep privacy reachable during review even when tool strips need
-               another row. The layout owner reads the resulting header height. */
-            .header { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
-            #headerRight { max-width: 100%; overflow-x: auto; }
+            /* Keep privacy, Media status, Reset and Help reachable. The left
+               group wraps onto its own full-width rows; the layout owner reads
+               the resulting header height. */
+            .header { flex-wrap: wrap; align-items: flex-start; gap: 6px; padding: 6px 8px; }
+            #headerLeft { flex: 1 1 100%; max-width: 100%; flex-wrap: wrap; row-gap: 4px; }
+            #headerLeft > .analysis-btn,
+            #headerLeft > button { flex: 0 0 auto; }
+            #headerRight { max-width: 100%; flex: 1 1 100%; overflow-x: auto; }
             #appearanceButton { margin-left: auto; }
         }
         @media (max-height: 650px) { #usageInvitation { position: fixed; bottom: 10px; font-size: 11px; }
@@ -3971,10 +4043,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.19';
+        const APP_VERSION = '3.19.20';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.18';
+        const _CHANGELOG_VERSION = '3.19.20';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -3998,8 +4070,7 @@
             .catch(() => {});
         document.getElementById('appVersion').style.cursor = 'pointer';
         document.getElementById('appVersion').addEventListener('click', () => {
-            document.getElementById('changelogPopup').classList.add('show');
-            document.getElementById('changelogBackdrop').classList.add('show');
+            _presentChangelog();
         });
 
         // true = equal-layout 3-UP (3 columns or 3 rows); false = L-shaped (default)
@@ -6338,6 +6409,23 @@
                 return false;
             }
 
+            // Manual image batches are checked before anything is cleared. A set
+            // that cannot be opened leaves the current comparison in place.
+            if (!(opts && (opts.loadGeneration || opts.imageChecked))
+                && mediaFiles.every(file => file.type.startsWith('image/'))) {
+                const token = ++_manualImageProbeToken;
+                Promise.all(mediaFiles.map(_imageFileUsable)).then(flags => {
+                    if (token !== _manualImageProbeToken) return;
+                    if (flags.some(Boolean)) {
+                        handleMultipleFiles(mediaFiles, Object.assign({}, opts, { imageChecked: true }));
+                    } else {
+                        _presentUnusableImages(mediaFiles);
+                    }
+                });
+                return true;
+            }
+            _hideImageLoadNotice();
+
             // Always start from a clean slate so stale state from a previous load
             // (e.g., a mediaData.original left over from a prior 3-file session) never
             // bleeds into the new load. This mirrors resetAll() but without the dialog.
@@ -6392,6 +6480,75 @@
             _focusComparisonAfterLoad();
             requestAnimationFrame(() => _focusComparisonAfterLoad());
             return true;
+        }
+
+        // One probe at a time. Clear, reset and a newer selection retire it.
+        let _manualImageProbeToken = 0;
+        function _imageFileUsable(file) {
+            return new Promise(resolve => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                let settled = false;
+                const timer = setTimeout(() => finish(false), 10000);
+                const finish = (ok) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    URL.revokeObjectURL(url);
+                    resolve(!!ok);
+                };
+                img.onload = () => finish(img.naturalWidth > 0 && img.naturalHeight > 0);
+                img.onerror = () => finish(false);
+                img.src = url;
+            });
+        }
+        function _hideImageLoadNotice() {
+            const notice = document.getElementById('imageLoadNotice');
+            if (notice) notice.hidden = true;
+        }
+        function _presentUnusableImages(files) {
+            const notice = document.getElementById('imageLoadNotice');
+            const text = document.getElementById('imageLoadNoticeText');
+            if (!notice || !text) return;
+            const names = files.map(file => file.name || 'an image').join(', ');
+            const kept = getLoadedSlotCount() > 0;
+            text.textContent = kept
+                ? 'Could not open ' + names + '. The current comparison is unchanged.'
+                : 'Could not open ' + names + '. Nothing was loaded.';
+            notice.hidden = false;
+            if (!kept) {
+                _usage.enterStandalone();
+                _usage.beginLoad('image', files.length);
+                _usage.slotState('editA', 'error');
+            }
+        }
+        function _comparisonImageName(file, slot) {
+            const name = file.name || 'Image';
+            const count = expectedFileCount || getLoadedSlotCount();
+            let label;
+            if ((_ihwaSlotLabels && _ihwaSlotLabels.some(item => typeof item === 'string' && item.trim())) || _taskType) {
+                label = slotLabel(slot);
+            } else if (count >= 4) {
+                label = _numberedMediaLabel(slot, 'image');
+            } else {
+                label = slotShortLabel(slot);
+            }
+            return label ? name + ', ' + label : name;
+        }
+        function _markImageSlotFailed(slot, file) {
+            const layer = getLayer(slot);
+            if (!layer || layer.querySelector('.slot-load-error')) return;
+            const box = document.createElement('div');
+            box.className = 'slot-load-error';
+            box.setAttribute('role', 'alert');
+            const message = document.createElement('p');
+            message.textContent = 'Could not open ' + (file.name || 'this image') + '.';
+            const action = document.createElement('button');
+            action.type = 'button';
+            action.textContent = 'Load files';
+            action.addEventListener('click', () => document.getElementById('multiFileInput').click());
+            box.append(message, action);
+            (layer.querySelector('.media-container') || layer).appendChild(box);
         }
 
         // After a load or preparation, Space must start playback. The first
@@ -8783,7 +8940,7 @@
             const { layer, mediaContainer } = prepareLayer(slot);
 
             const img = document.createElement('img');
-            img.alt = file.name || slotLabel(slot);
+            img.alt = _comparisonImageName(file, slot);
             img.addEventListener('load', async function() {
                 try {
                     await img.decode();
@@ -8796,6 +8953,10 @@
                 if (!img.naturalWidth || !img.naturalHeight) {
                     _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                     if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
+                    _setLoadingSlotState(slot, 'Could not decode', 'error');
+                    _markImageSlotFailed(slot, file);
+                    checkAllLoaded();
+                    return;
                 } else {
                     _mediaInputObserve(slot, loadingToken, {pictureDecoded: true});
                     _mediaInputProbeFrame(slot, img, loadingToken);
@@ -8817,7 +8978,7 @@
                 _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode image ' + file.name)) return;
-                showLoadToast(`Failed to load ${file.name}`, true, 5000);
+                _markImageSlotFailed(slot, file);
                 checkAllLoaded();
             };
             img.src = blobUrl;
@@ -9267,24 +9428,58 @@
             return false;
         }
 
+        function _presentPopup(popup, backdrop, returnFocus) {
+            if (!popup || popup.classList.contains('show')) return;
+            popup._returnFocus = returnFocus && returnFocus !== document.body ? returnFocus : null;
+            popup.classList.add('show');
+            if (backdrop) backdrop.classList.add('show');
+            _trapFocus(popup);
+            const close = popup.querySelector('.quick-start-close');
+            if (close) close.focus({ preventScroll: true });
+            else popup.focus({ preventScroll: true });
+        }
+        function _dismissPopup(popup, backdrop) {
+            if (!popup || !popup.classList.contains('show')) return;
+            popup.classList.remove('show');
+            if (backdrop) backdrop.classList.remove('show');
+            _releaseFocusTrap(popup);
+            _prefs.writeRaw('lastSeenVersion', APP_VERSION);
+            const back = popup._returnFocus;
+            popup._returnFocus = null;
+            if (back && back.isConnected && typeof back.focus === 'function') back.focus({ preventScroll: true });
+        }
+        function _presentQuickStart() {
+            if (_managedReviewActive()) return;
+            _presentPopup(
+                document.getElementById('quickStartPopup'),
+                document.getElementById('quickStartBackdrop'),
+                document.activeElement
+            );
+        }
+        function _presentChangelog() {
+            if (_managedReviewActive()) return;
+            _presentPopup(
+                document.getElementById('changelogPopup'),
+                document.getElementById('changelogBackdrop'),
+                document.activeElement
+            );
+        }
+
         function toggleQuickStart() {
             if (_managedReviewActive()) return;
             const popup = document.getElementById('quickStartPopup');
-            const backdrop = document.getElementById('quickStartBackdrop');
             if (popup.classList.contains('show')) {
-                popup.classList.remove('show');
-                backdrop.classList.remove('show');
-                _prefs.writeRaw('lastSeenVersion', APP_VERSION);
+                _dismissPopup(popup, document.getElementById('quickStartBackdrop'));
             } else {
-                popup.classList.add('show');
-                backdrop.classList.add('show');
+                _presentQuickStart();
             }
         }
 
         function dismissChangelog() {
-            document.getElementById('changelogPopup').classList.remove('show');
-            document.getElementById('changelogBackdrop').classList.remove('show');
-            _prefs.writeRaw('lastSeenVersion', APP_VERSION);
+            _dismissPopup(
+                document.getElementById('changelogPopup'),
+                document.getElementById('changelogBackdrop')
+            );
         }
 
         // Dismiss Help/Changelog popup when clicking backdrop
@@ -9292,9 +9487,7 @@
             const popup = document.getElementById('quickStartPopup');
             const backdrop = document.getElementById('quickStartBackdrop');
             if (backdrop && e.target === backdrop) {
-                popup.classList.remove('show');
-                backdrop.classList.remove('show');
-                _prefs.writeRaw('lastSeenVersion', APP_VERSION);
+                _dismissPopup(popup, backdrop);
             }
             const changelogBackdrop = document.getElementById('changelogBackdrop');
             if (changelogBackdrop && e.target === changelogBackdrop) {
@@ -11044,6 +11237,8 @@
         // Clear all loaded media and reset state — called both by resetAll() and at the
         // start of handleMultipleFiles() so a fresh load always starts from a clean state.
         function clearAllMedia(preserveHostRequest = false) {
+            _manualImageProbeToken++; // a cleared comparison retires an in-flight image check
+            _hideImageLoadNotice();
             _resetFrameStepCursor(); // retire pending paused-frame seeks before replacement
             _localPreparationClear(); // normal preparation lifecycle → js/local-preparation.js
             _resetPreparedImport(); // retire explicit package inspection → js/prepared-import.js
@@ -12979,10 +13174,8 @@
                 _layoutReady = false;  // will be set true by positionLabelsToMedia after first clean run
                 
                 // Hide quick start or changelog popup if showing
-                document.getElementById('quickStartPopup').classList.remove('show');
-                document.getElementById('quickStartBackdrop').classList.remove('show');
-                document.getElementById('changelogPopup').classList.remove('show');
-                document.getElementById('changelogBackdrop').classList.remove('show');
+                _dismissPopup(document.getElementById('quickStartPopup'), document.getElementById('quickStartBackdrop'));
+                _dismissPopup(document.getElementById('changelogPopup'), document.getElementById('changelogBackdrop'));
                 _prefs.writeRaw('lastSeenVersion', APP_VERSION);
 
                 document.getElementById('comparisonView').classList.add('active');
@@ -13840,6 +14033,10 @@
                 return;
             }
 
+            // Help and What's New keep the keyboard. Escape still closes them above.
+            if (document.getElementById('quickStartPopup').classList.contains('show')
+                || document.getElementById('changelogPopup').classList.contains('show')) return;
+
             // Look up the action for this key.
             // Alt (⌥) keys use 'A+' prefix; Shift keys use 'S+' prefix (falling back to unshifted).
             // For Shift+digit, e.key is the symbol (!@#...) not the digit — also try the physical key from e.code.
@@ -13897,11 +14094,9 @@
             // Welcome new users; announce only important notes they haven't seen.
             const lastSeen = _prefs.readRaw('lastSeenVersion');
             if (!_managedReviewActive() && !lastSeen) {
-                document.getElementById('quickStartPopup').classList.add('show');
-                document.getElementById('quickStartBackdrop').classList.add('show');
+                _presentQuickStart();
             } else if (!_managedReviewActive() && _shouldShowChangelog(lastSeen)) {
-                document.getElementById('changelogPopup').classList.add('show');
-                document.getElementById('changelogBackdrop').classList.add('show');
+                _presentChangelog();
             }
             // Set version badges in popups
             const popupVer = document.getElementById('popupVersion');
@@ -14314,7 +14509,7 @@
             <p>Managed review hosts supply the media and its labels. Their viewer keeps the original Grid / Stack icons (Compare together / Single candidate in tooltips), view controls, inspection icons and media details in their native positions; task actions and Help belong to the host.</p>
             <h2>Appearance and privacy</h2>
             <p>Use the appearance button at the right of the header to choose Original, Starfield, Solar, Nebula or Glacier. Preferences stay in this browser. Solar has bodies moving in the same direction on fixed orbital planes; Nebula has orbiting stars and faint spiral arms around a softly glowing hub in violet haze; Glacier has sparse icy stars. Choose <strong>Starfield</strong> for a slower Ad Astra animation across a wide landing background. It is now a regular appearance; the hidden X toggle has been removed. Decorations appear only on the landing screen, and reduced motion stops animation. Media, scopes and slot colors stay unchanged.</p>
-            <p>WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Appearance and privacy reachable during review.</p>
+            <p>WarpDiff can run in tablet browsers, but some features depend on keyboard shortcuts, hover, or precise dragging. Touch support is currently limited; a keyboard and mouse or trackpad are recommended for more complete control. The header wraps in very narrow windows to keep Media status, Reset, Help, and Appearance and privacy reachable during review. If new pictures cannot be opened, the current comparison stays and a message remains so you can choose different files.</p>
             <p>Usage sharing appears first in the panel, followed by appearances. Expand “What’s shared and who receives it” for the exact categories, GoatCounter’s identity and privacy link, and how to stop sharing. Loading files without answering remembers a local invitation dismissal, keeps sharing off and stops automatic reminders—even after returning to the landing screen or reopening WarpDiff. It records neither Yes nor No and sends nothing. You can enable sharing later from this panel; clearing browser storage or unavailable storage may bring the invitation back.</p>
             <p>Daily activity counts use of ready comparisons at most once per browser per UTC day. We remember only the last reporting date locally to avoid duplicates across tabs and reloads; no date or user ID is sent. Idle tabs don’t count. These figures estimate active browsers, not people.</p>
             <p>Usage sharing is opt-in when a GoatCounter destination is configured. Consent is tied to the sharing scope you accepted. Routine updates do not ask again; a changed scope pauses sharing until a new Yes. No is remembered across scope changes; no analytics request is made before Yes or after turning sharing off. With consent, sharing counts visits, ready reviews of 1–4 items, deliberate comparison-tool use, completed scrub drags, and basic failure/fallback categories, labeled by app release, media type and item count. Features count once per ready review; scrub frequency uses thresholds of 1, 2, 6 and 21 drags. Waveform and spectrogram appear together; their separate scrub surfaces indicate interaction, not separate panel choices. Reloading a set counts again. No files, filenames, contents, raw errors or logs are sent. Failed/canceled sets are not ready reviews; no offline or pre-consent activity is replayed. All appearances remain available with sharing off. The official site uses WarpDiff’s GoatCounter account after consent. Once per ready comparison, we also share a broad window-width and height group to improve layouts: narrow (under 760 pixels), medium (760–1,199) or wide (1,200 or more), paired with short (under 600 pixels high) or tall (600 or more). These are browser layout pixels. Exact dimensions, monitor resolution, resize history and information about other windows are not sent. GoatCounter receives IP addresses and browser headers to process requests and distinguish repeat visits; it retains browser/OS and country counts in a private dashboard configured for automatic deletion after 365 days. GoatCounter’s built-in region, referrer, screen-size, language and individual-pageview collection are disabled. WarpDiff is operated by Jay Riddle; privacy contact: <a href="mailto:warpdiff@gmail.com">warpdiff@gmail.com</a>.</p>
@@ -14563,11 +14758,18 @@
     </div>
 
 
+    <div id="imageLoadNotice" class="image-load-notice" role="alert" hidden>
+        <p id="imageLoadNoticeText"></p>
+        <div class="image-load-notice-actions">
+            <button type="button" id="imageLoadNoticeLoad" onclick="document.getElementById('multiFileInput').click()">Load files</button>
+            <button type="button" id="imageLoadNoticeClose" onclick="document.getElementById('imageLoadNotice').hidden = true">Close</button>
+        </div>
+    </div>
     <div class="quick-start-backdrop" id="quickStartBackdrop"></div>
-    <div class="quick-start-popup" id="quickStartPopup">
+    <div class="quick-start-popup" id="quickStartPopup" role="dialog" aria-modal="true" aria-labelledby="quickStartTitle" tabindex="-1">
         <div class="quick-start-header">
-            <h2>WarpDiff <span class="version-badge" id="popupVersion"></span></h2>
-            <button class="quick-start-close" onclick="toggleQuickStart()">✕</button>
+            <h2 id="quickStartTitle">WarpDiff <span class="version-badge" id="popupVersion"></span></h2>
+            <button type="button" class="quick-start-close" onclick="toggleQuickStart()" aria-label="Close help">✕</button>
         </div>
         <div class="quick-start-body">
             <h3>Getting Started</h3>
@@ -14664,15 +14866,16 @@
         <button type="button" class="mn-act" onclick="_enableAudioFromNudge()">Enable</button>
     </div>
 
-    <div class="changelog-popup" id="changelogPopup">
+    <div class="changelog-popup" id="changelogPopup" role="dialog" aria-modal="true" aria-labelledby="changelogTitle" tabindex="-1">
         <div class="quick-start-header">
-            <h2>What's New <span class="version-badge" id="changelogVersion"></span></h2>
-            <button class="quick-start-close" onclick="dismissChangelog()">✕</button>
+            <h2 id="changelogTitle">What's New <span class="version-badge" id="changelogVersion"></span></h2>
+            <button type="button" class="quick-start-close" onclick="dismissChangelog()" aria-label="Close what's new">✕</button>
         </div>
         <div class="quick-start-body">
             <ul>
-                <li><strong>Loudness readings are now more accurate.</strong> Low notes and the highest peaks between samples are measured the way broadcast meters do.</li>
-                <li>On a recognized surround mix, the surround speakers count a little more, and the bass-effects channel is left out of the loudness number. If the layout is not recognized, every channel is included and the loudness number is marked as approximate.</li>
+                <li><strong>Help stays with you.</strong> Opening Help keeps the keyboard inside that window until you close it. Pictures you load are named so a screen reader can tell them apart.</li>
+                <li>On a narrow window, Media status, Reset, and Help stay on screen. Zoom stays at the right edge of each picture label.</li>
+                <li>If new pictures cannot be opened, the comparison you already have stays put, and a message remains so you can choose different files.</li>
             </ul>
         </div>
     </div>

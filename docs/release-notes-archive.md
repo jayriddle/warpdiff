@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.20
+
+- Help keeps the keyboard inside its window until you close it. Loaded pictures are named with the file and the slot, and header and picture details are easier to read.
+- On a narrow window, Media status, Reset, and Help stay on screen. Zoom stays at the right edge of a picture label.
+- If pictures cannot be opened, a comparison you already have stays in place. A message remains so you can choose different files. A picture that fails beside one that opens is marked in its own slot.
+
 ## v3.19.19
 
 - WebM videos keep their full soundtrack, including files recorded in a browser.

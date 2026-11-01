@@ -1773,7 +1773,9 @@ runMediaAdmissionChecks(check);
         && fallback.includes('return copied'));
   check('names: volume slider and loaded comparison images have accessible names',
         HTML.includes('id="volumeSlider"') && HTML.includes('aria-label="Volume"')
-        && extractFn('loadImageFile').includes('img.alt = file.name || slotLabel(slot)'));
+        && extractFn('loadImageFile').includes('img.alt = _comparisonImageName(file, slot)')
+        && extractFn('_comparisonImageName').includes('file.name')
+        && extractFn('_comparisonImageName').includes('slotShortLabel(slot)'));
   const afterLoad = extractFn('_focusComparisonAfterLoad');
   check('load-focus: a finished comparison moves Space off Load and onto a visible target',
         countOf(SRC, 'function _focusComparisonAfterLoad(') === 1
