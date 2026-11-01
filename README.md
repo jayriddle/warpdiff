@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.17
+**Current version:** 3.19.18
 
 ---
 
@@ -111,7 +111,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 
 **Audio file comparison**
 - Load 1–4 audio files (MP3, WAV, FLAC, etc.) for aligned waveform + spectrogram comparison
-- Info bars show sample rate, channels, bit depth/codec, file size, and EBU R128 metrics (integrated LUFS, LRA, true peak)
+- Info bars show sample rate, channels, bit depth/codec, file size, and EBU R128 metrics (integrated LUFS, LRA, true peak). A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of loudness; if the layout is not recognized, every channel is included and the loudness number is marked as approximate
 - `E` cycles waveform / waveform + LUFS envelope / LUFS envelope only
 
 **Frame gallery** (`Shift+G`)

@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.18
+
+- Loudness readings are now more accurate. Low notes and the highest peaks between samples follow the broadcast meter.
+- A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of the loudness number. If the layout is not recognized, every channel is included and the loudness number is marked as approximate.
+
 ## v3.19.17
 
 - Typing in a text field, choosing from a menu, and using the volume slider no longer sets off keyboard shortcuts. Space and Enter still activate a highlighted button. After files finish loading, Space starts playback.

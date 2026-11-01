@@ -28,6 +28,7 @@ import { runPreferenceChecks } from './preferences-regression.mjs';
 import { runMediaInputChecks } from './media-input-regression.mjs';
 import { runMediaAdmissionChecks } from './media-admission-regression.mjs';
 import { runPreparedMediaChecks } from './prepared-media-regression.mjs';
+import { runBs1770Checks } from './bs1770-regression.mjs';
 
 // ── source load (concatenated, extraction-proof) ──────────────────────────────
 const ROOT = new URL('../', import.meta.url);
@@ -1973,6 +1974,13 @@ runMediaAdmissionChecks(check);
   check('audio-analysis: worker imports the original algorithms and is cached offline',
     worker.includes("importScripts('audio-viz.js')") &&
     readFileSync(new URL('sw.js', ROOT),'utf8').includes("'js/audio-analysis-worker.js'"));
+  check('bs1770: verified layout reaches the worker and the foreground fallback',
+    extractFn('_runAudioAnalysisWorker').includes("channelLayout: job.channelLayout === '5.1' || job.channelLayout === '7.1' ? job.channelLayout : null") &&
+    extractFn('_pumpAudioAnalysis').includes('computeAudioMetrics(job.audioBuffer, job.channelLayout)') &&
+    worker.includes('computeAudioMetrics(buffer, channelLayout)') &&
+    extractFn('_finalizeAudioViz').includes('_computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen), channelLayout)') &&
+    extractFn('decodeAndComputeAudioSlotViz').includes('const channelLayout = WarpScrubAudio.monitor.waveLayout(bytes)') &&
+    extractFn('decodeAndComputeAudioSlotViz').includes('_computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen, channelLayout)'));
 }
 
 // Overlapping scrub grains must not meet at opposite waveform phases: that
@@ -2557,6 +2565,7 @@ runMediaAdmissionChecks(check);
 
 // ── summary ───────────────────────────────────────────────────────────────────
 runFrameStepChecks(check);
+runBs1770Checks(check);
 await runPreparedMediaChecks(check);
 await runScrubVideoChecks(check);
 runMalformedVideoChecks(check);

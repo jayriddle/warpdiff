@@ -86,6 +86,33 @@ for (const mode of ['clear','supersede']) {
   });
 }
 
+test('verified surround layout is applied by the worker and the foreground path', async ({page}) => {
+  const result = await page.evaluate(async () => {
+    const w = window as any;
+    const rate = 48000, n = rate * 4, amp = 10 ** (-20 / 20);
+    const buffer = new AudioBuffer({length: n, sampleRate: rate, numberOfChannels: 6});
+    const plane = buffer.getChannelData(4);
+    for (let i = 0; i < n; i++) plane[i] = amp * Math.sin(2 * Math.PI * 1000 * i / rate);
+    const weighted = await w._computeAudioAnalysis(buffer, 64, () => true, '5.1');
+    const direct = w.computeAudioMetrics(buffer, '5.1');
+    const plain = w.computeAudioMetrics(buffer);
+    return {
+      worker: weighted.metrics.integratedLUFS,
+      direct: direct.integratedLUFS,
+      plain: plain.integratedLUFS,
+      layout: weighted.metrics.loudnessLayout,
+      same: weighted.metrics.integratedLUFS === direct.integratedLUFS
+        && weighted.metrics.truePeakDBTP === direct.truePeakDBTP
+        && weighted.metrics.loudnessLayout === direct.loudnessLayout,
+    };
+  });
+  expect(result.worker).toBe('-21.5');
+  expect(result.direct).toBe('-21.5');
+  expect(result.plain).toBe('-23.0');
+  expect(result.layout).toBe('5.1');
+  expect(result.same).toBe(true);
+});
+
 test('blocked workers retain the original analysis compatibility path', async ({page,context}) => {
   await context.route('**/js/audio-analysis-worker.js', route=>route.abort());
   const result=await page.evaluate(async()=>{

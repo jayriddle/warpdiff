@@ -443,98 +443,203 @@ function drawSpectrogramRegion(pixels, canvasW, frames, numBins, startY, regionH
     }
 }
 
-// ── EBU R128 / ITU-R BS.1770-4 loudness & true peak metrics ──────────────────
+// ── EBU R128 / ITU-R BS.1770 loudness & true peak metrics ────────────────────
 //
-// K-weighting filter: two cascaded biquad IIR stages per BS.1770-4 §4
-//   Stage 1 — pre-filter    : high-shelf, +4 dB, Q = 1/√2, fc ≈ 1500 Hz
-//   Stage 2 — RLB high-pass : 2nd-order Butterworth, fc = 38.13506 Hz
-// Coefficients derived analytically via the Audio EQ Cookbook for any fs.
+// K-weighting is the two biquads in BS.1770: a pre-filter shelf, then the RLB
+// high-pass. At 48 kHz the coefficients are the published values
+// (stage 2: b = [1, −2, 1], a = [1, −1.99004745483398, 0.99007225036621]).
+// Every other rate uses the same bilinear design (the constants below), so the
+// low-frequency high-pass is the RLB filter rather than a generic Butterworth.
+// The shelf sits near 1.7 kHz, so rates at or below twice that are refused.
 //
-// Integrated loudness (LUFS):
-//   400 ms blocks at 75% overlap → absolute gate −70 LUFS → relative gate −10 LU
-//   Power-domain mean of gated blocks.
+// Channel weighting uses the verified layout when the channel count matches it.
+// Order is the pipeline's decoded order (FL FR FC LFE, then surrounds):
+//   5.1 / 7.1 fronts 1.0, LFE omitted, each surround ×1.41 on mean-square power
+//     (~+1.5 dB). 7.1 surrounds are BL BR SL SR, all weighted.
+//   1 or 2 channels are mono/stereo: each channel is 1.0, with or without a label.
+//   Any other count, or a 5.1/7.1 label that does not match the count, sums every
+//   channel at 1.0. Guessing which channel is LFE or surround would move the
+//   reading further than leaving them unweighted. That result is not a BS.1770
+//   programme-loudness value; `loudnessLayout` is 'unverified'.
 //
-// Loudness range (LRA, LU):
-//   3 s short-term blocks at 1 s step → abs gate −70 LUFS → rel gate −20 LU
-//   10th–95th percentile spread of gated distribution.
+// Integrated loudness (LUFS): 400 ms blocks, 75% overlap, absolute gate −70 LUFS,
+// relative gate −10 LU, power-domain mean. An LFE-only signal therefore has no
+// integrated reading (FFmpeg prints the −70 gate floor for the same case).
+// Loudness range: 3 s blocks, 1 s step, absolute gate −70, relative gate −20,
+// 10th–95th percentile.
 //
-// True peak (dBTP):
-//   4-point Catmull-Rom cubic interpolation at ×4 density per channel.
-//   Catches inter-sample peaks without requiring async OfflineAudioContext.
+// True peak (BS.1770 Annex 2): 49-tap Hann-windowed sinc oversampling, the
+// reconstruction used for that annex. 4× below 96 kHz, 2× from 96 kHz up to
+// 192 kHz, and the sample peak at 192 kHz and above (the grid is already there).
+// Quiet stretches are skipped when they cannot exceed the peak found so far.
+// After the last sample, the delay line is drained with zeros so phases that
+// land after that sample are still examined. Appending silence cannot reveal
+// a higher peak. The filter state is a few taps, not a second copy of the file.
+
+const _BS1770_SURROUND = 1.41;
 
 function _kwCoeffs(fs) {
-    // Stage 1: high-shelf pre-filter (+4 dB, Q = 1/√2, fc = 1500 Hz)
-    const A    = Math.pow(10, 4.0 / 40.0);      // sqrt(10^(4/20))
-    const w0   = 2 * Math.PI * 1500.0 / fs;
-    const cos0 = Math.cos(w0), sin0 = Math.sin(w0);
-    const alp0 = sin0 / Math.SQRT2;             // Q = 1/√2
-    const sqA  = Math.sqrt(A);
-    const a0hs = (A + 1) - (A - 1) * cos0 + 2 * sqA * alp0;
-    const hs   = [
-         A * ((A + 1) + (A - 1) * cos0 + 2 * sqA * alp0) / a0hs,  // b0
-        -2 * A * ((A - 1) + (A + 1) * cos0)               / a0hs,  // b1
-         A * ((A + 1) + (A - 1) * cos0 - 2 * sqA * alp0) / a0hs,  // b2
-         2 * ((A - 1) - (A + 1) * cos0)                   / a0hs,  // a1
-            ((A + 1) - (A - 1) * cos0 - 2 * sqA * alp0)  / a0hs,  // a2
+    // Stage-1 constants reproduce the published 48 kHz pre-filter.
+    if (!(fs > 3364) || !Number.isFinite(fs)) return null;
+    const fShelf = 1681.974450955533, gShelf = 3.999843853973347, qShelf = 0.7071752369554196;
+    let k = Math.tan(Math.PI * fShelf / fs);
+    const vh = Math.pow(10, gShelf / 20);
+    const vb = Math.pow(vh, 0.4996667741545416);
+    let a0 = 1 + k / qShelf + k * k;
+    const hs = [
+        (vh + vb * k / qShelf + k * k) / a0,
+        2 * (k * k - vh) / a0,
+        (vh - vb * k / qShelf + k * k) / a0,
+        2 * (k * k - 1) / a0,
+        (1 - k / qShelf + k * k) / a0,
     ];
-
-    // Stage 2: RLB high-pass (2nd-order Butterworth, fc = 38.13506 Hz)
-    const w1   = 2 * Math.PI * 38.13506 / fs;
-    const cos1 = Math.cos(w1), sin1 = Math.sin(w1);
-    const alp1 = sin1 / Math.SQRT2;
-    const a0hp = 1 + alp1;
-    const hp   = [
-         (1 + cos1) / 2 / a0hp,   // b0
-        -(1 + cos1)     / a0hp,   // b1
-         (1 + cos1) / 2 / a0hp,   // b2
-        -2 * cos1       / a0hp,   // a1
-         (1 - alp1)     / a0hp,   // a2
-    ];
-
+    // Stage 2 keeps the un-normalised numerator [1, −2, 1] at every rate.
+    // Only the feedback terms track sample rate. Dividing the numerator by a0
+    // would miss the published 48 kHz coefficients by about 0.04 dB.
+    const fRlb = 38.13547087602444, qRlb = 0.5003270373238773;
+    k = Math.tan(Math.PI * fRlb / fs);
+    a0 = 1 + k / qRlb + k * k;
+    const hp = [1, -2, 1, 2 * (k * k - 1) / a0, (1 - k / qRlb + k * k) / a0];
+    if (!hs.every(Number.isFinite) || !hp.every(Number.isFinite)) return null;
     return { hs, hp };
 }
 
-function _biquad(src, b0, b1, b2, a1, a2) {
-    const dst = new Float32Array(src.length);
-    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-    for (let i = 0; i < src.length; i++) {
-        const x0 = src[i];
-        const y0 = b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-        x2 = x1; x1 = x0; y2 = y1; y1 = y0;
-        dst[i] = y0;
+function _loudnessPlan(channelCount, channelLayout) {
+    if (channelLayout === '5.1' && channelCount === 6) {
+        return { name: '5.1', weights: [1, 1, 1, 0, _BS1770_SURROUND, _BS1770_SURROUND] };
     }
-    return dst;
+    if (channelLayout === '7.1' && channelCount === 8) {
+        return { name: '7.1', weights: [1, 1, 1, 0, _BS1770_SURROUND, _BS1770_SURROUND, _BS1770_SURROUND, _BS1770_SURROUND] };
+    }
+    if (channelCount === 1 || channelCount === 2) {
+        const weights = channelCount === 1 ? [1] : [1, 1];
+        return { name: channelCount === 1 ? 'mono' : 'stereo', weights };
+    }
+    const weights = new Array(channelCount);
+    for (let i = 0; i < channelCount; i++) weights[i] = 1;
+    return { name: 'unverified', weights };
 }
 
-function _kweight(data, c) {
-    const s1 = _biquad(data, c.hs[0], c.hs[1], c.hs[2], c.hs[3], c.hs[4]);
-    return      _biquad(s1,  c.hp[0], c.hp[1], c.hp[2], c.hp[3], c.hp[4]);
+// One gating window. `after` counts samples once the window is full; a block is
+// emitted on the sample that completes it and every `hop` samples after that.
+function _windowState(size) {
+    return { ring: new Float64Array(size), sum: 0, pos: 0, fill: 0, after: 0 };
+}
+function _feedWindow(state, sq, hop, powers, weight) {
+    if (state.fill === state.ring.length) state.sum -= state.ring[state.pos];
+    else state.fill++;
+    state.ring[state.pos] = sq;
+    state.sum += sq;
+    if (++state.pos === state.ring.length) state.pos = 0;
+    if (state.fill === state.ring.length && state.after % hop === 0) {
+        const index = state.after / hop;
+        const mean = state.sum > 0 ? state.sum / state.ring.length : 0;
+        powers[index] = (powers[index] || 0) + weight * mean;
+    }
+    if (state.fill === state.ring.length) state.after++;
 }
 
-// 4× Catmull-Rom interpolation true peak for one channel
-function _truePeakCh(data) {
+function _accumulateLoudness(data, coeffs, weight, block, shortTerm) {
+    const hs = coeffs.hs, hp = coeffs.hp;
+    let hx1 = 0, hx2 = 0, hy1 = 0, hy2 = 0, px1 = 0, px2 = 0, py1 = 0, py2 = 0;
+    for (let i = 0; i < data.length; i++) {
+        const x0 = data[i];
+        const hy0 = hs[0] * x0 + hs[1] * hx1 + hs[2] * hx2 - hs[3] * hy1 - hs[4] * hy2;
+        hx2 = hx1; hx1 = x0; hy2 = hy1; hy1 = hy0;
+        const y0 = hp[0] * hy0 + hp[1] * px1 + hp[2] * px2 - hp[3] * py1 - hp[4] * py2;
+        px2 = px1; px1 = hy0; py2 = py1; py1 = y0;
+        const sq = y0 * y0;
+        _feedWindow(block.state, sq, block.hop, block.powers, weight);
+        _feedWindow(shortTerm.state, sq, shortTerm.hop, shortTerm.powers, weight);
+    }
+}
+
+// Annex 2 oversampling. The phase that lands on input samples is an impulse
+// (the sinc is zero at the other integer lags), so the sample peak is exact
+// there; the other phases reconstruct the points between samples.
+const _truePeakPhaseCache = new Map();
+function _truePeakPhases(factor) {
+    const cached = _truePeakPhaseCache.get(factor);
+    if (cached) return cached;
+    const taps = 49;
+    const phases = Array.from({ length: factor }, () => ({ coeff: [], index: [] }));
+    for (let j = 0; j < taps; j++) {
+        const m = j - (taps - 1) / 2;
+        let c = 1;
+        if (Math.abs(m) > 0.000001) c = Math.sin(m * Math.PI / factor) / (m * Math.PI / factor);
+        c *= 0.5 * (1 - Math.cos(2 * Math.PI * j / (taps - 1)));
+        if (Math.abs(c) > 0.000001) {
+            phases[j % factor].coeff.push(c);
+            phases[j % factor].index.push((j / factor) | 0);
+        }
+    }
+    let gain = 1;
+    const list = phases.map(phase => {
+        const coeff = Float64Array.from(phase.coeff);
+        const index = Int16Array.from(phase.index);
+        let l1 = 0;
+        for (let i = 0; i < coeff.length; i++) l1 += Math.abs(coeff[i]);
+        if (l1 > gain) gain = l1;
+        return { coeff, index, count: coeff.length };
+    });
+    const value = { list, gain, delay: ((taps + factor - 1) / factor) | 0 };
+    _truePeakPhaseCache.set(factor, value);
+    return value;
+}
+
+function _truePeakCh(data, sampleRate) {
     const n = data.length;
     let peak = 0;
     for (let i = 0; i < n; i++) {
-        const abs = Math.abs(data[i]);
-        if (abs > peak) peak = abs;
-        // Interpolate t = 0.25, 0.5, 0.75 between sample i and i+1
-        const x0 = data[Math.max(0, i - 1)];
-        const x1 = data[i];
-        const x2 = data[Math.min(n - 1, i + 1)];
-        const x3 = data[Math.min(n - 1, i + 2)];
-        for (let k = 1; k <= 3; k++) {
-            const t = k / 4, t2 = t * t, t3 = t2 * t;
-            const v = 0.5 * (
-                (-x0 + 3 * x1 - 3 * x2 + x3) * t3 +
-                (2 * x0 - 5 * x1 + 4 * x2 - x3) * t2 +
-                (-x0 + x2) * t +
-                2 * x1
-            );
-            const av = Math.abs(v);
-            if (av > peak) peak = av;
-        }
+        const a = data[i] < 0 ? -data[i] : data[i];
+        if (a > peak) peak = a;
     }
+    const factor = !(sampleRate > 0) || sampleRate >= 192000 ? 1 : sampleRate >= 96000 ? 2 : 4;
+    if (factor === 1 || n === 0) return peak;
+    const phases = _truePeakPhases(factor);
+    const delay = phases.delay, gain = phases.gain, list = phases.list;
+    const hist = new Float64Array(delay);
+    let zi = 0;
+    // One writer for the delay line. Quiet blocks rebuild the same tail the
+    // next sample would have seen, so a skipped stretch cannot change a later peak.
+    function write(sample) {
+        hist[zi] = sample;
+        for (let f = 0; f < list.length; f++) {
+            const coeff = list[f].coeff, index = list[f].index, count = list[f].count;
+            let acc = 0;
+            for (let t = 0; t < count; t++) {
+                let k = zi - index[t];
+                if (k < 0) k += delay;
+                acc += hist[k] * coeff[t];
+            }
+            if (acc < 0) acc = -acc;
+            if (acc > peak) peak = acc;
+        }
+        if (++zi === delay) zi = 0;
+    }
+    for (let start = 0; start < n;) {
+        const end = Math.min(n, start + 4096);
+        let local = 0;
+        for (let i = Math.max(0, start - delay); i < end; i++) {
+            const a = data[i] < 0 ? -data[i] : data[i];
+            if (a > local) local = a;
+        }
+        // l1 gain is the most any window of this height can produce. Keep the
+        // real tail: the next block's filter still needs those samples.
+        if (local * gain <= peak) {
+            const tail = Math.min(delay, end), base = end - tail;
+            for (let i = 0; i < delay; i++) hist[i] = i < tail ? data[base + i] : 0;
+            zi = tail === delay ? 0 : tail;
+            start = end;
+            continue;
+        }
+        for (let i = start; i < end; i++) write(data[i]);
+        start = end;
+    }
+    // Drain every phase that still depends on the final samples. These zeros
+    // are filter flush, not part of the file, and a quiet tail already in the
+    // delay line cannot outgrow the peak the skip bound allowed.
+    for (let i = 0; i < delay; i++) write(0);
     return peak;
 }
 
@@ -544,59 +649,52 @@ function _lufsAvg(arr) {
     return 10 * Math.log10(arr.reduce((s, l) => s + Math.pow(10, l / 10), 0) / arr.length);
 }
 
-function computeAudioMetrics(audioBuffer) {
+function _formatDbTenth(value) {
+    if (!Number.isFinite(value)) return null;
+    const text = value.toFixed(1);
+    return text === '-0.0' ? '0.0' : text;
+}
+function _powersToLufs(powers) {
+    const out = new Array(powers.length);
+    for (let i = 0; i < powers.length; i++) out[i] = -0.691 + 10 * Math.log10(powers[i] || 1e-20);
+    return out;
+}
+
+function computeAudioMetrics(audioBuffer, channelLayout = null) {
     if (!audioBuffer || !audioBuffer.getChannelData) return null;
 
-    const fs    = audioBuffer.sampleRate;
-    const nCh   = audioBuffer.numberOfChannels;
+    const fs = audioBuffer.sampleRate;
+    const nCh = audioBuffer.numberOfChannels;
     const nSamp = audioBuffer.length;
-    const c     = _kwCoeffs(fs);
+    const coeffs = _kwCoeffs(fs);
+    if (!coeffs || !Number.isInteger(nCh) || nCh < 1 || !(nSamp >= 0)) return null;
+    const plan = _loudnessPlan(nCh, channelLayout);
 
-    // K-weight every channel (BS.1770 channel weight = 1.0 for L/R/C; 1.41 for Ls/Rs,
-    // but browsers decode multichannel to stereo/mono so all channels use 1.0 here)
-    const kw = [];
-    for (let ch = 0; ch < nCh; ch++) kw.push(_kweight(audioBuffer.getChannelData(ch), c));
-
-    // ── Integrated loudness ───────────────────────────────────────────────────
-    const blkSz  = Math.round(0.400 * fs);   // 400 ms block
-    const blkStp = Math.round(0.100 * fs);   // 75% overlap → 100 ms step
-    const blks   = [];
-
-    for (let s = 0; s + blkSz <= nSamp; s += blkStp) {
-        let z = 0;
-        for (let ch = 0; ch < nCh; ch++) {
-            const d = kw[ch];
-            let sq = 0;
-            for (let i = s; i < s + blkSz; i++) sq += d[i] * d[i];
-            z += sq / blkSz;
-        }
-        blks.push(-0.691 + 10 * Math.log10(z || 1e-20));
+    // Windows stay one block long and are reused across channels, so an hour of
+    // multichannel audio does not allocate a second K-weighted copy of the file.
+    const block = { state: _windowState(Math.round(0.4 * fs)), hop: Math.round(0.1 * fs), powers: [] };
+    const shortTerm = { state: _windowState(Math.round(3 * fs)), hop: Math.round(fs), powers: [] };
+    let maxPeak = 0;
+    for (let ch = 0; ch < nCh; ch++) {
+        const data = audioBuffer.getChannelData(ch);
+        const peak = _truePeakCh(data, fs);
+        if (peak > maxPeak) maxPeak = peak;
+        if (!plan.weights[ch]) continue;
+        _accumulateLoudness(data, coeffs, plan.weights[ch], block, shortTerm);
+        block.state.sum = block.state.pos = block.state.fill = block.state.after = 0;
+        shortTerm.state.sum = shortTerm.state.pos = shortTerm.state.fill = shortTerm.state.after = 0;
     }
 
+    const blks = _powersToLufs(block.powers);
     let integratedLUFS = null;
     const absGated = blks.filter(l => l > -70);
     if (absGated.length > 0) {
-        const ungated  = _lufsAvg(absGated);
+        const ungated = _lufsAvg(absGated);
         const relGated = absGated.filter(l => l > ungated - 10);
         if (relGated.length > 0) integratedLUFS = _lufsAvg(relGated);
     }
 
-    // ── Loudness range (LRA) ──────────────────────────────────────────────────
-    const stSz  = Math.round(3.0 * fs);   // 3 s short-term window
-    const stStp = Math.round(1.0 * fs);   // 1 s step
-    const stBlks = [];
-
-    for (let s = 0; s + stSz <= nSamp; s += stStp) {
-        let z = 0;
-        for (let ch = 0; ch < nCh; ch++) {
-            const d = kw[ch];
-            let sq = 0;
-            for (let i = s; i < s + stSz; i++) sq += d[i] * d[i];
-            z += sq / stSz;
-        }
-        stBlks.push(-0.691 + 10 * Math.log10(z || 1e-20));
-    }
-
+    const stBlks = _powersToLufs(shortTerm.powers);
     let lra = null;
     const stAbsGated = stBlks.filter(l => l > -70);
     if (stAbsGated.length >= 2) {
@@ -609,20 +707,14 @@ function computeAudioMetrics(audioBuffer) {
         }
     }
 
-    // ── True peak (4× Catmull-Rom per channel) ────────────────────────────────
-    let maxPeak = 0;
-    for (let ch = 0; ch < nCh; ch++) {
-        const p = _truePeakCh(audioBuffer.getChannelData(ch));
-        if (p > maxPeak) maxPeak = p;
-    }
-
     return {
-        integratedLUFS: integratedLUFS !== null ? integratedLUFS.toFixed(1) : null,
-        lra:            lra            !== null ? lra.toFixed(1)            : null,
-        truePeakDBTP:   (20 * Math.log10(maxPeak || 1e-10)).toFixed(1),
-        sampleRate:     fs,
-        channels:       nCh,
-        duration:       audioBuffer.duration,
+        integratedLUFS: integratedLUFS !== null ? _formatDbTenth(integratedLUFS) : null,
+        lra: lra !== null ? _formatDbTenth(lra) : null,
+        truePeakDBTP: _formatDbTenth(20 * Math.log10(maxPeak || 1e-10)),
+        loudnessLayout: plan.name,
+        sampleRate: fs,
+        channels: nCh,
+        duration: audioBuffer.duration,
         // Short-term LUFS blocks (1 s step, 3 s window) — used for envelope visualization.
         // Each entry is the raw LUFS value (unformatted float) at that time position.
         stBlks,

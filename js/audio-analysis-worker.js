@@ -6,10 +6,12 @@ importScripts('audio-viz.js');
     let buffer = null;
     let planes = [];
     let buckets = 0;
+    let channelLayout = null;
     self.onmessage = ({ data }) => {
         try {
             if (data.type === 'init') {
                 buckets = data.buckets;
+                channelLayout = data.channelLayout === '5.1' || data.channelLayout === '7.1' ? data.channelLayout : null;
                 planes = new Array(data.channels);
                 buffer = { sampleRate: data.sampleRate, length: data.length,
                     duration: data.duration, numberOfChannels: data.channels,
@@ -21,7 +23,7 @@ importScripts('audio-viz.js');
                 self.postMessage({ ready: true });
             } else if (data.type === 'compute') {
                 const result = { waveform: computeWaveformData(buffer, buckets),
-                    spectrogram: computeSpectrogramData(buffer), metrics: computeAudioMetrics(buffer) };
+                    spectrogram: computeSpectrogramData(buffer), metrics: computeAudioMetrics(buffer, channelLayout) };
                 const transfers = new Set();
                 const collect = value => {
                     if (ArrayBuffer.isView(value)) transfers.add(value.buffer);
