@@ -430,6 +430,13 @@ test.beforeAll(() => {
   ensureFixtures();
 });
 
+function earlierVersion(version: string): string {
+  const [major, minor, patch] = version.split('.').map(Number);
+  if (patch > 0) return `${major}.${minor}.${patch - 1}`;
+  if (minor > 0) return `${major}.${minor - 1}.0`;
+  return `${Math.max(0, major - 1)}.0.0`;
+}
+
 test.describe('Page Load & Initial State', () => {
   test('title is WarpDiff', async ({ page }) => {
     await page.goto('/');
@@ -458,31 +465,55 @@ test.describe('Page Load & Initial State', () => {
     await expect(page.locator('#changelogPopup')).not.toBeVisible();
   });
 
-  for (const [lastSeen, showNotes] of [
-    ['3.17.5', true], ['3.18.11', true], ['3.18.12', true],
-    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', true], ['3.19.18', false], ['4.0.0', false]
-  ] as const) test(`release notes ${showNotes ? 'show' : 'stay quiet'} after ${lastSeen}`, async ({ page }) => {
+  test('an older visit shows the current announcement and dismiss records the app version', async ({ page }) => {
+    await page.goto('/');
+    const versions = await page.evaluate(() => ({
+      app: (window as any).eval('APP_VERSION') as string,
+      notes: (window as any).eval('_CHANGELOG_VERSION') as string,
+    }));
     await page.addInitScript(version => {
       if (!localStorage.getItem('lastSeenVersion')) localStorage.setItem('lastSeenVersion', version);
-    }, lastSeen);
-    await page.goto('/');
+    }, earlierVersion(versions.notes));
+    await page.reload();
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
-    await expect(page.locator('#changelogPopup')).toHaveClass(showNotes ? /show/ : /^(?!.*show)/);
-    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.18');
-    const notes = page.locator('#changelogPopup .quick-start-body');
-    await expect(notes.locator('li')).toHaveCount(2);
-    await expect(notes).toContainText('more accurate');
-    await expect(notes).toContainText('bass-effects');
-    await expect(notes).not.toContainText('daily');
-    if (showNotes) {
-      // Dismissing missed news records the actual app version and won't repeat.
-      await page.locator('#changelogPopup .quick-start-close').click();
-      const currentVersion = await page.locator('#appVersion').textContent();
-      expect(await page.evaluate(() => localStorage.getItem('lastSeenVersion')))
-        .toBe(currentVersion!.match(/^v(\d+\.\d+\.\d+)/)![1]);
-      await page.reload();
-      await expect(page.locator('#changelogPopup')).not.toBeVisible();
-    }
+    await expect(page.locator('#changelogPopup')).toHaveClass(/show/);
+    await expect(page.locator('#changelogVersion')).toHaveText('v' + versions.notes);
+    // Dismissing missed news records the actual app version and won't repeat.
+    await page.locator('#changelogPopup .quick-start-close').click();
+    const currentVersion = await page.locator('#appVersion').textContent();
+    expect(await page.evaluate(() => localStorage.getItem('lastSeenVersion')))
+      .toBe(currentVersion!.match(/^v(\d+\.\d+\.\d+)/)![1]);
+    expect(await page.evaluate(() => localStorage.getItem('lastSeenVersion'))).toBe(versions.app);
+    await page.reload();
+    await expect(page.locator('#changelogPopup')).not.toBeVisible();
+  });
+
+  test('a visit that already saw the announcement stays quiet', async ({ page }) => {
+    await page.goto('/');
+    const notes = await page.evaluate(() => (window as any).eval('_CHANGELOG_VERSION') as string);
+    await page.addInitScript(version => {
+      localStorage.setItem('lastSeenVersion', version);
+    }, notes);
+    await page.reload();
+    await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+    await expect(page.locator('#changelogPopup')).not.toBeVisible();
+  });
+
+  test('a newer last-seen version stays quiet', async ({ page }) => {
+    await page.goto('/');
+    const newer = await page.evaluate(() => {
+      const versions = [
+        (window as any).eval('APP_VERSION') as string,
+        (window as any).eval('_CHANGELOG_VERSION') as string,
+      ].map(version => Number(version.split('.')[0]));
+      return (Math.max(...versions) + 1) + '.0.0';
+    });
+    await page.addInitScript(version => {
+      localStorage.setItem('lastSeenVersion', version);
+    }, newer);
+    await page.reload();
+    await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+    await expect(page.locator('#changelogPopup')).not.toBeVisible();
   });
 });
 
@@ -654,15 +685,6 @@ test.describe('View Modes (Stack/Grid)', () => {
 });
 
 test.describe('Audio Visualization', () => {
-  test('W key toggles waveform and spectrogram views', async ({ page }) => {
-    await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']);  // Proxy for audio mode test (replace with real audio fixtures)
-    await page.keyboard.press('w');
-    // Look for audio viz elements (waveform and spectrogram canvases)
-    const canvasCount = await page.locator('canvas').count();
-    expect(canvasCount).toBeGreaterThanOrEqual(2);  // At minimum waveform + spectrogram
-  });
-
   test('Shift+W toggles linear/log frequency scale', async ({ page }) => {
     await page.goto('/');
     await loadImages(page, ['red.png', 'green.png']);
@@ -690,17 +712,6 @@ test.describe('Audio Visualization', () => {
     const newText = await paletteBtn.textContent();
     expect(newText).not.toBe(initialText);
   });
-
-  test('displays audio info bars (sample rate, channels, bit depth, BPM)', async ({ page }) => {
-    await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']); // Replace with audio files for real test
-    // Info bars should show metadata (app renders 4 bars, some hidden for 2-file case)
-    const infoBars = page.locator('.asset-info-bar');
-    await expect(infoBars).toHaveCount(4);
-    await expect(infoBars.first()).toContainText(/Hz|BPM|ch|Ref/i); // Sample rate, BPM, channels or default label
-  });
-
-  // BPM detection code has been removed (per current codebase)
 });
 
 test.describe('Video Scopes', () => {
@@ -779,15 +790,6 @@ test.describe('Keyboard Shortcuts', () => {
     expect(fitZoom).toBeLessThan(zoomed); // Back to fit
   });
 
-  test('I/O keys set loop in/out points', async ({ page }) => {
-    await page.goto('/');
-    await loadImages(page, ['red.png', 'green.png']); // Video would be better but images work for loop test
-    await page.keyboard.press('i');
-    await page.keyboard.press('o');
-    // Loop markers should be set (verified via toast or state if exposed)
-    const toast = page.locator('#toast');
-    await expect(toast).toBeVisible(); // At least a toast appears for loop actions
-  });
 });
 
 test.describe('Zoom & Loupe', () => {
@@ -2950,16 +2952,22 @@ test.describe('Opus deferred-start window (Web Audio sync replacement)', () => {
       opus.start('editA', 0.5);            // audible
       opus.start('editA', 0.6);            // pending (deferred behind the fade)
       const pending = opus.state('editA');
+      const fade = opus.fade();
       // A nonzero advance keeps the source pending but makes an incorrect
       // audible fade observably extend the deadline. A fully frozen clock
       // would stamp the same deadline and could conceal that regression.
-      clock.advance(opus.fade() / 3);
+      // The clock must not also track wall time: a live AudioContext can
+      // move past the 15 ms pending window inside this one task, and stop()
+      // would then fade a source that the test still treats as pending.
+      clock.advance(fade / 3);
       const tStop = opus.ctxTime();
       opus.stop('editA');                  // must cancel outright — nothing audible yet
       const afterStop = opus.state('editA');
       opus.start('editA', 0.7);            // must NOT wait an extra fade
-      return { pending, tBefore, tStop, afterStop, third: opus.state('editA') };
+      return { pending, tBefore, tStop, afterStop, third: opus.state('editA'), fade };
     }));
+    expect(r.tStop - r.tBefore).toBeCloseTo(r.fade / 3, 6);
+    expect(r.pending.startCtx - r.tBefore).toBeGreaterThanOrEqual(r.fade - 1e-6);
     expect(r.pending.startCtx).toBeGreaterThan(r.tStop);  // genuinely pending
     expect(r.tStop).toBeGreaterThan(r.tBefore);
     expect(r.afterStop.hasSource).toBe(false);

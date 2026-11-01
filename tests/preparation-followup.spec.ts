@@ -42,8 +42,7 @@ test('a playable file is accepted when the hidden probe cannot be sampled', asyn
   expect(played).toBe(0);
 });
 
-test('a valid container with corrupt frames is rejected when the browser reports it', async ({page, browserName}) => {
-  test.fail(browserName === 'webkit', 'WebKit accepts damaged samples once canplay fires. The companion ffmpeg -xerror full decode is the real guard.');
+test('a valid container with corrupt frames is rejected when the browser reports it', async ({page}) => {
   const message = await page.evaluate(async () => {
     const bytes = new Uint8Array(await (await fetch('tests/fixtures/landscape_a.mp4')).arrayBuffer());
     const view = new DataView(bytes.buffer);
