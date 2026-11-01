@@ -182,6 +182,22 @@ export function runWebmClusterChecks(check, source = readFileSync(new URL('../js
     lateMetadata?.trackSelectionVerified === true && lateMetadata.audioTracks.length === 1
     && latePackets?.chunks.length === 1 && latePackets.chunks[0].data[0] === 3);
 
+  function tinyWebm(count) {
+    const packet = Buffer.from([0xA3, 0x85, 0x81, 0x00, 0x00, 0x80, 0xFC]);
+    const blocks = Buffer.alloc(count * packet.length);
+    for (let i = 0; i < count; i++) packet.copy(blocks, i * packet.length);
+    return webm([el('1654ae6b', track()), cluster(0, [blocks])]);
+  }
+  const dense = tinyWebm(100000);
+  const heapBefore = process.memoryUsage().heapUsed;
+  const denseParsed = parse(dense);
+  const heapDelta = process.memoryUsage().heapUsed - heapBefore;
+  check('webm-budget: 100,000 tiny packets stay in a compact table under 8 MiB',
+    dense.byteLength < 900000 && denseParsed?.chunks.length === 100000
+    && denseParsed.chunks[0].data.length === 1 && denseParsed.chunks[0].data[0] === 0xFC
+    && denseParsed.chunks.at(-1).timestamp === 0 && heapDelta < 8 * 1024 * 1024);
+  check('webm-budget: packet count past 524,288 publishes nothing', parse(tinyWebm(524289)) === null);
+
   const directory = mkdtempSync(join(tmpdir(), 'warpdiff-webm-cluster-'));
   try {
     const file = join(directory, 'clusters.webm');

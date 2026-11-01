@@ -2,11 +2,16 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.20
+## v3.19.21
 
 - A video opened from a signed link is accepted once its picture can be shown, even if a hidden playback check is blocked.
 - Ordinary video sound keeps its direct output when decoding the soundtrack takes a moment. Opening the waveform before any files are loaded no longer skips that decode.
 - This maintenance update retains the previous What’s New announcement.
+
+## v3.19.20
+
+- A WebM soundtrack made of a huge number of tiny packets keeps the browser's playback instead of using a large amount of memory.
+- This maintenance update retains the previous What's New announcement.
 
 ## v3.19.19
 
