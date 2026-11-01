@@ -1694,6 +1694,95 @@ runMediaAdmissionChecks(check);
         && extractFn('drawAudioSlotCanvas').includes('_audioTimelineStarts[slot]'));
 }
 
+// Waveform buckets must cover the tail sample and must not invent a
+// full-scale spike when a bucket has no samples.
+{
+  const computeWaveformChannel = new Function(
+    extractFn('computeWaveformChannel') + '\nreturn computeWaveformChannel;'
+  )();
+  const tail = new Float32Array(96001);
+  tail[96000] = 1;
+  const buckets = 600;
+  const wave = computeWaveformChannel(tail, buckets);
+  let peak = 0;
+  for (let i = 0; i < buckets; i++) peak = Math.max(peak, Math.abs(wave[i * 2]), Math.abs(wave[i * 2 + 1]));
+  check('waveform buckets: a final full-scale sample is kept',
+        wave.length === buckets * 2 && wave[(buckets - 1) * 2 + 1] === 1 && peak === 1);
+  const five = computeWaveformChannel(new Float32Array([0, 0, 0, 0, 1]), 2);
+  check('waveform buckets: proportional edges include the remainder',
+        five[0] === 0 && five[1] === 0 && five[2] === 0 && five[3] === 1);
+  const short = computeWaveformChannel(new Float32Array([0.25, -0.5]), 4);
+  let sentinel = false, sawHigh = false, sawLow = false;
+  for (let i = 0; i < 4; i++) {
+    const min = short[i * 2], max = short[i * 2 + 1];
+    if (min === 1 && max === -1) sentinel = true;
+    if (min === 0.25 && max === 0.25) sawHigh = true;
+    if (min === -0.5 && max === -0.5) sawLow = true;
+    if (min > max) sentinel = true;
+  }
+  check('waveform buckets: more buckets than samples keep each sample and stay finite',
+        !sentinel && sawHigh && sawLow && short.length === 8);
+  const empty = computeWaveformChannel(new Float32Array(0), 3);
+  check('waveform buckets: empty input is silence, not a full-scale spike',
+        empty.length === 6 && [...empty].every(value => value === 0));
+  check('waveform buckets: a non-positive bucket count produces no pairs',
+        computeWaveformChannel(new Float32Array([1]), 0).length === 0);
+}
+
+// Focused controls keep their keys, a failed audio read can be retried, and
+// copy/no-audio feedback reports what actually happened.
+{
+  const owns = extractFn('_shortcutTargetOwnsKey');
+  const dispatchAt = SRC.indexOf("if (e.key !== 'Escape' && _shortcutTargetOwnsKey(e)) return;");
+  const actionAt = SRC.indexOf('action.fn(e);');
+  check('shortcuts: focused fields, ranges, selects, and button activation own their keys',
+        countOf(SRC, 'function _shortcutTargetOwnsKey(') === 1
+        && owns.includes("field.matches('textarea, select')")
+        && owns.includes("type === 'range'")
+        && owns.includes("event.key === ' '")
+        && dispatchAt > 0 && actionAt > dispatchAt);
+  const read = extractFn('decodeAndComputeAudioViz');
+  const readAt = read.indexOf('source.arrayBuffer()');
+  check('audio-read: a rejected file read is handled for the current generation and can retry',
+        readAt > read.indexOf('try {')
+        && read.indexOf('catch (error)', readAt) > readAt
+        && read.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return;')
+        && read.includes('_audioReadRetry[slot] = true')
+        && read.includes('_localPreparationTransientRead(slot, loadingToken)')
+        && read.includes('_setAudioTrackIssue(slot, message, false)')
+        && read.includes('_localPreparationResolveTransientRead(slot, loadingToken)')
+        && read.includes('Could not read the audio file')
+        && extractFn('_ensureAudioVizDecoded').includes('_audioReadRetry[s]')
+        && extractFn('clearAllMedia').includes('_audioReadRetry = Object.create(null)'));
+  const mark = extractFn('_markSlotNoAudio');
+  const copy = extractFn('_copyTimecodeRange');
+  const fallback = extractFn('_tcCopyFallback');
+  check('feedback: no-audio notice uses the toast duration argument',
+        mark.includes("showToast(slotLabel(slot) + ': no audio track', 3500)")
+        && !mark.includes('showToast(slotLabel(slot) + \': no audio track\', false'));
+  check('feedback: timecode copy reports failure when both clipboard paths fail',
+        copy.includes('const failed = () => showToast(\'Could not copy timecode\', 3000);')
+        && !copy.includes('_tcCopyFallback(str); done()')
+        && fallback.includes("document.execCommand('copy') === true")
+        && fallback.includes('return copied'));
+  check('names: volume slider and loaded comparison images have accessible names',
+        HTML.includes('id="volumeSlider"') && HTML.includes('aria-label="Volume"')
+        && extractFn('loadImageFile').includes('img.alt = file.name || slotLabel(slot)'));
+  const afterLoad = extractFn('_focusComparisonAfterLoad');
+  check('load-focus: a finished comparison moves Space off Load and onto a visible target',
+        countOf(SRC, 'function _focusComparisonAfterLoad(') === 1
+        && afterLoad.includes("document.querySelector('dialog[open]')")
+        && afterLoad.includes('playPauseBtn')
+        && afterLoad.includes('_loadFocusHandoff === token')
+        && afterLoad.includes('comparisonView')
+        && extractFn('handleMultipleFiles').includes('_focusComparisonAfterLoad()')
+        && extractFn('checkAllLoaded').includes('_focusComparisonAfterLoad()')
+        && extractFn('_loadPreparedImport').includes('_focusComparisonAfterLoad()')
+        && !extractFn('_loadPreparedImport').includes("getElementById('loadBtn').focus")
+        && !extractFn('_restoreLocalPreparationComparison').includes("getElementById('loadBtn').focus")
+        && extractFn('_loadOrdinaryMediaFromHelp').includes("getElementById('loadBtn').focus"));
+}
+
 // Safari preview output has one comparison-scoped owner. Both preview engines
 // use it; transport, clear and hidden-page handling must not create another sink.
 {
@@ -2134,7 +2223,8 @@ runMediaAdmissionChecks(check);
       _opusSyncPending: pending, _videoAudioDecodeGen: {}, _loadingProgressToken: 1, _byteScannedCodec: {},
       _UNSUPPORTED_CODEC_LABELS: {}, _isChrome: chrome, AudioDecoder: function AudioDecoder() {}, File: function File() {},
       console: {warn(){}}, _nextAudioDecodeGeneration: () => 1, _videoAudioDecodeIsCurrent: () => true,
-      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _isMP4AudioContainer: () => true,
+      _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _localPreparationResolveTransientRead(){},
+      _isMP4AudioContainer: () => true,
       _isWebMAudioContainer: () => false, _mp4AudioAnalysisIssue: () => '',
       _demuxMP4Audio: () => ({audioTracks:[{codec:opus ? 'Opus' : 'aac'}]}),
       WarpScrubAudio: {monitor: {waveLayout(){ return null; }}}, _mediaInputAudioMetadata(){},

@@ -766,6 +766,8 @@
             display: flex;
             flex-direction: column;
         }
+        #comparisonView:focus { outline: none; }
+        #comparisonView:focus-visible { outline: 2px solid #a9c9ff; outline-offset: -2px; }
 
         .asset-container {
             width: 100%;
@@ -3616,10 +3618,10 @@
                 <p>Help improve WarpDiff with optional counts of visits, daily activity, reviews, tools used, scrubbing frequency, broad window-size groups, and basic failures or fallbacks. No files, filenames or media contents are sent. All features and appearances are available either way. <button type="button" id="usageDetails">What’s shared and who receives it</button></p>
                 <div class="usage-actions"><button type="button" data-usage-choice="no">No thanks</button><button type="button" data-usage-choice="yes">Share usage counts</button></div>
             </aside>
-            <div class="landing-status" id="landingStatus" role="status" aria-live="polite">Loading…</div>
+            <div class="landing-status" id="landingStatus" role="status" aria-live="polite" tabindex="-1">Loading…</div>
         </div>
 
-        <div class="comparison-view" id="comparisonView">
+        <div class="comparison-view" id="comparisonView" role="region" aria-label="Comparison" tabindex="-1">
             <div class="audio-level-toolbar" id="audioLevelAudioToolbar" role="group" aria-label="Waveform and spectrogram scale">
                 <span class="audio-level-label">Scale</span>
                 <button class="audio-level-btn active" data-audio-level="fit" aria-pressed="true" onclick="setAudioVizLevelMode('fit'); this.blur();" title="Fit: normalize each asset's waveform to its own peak and its spectrogram to its strongest energy">Fit</button>
@@ -3795,7 +3797,7 @@
                 </div>
                 <div class="volume-control">
                     <span class="volume-icon" onclick="toggleMute()" id="muteBtn" title="Click to mute/unmute"><span class="vi-icon" id="muteBtnIcon"><svg viewBox="0 0 24 24"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg></span><span class="vi-label">Muted</span></span>
-                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="100" aria-label="Volume" oninput="setVolume(this.value)">
                 </div>
                 <details class="audio-listening-control" id="audioListeningControl" hidden>
                     <summary id="audioListeningLabel">Listen: Full Mix</summary>
@@ -3969,7 +3971,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.16';
+        const APP_VERSION = '3.19.17';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.15';
@@ -4482,15 +4484,22 @@
         function _copyTimecodeRange() {
             const str = _buildTimecopString();
             const done = () => showToast('Copied: ' + str, 3000);
+            const failed = () => showToast('Could not copy timecode', 3000);
+            const finish = () => { if (_tcCopyFallback(str)) done(); else failed(); };
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(str).then(done).catch(() => { _tcCopyFallback(str); done(); });
-            } else { _tcCopyFallback(str); done(); }
+                navigator.clipboard.writeText(str).then(done).catch(finish);
+            } else finish();
         }
         function _tcCopyFallback(str) {
             const ta = document.createElement('textarea');
             ta.value = str; ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0';
-            document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+            document.body.appendChild(ta);
+            ta.select();
+            let copied = false;
+            try { copied = document.execCommand('copy') === true; }
+            catch (_) { copied = false; }
             document.body.removeChild(ta);
+            return copied;
         }
 
         // ── Timecode format panel (Shift+C) ──────────────────────────────────
@@ -6380,7 +6389,51 @@
             if (!(opts && opts.skipToast) && hasTimestampCollision) {
                 showLoadToast('Timestamps too close to sort reliably — check slot order', true, 6000);
             }
+            _focusComparisonAfterLoad();
+            requestAnimationFrame(() => _focusComparisonAfterLoad());
             return true;
+        }
+
+        // After a load or preparation, Space must start playback. The first
+        // handoff leaves Load, the file input, the header, or an empty focus.
+        // A later pass only follows the loading panel once it is hidden, so a
+        // Load button the user focuses after that stays in place.
+        let _loadFocusHandoff = null;
+        function _focusComparisonAfterLoad() {
+            if (_managedReviewActive() || document.querySelector('dialog[open]')) return;
+            const token = _loadingProgressToken;
+            const active = document.activeElement;
+            const landing = document.getElementById('landingCta');
+            const onLoading = !!(active && landing && landing.contains(active));
+            if (_loadFocusHandoff === token && !(onLoading && !active.getClientRects().length)) return;
+            const load = document.getElementById('loadBtn');
+            const file = document.getElementById('multiFileInput');
+            const header = document.querySelector('.header');
+            const unplaced = !active || active === document.body || active === document.documentElement;
+            const onLoad = active === load || active === file;
+            const onHeader = !!(active && header && header.contains(active));
+            const invisible = !!(active && active !== document.body && !active.getClientRects().length);
+            if (!unplaced && !onLoad && !onHeader && !onLoading && !invisible) {
+                _loadFocusHandoff = token;
+                return;
+            }
+            const play = document.getElementById('playPauseBtn');
+            if (play && play.getClientRects().length) {
+                play.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
+                return;
+            }
+            const view = document.getElementById('comparisonView');
+            if (view && view.classList.contains('active') && view.getClientRects().length) {
+                view.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
+                return;
+            }
+            const status = document.getElementById('landingStatus');
+            if (status && status.getClientRects().length && active !== status) {
+                status.focus({ preventScroll: true });
+                _loadFocusHandoff = token;
+            }
         }
 
         // ── Audio Visualization ──────────────────────────────────────────
@@ -6656,7 +6709,9 @@
             const needsPreparation = !!_ffmpegCommands[slot];
             const trackIssue = _audioTrackIssues[slot];
             const noDataMessage = document.getElementById('audioNoDataMsg');
-            if (noDataMessage) noDataMessage.textContent = trackIssue ? 'Prepare a file with one audio track' : needsPreparation ? 'Audio needs external preparation' : 'No audio for this asset';
+            if (noDataMessage) noDataMessage.textContent = _audioReadRetry[slot]
+                ? 'Could not read audio. Open the waveform again to retry.'
+                : trackIssue ? 'Prepare a file with one audio track' : needsPreparation ? 'Audio needs external preparation' : 'No audio for this asset';
             if (panel) panel.classList.toggle('no-audio-data', !slotHasAudio && (anyHasAudio || needsPreparation || !!trackIssue));
             drawWaveform(slot);
             drawSpectrogram(slot);
@@ -6698,7 +6753,7 @@
             if (_noAudioSlots.has(slot)) return;
             _noAudioSlots.add(slot);
             console.log('[audio]', slot, ': no audio track detected');
-            showToast(slotLabel(slot) + ': no audio track', false, 3500);
+            showToast(slotLabel(slot) + ': no audio track', 3500);
             // Redraw canvas placeholder if the W panel is open
             requestAnimationFrame(() => _drawDecodingPlaceholder(slot));
         }
@@ -6957,15 +7012,22 @@
             if (header) obs.observe(header);
         }
 
-        // Lazy audio viz decode — only triggered when user opens waveform panel
+        // Lazy audio viz decode — only triggered when user opens waveform panel.
+        // A failed file read sets _audioReadRetry so this owner can try that slot
+        // again without restarting a decode that is already in flight.
         let _audioVizDecodeStarted = false;
+        let _audioReadRetry = Object.create(null);
         function _ensureAudioVizDecoded() {
-            if (_audioVizDecodeStarted) return;
-            _audioVizDecodeStarted = true;
+            const slots = [];
             for (const s of assetOrder) {
-                if (audioFileBuffers[s] && !waveformData[s]) {
-                    decodeAndComputeAudioViz(s, audioFileBuffers[s]);
-                }
+                if (!(audioFileBuffers[s] && !waveformData[s])) continue;
+                if (_audioVizDecodeStarted && !_audioReadRetry[s]) continue;
+                slots.push(s);
+            }
+            _audioVizDecodeStarted = true;
+            for (const s of slots) {
+                delete _audioReadRetry[s];
+                decodeAndComputeAudioViz(s, audioFileBuffers[s]);
             }
         }
 
@@ -7291,7 +7353,7 @@
             ctx.font = `${Math.round(13 * dpr)}px sans-serif`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            const label = _audioTrackIssues[slot] ? 'Prepare a file with one audio track' : _ffmpegCommands[slot] ? 'Prepare audio externally' : _noAudioSlots.has(slot) ? 'No audio track' : 'Decoding audio\u2026';
+            const label = _audioReadRetry[slot] ? 'Could not read audio' : _audioTrackIssues[slot] ? 'Prepare a file with one audio track' : _ffmpegCommands[slot] ? 'Prepare audio externally' : _noAudioSlots.has(slot) ? 'No audio track' : 'Decoding audio\u2026';
             ctx.fillText(label, canvas.width / 2, canvas.height / 2);
         }
 
@@ -8697,6 +8759,7 @@
             const { layer, mediaContainer } = prepareLayer(slot);
 
             const img = document.createElement('img');
+            img.alt = file.name || slotLabel(slot);
             img.addEventListener('load', async function() {
                 try {
                     await img.decode();
@@ -11085,6 +11148,7 @@
             document.getElementById('ffmpegPanelBody')?.replaceChildren();
             _audioMaxDuration = 0;
             _audioVizDecodeStarted = false;
+            _audioReadRetry = Object.create(null);
             // audioVizVisible persists across loads (saved in localStorage)
             magnifierEnabled = false;
             // Clean up magnifier clone video elements — they are inserted into the DOM and
@@ -13008,6 +13072,7 @@
                 function startFadeIn() {
                     if (activationGeneration !== _viewLoadGeneration) return;
                     hideLoading();
+                    _focusComparisonAfterLoad();
                     // Apply the persisted global mute to the freshly loaded media
                     // (and refresh the button) — a muted user stays muted on load.
                     _applyMuteState();
@@ -13099,6 +13164,7 @@
                 } else {
                     vcEl.classList.add('images-only');
                 }
+                _focusComparisonAfterLoad();
 
                 // Restore persisted analysis panels (deferred to avoid blocking view activation)
                 setTimeout(() => {
@@ -13659,6 +13725,29 @@
             }
         }, true); // capture phase to intercept before normal keydown
 
+        // Editable fields, menus, slider keys, and button activation keep their
+        // keys. Letter shortcuts still run while a button or slider is focused.
+        function _shortcutTargetOwnsKey(event) {
+            const target = event.target;
+            if (!target || target.nodeType !== 1) return false;
+            if (target.isContentEditable) return true;
+            const field = target.closest('input, textarea, select, button');
+            if (!field) return false;
+            if (field.matches('textarea, select')) return true;
+            if (field.matches('button')) return event.key === 'Enter' || event.key === ' ';
+            const type = (field.getAttribute('type') || 'text').toLowerCase();
+            if (type === 'button' || type === 'submit' || type === 'reset' || type === 'file') {
+                return event.key === 'Enter' || event.key === ' ';
+            }
+            if (type === 'checkbox' || type === 'radio') return event.key === ' ' || event.key === 'Enter';
+            if (type === 'range') {
+                return event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'ArrowUp'
+                    || event.key === 'ArrowDown' || event.key === 'Home' || event.key === 'End'
+                    || event.key === 'PageUp' || event.key === 'PageDown';
+            }
+            return type !== 'hidden';
+        }
+
         // Keyboard navigation (lookup-based dispatcher)
         document.addEventListener('keydown', (e) => {
             if (document.getElementById('mediaStatusDialog').open || document.getElementById('preparedImportDialog').open || document.getElementById('localPreparationDialog').open) return;
@@ -13686,6 +13775,8 @@
             // Skip when reassigning a key
             if (_reassigningActionId) return;
             if (e.target.closest?.('#appearanceButton, #appearancePanel, #usageInvitation')) return;
+            // Escape still dismisses panels. Every other key stays with the focused control.
+            if (e.key !== 'Escape' && _shortcutTargetOwnsKey(e)) return;
 
             // Escape: dismiss magnifier, close panels, or double-tap to clear loop markers
             if (e.key === 'Escape') {
@@ -14338,6 +14429,7 @@
             </table>
 
             <h2>Keyboard Shortcuts Reference</h2>
+            <p>Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison.</p>
             <table>
                 <tr><th>Key</th><th>Action</th></tr>
                 <tr><td><kbd>L</kbd></td><td>Load files</td></tr>
@@ -14415,7 +14507,7 @@
             <p>Damaged settings recover individually, preserving valid preferences and shortcut entries. If browser storage is blocked or full, ordinary changes still work for this visit and a notice explains failed saves. Reloading may restore an older value or the default. Unreadable usage permission keeps sharing off; privacy and info-bar saves retain their own warnings.</p>
 
             <h2>Info Bar</h2>
-            <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Recognized MP4 and WebM files need one readable audio track for decoded analysis and scrub audio. Multiple or unverifiable tracks keep browser-managed playback with a preparation notice; export the desired track and reload to enable those tools. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
+            <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Recognized MP4 and WebM files need one readable audio track for decoded analysis and scrub audio. Multiple or unverifiable tracks keep browser-managed playback with a preparation notice; export the desired track and reload to enable those tools. If the audio file cannot be read, playback continues and a notice stays up; open the waveform again to try the read once more. That temporary read problem does not ask for preparation. Another file that still needs preparation stays listed. Audio-bearing assets also show integrated LUFS, LRA, and true peak; audio files show sample rate, channels, bit depth/codec, and file size.</p>
             <p>Open <strong>Customize info bar</strong> (the sliders icon in the header) and choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in <strong>Left aligned</strong> and <strong>Right aligned</strong> sections: drag their <strong>⠿ handles</strong> to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.</p>
             <p>Add <strong>spacers</strong> after the selected row in the same section to group related items. Move them between sections, hide or remove them, and set their width from 12–48 pixels. Empty edge groups and adjacent gaps collapse within each section. Narrow bars compress gaps, preserve right-edge fields first, then put remaining selected fields into <strong>More</strong> (<strong>⋯</strong> in compact Grid bars). Portrait bars can extend within their own cells to keep controls reachable; customized Stack information moves to its own header row when space is tight. Hidden fields stay excluded even after audio analysis arrives. Multiple source tracks are numbered within each selected field. A red ! retains the above −9 LUFS warning with custom colors. Slot controls, the image wipe pair chooser and managed host display retain their existing behavior. Escape closes More or the editor and returns focus.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>

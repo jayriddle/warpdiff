@@ -41,7 +41,8 @@ function _normalizePreparationInput(file) {
 function _localPreparationAccept(assignments, preparedFiles = null) {
     if (_managedReviewActive()) return;
     _localPreparationBatch = {epoch:_localPreparationEpoch,token:_loadingProgressToken,
-        files:assignments.map(({slot,file}) => ({slot,file,prepared:!!preparedFiles?.has(file)})),issues:new Set()};
+        files:assignments.map(({slot,file}) => ({slot,file,prepared:!!preparedFiles?.has(file)})),
+        issues:new Set(), persistentIssues:new Set(), transientReads:new Set()};
 }
 function _localPreparationClear() {
     _localPreparationAction?.controller.abort();
@@ -57,11 +58,35 @@ function _localPreparationIssue(slot, token) {
     const item = batch?.files.find(item => item.slot === slot);
     if (_managedReviewActive() || !item || token !== batch.token || token !== _loadingProgressToken ||
         !/^(video|audio)\//.test(item.file.type)) return false;
+    if (!batch.persistentIssues) batch.persistentIssues = new Set();
+    batch.persistentIssues.add(slot);
     const first = !batch.issues.has(slot); batch.issues.add(slot);
     const actionable = batch.files.some(entry => batch.issues.has(entry.slot) && !entry.prepared);
     if (item.prepared && !actionable) _localPreparationMessage = 'This review copy could not provide all audio tools. Keep the original; another conversion is not started automatically.';
     _renderLocalPreparation();
     if (first) showLoadToast('Some tools are unavailable for ' + item.file.name + '. Use Preparation to see your options.', false, 6000);
+    return true;
+}
+// A file that could not be read yet is not a codec or container problem.
+// Record it apart from preparation issues so a later successful read can drop
+// only that cause. Another slot's real preparation issue stays listed.
+function _localPreparationTransientRead(slot, token) {
+    const batch = _localPreparationBatch;
+    const item = batch?.files.find(entry => entry.slot === slot);
+    if (_managedReviewActive() || !item || token !== batch.token || token !== _loadingProgressToken ||
+        !/^(video|audio)\//.test(item.file.type)) return false;
+    if (!batch.transientReads) batch.transientReads = new Set();
+    batch.transientReads.add(slot);
+    return true;
+}
+function _localPreparationResolveTransientRead(slot, token) {
+    const batch = _localPreparationBatch;
+    const item = batch?.files.find(entry => entry.slot === slot);
+    if (_managedReviewActive() || !batch || !item || token !== batch.token || token !== _loadingProgressToken) return false;
+    if (!batch.transientReads || !batch.transientReads.has(slot)) return false;
+    batch.transientReads.delete(slot);
+    if (!batch.persistentIssues || !batch.persistentIssues.has(slot)) batch.issues.delete(slot);
+    _renderLocalPreparation();
     return true;
 }
 function _showLocalPreparation(opener = null) {
@@ -296,7 +321,7 @@ function _restoreLocalPreparationComparison() {
     const recovery = _localPreparationRecovery;
     if (!recovery || recovery.token !== _loadingProgressToken || _managedReviewActive()) return;
     handleMultipleFiles(recovery.files,{preserveOrder:true,preparedFiles:recovery.preparedFiles});
-    document.getElementById('loadBtn').focus({preventScroll:true});
+    _focusComparisonAfterLoad();
 }
 function _setupLocalPreparation() {
     _mediaPreparationProviders.register({id:'local-companion',version:1,mode:'files',
