@@ -366,7 +366,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 
 ## Keyboard Shortcuts Reference
 
-All hotkeys are customizable — press **H** to open the shortcuts panel, then click any key to rebind it. Custom bindings persist across sessions.
+All hotkeys are customizable — press **H** to open the shortcuts panel, then click any key to rebind it. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
 
 ### Files
 | Key | Action |
@@ -468,13 +468,13 @@ By default, each asset displays an info bar (Grid mode) or a header strip (Stack
 - **Duration** — video/audio length with a stopwatch icon; `—` for images
 - **Resolution** and **aspect ratio** — for images and video (e.g. `1920×1080`, `16:9`)
 - **Source audio** — for videos: codec, verified layout or channel count, and sample rate when readable (e.g. `FLAC · 7.1 · 48 kHz`). Hover over this field in Grid or the header strip in Stack for full details. Multiple audio tracks are counted and listed; the browser chooses the playback track. `Audio: Unknown` means the container metadata could not be read, while `No audio track` means the container declares none. Listening presets and stereo output do not change this label. A transcoded video reports the newly loaded audio format.
-- **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple)
+- **EBU R128 metrics** — for any asset with audio: **LUFS** (integrated loudness, green), **LRA** (loudness range in LU, blue), **TP** (true peak in dBTP, purple). Loudness and true peak follow the broadcast meter. A recognized 5.1 or 7.1 layout counts surround channels a little more and leaves the bass-effects channel out of the loudness number. Mono and stereo are measured directly. If the layout is not recognized, every channel is included equally and the loudness number is marked as approximate
 - **Zoom** — current scale percentage, right-aligned
 - For audio files: sample rate, channels, bit depth/codec, file size
 
 Field order and color hierarchy are consistent between Grid info bars and the Stack header strip.
 
-For recognized MP4 and WebM files, decoded analysis and scrub audio require one readable audio track. If a file has multiple tracks, WarpDiff lists them and leaves playback to the browser, but withholds waveform, spectrogram, loudness metrics, dialogue/center monitoring and scrub audio. Export the desired audio track with the picture (or as a single-track audio file) in your external media tool, then reload that copy. A persistent notice also appears if the track inventory cannot be verified. Clearing or loading a prepared copy retires the notice. Managed audio-only requests require decoded analysis and fail explicitly when this condition is unmet; video requests may become ready after picture verification with decoded audio tools unavailable.
+For recognized MP4 and WebM files, decoded analysis and scrub audio require one readable audio track. If a file has multiple tracks, WarpDiff lists them and leaves playback to the browser, but withholds waveform, spectrogram, loudness metrics, dialogue/center monitoring and scrub audio. If the audio file cannot be read, playback continues and a notice stays up; open the waveform again to try the read once more. That temporary read problem does not ask for preparation. Another file that still needs preparation stays listed. Export the desired audio track with the picture (or as a single-track audio file) in your external media tool, then reload that copy. A persistent notice also appears if the track inventory cannot be verified. Clearing or loading a prepared copy retires the notice. Managed audio-only requests require decoded analysis and fail explicitly when this condition is unmet; video requests may become ready after picture verification with decoded audio tools unavailable.
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser.
 

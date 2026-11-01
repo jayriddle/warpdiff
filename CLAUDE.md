@@ -122,7 +122,7 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 - MP4 edit-list placement is preserved separately in `_audioTimelineStarts`: `bufferTime = videoTime − timelineStart`. Times before the first sample and after the buffer end are silent rather than clamped to an edge sample. This mapping is shared by Chromium and Safari scrub preview; native `<video>` audio remains untouched. Chromium's Opus Web Audio replacement also uses it and schedules a future source start when playback begins inside leading silence. A seek or playback-rate change during that pending interval must cancel and reschedule the source: unlike the ordinary 15 ms fade window, a long timeline-silence wait changes when the video will reach `timelineStart`.
 
 ### Audio & video metrics
-- EBU R128 / BS.1770-4 in `computeAudioMetrics(audioBuffer)` (`js/audio-viz.js`). K-weighting via two cascaded biquad IIR stages (high-shelf + RLB, coefficients computed analytically per fs via Audio EQ Cookbook). 400 ms gated blocks → integrated LUFS; 3 s short-term blocks → LRA; 4× Catmull-Rom cubic interpolation for true peak per channel.
+- EBU R128 / ITU-R BS.1770 in `computeAudioMetrics(audioBuffer, channelLayout)` (`js/audio-viz.js`). K-weighting is the published pre-filter plus RLB high-pass: 48 kHz uses the Recommendation's coefficients, and other rates use the same bilinear design. Verified 5.1/7.1 layouts are passed through both analysis paths; surrounds are weighted by 1.41 and LFE is omitted. Mono and stereo weight each channel at 1. An unverified multichannel layout sums every channel equally, because the positions are unknown, and the info bar marks that LUFS and LRA reading as approximate. 400 ms gated blocks → integrated LUFS; 3 s short-term blocks → LRA. True peak is the BS.1770 Annex 2 49-tap Hann-windowed sinc (4× below 96 kHz, 2× below 192 kHz, sample peak from 192 kHz).
 - Info bar shows `LUFS · LRA · TP`. CSS `:empty { display: none }` auto-hides absent metrics.
 - LUFS envelope (E key cycles modes): Waveform / Waveform+LUFS / LUFS only. Short-term LUFS drawn as stepped chart, reference lines at −14 (streaming) / −16 (podcast) / −23 (broadcast).
 
@@ -174,7 +174,7 @@ Two layers:
 - `playwright.config.ts` declares `globalSetup: './tests/global-setup.ts'`, which auto-generates the gitignored MP4 / WebM / WAV / MP3 fixtures via `tests/fixtures/generate.sh` if any sentinel (`tests/fixtures/landscape_a.mp4`, `vorbis_a.webm`, or `vorbis_long.webm`) is missing. Requires `ffmpeg` on PATH; setup errors out with an install hint if it isn't.
 - `tests/fixtures/*.{mp4,webm,wav,mp3}` are gitignored (deterministic outputs of the generator script — don't commit them).
 - Tests use the `__testAPI` global on `window` to inspect internal state (`zoomLevel`, `fitZoom`, `isGridMode`, `_loopInPoint`, etc.) — add to `__testAPI` when introducing testable state.
-- Server: `./start.sh` runs `npx serve -l 8080 .` from project root; Playwright auto-detects and reuses it (`reuseExistingServer: true`).
+- Server: `./start.sh` runs `node scripts/dev-server.mjs` from project root (loopback port 8080, public app files plus `tests/fixtures`; the browser opens only after that port is serving). Playwright uses the same server and reuses it locally (`reuseExistingServer: true`).
 
 ## Additional Resources
 

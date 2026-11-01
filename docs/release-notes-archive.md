@@ -2,10 +2,23 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.17
+## v3.19.19
 
 - WebM videos keep their full soundtrack, including files recorded in a browser.
 - This maintenance update retains the previous What’s New announcement.
+
+## v3.19.18
+
+- Loudness readings are now more accurate. Low notes and the highest peaks between samples follow the broadcast meter.
+- A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of the loudness number. If the layout is not recognized, every channel is included and the loudness number is marked as approximate.
+
+## v3.19.17
+
+- Typing in a text field, choosing from a menu, and using the volume slider no longer sets off keyboard shortcuts. Space and Enter still activate a highlighted button. After files finish loading, Space starts playback.
+- If a soundtrack cannot be read, playback continues and a notice explains that opening the waveform again tries the read once more. A temporary read problem does not ask you to prepare a copy. Other files that still need preparation stay listed.
+- Waveforms include the very end of the sound, including a short peak that used to disappear.
+- Copying a timecode says so when the copy did not succeed. A video with no audio track keeps its notice on screen long enough to read.
+- The volume slider and loaded pictures have names that assistive tools can read.
 
 ## v3.19.16
 

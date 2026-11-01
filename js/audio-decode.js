@@ -112,7 +112,7 @@ function _isWebMAudioContainer(bytes) {
 }
 
 let _audioTrackIssues = Object.create(null);
-function _setAudioTrackIssue(slot, message) {
+function _setAudioTrackIssue(slot, message, reportPreparation = true) {
     if (slot === null) _audioTrackIssues = Object.create(null);
     else if (message) _audioTrackIssues[slot] = message;
     else delete _audioTrackIssues[slot];
@@ -122,7 +122,9 @@ function _setAudioTrackIssue(slot, message) {
         .map(s => slotLabel(s) + ' — ' + _audioTrackIssues[s]);
     alert.textContent = messages.join('\n');
     alert.hidden = messages.length === 0;
-    if (message) _localPreparationIssue(slot, _loadingProgressToken);
+    // reportPreparation is false for a transient file-read failure. That is not
+    // a codec or container problem and must not stay eligible for conversion.
+    if (message && reportPreparation) _localPreparationIssue(slot, _loadingProgressToken);
 }
 
 async function decodeAndComputeAudioViz(slot, source) {
@@ -138,11 +140,26 @@ async function decodeAndComputeAudioViz(slot, source) {
     // Each decode is authoritative about Opus-pending — clear any stale flag so a
     // previous file's pending state can't spuriously activate sync on this one.
     delete _opusSyncPending[slot];
-    // Read file once upfront — avoid re-reading in the catch path
-    const arrayBuffer = source instanceof File
-        ? await source.arrayBuffer()
-        : source;
+    // Read the file once. A rejected File.arrayBuffer() used to escape this
+    // function, leave the one-shot decode flag set, and block every retry.
+    // Only the current generation may publish that failure.
+    let arrayBuffer;
+    try {
+        arrayBuffer = source instanceof File ? await source.arrayBuffer() : source;
+    } catch (error) {
+        if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+        console.warn('[audio]', slot, ': could not read audio file', error);
+        const message = 'Could not read the audio file. Playback continues. Open the waveform again to try again.';
+        _audioReadRetry[slot] = true;
+        _localPreparationTransientRead(slot, loadingToken);
+        _setAudioTrackIssue(slot, message, false);
+        _videoScrubStatus[slot] = {unavailable:true, message};
+        updateAudioVisForSlot(slot);
+        if (_noVideoMode) _drawDecodingPlaceholder(slot);
+        return;
+    }
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+    _localPreparationResolveTransientRead(slot, loadingToken);
 
     // Only the uniquely selected container track can identify Opus. Free-form
     // tags and compressed packet bytes cannot authorize replacement playback.
@@ -311,7 +328,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // Keep the original-analysis aggregates for both the small panel and N view.
     // The latter must never recompute its graphs from the stereo listening copy.
     const buckets = Math.max(600, Math.min(Math.ceil(audioBuffer.duration * 1000), Math.round(window.innerWidth * (window.devicePixelRatio || 1))));
-    const analysis = await _computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen));
+    const analysis = await _computeAudioAnalysis(audioBuffer, buckets, () => _videoAudioDecodeIsCurrent(slot, gen), channelLayout);
     if (!analysis || !_videoAudioDecodeIsCurrent(slot, gen)) return;
     waveformData[slot] = analysis.waveform;
     spectrogramData[slot] = analysis.spectrogram;
@@ -627,11 +644,12 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         const dpr = window.devicePixelRatio || 1;
         const maxPx = Math.round(window.innerWidth * dpr);
         const numBuckets = Math.min(Math.ceil(audioBuffer.duration * 1000), maxPx);
-        const analysis = await _computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen);
+        const channelLayout = WarpScrubAudio.monitor.waveLayout(bytes);
+        const analysis = await _computeAudioAnalysis(audioBuffer, numBuckets, () => _audioDecodeGen[slot] === gen, channelLayout);
         if (!analysis || _audioDecodeGen[slot] !== gen) return;
         const { waveform, spectrogram, metrics: _m } = analysis;
         audioMetrics[slot] = _m;
-        await _prepareAudioMonitorSlot(slot, audioBuffer, WarpScrubAudio.monitor.waveLayout(new Uint8Array(arrayBuffer)), () => _audioDecodeGen[slot] === gen);
+        await _prepareAudioMonitorSlot(slot, audioBuffer, channelLayout, () => _audioDecodeGen[slot] === gen);
         if (_audioDecodeGen[slot] !== gen) return;
         _audioSlotVizData[slot] = { waveform, spectrogram, audioBuffer, lufsEnvelope: _m ? _m.stBlks : null };
         _updateMetricSpans(slot);

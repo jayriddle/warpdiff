@@ -33,6 +33,85 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
+test('unverified loudness is marked approximate and a verified reading is not', async ({ page }) => {
+  await page.setViewportSize({width:420,height:760});
+  await load(page, ['stereo.wav']);
+  await page.waitForFunction(() => {
+    const w = window as any;
+    const slot = w.getMediaSlot(document.querySelector('.asset-layer audio'));
+    return !!slot && !!w.__testAPI.audioMetrics[slot];
+  });
+  await open(page, 'audio');
+  await page.locator('#infoEditorPreset').selectOption('all');
+  await close(page);
+  const published = await page.evaluate(() => {
+    const w = window as any;
+    const rate = 48000, n = rate * 4, amp = 10 ** (-20 / 20);
+    const buffer = new AudioBuffer({length:n, sampleRate:rate, numberOfChannels:6});
+    const plane = buffer.getChannelData(3);
+    for (let i = 0; i < n; i++) plane[i] = amp * Math.sin(2 * Math.PI * 1000 * i / rate);
+    const slot = w.getMediaSlot(document.querySelector('.asset-layer audio'));
+    const unverified = w.computeAudioMetrics(buffer);
+    const withheld = w.computeAudioMetrics(buffer, '5.1');
+    const front = buffer.getChannelData(3);
+    front.fill(0);
+    const left = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) left[i] = amp * Math.sin(2 * Math.PI * 1000 * i / rate);
+    const verified = w.computeAudioMetrics(buffer, '5.1');
+    w.__testAPI.audioMetrics[slot] = unverified;
+    w._updateMetricSpans(slot);
+    const layer = w.getLayer(slot);
+    const lufs = layer.querySelector('.asset-lufs'), lra = layer.querySelector('.asset-lra');
+    return {
+      unverifiedLUFS:unverified.integratedLUFS, layout:unverified.loudnessLayout,
+      withheld:withheld.integratedLUFS, verifiedLUFS:verified.integratedLUFS,
+      text:lufs.textContent, title:lufs.title, label:lufs.getAttribute('aria-label'),
+      lraText:lra.textContent, lraTitle:lra.title, lraLabel:lra.getAttribute('aria-label'),
+      tp:layer.querySelector('.asset-tp').textContent,
+    };
+  });
+  expect(published.layout).toBe('unverified');
+  expect(published.unverifiedLUFS).toBe('-23.0');
+  expect(published.withheld).toBeNull();
+  expect(published.verifiedLUFS).toBe('-23.0');
+  expect(published.text).toBe('-23.0 LUFS (approx.)');
+  expect(published.lraText).toContain('(approx.)');
+  expect(published.title).toContain('Approximate loudness');
+  expect(published.title).toContain('speaker arrangement could not be checked');
+  expect(published.label).toBe(published.title);
+  expect(published.lraTitle).toContain('Approximate loudness range');
+  expect(published.lraLabel).toBe(published.lraTitle);
+  expect(published.tp).not.toContain('approx');
+  const more = page.locator('.asset-info-bar .info-more');
+  await expect(more).toBeVisible();
+  await more.click();
+  await expect(page.locator('#infoOverflowPanel')).toBeVisible();
+  const overflowLufs = page.locator('#infoOverflowValues .info-field-lufs');
+  const overflowLra = page.locator('#infoOverflowValues .info-field-lra');
+  await expect(overflowLufs).toHaveText('-23.0 LUFS (approx.)');
+  await expect(overflowLufs).toHaveAttribute('aria-label', published.title);
+  await expect(overflowLra).toContainText('(approx.)');
+  await expect(overflowLra).toHaveAttribute('aria-label', published.lraTitle);
+  // The same tone in the left channel of a recognized 5.1 mix is an ordinary reading.
+  await page.evaluate(() => {
+    const w = window as any;
+    const rate = 48000, n = rate * 4, amp = 10 ** (-20 / 20);
+    const buffer = new AudioBuffer({length:n, sampleRate:rate, numberOfChannels:6});
+    const left = buffer.getChannelData(0);
+    for (let i = 0; i < n; i++) left[i] = amp * Math.sin(2 * Math.PI * 1000 * i / rate);
+    const slot = w.getMediaSlot(document.querySelector('.asset-layer audio'));
+    w.__testAPI.audioMetrics[slot] = w.computeAudioMetrics(buffer, '5.1');
+    w._updateMetricSpans(slot);
+  });
+  const plain = page.locator('.asset-layer .asset-lufs');
+  await expect(plain).toHaveText('-23.0 LUFS');
+  await expect(plain).not.toHaveAttribute('title', /.+/);
+  await expect(plain).not.toHaveAttribute('aria-label', /.+/);
+  await expect(page.locator('#infoOverflowValues .info-field-lufs')).toHaveText('-23.0 LUFS');
+  await expect(page.locator('#infoOverflowValues .info-field-lufs')).not.toHaveAttribute('aria-label', /Approximate/);
+  await expect(page.locator('#infoOverflowValues .info-field-lra')).not.toContainText('approx');
+});
+
 test('default stays unchanged; presets keep their name and Reset restores the original bars', async ({ page }) => {
   expect(await page.evaluate(() => (window as any).__testAPI.infoBarProfiles.video.preset)).toBe('default');
   await load(page, ['landscape_a.mp4','landscape_b.mp4']);

@@ -139,7 +139,7 @@ Each video preview and the selected Continuous stream have a 64 MiB PCM limit. O
 
 ## Audio visualization
 
-Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
+Recognized MP4 and WebM inputs require one readable audio track for decoded visualization, metrics and scrub audio. Multiple tracks remain listed in source metadata, but these tools are withheld while native playback stays browser-managed. A persistent notice explains how to prepare a single-track file. If the audio file cannot be read, playback continues and the notice stays up; open the waveform again to try the read once more. That temporary read problem does not ask for preparation. Another file that still needs preparation stays listed. The MP4 parser rejects malformed packet maps and bounds packet extraction before copying audio data. WebM verifies a unique track inventory before copying packets.
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser.
 
@@ -153,7 +153,7 @@ Scrub previews retain the soundtrack's placement on the video timeline, includin
 
 If a video container does not expose an audio start timestamp, WarpDiff shows a persistent warning naming the affected slot. Decoded-audio views and tools keep their fallback timeline, native playback is not shifted, and the warning asks you to verify A/V sync. A confirmed start at 0 does not warn.
 
-5.1 and 7.1 playback and scrub preview use a stereo listening mix. Center dialogue reaches both ears, surrounds retain left/right placement, and LFE is omitted from the mix. This includes eight-channel FLAC video; analysis keeps the original decoded channels and audio start timing.
+5.1 and 7.1 playback and scrub preview use a stereo listening mix. Center dialogue reaches both ears, surrounds retain left/right placement, and LFE is omitted from the mix. This includes eight-channel FLAC video; analysis keeps the original decoded channels and audio start timing. Loudness uses that verified layout: surround channels count a little more and the bass-effects channel is left out of the number. If the layout is not verified, every channel is included equally and the loudness number is marked as approximate.
 
 **Dialogue listening:** the **Listen: Full Mix** control beside volume offers **Full Mix**, **Dialogue Focus** and **Center Only** when a discrete center is verified from codec/container metadata. Dialogue Focus starts with center unchanged and other channels reduced by 9 dB. Center level is adjustable from 0 to +12 dB; other channels range from unchanged to muted. Changes apply to native playback, replacement audio, Continuous, and short previews. Original analysis and source timing remain unchanged. Source peak bounds reserve headroom for boosted mixes; this is not automatic loudness normalization. Full Mix restores the standard mix and new comparisons reset to it. Stereo/custom or unknown layouts keep Full Mix available with an explanation. MP4 Opus decoder headers are converted to OpusHead so multistream 5.1/7.1 retains every decoded channel. Center Only can omit voices placed elsewhere. Preset choices and completed mouse slider adjustments return focus to Play/Pause, keeping Space available immediately. Escape closes the panel and returns to playback; keyboard slider arrows remain local to the level control.
 
@@ -161,13 +161,13 @@ Verified surround video previews retain full stereo plus a separate mono center 
 
 ## Audio file comparison
 
-Load 1–4 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as aligned vertical slots in Grid mode. Four-input labels are Audio-1 through Audio-4. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), file size, and EBU R128 metrics (integrated LUFS, LRA, true peak). Press `E` to cycle between waveform, waveform + LUFS envelope, and LUFS envelope only.
+Load 1–4 audio files (MP3, WAV, FLAC, AAC, OGG, etc.) to compare them as aligned vertical slots in Grid mode. Four-input labels are Audio-1 through Audio-4. Each slot shows a waveform (top) and spectrogram (bottom) with frequency labels. Info bars display sample rate, channels, bit depth (or codec name for lossy formats), file size, and EBU R128 metrics (integrated LUFS, LRA, true peak). A recognized surround layout counts the surround channels a little more and leaves the bass-effects channel out of loudness; if the layout is not recognized, every channel is included and the loudness number is marked as approximate. Press `E` to cycle between waveform, waveform + LUFS envelope, and LUFS envelope only.
 
 Spectrogram scale and palette controls (`Shift+W`, `P`) apply to all audio slots.
 
 ## Keyboard-driven workflow
 
-Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions when browser storage is available. Damaged saved preferences recover individually; valid shortcut entries remain usable. Ordinary settings still work for the current visit if saving fails, with a notice that they could not be saved. Unreadable usage-sharing permission keeps sharing off.
+Every action has a hotkey. Press `?` for help, `H` for the full hotkey list, `Esc` to dismiss. Hotkeys are fully customizable — click any key in the hotkeys panel to rebind it. Custom bindings persist across sessions when browser storage is available. Text fields, menus, and sliders keep the keys they use; Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Damaged saved preferences recover individually; valid shortcut entries remain usable. Ordinary settings still work for the current visit if saving fails, with a notice that they could not be saved. Unreadable usage-sharing permission keeps sharing off.
 
 ## Installable
 
