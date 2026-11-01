@@ -6562,13 +6562,17 @@
             const active = document.activeElement;
             const landing = document.getElementById('landingCta');
             const onLoading = !!(active && landing && landing.contains(active));
-            if (_loadFocusHandoff === token && !(onLoading && !active.getClientRects().length)) return;
             const load = document.getElementById('loadBtn');
             const file = document.getElementById('multiFileInput');
             const header = document.querySelector('.header');
+            const onHeader = !!(active && header && header.contains(active));
+            // Closing Help during activation can put focus back on its header
+            // button after the first handoff. Follow that, but leave a Load
+            // button the user focused after the handoff where it is.
+            const restoredHeader = onHeader && active !== load && active !== file;
+            if (_loadFocusHandoff === token && !(onLoading && !active.getClientRects().length) && !restoredHeader) return;
             const unplaced = !active || active === document.body || active === document.documentElement;
             const onLoad = active === load || active === file;
-            const onHeader = !!(active && header && header.contains(active));
             const invisible = !!(active && active !== document.body && !active.getClientRects().length);
             if (!unplaced && !onLoad && !onHeader && !onLoading && !invisible) {
                 _loadFocusHandoff = token;
@@ -14158,23 +14162,25 @@
         // Focus trap helper — keeps Tab cycling within a container
         function _trapFocus(container) {
             function handler(e) {
-                if (e.key !== 'Tab') return;
-                const focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                if (focusable.length === 0) return;
-                const first = focusable[0];
-                const last = focusable[focusable.length - 1];
-                if (e.shiftKey && document.activeElement === first) {
-                    e.preventDefault(); last.focus();
-                } else if (!e.shiftKey && document.activeElement === last) {
-                    e.preventDefault(); first.focus();
-                }
+                if (e.key !== 'Tab' || e.altKey || e.metaKey || e.ctrlKey) return;
+                // Move focus ourselves. macOS WebKit does not tab to buttons, so
+                // a browser-native Tab can leave the window before the wrap.
+                const focusable = [...container.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+                    .filter(el => !el.disabled && !el.closest('[hidden]') && el.getClientRects().length);
+                if (!focusable.length) { e.preventDefault(); return; }
+                const index = focusable.indexOf(document.activeElement);
+                e.preventDefault();
+                const next = e.shiftKey
+                    ? focusable[(index <= 0 ? focusable.length : index) - 1]
+                    : focusable[index < 0 ? 0 : (index + 1) % focusable.length];
+                next.focus();
             }
-            container.addEventListener('keydown', handler);
+            document.addEventListener('keydown', handler, true);
             container._focusTrap = handler;
         }
         function _releaseFocusTrap(container) {
             if (container._focusTrap) {
-                container.removeEventListener('keydown', container._focusTrap);
+                document.removeEventListener('keydown', container._focusTrap, true);
                 delete container._focusTrap;
             }
         }
