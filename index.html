@@ -6039,7 +6039,7 @@
             const context = canvas.getContext('2d', {willReadFrequently:true});
             const deadline = performance.now() + 10000;
             const failure = 'Could not decode first video frame of ' + mediaData[slot].name;
-            let timer = null, probe = null, done = false;
+            let timer = null, probe = null, done = false, probeBlockedTicks = 0;
             function current() {
                 return loadingToken === _loadingProgressToken && _hostLoadRequest === request
                     && !request.terminal && !request.signal.aborted;
@@ -6094,14 +6094,19 @@
                         probe.src = video.src;
                         document.body.appendChild(probe);
                         try {
-                            // A rejected play is not a failed picture. WebKit can
-                            // reject the hidden probe while the comparison element
-                            // still presents a frame on a later sample. Keep polling
-                            // until that frame arrives or the deadline says it will not.
-                            probe.play().catch(() => {});
-                        } catch (_) {}
+                            // A blocked probe is a failure only when the comparison
+                            // element still has no frame after a few more samples.
+                            // WebKit can reject play() in the same turn the picture
+                            // becomes drawable; failing immediately dropped valid loads.
+                            probe.play().catch(() => { probeBlockedTicks = 1; });
+                        } catch (_) { probeBlockedTicks = 1; }
                         if (done) return;
                     }
+                }
+                if (probeBlockedTicks) {
+                    // About a second of further samples, still inside the caller's
+                    // deadline. A stub that never draws a frame still fails once.
+                    if (probeBlockedTicks++ >= 20) { finish(failure); return; }
                 }
                 if (performance.now() >= deadline) { finish(failure); return; }
                 timer = setTimeout(check, 50);
