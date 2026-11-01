@@ -113,6 +113,59 @@ test('verified surround layout is applied by the worker and the foreground path'
   expect(result.same).toBe(true);
 });
 
+test('worker and foreground agree on EBU loudness and true-peak cases', async ({page}) => {
+  const result = await page.evaluate(async () => {
+    const w = window as any;
+    const rate = 48000;
+    function sine(levelDb, seconds, freq = 1000, phase = 0) {
+      const amp = 10 ** (levelDb / 20), n = Math.round(rate * seconds), data = new Float32Array(n);
+      const fade = Math.round(0.01 * rate);
+      for (let i = 0; i < n; i++) {
+        let window = 1;
+        if (i < fade) window = 0.5 - 0.5 * Math.cos(Math.PI * i / fade);
+        else if (i >= n - fade) window = 0.5 - 0.5 * Math.cos(Math.PI * (n - 1 - i) / fade);
+        data[i] = amp * window * Math.sin(2 * Math.PI * freq * i / rate + phase);
+      }
+      return data;
+    }
+    function buffer(planes) {
+      return new AudioBuffer({length: planes[0].length, sampleRate: rate, numberOfChannels: planes.length});
+    }
+    async function compare(planes, layout) {
+      const audio = buffer(planes);
+      for (let c = 0; c < planes.length; c++) audio.copyToChannel(planes[c], c);
+      const worker = await w._computeAudioAnalysis(audio, 64, () => true, layout);
+      const direct = w.computeAudioMetrics(audio, layout);
+      return {worker: worker.metrics.integratedLUFS, direct: direct.integratedLUFS,
+        workerTp: worker.metrics.truePeakDBTP, directTp: direct.truePeakDBTP,
+        layout: worker.metrics.loudnessLayout};
+    }
+    const tone = sine(-23, 4);
+    const peak = sine(20 * Math.log10(0.5), 0.5, rate / 4, Math.PI / 4);
+    const n = rate * 4;
+    const channel = db => {
+      const data = new Float32Array(n);
+      if (db === null) return data;
+      const amp = 10 ** (db / 20);
+      for (let i = 0; i < n; i++) data[i] = amp * Math.sin(2 * Math.PI * 1000 * i / rate);
+      return data;
+    };
+    return {
+      stereo: await compare([tone, tone], null),
+      peak: await compare([peak, peak], null),
+      surround: await compare([channel(-28), channel(-28), channel(-24), channel(null), channel(-30), channel(-30)], '5.1'),
+    };
+  });
+  expect(result.stereo.worker).toBe('-23.0');
+  expect(result.stereo.direct).toBe('-23.0');
+  expect(result.peak.workerTp).toBe(result.peak.directTp);
+  expect(Number(result.peak.workerTp)).toBeGreaterThanOrEqual(-6.4);
+  expect(Number(result.peak.workerTp)).toBeLessThanOrEqual(-5.8);
+  expect(result.surround.worker).toBe('-23.0');
+  expect(result.surround.direct).toBe('-23.0');
+  expect(result.surround.layout).toBe('5.1');
+});
+
 test('blocked workers retain the original analysis compatibility path', async ({page,context}) => {
   await context.route('**/js/audio-analysis-worker.js', route=>route.abort());
   const result=await page.evaluate(async()=>{
