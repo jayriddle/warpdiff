@@ -10,7 +10,7 @@
     "test:fixtures": "bash tests/fixtures/generate.sh",
     "test:ci": "playwright test --config=playwright.ci.config.ts --project=chromium --workers=1 --retries=0",
     "test:webkit": "playwright test --config=playwright.webkit.config.ts",
-    "test:infra": "node --test tests/release-infrastructure.test.mjs",
+    "test:infra": "node --test tests/release-infrastructure.test.mjs tests/dev-server.test.mjs",
     "test:mutations": "node tools/investigations/opus-timing/mutation-check.mjs",
     "test:color": "node tools/investigations/sdr-color/run.mjs"
   },
@@ -29,7 +29,6 @@
   "homepage": "https://github.com/jayriddle/warpdiff#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "serve": "^14.2.5",
     "yaml": "2.9.1"
   }
 }

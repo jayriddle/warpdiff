@@ -136,7 +136,7 @@ function _loadPreparedImport() {
             status.textContent = 'These files were not loaded. Your current comparison is unchanged.';
         }
         status.focus({preventScroll:true});
-    } else if (accepted) document.getElementById('loadBtn').focus({preventScroll:true});
+    } else if (accepted) _focusComparisonAfterLoad();
 }
 function _loadOrdinaryMediaFromHelp() {
     if (_managedReviewActive()) return;

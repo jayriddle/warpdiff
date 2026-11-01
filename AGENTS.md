@@ -187,7 +187,7 @@ Two layers:
 - `npm run test:infra` checks workflow failure gates, complete/disjoint browser reports, and the public-asset staging boundary. Run it for changes to testing, packaging or release infrastructure. CI retains the protected check names `Chromium and ownership` and `WebKit preparation workflow`; do not weaken or rename them accidentally.
 - `playwright.ci.config.ts` keeps one worker and zero retries per machine. Hosted Chromium and WebKit split files in `scripts/ci-shards.mjs` (three runners each); the protected names `Chromium and ownership` and `WebKit preparation workflow` are the aggregate jobs. All cases keep fresh pages; shared fixtures are generated before testing. Do not increase media-test concurrency on one machine as a substitute for separate runners.
 - `output/` and `blob-report/` contain generated local evidence and must stay ignored and unpublished. Commit compact verification summaries to `docs/`; reusable investigation tooling belongs in `tools/investigations/`.
-- Server: `./start.sh` runs `npx serve -l 8080 .` from project root; Playwright auto-detects and reuses it (`reuseExistingServer: true`).
+- Server: `./start.sh` runs `node scripts/dev-server.mjs` from project root (loopback port 8080, public app files plus `tests/fixtures`; the browser opens only after that port is serving). Playwright uses the same server and reuses it locally (`reuseExistingServer: true`).
 
 ## Additional Resources
 
