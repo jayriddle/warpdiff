@@ -3,6 +3,11 @@
 //   { chunks:[{timestamp,data}], sampleRate, channels, codec, description,
 //     preSkip, maxSamples, timelineStart, trackId }
 // (WebM returns a subset). Used by the audio decode pipeline to feed WebCodecs AudioDecoder.
+// WebM selected-track packets are stored as one payload buffer plus offset and
+// timestamp tables, not one object per packet. Limits, generous for real
+// 20 ms frames: 524,288 packets (about 2 hours 54 minutes), 64 MiB of copied
+// packet bytes, and 16 bytes of index per packet within max(1 MiB, 8 × file
+// size). Past a limit the extraction fails and native playback is kept.
 // See CLAUDE.md "MP4 audio demuxer" for track isolation and bounded extraction.
 
 // Recognize top-level ISO-BMFF boxes rather than assuming ftyp is first. This
@@ -368,7 +373,17 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     let sampleRate = 48000;
     let channels = 2;
     let timestampScale = 1000000;
-    const chunks = [];
+    // Selected-track packets stay in compact tables. One object per tiny packet
+    // was about 300 bytes of heap; 100,000 of them retained ~31 MiB from a 700 KB file.
+    const WEBM_MAX_PACKETS = 524288;
+    const WEBM_MAX_PACKET_BYTES = 64 * 1024 * 1024;
+    const WEBM_INDEX_BYTES = 16;
+    const packetBudget = Math.min(WEBM_MAX_PACKETS, Math.floor(Math.max(1 << 20, data.length * 8) / WEBM_INDEX_BYTES));
+    let payload = new Uint8Array(256);
+    let payloadLen = 0;
+    let offsets = new Uint32Array(64);
+    let times = new Float64Array(64);
+    let packetCount = 0;
     const audioTracks = [];
     const trackNumbers = new Set();
     let trackSelectionVerified = true;
@@ -631,10 +646,72 @@ function _demuxWebMAudio(data, metadataOnly = false) {
         const rel = (d[tsOff] << 8 | d[tsOff + 1]);
         const relSigned = rel >= 0x8000 ? rel - 0x10000 : rel;
         const frameStart = tsOff + 3;
-        if (frameStart < dataEnd) {
-            const tsMs = (clusterTs + relSigned) * timestampScale / 1000000;
-            chunks.push({ timestamp: Math.round(tsMs * 1000), data: d.slice(frameStart, dataEnd) });
+        if (frameStart < dataEnd) addAudioPacket(d, frameStart, dataEnd, Math.round((clusterTs + relSigned) * timestampScale / 1000));
+    }
+
+    function ensureRoom(nextCount, nextBytes) {
+        if (nextCount > offsets.length) {
+            let grown = offsets.length;
+            while (grown < nextCount) grown *= 2;
+            if (grown > packetBudget) grown = packetBudget;
+            if (nextCount > grown) return false;
+            const moreOffsets = new Uint32Array(grown);
+            moreOffsets.set(offsets.subarray(0, packetCount));
+            offsets = moreOffsets;
+            const moreTimes = new Float64Array(grown);
+            moreTimes.set(times.subarray(0, packetCount));
+            times = moreTimes;
         }
+        if (nextBytes > payload.length) {
+            let grown = payload.length;
+            while (grown < nextBytes) grown *= 2;
+            if (grown > WEBM_MAX_PACKET_BYTES) grown = WEBM_MAX_PACKET_BYTES;
+            if (nextBytes > grown) return false;
+            const more = new Uint8Array(grown);
+            more.set(payload.subarray(0, payloadLen));
+            payload = more;
+        }
+        return true;
+    }
+
+    function addAudioPacket(source, start, end, timestamp) {
+        const size = end - start;
+        if (size < 0 || packetCount >= packetBudget || payloadLen > WEBM_MAX_PACKET_BYTES - size || !ensureRoom(packetCount + 1, payloadLen + size)) {
+            incomplete = true;
+            return;
+        }
+        payload.set(source.subarray(start, end), payloadLen);
+        offsets[packetCount] = payloadLen;
+        times[packetCount] = timestamp;
+        payloadLen += size;
+        packetCount++;
+    }
+
+    function webmPackets(bytes, starts, stamps) {
+        const count = stamps.length;
+        const at = index => {
+            if (index < 0) index += count;
+            if (index < 0 || index >= count) return undefined;
+            const from = starts[index];
+            const to = index + 1 < count ? starts[index + 1] : bytes.length;
+            return { timestamp: stamps[index], data: bytes.subarray(from, to) };
+        };
+        const list = {
+            length: count,
+            at,
+            map(fn) {
+                const out = new Array(count);
+                for (let i = 0; i < count; i++) out[i] = fn(at(i), i);
+                return out;
+            }
+        };
+        return new Proxy(list, {
+            get(target, prop) {
+                if (typeof prop === 'string' && prop !== '' && String(+prop) === prop && +prop >= 0) return at(+prop);
+                const value = target[prop];
+                return typeof value === 'function' ? value.bind(target) : value;
+            }
+        });
     }
 
     function parseBlockGroup(d, start, end, clusterTs, open) {
@@ -736,7 +813,8 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     }
 
     if (metadataOnly) return foundTracks ? { audioTracks, trackSelectionVerified } : null;
-    if (incomplete || chunks.length === 0) return null;
+    if (incomplete || packetCount === 0) return null;
+    const chunks = webmPackets(payload.slice(0, payloadLen), offsets.slice(0, packetCount), times.slice(0, packetCount));
     // OpusHead pre-skip is at bytes 10-11, little-endian
     let preSkip = 0;
     if (selected.codec === 'A_OPUS' && codecPrivate && codecPrivate.length >= 12) {
