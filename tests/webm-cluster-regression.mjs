@@ -182,6 +182,55 @@ export function runWebmClusterChecks(check, source = readFileSync(new URL('../js
     lateMetadata?.trackSelectionVerified === true && lateMetadata.audioTracks.length === 1
     && latePackets?.chunks.length === 1 && latePackets.chunks[0].data[0] === 3);
 
+  function tinyWebm(count) {
+    const packet = Buffer.from([0xA3, 0x85, 0x81, 0x00, 0x00, 0x80, 0xFC]);
+    const blocks = Buffer.alloc(count * packet.length);
+    for (let i = 0; i < count; i++) packet.copy(blocks, i * packet.length);
+    return webm([el('1654ae6b', track()), cluster(0, [blocks])]);
+  }
+  const dense = tinyWebm(100000);
+  const denseParsed = parse(dense);
+  const packetBytes = denseParsed?.packetBytes;
+  const packetOffsets = denseParsed?.packetOffsets;
+  const packetTimestamps = denseParsed?.packetTimestamps;
+  const tableBytes = packetBytes && packetOffsets && packetTimestamps
+    ? packetBytes.byteLength + packetOffsets.byteLength + packetTimestamps.byteLength : Infinity;
+  const bytesPerElement = value => value?.BYTES_PER_ELEMENT;
+  const first = denseParsed?.chunks[0];
+  const firstAgain = denseParsed?.chunks[0];
+  const allowance = realm._webmIndexBudget(dense.byteLength);
+  check('webm-budget: 100,000 tiny packets stay in one payload buffer and two typed tables',
+    dense.byteLength < 900000 && denseParsed?.chunks.length === 100000
+    && bytesPerElement(packetBytes) === 1 && packetBytes.byteLength === 100000
+    && bytesPerElement(packetOffsets) === 4 && packetOffsets.byteLength === 100000 * 4
+    && bytesPerElement(packetTimestamps) === 8 && packetTimestamps.byteLength === 100000 * 8
+    && tableBytes === 100000 * 13
+    && first?.data.length === 1 && first.data[0] === 0xFC && first.data.buffer === packetBytes.buffer
+    && firstAgain !== first
+    && !Array.isArray(denseParsed.chunks)
+    && !Object.prototype.hasOwnProperty.call(denseParsed.chunks, '0')
+    && denseParsed.chunks.at(-1).timestamp === 0);
+  check('webm-budget: this file is capped by the 8× index allowance, under the absolute maximum',
+    allowance === Math.floor(dense.byteLength * 8 / 16) && allowance < 524288
+    && denseParsed.chunks.length <= allowance
+    && realm._webmIndexBudget(64) === Math.floor((1 << 20) / 16));
+  const overCap = tinyWebm(524289);
+  check('webm-budget: packet count past the absolute cap publishes nothing',
+    realm._webmIndexBudget(overCap.byteLength) === 524288 && parse(overCap) === null);
+  const floorPackets = realm._webmIndexBudget(131072);
+  const aboveFloor = tinyWebm(floorPackets + 1);
+  const aboveAllowance = realm._webmIndexBudget(aboveFloor.byteLength);
+  const aboveParsed = parse(aboveFloor);
+  check('webm-budget: the file-size index allowance rises with the file and the table stays inside it',
+    floorPackets === Math.floor((1 << 20) / 16)
+    && aboveFloor.byteLength > 131072
+    && aboveAllowance === Math.floor(aboveFloor.byteLength * 8 / 16)
+    && aboveAllowance < 524288
+    && aboveParsed?.chunks.length === floorPackets + 1
+    && aboveParsed.chunks.length <= aboveAllowance
+    && bytesPerElement(aboveParsed?.packetOffsets) === 4
+    && aboveParsed.packetOffsets.byteLength === aboveParsed.chunks.length * 4);
+
   const directory = mkdtempSync(join(tmpdir(), 'warpdiff-webm-cluster-'));
   try {
     const file = join(directory, 'clusters.webm');
