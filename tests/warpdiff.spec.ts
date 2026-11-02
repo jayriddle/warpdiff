@@ -116,11 +116,16 @@ function ensureFixtures() {
     { name: 'wider.png', buf: makeSizedPng(400, 150, 7) }, // AR≈2.67, distinct from wide.png (AR 2.0)
   ];
 
-  for (const { name, buf } of images) {
-    fs.writeFileSync(path.join(fixturesDir, name), buf);
-  }
+  for (const { name, buf } of images) writeFixtureIfUnchanged(name, buf);
+  writeFixtureIfUnchanged('readme.txt', Buffer.from('not an image'));
+}
 
-  fs.writeFileSync(path.join(fixturesDir, 'readme.txt'), 'not an image');
+// Rewriting identical bytes still updates mtime. Parallel workers were racing
+// those timestamps, which ordinary loads use as slot order.
+function writeFixtureIfUnchanged(name: string, contents: Buffer) {
+  const target = path.join(fixturesDir, name);
+  if (fs.existsSync(target) && fs.readFileSync(target).equals(contents)) return;
+  fs.writeFileSync(target, contents);
 }
 
 test.describe('host-load protocol and embedded lifecycle', () => {
@@ -460,7 +465,7 @@ test.describe('Page Load & Initial State', () => {
 
   for (const [lastSeen, showNotes] of [
     ['3.17.5', true], ['3.18.11', true], ['3.18.12', true],
-    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', true], ['3.19.18', true], ['3.19.19', true], ['3.19.20', false], ['4.0.0', false]
+    ['3.18.13', true], ['3.18.14', true], ['3.19.0', true], ['3.19.1', true], ['3.19.5', true], ['3.19.6', true], ['3.19.7', true], ['3.19.8', true], ['3.19.11', true], ['3.19.12', true], ['3.19.13', true], ['3.19.14', true], ['3.19.15', true], ['3.19.16', true], ['3.19.17', true], ['3.19.18', true], ['3.19.19', true], ['3.19.20', true], ['3.19.21', true], ['3.19.22', false], ['4.0.0', false]
   ] as const) test(`release notes ${showNotes ? 'show' : 'stay quiet'} after ${lastSeen}`, async ({ page }) => {
     await page.addInitScript(version => {
       if (!localStorage.getItem('lastSeenVersion')) localStorage.setItem('lastSeenVersion', version);
@@ -468,7 +473,7 @@ test.describe('Page Load & Initial State', () => {
     await page.goto('/');
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(showNotes ? /show/ : /^(?!.*show)/);
-    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.20');
+    await expect(page.locator('#changelogVersion')).toHaveText('v3.19.22');
     const notes = page.locator('#changelogPopup .quick-start-body');
     await expect(notes.locator('li')).toHaveCount(3);
     await expect(notes).toContainText('Help stays with you');
@@ -543,8 +548,34 @@ test.describe('File Loading & Slot Assignment', () => {
     await expect(page.locator('#layerEditC .asset-info-bar')).toBeHidden();
   });
 
-  test('shows warning toast for timestamp collision', async () => {
-    test.skip(true, 'Needs fixtures with near-identical lastModified timestamps');
+  test('shows warning toast for timestamp collision', async ({ page }) => {
+    await page.goto('/');
+    const older = [...fs.readFileSync(path.join(fixturesDir, 'red.png'))];
+    const newer = [...fs.readFileSync(path.join(fixturesDir, 'green.png'))];
+    // The file chooser passes lastModified through. Supply it directly so the
+    // threshold does not depend on fixture clocks or parallel writers.
+    const load = (gap: number) => page.evaluate(({ older, newer, gap }) => {
+      const files = [
+        new File([new Uint8Array(newer)], 'newer.png', { type: 'image/png', lastModified: 1_000 + gap }),
+        new File([new Uint8Array(older)], 'older.png', { type: 'image/png', lastModified: 1_000 }),
+      ];
+      return (window as any).handleMultipleFiles(files);
+    }, { older, newer, gap });
+
+    expect(await load(2000)).toBe(true);
+    await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    await expect(page.locator('.load-toast')).toHaveCount(0);
+    await expect(page.locator('#layerEditA .asset-info-bar')).toHaveAttribute('title', 'older.png');
+    await expect(page.locator('#layerEditB .asset-info-bar')).toHaveAttribute('title', 'newer.png');
+
+    expect(await load(1999)).toBe(true);
+    const toast = page.locator('.load-toast');
+    await expect(toast).toBeVisible();
+    await expect(toast).toHaveClass(/warning/);
+    await expect(toast).toHaveText('Timestamps too close to sort reliably — check slot order');
+    await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    await expect(page.locator('#layerEditA .asset-info-bar')).toHaveAttribute('title', 'older.png');
+    await expect(page.locator('#layerEditB .asset-info-bar')).toHaveAttribute('title', 'newer.png');
   });
 
   test('loads 4 images as Image-1…Image-4 in a 2×2 Inline grid', async ({ page }) => {

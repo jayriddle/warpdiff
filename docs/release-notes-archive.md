@@ -2,11 +2,21 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
-## v3.19.20
+## v3.19.22
 
 - Help keeps the keyboard inside its window until you close it. Loaded pictures are named with the file and the slot, and header and picture details are easier to read.
 - On a narrow window, Media status, Reset, and Help stay on screen. Zoom stays at the right edge of a picture label.
 - If pictures cannot be opened, a comparison you already have stays in place. A message remains so you can choose different files. A picture that fails beside one that opens is marked in its own slot.
+
+## v3.19.21
+
+- Checks were added so loudness, loudness range and true peak can be compared with the usual broadcast test signals.
+- This maintenance update retains the previous What’s New announcement.
+
+## v3.19.20
+
+- A WebM soundtrack made of a huge number of tiny packets keeps the browser's playback instead of using a large amount of memory.
+- This maintenance update retains the previous What's New announcement.
 
 ## v3.19.19
 

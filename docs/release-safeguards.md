@@ -35,8 +35,8 @@ protected **Chromium and ownership** aggregation job runs even when a dependency
 fails, requires successful ownership/infrastructure and all Chromium jobs,
 then compares the three reports against the complete current test inventory.
 Missing tests, duplicates, missing reports, retries, runner errors, flaky results,
-and additional skips fail the gate. The single existing timestamp-collision
-skip is accepted only by its exact test identity and documented reason.
+and skips fail the gate. The timestamp-collision case is an ordinary passing
+test, so a skip there is rejected like any other skip.
 A new spec file has to be added to exactly one Chromium shard; the
 infrastructure test rejects a missing or repeated file.
 

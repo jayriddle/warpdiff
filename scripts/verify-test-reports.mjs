@@ -3,8 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-const allowedSkip = JSON.stringify(['warpdiff.spec.ts', 'File Loading & Slot Assignment',
-  'shows warning toast for timestamp collision', 'chromium']);
 // Dynamic test.fail inside the body. --list still inventories it as a normal
 // test. The run must actually fail, once, with this reason. It is not a pass.
 const allowedExpectedFailure = JSON.stringify(['preparation-followup.spec.ts',
@@ -44,13 +42,8 @@ export function verifyReports(expected, reports) {
       assert(wanted.has(key), 'Unexpected test: ' + key);
       assert(!seen.has(key), 'Repeated test across shards: ' + key);
       seen.add(key);
-      // This pre-existing skip is declared inside the test body, so --list
-      // reports "passed". No other dynamic or static skips may pass the gate.
-      if (test.expectedStatus === 'skipped') {
-        assert.equal(key, allowedSkip, 'Unapproved skipped test: ' + key);
-        assert(test.annotations.some(a => a.type === 'skip' &&
-          a.description === 'Needs fixtures with near-identical lastModified timestamps'), 'Missing existing skip reason');
-      } else if (key === allowedExpectedFailure) {
+      assert.notEqual(test.expectedStatus, 'skipped', 'Unapproved skipped test: ' + key);
+      if (key === allowedExpectedFailure) {
         assert.equal(test.expectedStatus, 'failed', 'Documented WebKit failure must still be expected to fail');
         assert(test.annotations.some(a => a.type === 'fail' && a.description === allowedExpectedFailureReason),
           'Missing existing expected-failure reason');

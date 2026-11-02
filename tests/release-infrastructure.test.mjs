@@ -179,18 +179,17 @@ test('report gate accepts only the documented WebKit expected failure', () => {
   assert.throws(() => verifyReports(other, [copy(other)]));
 });
 
-test('report gate accepts only the documented pre-existing dynamic skip', () => {
+test('report gate rejects the former timestamp-collision skip', () => {
   const expected = report([spec('shows warning toast for timestamp collision')]);
   const suite = expected.suites[0];
   suite.title = 'warpdiff.spec.ts';
   suite.suites = [{title: 'File Loading & Slot Assignment', specs: suite.specs}];
   suite.specs = [];
   suite.suites[0].specs[0].file = 'warpdiff.spec.ts';
+  assert.equal(verifyReports(expected, [copy(expected)]).passed, 1);
   const actual = copy(expected), t = actual.suites[0].suites[0].specs[0].tests[0];
   t.expectedStatus = t.status = t.results[0].status = 'skipped';
   t.annotations = [{type: 'skip', description: 'Needs fixtures with near-identical lastModified timestamps'}];
-  assert.equal(verifyReports(expected, [actual]).skipped, 1);
-  t.annotations = [];
   assert.throws(() => verifyReports(expected, [actual]));
 });
 

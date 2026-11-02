@@ -8,7 +8,7 @@ const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 const broken = (name: string) => ({ name, mimeType: 'image/png', buffer: Buffer.from('not a png') });
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.20'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.22'));
 });
 
 async function loadGreen(page: Page) {
