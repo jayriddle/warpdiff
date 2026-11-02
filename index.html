@@ -3215,7 +3215,7 @@
         }
         .image-load-notice {
             position: fixed;
-            z-index: 1200;
+            z-index: 2100;
             left: 12px;
             right: 12px;
             bottom: 16px;
@@ -6502,6 +6502,15 @@
                 img.src = url;
             });
         }
+        function _resetManualFileChooser() {
+            const input = document.getElementById('multiFileInput');
+            if (input) input.value = '';
+        }
+        function _chooseManualFiles() {
+            _resetManualFileChooser();
+            const input = document.getElementById('multiFileInput');
+            if (input) input.click();
+        }
         function _hideImageLoadNotice() {
             const notice = document.getElementById('imageLoadNotice');
             if (notice) notice.hidden = true;
@@ -6516,6 +6525,13 @@
                 ? 'Could not open ' + names + '. The current comparison is unchanged.'
                 : 'Could not open ' + names + '. Nothing was loaded.';
             notice.hidden = false;
+            // Help and What's New sit above the page. Close them and clear the
+            // chooser so the message is visible and the same files can be chosen again.
+            _dismissPopup(document.getElementById('quickStartPopup'), document.getElementById('quickStartBackdrop'));
+            _dismissPopup(document.getElementById('changelogPopup'), document.getElementById('changelogBackdrop'));
+            _resetManualFileChooser();
+            const action = document.getElementById('imageLoadNoticeLoad');
+            if (action) action.focus({ preventScroll: true });
             if (!kept) {
                 _usage.enterStandalone();
                 _usage.beginLoad('image', files.length);
@@ -6546,7 +6562,7 @@
             const action = document.createElement('button');
             action.type = 'button';
             action.textContent = 'Load files';
-            action.addEventListener('click', () => document.getElementById('multiFileInput').click());
+            action.addEventListener('click', _chooseManualFiles);
             box.append(message, action);
             (layer.querySelector('.media-container') || layer).appendChild(box);
         }
@@ -14771,7 +14787,7 @@
     <div id="imageLoadNotice" class="image-load-notice" role="alert" hidden>
         <p id="imageLoadNoticeText"></p>
         <div class="image-load-notice-actions">
-            <button type="button" id="imageLoadNoticeLoad" onclick="document.getElementById('multiFileInput').click()">Load files</button>
+            <button type="button" id="imageLoadNoticeLoad" onclick="_chooseManualFiles()">Load files</button>
             <button type="button" id="imageLoadNoticeClose" onclick="document.getElementById('imageLoadNotice').hidden = true">Close</button>
         </div>
     </div>

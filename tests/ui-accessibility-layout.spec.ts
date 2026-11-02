@@ -125,6 +125,24 @@ test('a failed image replacement keeps the current comparison', async ({ page })
   expect(await page.evaluate(() => (document.querySelector('#layerEditA img') as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
 });
 
+test('a first-visit failure closes Help and leaves the error in front', async ({ page }) => {
+  await page.addInitScript(() => localStorage.removeItem('lastSeenVersion'));
+  await page.goto('/');
+  await expect(page.locator('#quickStartPopup')).toBeVisible();
+  await page.locator('#multiFileInput').setInputFiles(broken('bad.png'));
+  const notice = page.locator('#imageLoadNotice');
+  await expect(page.locator('#quickStartPopup')).toBeHidden();
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText('Nothing was loaded');
+  await expect(notice.getByRole('button', { name: 'Load files' })).toBeFocused();
+  expect(await page.evaluate(() => {
+    const noticeEl = document.getElementById('imageLoadNotice')!;
+    const popup = document.getElementById('quickStartPopup')!;
+    return Number(getComputedStyle(noticeEl).zIndex) > Number(getComputedStyle(popup).zIndex)
+      && (document.getElementById('multiFileInput') as HTMLInputElement).value === '';
+  })).toBe(true);
+});
+
 test('opening no pictures shows a lasting error instead of a blank comparison', async ({ page }) => {
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles([broken('bad-1.png'), broken('bad-2.png')]);
