@@ -360,6 +360,15 @@ function _demuxMP4Audio(data, metadataOnly = false, selectedTrackId = null, vali
 }
 
 // --- WebM demuxer ---
+// Selected-track packets are one payload buffer plus an offset table and a
+// timestamp table. The index is 16 bytes per packet and must fit in
+// max(1 MiB, 8 × file size), and never more than 524,288 packets (about
+// 2 hours 54 minutes of 20 ms frames). Past either limit extraction fails.
+function _webmIndexBudget(fileBytes) {
+    const maxPackets = 524288;
+    return Math.min(maxPackets, Math.floor(Math.max(1 << 20, fileBytes * 8) / 16));
+}
+
 function _demuxWebMAudio(data, metadataOnly = false) {
     // Resolve the complete track inventory before copying any packets. Native
     // playback does not expose a portable selected-track identity, so even an
@@ -375,10 +384,8 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     let timestampScale = 1000000;
     // Selected-track packets stay in compact tables. One object per tiny packet
     // was about 300 bytes of heap; 100,000 of them retained ~31 MiB from a 700 KB file.
-    const WEBM_MAX_PACKETS = 524288;
     const WEBM_MAX_PACKET_BYTES = 64 * 1024 * 1024;
-    const WEBM_INDEX_BYTES = 16;
-    const packetBudget = Math.min(WEBM_MAX_PACKETS, Math.floor(Math.max(1 << 20, data.length * 8) / WEBM_INDEX_BYTES));
+    const packetBudget = _webmIndexBudget(data.length);
     let payload = new Uint8Array(256);
     let payloadLen = 0;
     let offsets = new Uint32Array(64);
@@ -814,7 +821,10 @@ function _demuxWebMAudio(data, metadataOnly = false) {
 
     if (metadataOnly) return foundTracks ? { audioTracks, trackSelectionVerified } : null;
     if (incomplete || packetCount === 0) return null;
-    const chunks = webmPackets(payload.slice(0, payloadLen), offsets.slice(0, packetCount), times.slice(0, packetCount));
+    const packetBytes = payload.slice(0, payloadLen);
+    const packetOffsets = offsets.slice(0, packetCount);
+    const packetTimestamps = times.slice(0, packetCount);
+    const chunks = webmPackets(packetBytes, packetOffsets, packetTimestamps);
     // OpusHead pre-skip is at bytes 10-11, little-endian
     let preSkip = 0;
     if (selected.codec === 'A_OPUS' && codecPrivate && codecPrivate.length >= 12) {
@@ -822,6 +832,9 @@ function _demuxWebMAudio(data, metadataOnly = false) {
     }
     return {
         chunks: chunks,
+        packetBytes: packetBytes,
+        packetOffsets: packetOffsets,
+        packetTimestamps: packetTimestamps,
         sampleRate: sampleRate,
         channels: channels,
         codec: selected.codec === 'A_OPUS' ? 'opus' : 'vorbis',
