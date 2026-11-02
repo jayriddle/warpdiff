@@ -170,8 +170,8 @@ test('an unrelated preparation issue survives an audio-read retry', async ({ pag
 test('loaded comparison images use the file name as their accessible name', async ({ page }) => {
   await loadFiles(page, ['green.png']);
   const image = page.locator('#layerEditA img');
-  await expect(image).toHaveAttribute('alt', 'green.png');
-  await expect(page.getByRole('img', { name: 'green.png' })).toBeVisible();
+  await expect(image).toHaveAttribute('alt', 'green.png, A');
+  await expect(page.getByRole('img', { name: 'green.png, A' })).toBeVisible();
 });
 
 test('no-audio notice stays visible and a failed timecode copy says it failed', async ({ page }) => {

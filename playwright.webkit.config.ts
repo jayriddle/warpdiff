@@ -11,6 +11,7 @@ export default defineConfig({
     {name:'webkit-frame-step',testMatch:'frame-rate-step.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-dialog-keyboard',testMatch:'dialog-keyboard.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-audit-quick-fixes',testMatch:'audit-quick-fixes.spec.ts',use:{browserName:'webkit'}},
+    {name:'webkit-ui-accessibility-layout',testMatch:'ui-accessibility-layout.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-native-video-output',testMatch:'native-video-output.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-color-rendering', testMatch:'color-rendering.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-normal-preparation', testMatch:'normal-preparation.spec.ts', use:{browserName:'webkit'}},
