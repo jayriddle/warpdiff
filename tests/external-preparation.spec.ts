@@ -1,4 +1,4 @@
-import {test, expect} from '@playwright/test';
+import {test, expect, type Page} from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -275,4 +275,101 @@ test('service worker installs without FFmpeg and retires only owned legacy cache
     listeners.fetch({request:{method:'GET', url}, respondWith:() => {intercepted = true;}});
     expect(intercepted).toBe(false);
   }
+});
+
+// The one-second native timer starts WebCodecs while decodeAudioData is still
+// in flight. A fast fallback records preparation or "no audio" before the
+// native buffer claims the generation. Publishing that buffer must drop those
+// records, except an unsupported-codec command, which stays.
+async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: Uint8Array, name: string}[]) {
+  return page.evaluate(async payloads => {
+    const w = window as any;
+    const originalGetAudioContext = w.getAudioContext;
+    const originalAudioDecoder = w.AudioDecoder;
+    const originalAnalysis = w._computeAudioAnalysis;
+    const releases: Array<(buffer: AudioBuffer) => void> = [];
+    try {
+      const real = originalGetAudioContext();
+      const buffer = real.createBuffer(1, 480, 48000);
+      buffer.getChannelData(0).fill(0.2);
+      w.getAudioContext = () => ({
+        decodeAudioData: () => new Promise(resolve => releases.push(resolve)),
+        createBuffer: (...args: [number, number, number]) => real.createBuffer(...args),
+        sampleRate: real.sampleRate,
+      });
+      w.AudioDecoder = class {
+        configure() { throw new Error('fast fallback failure'); }
+        decode() {}
+        flush() { return Promise.resolve(); }
+        close() {}
+      };
+      w._computeAudioAnalysis = async () => ({waveform:[], spectrogram:[], metrics:{stBlks:[]}});
+      for (const file of payloads) {
+        w.eval(`mediaData.${file.slot} = {name:${JSON.stringify(file.name)}, type:'video'}`);
+      }
+      await Promise.all(payloads.map(file => {
+        const copy = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength);
+        return w.decodeAndComputeAudioViz(file.slot, copy);
+      }));
+      const during = Object.fromEntries(payloads.map(file => [file.slot, {
+        codec: w.eval(`_ffmpegCommands.${file.slot} && _ffmpegCommands.${file.slot}.codec || ''`),
+        noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
+      }]));
+      const panelDuring = document.getElementById('ffmpegPanel')!.classList.contains('open');
+      if (releases.length !== payloads.length) throw new Error(`expected ${payloads.length} native decodes, got ${releases.length}`);
+      for (const release of releases) release(buffer);
+      const deadline = performance.now() + 2000;
+      let claimed = false;
+      while (performance.now() < deadline) {
+        claimed = payloads.every(file => w.eval(`_videoAudioDecodeClaim.${file.slot} === _videoAudioDecodeGen.${file.slot}`));
+        if (claimed) break;
+        await new Promise(resolve => setTimeout(resolve, 20));
+      }
+      const after = Object.fromEntries(payloads.map(file => [file.slot, {
+        codec: w.eval(`_ffmpegCommands.${file.slot} && _ffmpegCommands.${file.slot}.codec || ''`),
+        noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
+      }]));
+      return {
+        during, after, panelDuring, claimed,
+        panelAfter: document.getElementById('ffmpegPanel')!.classList.contains('open'),
+        externalHidden: document.getElementById('externalAudioBtn')!.hidden,
+      };
+    } finally {
+      w.getAudioContext = originalGetAudioContext;
+      w.AudioDecoder = originalAudioDecoder;
+      w._computeAudioAnalysis = originalAnalysis;
+      w.clearAllMedia();
+    }
+  }, files.map(file => ({slot:file.slot, name:file.name, bytes:file.bytes})));
+}
+
+test('a fast fallback failure is cleared when native decode succeeds later', async ({page}) => {
+  await page.goto('/');
+  const result = await lateNativeAfterFallback(page, [
+    {slot:'editA', name:'review.mp4', bytes:new Uint8Array(fs.readFileSync(path.join(__dirname, 'fixtures/landscape_a.mp4')))},
+    {slot:'editB', name:'silent.mp4', bytes:new Uint8Array(16)},
+  ]);
+  expect(result.during.editA).toEqual({codec:'unknown', noAudio:false});
+  expect(result.during.editB).toEqual({codec:'', noAudio:true});
+  expect(result.panelDuring).toBe(true);
+  expect(result.claimed).toBe(true);
+  expect(result.after.editA).toEqual({codec:'', noAudio:false});
+  expect(result.after.editB).toEqual({codec:'', noAudio:false});
+  expect(result.panelAfter).toBe(false);
+  expect(result.externalHidden).toBe(true);
+});
+
+test('an AC-3 preparation command is kept when native decode succeeds later', async ({page}) => {
+  await page.goto('/');
+  const bytes = new Uint8Array(16);
+  bytes.set([0x61, 0x63, 0x2d, 0x33]);
+  const result = await lateNativeAfterFallback(page, [
+    {slot:'editA', name:'film.mp4', bytes},
+  ]);
+  expect(result.during.editA).toEqual({codec:'ac-3', noAudio:false});
+  expect(result.panelDuring).toBe(true);
+  expect(result.claimed).toBe(true);
+  expect(result.after.editA).toEqual({codec:'ac-3', noAudio:false});
+  expect(result.panelAfter).toBe(true);
+  expect(result.externalHidden).toBe(false);
 });

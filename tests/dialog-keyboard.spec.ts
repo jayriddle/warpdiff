@@ -11,13 +11,21 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
     await expect(page.locator('#infoEditorButton')).toHaveAttribute('aria-expanded','false');
     // Two landscape clips in a wide window often stack, and a full-width bar
     // can hold every field, so More stays hidden on purpose. 420px cannot.
-    // Fit also runs after the dialog closes and after the grid measures, so
-    // wait until a laid-out bar is actually overflowing before clicking.
+    // Fit also runs after the dialog closes and after the grid measures.
+    // The button's label and left edge keep moving through that settle
+    // (More 3, then More 6 further left). A pointer click during the move
+    // misses it. Click only after the same label and left edge survive two frames.
     const more=page.locator('.asset-layer .asset-info-bar.info-custom .info-more').filter({visible:true});
-    await expect.poll(()=>page.evaluate(()=>[...document.querySelectorAll('.asset-layer .asset-info-bar.info-custom .info-more')].filter(button=>{
-      const bar=button.closest('.asset-info-bar')!.getBoundingClientRect();
-      return bar.width>0 && !(button as HTMLButtonElement).hidden && button.getClientRects().length>0;
-    }).length)).toBeGreaterThan(0);
+    await expect.poll(()=>page.evaluate(()=>new Promise(resolve=>{
+      const signature=()=>[...document.querySelectorAll('.asset-layer .asset-info-bar.info-custom .info-more')].filter(button=>{
+        const bar=button.closest('.asset-info-bar')!.getBoundingClientRect();
+        return bar.width>0 && !(button as HTMLButtonElement).hidden && button.getClientRects().length>0;
+      }).map(button=>button.textContent+'@'+Math.round(button.getBoundingClientRect().left)).join('|');
+      requestAnimationFrame(()=>{
+        const first=signature();
+        requestAnimationFrame(()=>resolve(first && first===signature() ? first : ''));
+      });
+    }))).not.toBe('');
     await more.first().click();
     await expect(page.locator('#infoOverflowPanel')).toBeVisible();
     if(button==='preparedPackageBtn'){

@@ -519,6 +519,14 @@ runMediaAdmissionChecks(check);
         decoder.includes('_fallbackDecodeFailed(slot, true, gen)') &&
         extractFn('_fallbackDecodeFailed').includes('_onAllDecodeFailed(slot, audioConfirmed, gen)') &&
         extractFn('_fallbackDecodeFailed').includes('_videoAudioDecodeClaim[slot] === gen'));
+  const published = extractFn('_finalizeAudioViz');
+  const claimAt = published.indexOf('_videoAudioDecodeClaim[slot] = gen;');
+  const clearAt = published.indexOf('_noAudioSlots.delete(slot)');
+  const observeAt = published.indexOf('_mediaInputObserve(slot, _loadingProgressToken, {audioDecoded: audioBuffer.length > 0})');
+  check('one-owner[decode-failure]: a published buffer clears stale fallback flags and keeps unsupported commands',
+        claimAt >= 0 && clearAt > claimAt && observeAt > clearAt &&
+        published.includes('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') &&
+        published.includes("_setFfmpegPanelOpen(false)"));
   const webcodecsFinished = extractFn('_webcodecsFinished');
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&

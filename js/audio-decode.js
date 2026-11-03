@@ -370,6 +370,18 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     // not rebuild the graph or restart the worker.
     if (_videoAudioDecodeClaim[slot] === gen) return;
     _videoAudioDecodeClaim[slot] = gen;
+    // A fast WebCodecs failure can record preparation or "no audio" before
+    // this claim. A native buffer that arrives later is a successful decode,
+    // so those records must not keep the preparation panel or media-status
+    // flags. Unsupported codecs keep their command: the browser can return
+    // PCM and the soundtrack still needs external preparation.
+    _noAudioSlots.delete(slot);
+    const stalePreparation = _ffmpegCommands[slot];
+    if (stalePreparation && !_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)) {
+        delete _ffmpegCommands[slot];
+        if (Object.keys(_ffmpegCommands).length === 0) _setFfmpegPanelOpen(false);
+        else _renderFfmpegPanel();
+    }
     if (decodedCodec !== 'opus') delete _opusSyncPending[slot];
     _mediaInputObserve(slot, _loadingProgressToken, {audioDecoded: audioBuffer.length > 0});
     const layerForOutput = getLayer(slot);
