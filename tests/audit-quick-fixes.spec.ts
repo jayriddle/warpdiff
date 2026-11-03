@@ -144,7 +144,7 @@ test('an unrelated preparation issue survives an audio-read retry', async ({ pag
     const app = window as any;
     const batch = app.eval('_localPreparationBatch');
     const other = batch.files.find((item: { file: File }) => item.file.name === 'landscape_b.mp4');
-    app._localPreparationIssue(other.slot, app.eval('_loadingProgressToken'));
+    app._localPreparationIssue(other.slot, app.eval('_loadingProgressToken'), 'picture');
   });
   await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed');
   await page.evaluate(() => {

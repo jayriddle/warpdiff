@@ -42,7 +42,7 @@ function _localPreparationAccept(assignments, preparedFiles = null) {
     if (_managedReviewActive()) return;
     _localPreparationBatch = {epoch:_localPreparationEpoch,token:_loadingProgressToken,
         files:assignments.map(({slot,file}) => ({slot,file,prepared:!!preparedFiles?.has(file)})),
-        issues:new Set(), persistentIssues:new Set(), transientReads:new Set()};
+        issues:new Set(), persistentIssues:new Map(), transientReads:new Set()};
 }
 function _localPreparationClear() {
     _localPreparationAction?.controller.abort();
@@ -53,13 +53,15 @@ function _localPreparationClear() {
     const dialog = document.getElementById('localPreparationDialog');
     if (dialog?.open) dialog.close();
 }
-function _localPreparationIssue(slot, token) {
+function _localPreparationIssue(slot, token, reason) {
     const batch = _localPreparationBatch;
     const item = batch?.files.find(item => item.slot === slot);
     if (_managedReviewActive() || !item || token !== batch.token || token !== _loadingProgressToken ||
-        !/^(video|audio)\//.test(item.file.type)) return false;
-    if (!batch.persistentIssues) batch.persistentIssues = new Set();
-    batch.persistentIssues.add(slot);
+        !/^(video|audio)\//.test(item.file.type) || (reason !== 'audio' && reason !== 'picture')) return false;
+    if (!batch.persistentIssues || typeof batch.persistentIssues.get !== 'function') batch.persistentIssues = new Map();
+    let reasons = batch.persistentIssues.get(slot);
+    if (!reasons) { reasons = new Set(); batch.persistentIssues.set(slot, reasons); }
+    reasons.add(reason);
     const first = !batch.issues.has(slot); batch.issues.add(slot);
     const actionable = batch.files.some(entry => batch.issues.has(entry.slot) && !entry.prepared);
     if (item.prepared && !actionable) _localPreparationMessage = 'This review copy could not provide all audio tools. Keep the original; another conversion is not started automatically.';
@@ -85,7 +87,23 @@ function _localPreparationResolveTransientRead(slot, token) {
     if (_managedReviewActive() || !batch || !item || token !== batch.token || token !== _loadingProgressToken) return false;
     if (!batch.transientReads || !batch.transientReads.has(slot)) return false;
     batch.transientReads.delete(slot);
-    if (!batch.persistentIssues || !batch.persistentIssues.has(slot)) batch.issues.delete(slot);
+    const reasons = batch.persistentIssues && batch.persistentIssues.get && batch.persistentIssues.get(slot);
+    if (!reasons || !reasons.size) batch.issues.delete(slot);
+    _renderLocalPreparation();
+    return true;
+}
+// Retire one reason. The slot stays listed while another reason, such as an
+// unplayable picture, is still recorded. Another slot's issues stay listed.
+function _localPreparationResolveIssue(slot, token, reason) {
+    const batch = _localPreparationBatch;
+    if (_managedReviewActive() || !batch || token !== batch.token || token !== _loadingProgressToken) return false;
+    const reasons = batch.persistentIssues && batch.persistentIssues.get && batch.persistentIssues.get(slot);
+    if (!reasons || !reasons.has(reason)) return false;
+    reasons.delete(reason);
+    if (!reasons.size) {
+        batch.persistentIssues.delete(slot);
+        batch.issues.delete(slot);
+    }
     _renderLocalPreparation();
     return true;
 }

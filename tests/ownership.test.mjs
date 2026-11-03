@@ -514,9 +514,33 @@ runMediaAdmissionChecks(check);
   check('one-owner[decode-failure]: terminal failure owner rejects stale generations',
         failOwner.includes('if (!_videoAudioDecodeIsCurrent(slot, gen)) return'));
   check('one-owner[decode-failure]: native and WebCodecs async paths carry generation to failure routing',
-        /_onAllDecodeFailed\(slot, [^;\n]+, gen\)/.test(native) &&
-        webcodecs.includes('_onAllDecodeFailed(slot, false, gen)') &&
-        decoder.includes('_onAllDecodeFailed(slot, true, gen)'));
+        /_fallbackDecodeFailed\(slot, [^;\n]+, gen\)/.test(native) &&
+        webcodecs.includes('_fallbackDecodeFailed(slot, false, gen)') &&
+        decoder.includes('_fallbackDecodeFailed(slot, true, gen)') &&
+        extractFn('_fallbackDecodeFailed').includes('_onAllDecodeFailed(slot, audioConfirmed, gen)') &&
+        extractFn('_fallbackDecodeFailed').includes('_videoAudioDecodeClaim[slot] === gen'));
+  const published = extractFn('_finalizeAudioViz');
+  const claimAt = published.indexOf('_videoAudioDecodeClaim[slot] = gen;');
+  const clearAt = published.indexOf('_noAudioSlots.delete(slot)');
+  const observeAt = published.indexOf('_mediaInputObserve(slot, _loadingProgressToken, {audioDecoded: audioBuffer.length > 0})');
+  check('one-owner[decode-failure]: a published buffer clears stale fallback flags and keeps unsupported commands',
+        claimAt >= 0 && clearAt > claimAt && observeAt > clearAt &&
+        published.includes('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') &&
+        published.includes("_setFfmpegPanelOpen(false)"));
+  const resolveIssue = extractFn('_localPreparationResolveIssue');
+  const recordIssue = extractFn('_localPreparationIssue');
+  check('one-owner[decode-failure]: published native audio retires only its audio preparation reason',
+        countOf(SRC, 'function _localPreparationResolveIssue(') === 1 &&
+        resolveIssue.includes('reasons.delete(reason)') &&
+        resolveIssue.includes('!reasons.size') &&
+        resolveIssue.includes('batch.issues.delete(slot)') &&
+        resolveIssue.includes('_renderLocalPreparation()') &&
+        recordIssue.includes("reason !== 'audio' && reason !== 'picture'") &&
+        countOf(extractFn('loadVideoFile'), "_localPreparationIssue(slot, loadingToken, 'picture')") === 2 &&
+        extractFn('_registerFfmpegCommand').includes("_localPreparationIssue(slot, _loadingProgressToken, 'audio')") &&
+        published.includes("_localPreparationResolveIssue(slot, _loadingProgressToken, 'audio')") &&
+        published.indexOf('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') <
+          published.indexOf("_localPreparationResolveIssue(slot, _loadingProgressToken, 'audio')"));
   const webcodecsFinished = extractFn('_webcodecsFinished');
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&
