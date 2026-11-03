@@ -89,6 +89,17 @@ function _localPreparationResolveTransientRead(slot, token) {
     _renderLocalPreparation();
     return true;
 }
+// A published native decode retires the fallback issue _localPreparationIssue
+// recorded for this load. Another slot's issue stays listed.
+function _localPreparationResolveIssue(slot, token) {
+    const batch = _localPreparationBatch;
+    if (_managedReviewActive() || !batch || token !== batch.token || token !== _loadingProgressToken) return false;
+    if (!batch.persistentIssues || !batch.persistentIssues.has(slot)) return false;
+    batch.persistentIssues.delete(slot);
+    batch.issues.delete(slot);
+    _renderLocalPreparation();
+    return true;
+}
 function _showLocalPreparation(opener = null) {
     if (_managedReviewActive()) return;
     const dialog = document.getElementById('localPreparationDialog');

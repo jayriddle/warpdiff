@@ -307,6 +307,15 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
       for (const file of payloads) {
         w.eval(`mediaData.${file.slot} = {name:${JSON.stringify(file.name)}, type:'video'}`);
       }
+      w._localPreparationAccept(payloads.map(file => ({
+        slot:file.slot, file:new File([file.bytes], file.name, {type:'video/mp4'}),
+      })));
+      const offer = () => ({
+        header:document.getElementById('preparationBtn')!.textContent,
+        files:[...document.querySelectorAll('#localPreparationFiles li')].map(item => item.textContent),
+        manualEnabled:!document.getElementById('localPreparationManual')!.hasAttribute('disabled') &&
+          !(document.getElementById('localPreparationManual') as HTMLButtonElement).disabled,
+      });
       await Promise.all(payloads.map(file => {
         const copy = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength);
         return w.decodeAndComputeAudioViz(file.slot, copy);
@@ -315,7 +324,7 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
         codec: w.eval(`_ffmpegCommands.${file.slot} && _ffmpegCommands.${file.slot}.codec || ''`),
         noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
       }]));
-      const panelDuring = document.getElementById('ffmpegPanel')!.classList.contains('open');
+      const offerDuring = offer();
       if (releases.length !== payloads.length) throw new Error(`expected ${payloads.length} native decodes, got ${releases.length}`);
       for (const release of releases) release(buffer);
       const deadline = performance.now() + 2000;
@@ -329,11 +338,7 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
         codec: w.eval(`_ffmpegCommands.${file.slot} && _ffmpegCommands.${file.slot}.codec || ''`),
         noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
       }]));
-      return {
-        during, after, panelDuring, claimed,
-        panelAfter: document.getElementById('ffmpegPanel')!.classList.contains('open'),
-        externalHidden: document.getElementById('externalAudioBtn')!.hidden,
-      };
+      return {during, after, offerDuring, offerAfter:offer(), claimed};
     } finally {
       w.getAudioContext = originalGetAudioContext;
       w.AudioDecoder = originalAudioDecoder;
@@ -351,12 +356,11 @@ test('a fast fallback failure is cleared when native decode succeeds later', asy
   ]);
   expect(result.during.editA).toEqual({codec:'unknown', noAudio:false});
   expect(result.during.editB).toEqual({codec:'', noAudio:true});
-  expect(result.panelDuring).toBe(true);
+  expect(result.offerDuring).toEqual({header:'Preparation needed', files:['review.mp4'], manualEnabled:true});
   expect(result.claimed).toBe(true);
   expect(result.after.editA).toEqual({codec:'', noAudio:false});
   expect(result.after.editB).toEqual({codec:'', noAudio:false});
-  expect(result.panelAfter).toBe(false);
-  expect(result.externalHidden).toBe(true);
+  expect(result.offerAfter).toEqual({header:'Preparation', files:[], manualEnabled:false});
 });
 
 test('an AC-3 preparation command is kept when native decode succeeds later', async ({page}) => {
@@ -367,9 +371,8 @@ test('an AC-3 preparation command is kept when native decode succeeds later', as
     {slot:'editA', name:'film.mp4', bytes},
   ]);
   expect(result.during.editA).toEqual({codec:'ac-3', noAudio:false});
-  expect(result.panelDuring).toBe(true);
+  expect(result.offerDuring).toEqual({header:'Preparation needed', files:['film.mp4'], manualEnabled:true});
   expect(result.claimed).toBe(true);
   expect(result.after.editA).toEqual({codec:'ac-3', noAudio:false});
-  expect(result.panelAfter).toBe(true);
-  expect(result.externalHidden).toBe(false);
+  expect(result.offerAfter).toEqual({header:'Preparation needed', files:['film.mp4'], manualEnabled:true});
 });

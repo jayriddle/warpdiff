@@ -379,6 +379,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     const stalePreparation = _ffmpegCommands[slot];
     if (stalePreparation && !_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)) {
         delete _ffmpegCommands[slot];
+        _localPreparationResolveIssue(slot, _loadingProgressToken);
         if (Object.keys(_ffmpegCommands).length === 0) _setFfmpegPanelOpen(false);
         else _renderFfmpegPanel();
     }

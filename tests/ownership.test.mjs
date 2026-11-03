@@ -527,6 +527,15 @@ runMediaAdmissionChecks(check);
         claimAt >= 0 && clearAt > claimAt && observeAt > clearAt &&
         published.includes('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') &&
         published.includes("_setFfmpegPanelOpen(false)"));
+  const resolveIssue = extractFn('_localPreparationResolveIssue');
+  check('one-owner[decode-failure]: published native audio retires only its own fallback preparation issue',
+        countOf(SRC, 'function _localPreparationResolveIssue(') === 1 &&
+        resolveIssue.includes('batch.persistentIssues.delete(slot)') &&
+        resolveIssue.includes('batch.issues.delete(slot)') &&
+        resolveIssue.includes('_renderLocalPreparation()') &&
+        published.includes('_localPreparationResolveIssue(slot, _loadingProgressToken)') &&
+        published.indexOf('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') <
+          published.indexOf('_localPreparationResolveIssue(slot, _loadingProgressToken)'));
   const webcodecsFinished = extractFn('_webcodecsFinished');
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&
