@@ -281,7 +281,7 @@ test('service worker installs without FFmpeg and retires only owned legacy cache
 // in flight. A fast fallback records preparation or "no audio" before the
 // native buffer claims the generation. Publishing that buffer must drop those
 // records, except an unsupported-codec command, which stays.
-async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: Uint8Array, name: string}[]) {
+async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: Uint8Array, name: string, picture?: boolean}[]) {
   return page.evaluate(async payloads => {
     const w = window as any;
     const originalGetAudioContext = w.getAudioContext;
@@ -310,6 +310,13 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
       w._localPreparationAccept(payloads.map(file => ({
         slot:file.slot, file:new File([file.bytes], file.name, {type:'video/mp4'}),
       })));
+      for (const file of payloads) {
+        if (file.picture) w._localPreparationIssue(file.slot, w.eval('_loadingProgressToken'), 'picture');
+      }
+      const reasonsFor = () => Object.fromEntries(payloads.map(file => {
+        const reasons = w.eval('_localPreparationBatch').persistentIssues.get(file.slot);
+        return [file.slot, reasons ? [...reasons].sort() : []];
+      }));
       const offer = () => ({
         header:document.getElementById('preparationBtn')!.textContent,
         files:[...document.querySelectorAll('#localPreparationFiles li')].map(item => item.textContent),
@@ -325,6 +332,7 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
         noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
       }]));
       const offerDuring = offer();
+      const reasonsDuring = reasonsFor();
       if (releases.length !== payloads.length) throw new Error(`expected ${payloads.length} native decodes, got ${releases.length}`);
       for (const release of releases) release(buffer);
       const deadline = performance.now() + 2000;
@@ -338,14 +346,14 @@ async function lateNativeAfterFallback(page: Page, files: {slot: string, bytes: 
         codec: w.eval(`_ffmpegCommands.${file.slot} && _ffmpegCommands.${file.slot}.codec || ''`),
         noAudio: w.eval(`_noAudioSlots.has('${file.slot}')`),
       }]));
-      return {during, after, offerDuring, offerAfter:offer(), claimed};
+      return {during, after, offerDuring, offerAfter:offer(), reasonsDuring, reasonsAfter:reasonsFor(), claimed};
     } finally {
       w.getAudioContext = originalGetAudioContext;
       w.AudioDecoder = originalAudioDecoder;
       w._computeAudioAnalysis = originalAnalysis;
       w.clearAllMedia();
     }
-  }, files.map(file => ({slot:file.slot, name:file.name, bytes:file.bytes})));
+  }, files.map(file => ({slot:file.slot, name:file.name, bytes:file.bytes, picture:!!file.picture})));
 }
 
 test('a fast fallback failure is cleared when native decode succeeds later', async ({page}) => {
@@ -357,10 +365,26 @@ test('a fast fallback failure is cleared when native decode succeeds later', asy
   expect(result.during.editA).toEqual({codec:'unknown', noAudio:false});
   expect(result.during.editB).toEqual({codec:'', noAudio:true});
   expect(result.offerDuring).toEqual({header:'Preparation needed', files:['review.mp4'], manualEnabled:true});
+  expect(result.reasonsDuring).toEqual({editA:['audio'], editB:[]});
   expect(result.claimed).toBe(true);
   expect(result.after.editA).toEqual({codec:'', noAudio:false});
   expect(result.after.editB).toEqual({codec:'', noAudio:false});
   expect(result.offerAfter).toEqual({header:'Preparation', files:[], manualEnabled:false});
+  expect(result.reasonsAfter).toEqual({editA:[], editB:[]});
+});
+
+test('a picture preparation offer survives a late native audio success', async ({page}) => {
+  await page.goto('/');
+  const result = await lateNativeAfterFallback(page, [
+    {slot:'editA', name:'review.mp4', bytes:new Uint8Array(fs.readFileSync(path.join(__dirname, 'fixtures/landscape_a.mp4'))), picture:true},
+  ]);
+  expect(result.during.editA).toEqual({codec:'unknown', noAudio:false});
+  expect(result.offerDuring).toEqual({header:'Preparation needed', files:['review.mp4'], manualEnabled:true});
+  expect(result.reasonsDuring).toEqual({editA:['audio', 'picture']});
+  expect(result.claimed).toBe(true);
+  expect(result.after.editA).toEqual({codec:'', noAudio:false});
+  expect(result.offerAfter).toEqual({header:'Preparation needed', files:['review.mp4'], manualEnabled:false});
+  expect(result.reasonsAfter).toEqual({editA:['picture']});
 });
 
 test('an AC-3 preparation command is kept when native decode succeeds later', async ({page}) => {
@@ -372,7 +396,9 @@ test('an AC-3 preparation command is kept when native decode succeeds later', as
   ]);
   expect(result.during.editA).toEqual({codec:'ac-3', noAudio:false});
   expect(result.offerDuring).toEqual({header:'Preparation needed', files:['film.mp4'], manualEnabled:true});
+  expect(result.reasonsDuring).toEqual({editA:['audio']});
   expect(result.claimed).toBe(true);
   expect(result.after.editA).toEqual({codec:'ac-3', noAudio:false});
   expect(result.offerAfter).toEqual({header:'Preparation needed', files:['film.mp4'], manualEnabled:true});
+  expect(result.reasonsAfter).toEqual({editA:['audio']});
 });

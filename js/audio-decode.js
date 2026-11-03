@@ -124,7 +124,7 @@ function _setAudioTrackIssue(slot, message, reportPreparation = true) {
     alert.hidden = messages.length === 0;
     // reportPreparation is false for a transient file-read failure. That is not
     // a codec or container problem and must not stay eligible for conversion.
-    if (message && reportPreparation) _localPreparationIssue(slot, _loadingProgressToken);
+    if (message && reportPreparation) _localPreparationIssue(slot, _loadingProgressToken, 'audio');
 }
 
 async function decodeAndComputeAudioViz(slot, source) {
@@ -379,7 +379,7 @@ async function _finalizeAudioViz(slot, audioBuffer, gen, timelineStart = null, c
     const stalePreparation = _ffmpegCommands[slot];
     if (stalePreparation && !_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)) {
         delete _ffmpegCommands[slot];
-        _localPreparationResolveIssue(slot, _loadingProgressToken);
+        _localPreparationResolveIssue(slot, _loadingProgressToken, 'audio');
         if (Object.keys(_ffmpegCommands).length === 0) _setFfmpegPanelOpen(false);
         else _renderFfmpegPanel();
     }
@@ -752,7 +752,7 @@ function decodeAndComputeAudioSlotViz(slot, arrayBuffer) {
         if (_audioDecodeGen[slot] !== gen) return;
         _mediaInputObserve(slot, loadingToken, {audioDecodeFailed: true});
         _setLoadingSlotState(slot, 'Could not decode', 'error');
-        _localPreparationIssue(slot, loadingToken);
+        _localPreparationIssue(slot, loadingToken, 'audio');
         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode audio ' + mediaData[slot]?.name)) return;
         console.error('Audio decode error for slot ' + slot + ':', err);
         showLoadToast('Audio decode failed for ' + slotLabel(slot), true, 5000);

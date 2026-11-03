@@ -6959,7 +6959,7 @@
             const plan = _mediaPreparationProviders.plan('manual-ffmpeg', preparation);
             _ffmpegCommands[slot] = { filename, codec, codecLabel, cmd: plan.command,
                 commandNotice: plan.notice, preparation, providerId: plan.providerId, loadEpoch: _ffmpegLoadEpoch };
-            if (!_localPreparationIssue(slot, _loadingProgressToken)) _setFfmpegPanelOpen(true);
+            if (!_localPreparationIssue(slot, _loadingProgressToken, 'audio')) _setFfmpegPanelOpen(true);
             requestAnimationFrame(() => _drawDecodingPlaceholder(slot));
             if (slot === currentAudioSource) updateAudioVisForSlot(slot);
         }
@@ -8756,7 +8756,7 @@
                 if (loadingToken !== _loadingProgressToken) return;
                 _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not open', 'error');
-                _localPreparationIssue(slot, loadingToken);
+                _localPreparationIssue(slot, loadingToken, 'audio');
                 _hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not play ' + file.name);
             }, { once: true });
             audio.addEventListener('loadeddata', function() {
@@ -8897,7 +8897,7 @@
                     if (!video.videoWidth || !video.videoHeight) {
                         _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                         mediaData[slot]._videoLoadFailed = true;
-                        _localPreparationIssue(slot, loadingToken);
+                        _localPreparationIssue(slot, loadingToken, 'picture');
                         if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                     }
                 }
@@ -8928,7 +8928,7 @@
                 _mediaInputObserve(slot, loadingToken, {mediaFailed: true});
                 _setLoadingSlotState(slot, 'Could not decode', 'error');
                 if (mediaData[slot]) mediaData[slot]._videoLoadFailed = true;
-                _localPreparationIssue(slot, loadingToken);
+                _localPreparationIssue(slot, loadingToken, 'picture');
                 if (_hostLoadSlotUpdate(slot, loadingToken, 'failed', 'Could not decode video ' + file.name)) return;
                 checkAllLoaded();
             });

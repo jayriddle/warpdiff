@@ -528,14 +528,19 @@ runMediaAdmissionChecks(check);
         published.includes('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') &&
         published.includes("_setFfmpegPanelOpen(false)"));
   const resolveIssue = extractFn('_localPreparationResolveIssue');
-  check('one-owner[decode-failure]: published native audio retires only its own fallback preparation issue',
+  const recordIssue = extractFn('_localPreparationIssue');
+  check('one-owner[decode-failure]: published native audio retires only its audio preparation reason',
         countOf(SRC, 'function _localPreparationResolveIssue(') === 1 &&
-        resolveIssue.includes('batch.persistentIssues.delete(slot)') &&
+        resolveIssue.includes('reasons.delete(reason)') &&
+        resolveIssue.includes('!reasons.size') &&
         resolveIssue.includes('batch.issues.delete(slot)') &&
         resolveIssue.includes('_renderLocalPreparation()') &&
-        published.includes('_localPreparationResolveIssue(slot, _loadingProgressToken)') &&
+        recordIssue.includes("reason !== 'audio' && reason !== 'picture'") &&
+        countOf(extractFn('loadVideoFile'), "_localPreparationIssue(slot, loadingToken, 'picture')") === 2 &&
+        extractFn('_registerFfmpegCommand').includes("_localPreparationIssue(slot, _loadingProgressToken, 'audio')") &&
+        published.includes("_localPreparationResolveIssue(slot, _loadingProgressToken, 'audio')") &&
         published.indexOf('!_UNSUPPORTED_CODEC_LABELS.hasOwnProperty(stalePreparation.codec)') <
-          published.indexOf('_localPreparationResolveIssue(slot, _loadingProgressToken)'));
+          published.indexOf("_localPreparationResolveIssue(slot, _loadingProgressToken, 'audio')"));
   const webcodecsFinished = extractFn('_webcodecsFinished');
   check('one-owner[decode-current]: WebCodecs completion drops stale generations before announcing UI',
         webcodecsFinished.includes('_webcodecsPending.delete(gen)') &&
