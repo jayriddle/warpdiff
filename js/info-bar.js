@@ -555,6 +555,8 @@ function _setupInfoBarEditor() {
     document.getElementById('infoEditorClose').addEventListener('click',_closeInfoBarEditor);
     dialog.addEventListener('close',() => {
         if (dialog.open) return;
+        // A half-finished remap must not capture the next key after Settings closes.
+        _reassigningActionId = null;
         _infoEditorFinishDrag(false);
         _closeInfoBarOverflow(false); _infoBarRestoreSurface(document.getElementById('infoEditorPreview'));
         document.getElementById('infoEditorButton').setAttribute('aria-expanded','false');

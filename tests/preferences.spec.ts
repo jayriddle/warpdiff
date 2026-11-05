@@ -110,6 +110,23 @@ for (const fault of ['getter','read','write','remove']) {
   });
 }
 
+test('closing Settings cancels an in-progress shortcut reassignment', async ({page}) => {
+  await seed(page);await started(page);await images(page);
+  await page.keyboard.press('h');
+  await page.locator('[data-action-id="mute"]').click();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await page.locator('#infoEditorClose').click();
+  await expect(page.locator('#infoEditorDialog')).toBeHidden();
+  const before=await page.locator('#muteBtn').innerHTML();
+  await page.keyboard.press('u');
+  expect(await page.locator('#muteBtn').innerHTML(), 'The next key must not become a new shortcut').toBe(before);
+  await page.keyboard.press('m');
+  expect(await page.locator('#muteBtn').innerHTML()).not.toBe(before);
+  await page.keyboard.press('h');
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('M');
+  expect(await page.evaluate(()=>(window as any).__testAPI._customKeys)).toEqual({});
+});
+
 test('failed saves preserve current volume and notify once without changing durable settings', async ({page}) => {
   await seed(page,{pref_volume:'35'});await started(page);await images(page);
   await page.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('Full','QuotaExceededError');};});
