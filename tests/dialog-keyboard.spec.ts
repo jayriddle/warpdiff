@@ -45,6 +45,9 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
     await page.locator('#'+activate).focus();await page.keyboard.press('Enter');await expect(page.locator('#'+dialog)).toBeVisible();
     await expect(page.locator('#infoOverflowPanel')).toBeHidden();
     for(const key of ['Tab','Shift+Tab']){await page.keyboard.press(key);expect(await page.evaluate(id=>document.getElementById(id)!.contains(document.activeElement),dialog)).toBe(true);}
-    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();await expect(page.locator('#'+opener)).toBeFocused();
+    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();
+    // A comparison that finishes loading must not pull focus off Settings.
+    if(opener==='infoEditorButton') await page.evaluate(()=>_focusComparisonAfterLoad());
+    await expect(page.locator('#'+opener)).toBeFocused();
   });
 }
