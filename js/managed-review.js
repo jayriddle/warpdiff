@@ -4,6 +4,7 @@ function _managedReviewActive() { return _hostCapabilities.managedReview === tru
 function _applyManagedReviewChrome() {
     const active = _managedReviewActive();
     document.body.classList.toggle('managed-review', active);
+    if (typeof _syncMediaStatusHeader === 'function') _syncMediaStatusHeader();
     for (const [id, label] of [['gridIconBtn', active ? 'Compare together' : 'Grid'], ['stackIconBtn', active ? 'Single candidate' : 'Stack']]) {
         const button = document.getElementById(id);
         button.title = label;

@@ -23,6 +23,11 @@ test.beforeEach(async({page})=>{
   await openImport(page);
 });
 test.afterEach(async({page})=>{const errors=await page.evaluate(async()=>{const w=window as any;w._resetPreparedImport();if(w.releaseImportRead)await w.releaseImportRead();return w.importErrors;});expect(errors).toEqual([]);});
+async function openMediaStatus(page:any){
+  if(await page.locator('#mediaStatusBtn').isVisible()){await page.locator('#mediaStatusBtn').click();return;}
+  if(!await page.locator('#quickStartPopup').isVisible())await page.locator('#helpBtn').click();
+  await page.locator('#helpMediaStatusBtn').click();
+}
 async function openImport(page:any){
   if(!await page.locator('#quickStartPopup').isVisible())await page.locator('#helpBtn').click();
   if(!await page.locator('#helpAdvanced').evaluate((d:HTMLDetailsElement)=>d.open))await page.locator('#helpAdvanced summary').click();
@@ -53,7 +58,7 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   // before asking Media status to verify its pixels.
   await page.keyboard.press('ArrowRight');await page.keyboard.press('ArrowRight');await page.keyboard.press('Space');
   await expect.poll(()=>page.locator('#layerEditB video').evaluate((v:HTMLVideoElement)=>v.currentTime),{timeout:15000}).toBeGreaterThan(.01);await page.keyboard.press('Space');
-  await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
+  await openMediaStatus(page);await page.locator('#mediaStatusRefresh').click();
   await expect.poll(()=>page.evaluate(()=>Object.values((window as any).WarpDiffHostAPI.readMediaInputReports()).every((r:any)=>r.capabilities.picture.state==='available')),{timeout:15000}).toBe(true);
  });
  test('Space after an ordinary load starts playback instead of reopening Load',async({page})=>{
@@ -124,7 +129,7 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
     await expect(page.locator('#localPreparationDialog')).not.toBeVisible();
     await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed');
   }
-  await page.locator('#mediaStatusBtn').click();await page.locator('#mediaStatusRefresh').click();
+  await openMediaStatus(page);await page.locator('#mediaStatusRefresh').click();
   const report=await page.evaluate(()=>(window as any).WarpDiffHostAPI.readMediaInputReports().editA);
   expect(['unknown','unavailable']).toContain(report.capabilities.picture.state);expect(['unknown','unavailable']).toContain(report.capabilities.frameAccess.state);expect(report.admission.preparedProfile).toBe('not-validated');expect(await page.evaluate(()=>(window as any).importReplies)).toEqual([]);
  });

@@ -2,6 +2,16 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.24
+
+- Preparation and Media status appear in the header only when a file needs attention. Preparation stays available from Help, including before files are loaded. Media status stays available from Help after files are loaded.
+- A leftover “Preparation needed” notice no longer lingers after audio finishes loading on its own. That 3.19.23 fix is announced with this release.
+
+## v3.19.23
+
+- A leftover “Preparation needed” notice no longer lingers after audio finishes loading on its own.
+- Announced with 3.19.24. The in-app summary did not change on its own for 3.19.23.
+
 ## v3.19.22
 
 - Help keeps the keyboard inside its window until you close it. Loaded pictures are named with the file and the slot, and header and picture details are easier to read.

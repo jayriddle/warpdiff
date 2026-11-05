@@ -52,6 +52,7 @@ function _localPreparationClear() {
     _localPreparationMessage = '';
     const dialog = document.getElementById('localPreparationDialog');
     if (dialog?.open) dialog.close();
+    _renderLocalPreparation();
 }
 function _localPreparationIssue(slot, token, reason) {
     const batch = _localPreparationBatch;
@@ -111,16 +112,20 @@ function _showLocalPreparation(opener = null) {
     if (_managedReviewActive()) return;
     const dialog = document.getElementById('localPreparationDialog');
     if (!dialog) return;
-    _renderLocalPreparation();
     if (!dialog.open) {
         _localPreparationOpener = opener || document.activeElement;
         _localPreparationDialogOwner = {};
         _showAppDialog(dialog);
     }
+    // Render after the dialog is open so its header button stays visible.
+    _renderLocalPreparation();
 }
 function _closeLocalPreparation() {
     document.getElementById('localPreparationDialog')?.close();
     _localPreparationClosed();
+}
+function _preparationControlShown(element) {
+    return element && element.isConnected && !element.hidden && element.getClientRects().length ? element : null;
 }
 function _localPreparationClosed() {
     if (document.getElementById('localPreparationDialog').open || !_localPreparationDialogOwner) return;
@@ -128,8 +133,15 @@ function _localPreparationClosed() {
     _mediaPreparationProviders.cancel('local-companion');
     _localPreparationAction?.controller.abort();
     if (_localPreparationAction) _localPreparationMessage = 'Cancelling preparation. Your originals are unchanged.';
-    if (_localPreparationOpener?.isConnected) _localPreparationOpener.focus({preventScroll:true});
+    const opener = _localPreparationOpener;
     _localPreparationOpener = null;
+    _renderLocalPreparation();
+    const header = document.getElementById('preparationBtn');
+    const helpPrep = document.getElementById('helpPreparationBtn');
+    const help = document.getElementById('helpBtn');
+    const target = _preparationControlShown(opener) || _preparationControlShown(header)
+        || _preparationControlShown(helpPrep) || _preparationControlShown(help);
+    if (target) target.focus({preventScroll:true});
 }
 function _renderLocalPreparation() {
     const dialog = document.getElementById('localPreparationDialog');
@@ -156,8 +168,24 @@ function _renderLocalPreparation() {
         : items.length && !actionable.length ? preparedOnly
         : 'Connect the local preparation tool once for this visit. Your current comparison stays in place.');
     const button = document.getElementById('preparationBtn');
-    if (button) {button.hidden = _managedReviewActive();
-        button.textContent = actionable.length ? 'Preparation needed' : items.length ? 'Preparation' : connection.connected ? 'Preparation ✓' : 'Preparation';}
+    if (button) {
+        // The header control stays out of the way until there is something to do.
+        // Help → Preparation remains available so the tool can be connected first.
+        // Managed review has no local-preparation chrome. An open dialog keeps its
+        // opener on screen until it closes.
+        const preparedCopies = !!batch?.files.some(item => item.prepared);
+        const restore = !!(_localPreparationRecovery && _localPreparationRecovery.token === _loadingProgressToken);
+        const show = !_managedReviewActive() && (dialog.open || actionable.length || items.length
+            || preparedCopies || restore || connection.connected);
+        const wasFocused = document.activeElement === button;
+        button.hidden = !show;
+        button.textContent = actionable.length ? 'Preparation needed' : items.length ? 'Preparation' : connection.connected ? 'Preparation ✓' : 'Preparation';
+        if (wasFocused && !show && !dialog.open) {
+            const help = _preparationControlShown(document.getElementById('helpBtn'));
+            if (help) help.focus({preventScroll:true});
+        }
+    }
+    if (typeof _syncMediaStatusHeader === 'function') _syncMediaStatusHeader();
 }
 async function _connectLocalPreparation() {
     _localPreparationMessage = '';
@@ -350,6 +378,12 @@ function _setupLocalPreparation() {
             return {kind:'files',files:[prepared.file]};
         }});
     document.getElementById('preparationBtn').addEventListener('click',event => _showLocalPreparation(event.currentTarget));
+    document.getElementById('helpPreparationBtn').addEventListener('click',() => {
+        // Help covers the header. Close it so Preparation's own dialog, and the
+        // header button once it has a reason to stay, can be used directly.
+        if (document.getElementById('quickStartPopup').classList.contains('show')) toggleQuickStart();
+        _showLocalPreparation(document.getElementById('helpBtn'));
+    });
     document.getElementById('localPreparationConnect').addEventListener('click',_connectLocalPreparation);
     document.getElementById('localPreparationDisconnect').addEventListener('click',() => {_localPreparationConnection.disconnect();_renderLocalPreparation();});
     document.getElementById('localPreparationRun').addEventListener('click',_runLocalPreparation);

@@ -10,6 +10,7 @@ export default defineConfig({
   projects: [
     {name:'webkit-frame-step',testMatch:'frame-rate-step.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-dialog-keyboard',testMatch:'dialog-keyboard.spec.ts',use:{browserName:'webkit'}},
+    {name:'webkit-contextual-header',testMatch:'contextual-header.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-audit-quick-fixes',testMatch:'audit-quick-fixes.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-ui-accessibility-layout',testMatch:'ui-accessibility-layout.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-native-video-output',testMatch:'native-video-output.spec.ts',use:{browserName:'webkit'}},
