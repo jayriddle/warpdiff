@@ -620,6 +620,51 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
   await cdp.detach();
 });
 
+test('settings tabs show one selected style and keep the dialog the same size', async ({ page }) => {
+  await open(page);
+  const box = () => page.locator('#infoEditorDialog').boundingBox();
+  const look = () => page.evaluate(() => {
+    const tabs = [...document.querySelectorAll('#infoEditorDialog [role="tab"]')] as HTMLElement[];
+    const selected = tabs.filter(tab => tab.getAttribute('aria-selected') === 'true');
+    const quiet = tabs.find(tab => tab.getAttribute('aria-selected') === 'false')!;
+    const chosen = getComputedStyle(selected[0]);
+    const other = getComputedStyle(quiet);
+    return {
+      count: selected.length,
+      id: selected[0].id,
+      background: chosen.backgroundColor,
+      weight: chosen.fontWeight,
+      color: chosen.color,
+      quietBackground: other.backgroundColor,
+      quietWeight: other.fontWeight,
+      quietColor: other.color
+    };
+  });
+  const first = await box();
+  let style = await look();
+  expect(style.count).toBe(1);
+  expect(style.id).toBe('settingsTabInfo');
+  expect(style.background).not.toBe(style.quietBackground);
+  expect(style.weight).not.toBe(style.quietWeight);
+  expect(style.color).not.toBe(style.quietColor);
+  for (const id of ['settingsTabHotkeys', 'settingsTabColors', 'settingsTabInfo']) {
+    await page.locator('#' + id).click();
+    style = await look();
+    expect(style.count).toBe(1);
+    expect(style.id).toBe(id);
+    expect(style.background).not.toBe(style.quietBackground);
+    const next = await box();
+    expect(Math.abs(next!.width - first!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(next!.height - first!.height)).toBeLessThanOrEqual(1);
+  }
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+  const hotkeys = await box();
+  expect(Math.abs(hotkeys!.width - first!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(hotkeys!.height - first!.height)).toBeLessThanOrEqual(1);
+  expect((await look()).count).toBe(1);
+});
+
 test('three portrait Inline and Offset bars keep selected controls inside the viewport', async ({ page }) => {
   await page.setViewportSize({width:320,height:400});
   for (const type of ['video','image']) {

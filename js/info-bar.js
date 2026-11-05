@@ -447,6 +447,23 @@ function _selectSettingsTab(tab) {
     if (tab === 'hotkeys') _renderShortcutsList();
     if (tab === 'colors') _renderSlotColors();
 }
+// One size for every tab: the tallest panel, never taller than the window.
+function _fitSettingsDialog() {
+    const dialog = document.getElementById('infoEditorDialog');
+    if (!dialog.open || dialog.classList.contains('settings-measuring')) return;
+    const previous = _settingsTab;
+    dialog.classList.add('settings-measuring');
+    let tallest = 0;
+    for (const name of _SETTINGS_TABS) {
+        for (const other of _SETTINGS_TABS) document.getElementById(_SETTINGS_PANEL_IDS[other]).hidden = other !== name;
+        if (name === 'hotkeys') _renderShortcutsList();
+        if (name === 'colors') _renderSlotColors();
+        tallest = Math.max(tallest, dialog.offsetHeight);
+    }
+    dialog.classList.remove('settings-measuring');
+    dialog.style.setProperty('--settings-height', Math.min(window.innerHeight - 32, tallest) + 'px');
+    _selectSettingsTab(previous);
+}
 function _openInfoBarEditor(tab = 'info') {
     if (_managedReviewActive()) return;
     const dialog = document.getElementById('infoEditorDialog');
@@ -465,6 +482,7 @@ function _openInfoBarEditor(tab = 'info') {
         _renderInfoEditorPreview();
     } else _closeInfoBarOverflow(false);
     _selectSettingsTab(tab);
+    if (opening) _fitSettingsDialog();
     document.getElementById(tab === 'hotkeys' ? 'settingsTabHotkeys' : 'infoEditorClose').focus();
 }
 function _settingsHotkeyPressed(event) {
@@ -693,7 +711,7 @@ function _setupInfoBarEditor() {
         }
         event.stopImmediatePropagation();
     },true);
-    window.addEventListener('resize',_queueInfoBarRefresh);
+    window.addEventListener('resize',() => {_queueInfoBarRefresh();_fitSettingsDialog();});
     window.addEventListener('storage',event => {
         if (event.key !== 'pref_infoBarProfiles' && event.key !== null) return;
         _infoEditorFinishDrag(false);
