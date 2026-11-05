@@ -573,16 +573,17 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
   await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await open(page,'video');await page.locator('#infoEditorPreset').selectOption('visual');
   const dialog = page.locator('#infoEditorDialog');
+  const scroller = page.locator('#settingsPanelInfo');
   await page.locator('[data-info-drag="resolution"]').scrollIntoViewIfNeeded();
   const start = await page.locator('[data-info-drag="resolution"]').boundingBox();
   const bounds = await dialog.boundingBox();
   const source = {x:start!.x+start!.width/2,y:start!.y+start!.height/2};
   const edge = {x:source.x,y:bounds!.y+bounds!.height-12};
-  const before = await dialog.evaluate(element=>element.scrollTop);
+  const before = await scroller.evaluate(element=>element.scrollTop);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...source,id:1}]});
   for(let step=1;step<=8;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:source.x,y:source.y+(edge.y-source.y)*step/8,id:1}]});
   // A held finger must keep scrolling: pointermove-only scrolling stalls after one step.
-  await expect.poll(()=>dialog.evaluate(element=>element.scrollTop)).toBeGreaterThan(before+100);
+  await expect.poll(()=>scroller.evaluate(element=>element.scrollTop)).toBeGreaterThan(before+100);
   await expect.poll(()=>page.locator('[data-element-id="zoom"]').evaluate(row=>{
     const rect=row.getBoundingClientRect(), bounds=document.getElementById('infoEditorDialog')!.getBoundingClientRect();
     return rect.top>=bounds.top+40 && rect.bottom<=bounds.bottom-40;
@@ -609,15 +610,31 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
   await expect.poll(()=>page.evaluate(()=>eval('_infoEditorScrollRaf')!==null)).toBe(true);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
   await expect.poll(()=>page.evaluate(()=>eval('_infoEditorScrollRaf'))).toBeNull();
-  const stopped = await dialog.evaluate(element=>element.scrollTop);
+  const stopped = await scroller.evaluate(element=>element.scrollTop);
   // Verify no scrolling chain survives the captured gesture over multiple display frames.
   await page.evaluate(async()=>{for(let i=0;i<20;i++) await new Promise(requestAnimationFrame);});
-  expect(await dialog.evaluate(element=>element.scrollTop)).toBe(stopped);
+  expect(await scroller.evaluate(element=>element.scrollTop)).toBe(stopped);
   expect(await page.evaluate(()=>localStorage.getItem('pref_infoBarProfiles'))).toBe(saved);
   // The close control must stay reachable after scrolling a long touch dialog.
   await expect(page.locator('#infoEditorClose')).toBeInViewport();
   await close(page);await expect(page.locator('#infoEditorButton')).toBeFocused();
   await cdp.detach();
+});
+
+test('resizing Settings keeps the focused control and a shortcut being chosen', async ({ page }) => {
+  await page.setViewportSize({width:1100,height:800});
+  await open(page);
+  await page.locator('#infoEditorPreset').focus();
+  await page.setViewportSize({width:900,height:700});
+  await expect(page.locator('#infoEditorPreset')).toBeFocused();
+  await page.keyboard.press('h');
+  await page.locator('[data-action-id="mute"]').click();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await expect(page.locator('[data-action-id="mute"]')).toBeFocused();
+  await page.setViewportSize({width:1000,height:760});
+  await expect(page.locator('[data-action-id="mute"]')).toBeFocused();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await expect(page.locator('#infoEditorDialog')).toBeVisible();
 });
 
 test('settings tabs show one selected style and keep the dialog the same size', async ({ page }) => {

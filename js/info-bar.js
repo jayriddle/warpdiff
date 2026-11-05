@@ -403,14 +403,15 @@ function _infoEditorFinishDrag(apply) {
 // Only the captured gesture owns this frame chain; FinishDrag retires it.
 function _infoEditorTrackPointerDrag() {
     const pointer = _infoEditorPointer, dialog = document.getElementById('infoEditorDialog');
-    if (!pointer || !_infoEditorDragged || !dialog.open) return;
+    const scroller = document.getElementById(_SETTINGS_PANEL_IDS[_settingsTab]);
+    if (!pointer || !_infoEditorDragged || !dialog.open || !scroller) return;
     const bounds = dialog.getBoundingClientRect(), x = pointer.currentX, y = pointer.currentY;
     const inside = x >= bounds.left && x <= bounds.right;
     const delta = !inside ? 0 : y < bounds.top+40 ? -16 : y > bounds.bottom-40 ? 16 : 0;
-    const before = dialog.scrollTop;
-    dialog.scrollTop += delta;
+    const before = scroller.scrollTop;
+    scroller.scrollTop += delta;
     _infoEditorShowDrop(document.elementFromPoint(x,y),y);
-    if (delta && dialog.scrollTop !== before) {
+    if (delta && scroller.scrollTop !== before) {
         if (_infoEditorScrollRaf === null) _infoEditorScrollRaf = requestAnimationFrame(() => {
             _infoEditorScrollRaf = null;
             _infoEditorTrackPointerDrag();
@@ -448,21 +449,25 @@ function _selectSettingsTab(tab) {
     if (tab === 'colors') _renderSlotColors();
 }
 // One size for every tab: the tallest panel, never taller than the window.
+// Copies are measured so the open tab, its focus, and a half-chosen key stay put.
 function _fitSettingsDialog() {
     const dialog = document.getElementById('infoEditorDialog');
     if (!dialog.open || dialog.classList.contains('settings-measuring')) return;
-    const previous = _settingsTab;
-    dialog.classList.add('settings-measuring');
+    const heading = dialog.querySelector('.info-editor-heading').offsetHeight;
+    const border = dialog.offsetHeight - dialog.clientHeight;
     let tallest = 0;
     for (const name of _SETTINGS_TABS) {
-        for (const other of _SETTINGS_TABS) document.getElementById(_SETTINGS_PANEL_IDS[other]).hidden = other !== name;
-        if (name === 'hotkeys') _renderShortcutsList();
-        if (name === 'colors') _renderSlotColors();
-        tallest = Math.max(tallest, dialog.offsetHeight);
+        const panel = document.getElementById(_SETTINGS_PANEL_IDS[name]);
+        if (name === 'hotkeys' && !panel.querySelector('.shortcut-row')) _renderShortcutsList();
+        if (name === 'colors' && !panel.querySelector('.slot-color-swatch')) _renderSlotColors();
+        const copy = panel.cloneNode(true);
+        copy.hidden = false;
+        copy.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;height:auto;overflow:visible;flex:none;width:'+dialog.clientWidth+'px';
+        dialog.appendChild(copy);
+        tallest = Math.max(tallest, heading + copy.scrollHeight + border);
+        copy.remove();
     }
-    dialog.classList.remove('settings-measuring');
     dialog.style.setProperty('--settings-height', Math.min(window.innerHeight - 32, tallest) + 'px');
-    _selectSettingsTab(previous);
 }
 function _openInfoBarEditor(tab = 'info') {
     if (_managedReviewActive()) return;
