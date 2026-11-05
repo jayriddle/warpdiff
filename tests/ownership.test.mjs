@@ -2264,6 +2264,7 @@ runMediaAdmissionChecks(check);
       _UNSUPPORTED_CODEC_LABELS: {}, _isChrome: chrome, AudioDecoder: function AudioDecoder() {}, File: function File() {},
       console: {warn(){}}, _nextAudioDecodeGeneration: () => 1, _videoAudioDecodeIsCurrent: () => true,
       _setAudioTrackIssue(){}, _setVideoAudioFormat(){}, _localPreparationResolveTransientRead(){},
+      _videoScrubStatus: {}, _mediaInputStatusChanged(){},
       _isMP4AudioContainer: () => true,
       _isWebMAudioContainer: () => false, _mp4AudioAnalysisIssue: () => '',
       _demuxMP4Audio: () => ({audioTracks:[{codec:opus ? 'Opus' : 'aac'}]}),

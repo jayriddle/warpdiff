@@ -38,6 +38,15 @@ test.beforeEach(async ({page}) => {
   await page.goto('/');
 });
 const reports = (page:any) => page.evaluate(() => (window as any).__testAPI.mediaInputReports);
+async function openMediaStatus(page:any) {
+  const header = page.locator('#mediaStatusBtn');
+  if (await header.isVisible()) { await header.click(); return header; }
+  if (!await page.locator('#quickStartPopup').isVisible()) await page.locator('#helpBtn').click();
+  const help = page.locator('#helpMediaStatusBtn');
+  await expect(help).toBeVisible();
+  await help.click();
+  return help;
+}
 async function host(page:any, file:string, id='current', extra={}) {
   await page.evaluate(({base64,name,id,extra}:any) => window.postMessage({type:'WARPDIFF_LOAD', requestId:id,
     files:[{name,contentType:'video/mp4',base64}],...extra}, location.origin),
@@ -55,6 +64,7 @@ test('decoded image report is immutable and its dialog preserves focus and liter
   await expect(page.locator('#mediaStatusBtn')).toBeHidden();
   await page.locator('#multiFileInput').setInputFiles({name:'<img src=x onerror=alert(1)>.png',mimeType:'image/png',buffer:fs.readFileSync(path.join(__dirname,'fixtures/green.png'))});
   await expect.poll(async () => (await reports(page)).editA?.capabilities.picture.state).toBe('available');
+  await expect(page.locator('#mediaStatusBtn')).toBeHidden();
   const report=(await reports(page)).editA;
   expect(report.admission.state).toBe('admitted'); expect(report.capabilities.frameAccess.state).toBe('available');
   expect(report.capabilities.audioDecode.state).toBe('not-applicable');
@@ -63,8 +73,8 @@ test('decoded image report is immutable and its dialog preserves focus and liter
     report:(window as any).WarpDiffHostAPI.readMediaInputReports().editA,
     frozen:Object.isFrozen((window as any).WarpDiffHostAPI.readMediaInputReports())}));
   expect(hostView).toEqual({version:1,report,frozen:true});
-  const button=page.locator('#mediaStatusBtn'),dialog=page.locator('#mediaStatusDialog');
-  await button.click(); await expect(dialog).toBeVisible();
+  const button=await openMediaStatus(page),dialog=page.locator('#mediaStatusDialog');
+  await expect(dialog).toBeVisible();
   const box=(await dialog.boundingBox())!,viewport=page.viewportSize()!;
   expect(Math.abs(box.x-(viewport.width-box.width)/2)).toBeLessThan(1);
   expect(Math.abs(box.y-(viewport.height-box.height)/2)).toBeLessThan(1);
@@ -85,7 +95,8 @@ test('single-track video separates observed tools from unverified timing and ori
   expect(report.timing.frameRate.state).toBe('unknown'); expect(report.timing.synchronization.state).toBe('unknown');
   expect(report.capabilities.originalSourceAnalysis.state).toBe('unknown');
   const before=await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>({paused:v.paused,time:v.currentTime}));
-  await page.locator('#mediaStatusBtn').click(); await page.locator('#mediaStatusRefresh').click();
+  await expect(page.locator('#mediaStatusBtn')).toBeHidden();
+  await openMediaStatus(page); await page.locator('#mediaStatusRefresh').click();
   expect(await page.locator('#layerEditA video').evaluate((v:HTMLVideoElement)=>({paused:v.paused,time:v.currentTime}))).toEqual(before);
   await expect(page.locator('[data-host-video-probe]')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).admissionErrors)).toEqual([]);
@@ -98,6 +109,7 @@ test('multi-track picture admission never authorizes decoded audio tools', async
   expect(report.admission.state).toBe('admitted'); expect(report.capabilities.picture.state).toBe('available');
   for (const key of ['audioDecode','decodedAnalysis','scrubAudio']) expect(report.capabilities[key].state).toBe('unavailable');
   expect(report.issues[0].code).toBe('audio-track-selection-required');
+  await expect(page.locator('#mediaStatusBtn')).toBeVisible();
   await page.locator('#mediaStatusBtn').click();
   await expect(page.locator('#mediaStatusContent')).toContainText('Multiple MP4 audio tracks');
 });
@@ -109,6 +121,7 @@ test('verified silent video has no audio requirement rather than a codec failure
   expect(report.capabilities.picture.state).toBe('available');
   expect(report.capabilities.audioDecode.state).toBe('not-applicable'); expect(report.capabilities.scrubAudio.state).toBe('not-applicable');
   expect(report.issues).toEqual([]);
+  await expect(page.locator('#mediaStatusBtn')).toBeHidden();
 });
 
 test('audio-only analysis does not turn an unknown start into verified zero', async ({page}) => {
@@ -152,7 +165,7 @@ test('clear retires reports and rejects a retired observation token', async ({pa
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname,'fixtures/green.png'));
   await expect.poll(async () => (await reports(page)).editA?.capabilities.picture.state).toBe('available');
   await page.evaluate(() => { (window as any).oldAdmissionToken=(window as any).eval('_loadingProgressToken'); });
-  await page.locator('#mediaStatusBtn').click();
+  await openMediaStatus(page);
   await page.evaluate(() => (window as any).clearAllMedia());
   expect(await reports(page)).toEqual({}); await expect(page.locator('#mediaStatusDialog')).not.toBeVisible();
   await expect(page.locator('#mediaStatusBtn')).toBeHidden(); await expect(page.locator('#loadBtn')).toBeFocused();
@@ -184,7 +197,7 @@ test('status fits a narrow viewport and refresh performs at most two pixel draws
   await expect.poll(async () => (await reports(page)).editA?.capabilities.picture.state).toBe('available');
   await page.evaluate(() => { const draw=CanvasRenderingContext2D.prototype.drawImage; (window as any).statusDraws=0;
     CanvasRenderingContext2D.prototype.drawImage=function(...args:any[]){if(this.canvas.width===1&&this.canvas.height===1)(window as any).statusDraws++;return (draw as any).apply(this,args);}; });
-  await page.locator('#mediaStatusBtn').click();
+  await openMediaStatus(page);
   const dialog=page.locator('#mediaStatusDialog'),box=(await dialog.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.x+box.width).toBeLessThanOrEqual(390); expect(box.y+box.height).toBeLessThanOrEqual(844);
   expect(Math.abs(box.x-(390-box.width)/2)).toBeLessThan(1);
@@ -200,11 +213,11 @@ test('status owns keyboard input and Escape closes it while loop markers remain 
   await host(page,files.single); await ready(page);
   await page.evaluate(() => (window as any).setLoopPoint('in'));
   const before=await page.evaluate(() => ({grid:(window as any).__testAPI.isGridMode,loop:(window as any).__testAPI._loopInPoint}));
-  await page.locator('#mediaStatusBtn').click();
+  const opener = await openMediaStatus(page);
   await page.keyboard.press('g');
   expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(before.grid);
   await page.keyboard.press('Escape');
   await expect(page.locator('#mediaStatusDialog')).not.toBeVisible();
-  await expect(page.locator('#mediaStatusBtn')).toBeFocused();
+  await expect(opener).toBeFocused();
   expect(await page.evaluate(() => (window as any).__testAPI._loopInPoint)).toBe(before.loop);
 });

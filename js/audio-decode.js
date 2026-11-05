@@ -154,11 +154,18 @@ async function decodeAndComputeAudioViz(slot, source) {
         _localPreparationTransientRead(slot, loadingToken);
         _setAudioTrackIssue(slot, message, false);
         _videoScrubStatus[slot] = {unavailable:true, message};
+        _mediaInputStatusChanged();
         updateAudioVisForSlot(slot);
         if (_noVideoMode) _drawDecodingPlaceholder(slot);
         return;
     }
     if (!_videoAudioDecodeIsCurrent(slot, gen)) return;
+    // A recovered read is not an unavailable tool. Leave scrub audio unverified
+    // until the new listening copy is ready, so the header notice can retire.
+    if (_videoScrubStatus[slot]?.unavailable && String(_videoScrubStatus[slot].message || '').startsWith('Could not read the audio file')) {
+        delete _videoScrubStatus[slot];
+        _mediaInputStatusChanged();
+    }
     _localPreparationResolveTransientRead(slot, loadingToken);
 
     // Only the uniquely selected container track can identify Opus. Free-form
@@ -192,6 +199,7 @@ async function decodeAndComputeAudioViz(slot, source) {
     if (trackIssue) {
         _setAudioTrackIssue(slot, trackIssue);
         _videoScrubStatus[slot] = {unavailable:true, message:trackIssue};
+        _mediaInputStatusChanged();
         delete audioFileBuffers[slot];
         updateAudioVisForSlot(slot);
         if (_noVideoMode) _drawDecodingPlaceholder(slot);

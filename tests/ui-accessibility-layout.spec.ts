@@ -8,7 +8,7 @@ const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 const broken = (name: string) => ({ name, mimeType: 'image/png', buffer: Buffer.from('not a png') });
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.22'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.24'));
 });
 
 async function loadGreen(page: Page) {
@@ -94,21 +94,26 @@ test('volume, picture name, header and metadata meet the accessible-name and con
 });
 
 for (const width of [320, 375]) {
-  test(`Media status, Reset and Help stay on screen at ${width}px`, async ({ page }) => {
+  test(`Reset and Help stay on screen at ${width}px, and Media status joins them when needed`, async ({ page }) => {
     await page.setViewportSize({ width, height: 700 });
     await loadGreen(page);
-    await expect(page.locator('#mediaStatusBtn')).toBeVisible();
+    await expect(page.locator('#mediaStatusBtn')).toBeHidden();
     await expect(page.locator('#resetBtn')).toBeVisible();
     await expect(page.locator('#helpBtn')).toBeVisible();
-    const placed = await page.evaluate(() => {
-      return ['#mediaStatusBtn', '#resetBtn', '#helpBtn'].every(selector => {
-        const rect = document.querySelector(selector)!.getBoundingClientRect();
-        return rect.width > 8 && rect.height > 8
-          && rect.left >= -1 && rect.right <= window.innerWidth + 1
-          && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
-      });
+    const onScreen = (selector: string) => page.evaluate(sel => {
+      const rect = document.querySelector(sel)!.getBoundingClientRect();
+      return rect.width > 8 && rect.height > 8
+        && rect.left >= -1 && rect.right <= window.innerWidth + 1
+        && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
+    }, selector);
+    expect(await onScreen('#resetBtn')).toBe(true);
+    expect(await onScreen('#helpBtn')).toBe(true);
+    await page.evaluate(() => {
+      const token = (window as any).eval('_loadingProgressToken');
+      (window as any)._mediaInputObserve('editA', token, {mediaFailed: true});
     });
-    expect(placed).toBe(true);
+    await expect(page.locator('#mediaStatusBtn')).toBeVisible();
+    expect(await onScreen('#mediaStatusBtn')).toBe(true);
   });
 }
 

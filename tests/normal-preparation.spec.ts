@@ -42,8 +42,14 @@ test.afterEach(async({page})=>{
   await page.evaluate(()=>{(window as any).clearAllMedia();(window as any).eval('_localPreparationConnection.disconnect()');});
   expect(await page.evaluate(()=>(window as any).preparationErrors)).toEqual([]);
 });
+async function openPreparation(page:any){
+  if(await page.locator('#localPreparationDialog').isVisible())return;
+  if(await page.locator('#preparationBtn').isVisible()){await page.locator('#preparationBtn').click();return;}
+  if(!await page.locator('#quickStartPopup').isVisible())await page.locator('#helpBtn').click();
+  await page.locator('#helpPreparationBtn').click();
+}
 async function connect(page:any,origin=helper.origin,approve=true){
-  if(!await page.locator('#localPreparationDialog').isVisible())await page.locator('#preparationBtn').click();
+  await openPreparation(page);
   await page.locator('#localPreparationAddress').fill(origin);
   const opening=page.waitForEvent('popup');await page.locator('#localPreparationConnect').click();const popup=await opening;
   await expect(popup.locator('#allow')).toBeEnabled();
@@ -98,6 +104,7 @@ test('secure normal app connects explicitly across origins without sending a fil
 
 test('prepare and open shows an assumed BT.709 notice without replacing the dialog status',async({page})=>{
   await connect(page);await page.locator('#localPreparationClose').click();
+  await expect(page.locator('#preparationBtn')).toHaveText('Preparation ✓');
   await openIssue(page,own('untagged-hd.mkv'));
   await page.locator('#localPreparationRun').click();
   await expect(page.locator('.load-toast')).toContainText('No color tags; assumed BT.709',{timeout:45000});
@@ -161,7 +168,7 @@ test('a corrupt prepared return fails normal loading and never announces READY t
 test('connection addresses are restricted and blocked popups fail without disturbing the comparison',async({page})=>{
   await page.locator('#multiFileInput').setInputFiles(fixture('green.png'));await expect(page.locator('#comparisonView')).toHaveClass(/active/);
   const rejected=await page.evaluate(()=>['https://example.com','http://localhost:1234','http://127.0.0.1:1234/private','http://user:pass@127.0.0.1:1234','http://127.0.0.1:1234/?x=1'].map(value=>{try{(window as any).eval('WarpPreparationConnection').address(value);return false;}catch{return true;}}));expect(rejected).toEqual([true,true,true,true,true]);
-  await page.locator('#preparationBtn').click();await page.locator('#localPreparationAddress').fill(helper.origin);
+  await openPreparation(page);await page.locator('#localPreparationAddress').fill(helper.origin);
   await page.evaluate(()=>{window.open=()=>null;});await page.locator('#localPreparationConnect').click();
   await expect(page.locator('#localPreparationStatus')).toContainText('Allow the connection window');expect(await names(page)).toEqual(['green.png']);
 });
@@ -170,7 +177,7 @@ test('wrong-window and wrong-origin handshakes cannot grant a connection',async(
   // Freeze the legitimate popup before its HELLO. Navigating the real bridge
   // after port transfer correctly disconnects/closes it and cannot test this.
   await context.route(helper.origin+'/connect.html',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Controlled pending handshake</title><script>addEventListener("message",event=>{if(event.ports[0])event.ports[0].postMessage({type:"ready"})})</script>'}));
-  await page.locator('#preparationBtn').click();await page.locator('#localPreparationAddress').fill(helper.origin);
+  await openPreparation(page);await page.locator('#localPreparationAddress').fill(helper.origin);
   const opening=page.waitForEvent('popup');await page.locator('#localPreparationConnect').click();const popup=await opening;
   const nonce=await page.evaluate(()=>new URLSearchParams(new URL((window as any).lastConnectionUrl).hash.slice(1)).get('id'));
   await page.evaluate(()=>{(window as any).pinnedConnectionPopup=(window as any).lastConnectionPopup;});

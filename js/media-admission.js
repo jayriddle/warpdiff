@@ -1,11 +1,45 @@
 // Observes existing loading/decoding owners. Reports never authorize host READY.
+//
+// Header Media status is a definite-limitation signal, not a loading indicator.
+// A loaded input needs attention when its current report has failed admission,
+// a structured issue (for example more than one audio track), or picture,
+// native playback, pixel access, audio decoding, loaded-file analysis, or scrub
+// audio in the unavailable state. Unknown ("Not verified"), not-applicable, and
+// available do not count, so an ordinary image or a video whose exact frame
+// rate, full synchronization, or original-source fidelity is unverified stays
+// quiet. Help opens the same dialog whenever media is loaded. Managed review
+// has no Help, so its header button stays while media is loaded.
 const _mediaInputEvidence = WarpMediaInput.createEvidenceStore();
+const _MEDIA_INPUT_ATTENTION = ['picture', 'nativePlayback', 'frameAccess', 'audioDecode', 'decodedAnalysis', 'scrubAudio'];
 let _mediaInputStatusQueued = false;
 let _mediaInputStatusOpener = null;
+let _mediaInputRetiring = false;
 
+function _mediaInputShown(element) {
+    return element && element.isConnected && !element.hidden && element.getClientRects().length ? element : null;
+}
+function _mediaInputHasLoaded() {
+    return !_mediaInputRetiring && assetOrder.some(slot => mediaData[slot]);
+}
+function _mediaInputReportNeedsAttention(report) {
+    if (!report) return false;
+    if (report.admission?.state === 'failed' || report.issues?.length) return true;
+    return _MEDIA_INPUT_ATTENTION.some(key => report.capabilities?.[key]?.state === 'unavailable');
+}
+function _mediaInputNeedsAttention() {
+    return assetOrder.some(slot => mediaData[slot] && _mediaInputReportNeedsAttention(_getMediaInputReport(slot)));
+}
+function _syncMediaStatusHeader() {
+    const button = document.getElementById('mediaStatusBtn');
+    if (!button) return;
+    const loaded = _mediaInputHasLoaded();
+    const managed = typeof _managedReviewActive === 'function' && _managedReviewActive();
+    button.hidden = !(loaded && (_mediaInputNeedsAttention() || managed));
+    const help = document.getElementById('helpMediaStatusBtn');
+    if (help) help.hidden = !loaded || managed;
+}
 function _mediaInputBegin(slot) {
     _mediaInputEvidence.begin(slot, mediaData[slot]);
-    document.getElementById('mediaStatusBtn').hidden = false;
     _mediaInputStatusChanged();
 }
 function _mediaInputObserve(slot, loadingToken, facts) {
@@ -63,7 +97,9 @@ function _getMediaInputReports() {
         .map(slot => [slot, _getMediaInputReport(slot)]).filter(([, report]) => report)));
 }
 function _mediaInputStatusChanged() {
-    if (!document.getElementById('mediaStatusDialog').open || _mediaInputStatusQueued) return;
+    _syncMediaStatusHeader();
+    const dialog = document.getElementById('mediaStatusDialog');
+    if (!dialog?.open || _mediaInputStatusQueued) return;
     _mediaInputStatusQueued = true;
     queueMicrotask(() => { _mediaInputStatusQueued = false; if (document.getElementById('mediaStatusDialog').open) _renderMediaInputStatus(); });
 }
@@ -110,18 +146,37 @@ function _setMediaInputStatusOpen(open, opener = null) {
 }
 function _mediaInputClear() {
     _mediaInputEvidence.clear();
-    document.getElementById('mediaStatusBtn').hidden = true;
+    _mediaInputRetiring = true;
+    _syncMediaStatusHeader();
     _setMediaInputStatusOpen(false);
+    _mediaInputRetiring = false;
     document.getElementById('mediaStatusContent').replaceChildren();
 }
-document.getElementById('mediaStatusBtn').addEventListener('click', event => _setMediaInputStatusOpen(true, event.currentTarget));
-document.getElementById('mediaStatusClose').addEventListener('click', () => _setMediaInputStatusOpen(false));
-document.getElementById('mediaStatusRefresh').addEventListener('click', _mediaInputRefresh);
-document.getElementById('mediaStatusDialog').addEventListener('close', () => {
+function _mediaInputStatusClosed() {
     if (document.getElementById('mediaStatusDialog').open) return;
     const target = _mediaInputStatusOpener;
     _mediaInputStatusOpener = null;
     if (document.querySelector('dialog[open]')) return;
-    if (target?.isConnected && target.getClientRects().length) target.focus({preventScroll: true});
-    else document.getElementById('loadBtn').focus({preventScroll: true});
-});
+    if (!_mediaInputRetiring && _mediaInputShown(target)) {
+        target.focus({preventScroll: true});
+        return;
+    }
+    // The header button hid while this dialog was open. Help is the remaining
+    // way back to the report; clear/reload still returns to Load.
+    if (!_mediaInputRetiring && _mediaInputHasLoaded()) {
+        const fallback = _mediaInputShown(document.getElementById('helpMediaStatusBtn'))
+            || _mediaInputShown(document.getElementById('helpBtn'));
+        if (fallback) { fallback.focus({preventScroll: true}); return; }
+    }
+    document.getElementById('loadBtn')?.focus({preventScroll: true});
+}
+document.getElementById('mediaStatusBtn').addEventListener('click', event => _setMediaInputStatusOpen(true, event.currentTarget));
+document.getElementById('mediaStatusClose').addEventListener('click', () => _setMediaInputStatusOpen(false));
+document.getElementById('mediaStatusRefresh').addEventListener('click', _mediaInputRefresh);
+document.getElementById('mediaStatusDialog').addEventListener('close', _mediaInputStatusClosed);
+function _bindMediaStatusHelp() {
+    document.getElementById('helpMediaStatusBtn')?.addEventListener('click', event => _setMediaInputStatusOpen(true, event.currentTarget));
+    _syncMediaStatusHeader();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _bindMediaStatusHelp, {once:true});
+else _bindMediaStatusHelp();

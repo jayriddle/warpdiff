@@ -28,13 +28,19 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
     }))).not.toBe('');
     await more.first().click();
     await expect(page.locator('#infoOverflowPanel')).toBeVisible();
+    let opener=button,activate=button;
     if(button==='preparedPackageBtn'){
       await page.locator('#helpBtn').focus();await page.keyboard.press('Enter');await expect(page.locator('#quickStartPopup')).toBeVisible();
       await page.locator('#helpAdvanced summary').focus();await page.keyboard.press('Enter');
+    }else if(!(await page.locator('#'+button).isVisible())){
+      await page.locator('#helpBtn').focus();await page.keyboard.press('Enter');await expect(page.locator('#quickStartPopup')).toBeVisible();
+      if(button==='preparationBtn'){activate='helpPreparationBtn';opener='helpBtn';}
+      else activate=opener='helpMediaStatusBtn';
+      await expect(page.locator('#'+activate)).toBeVisible();
     }
-    await page.locator('#'+button).focus();await page.keyboard.press('Enter');await expect(page.locator('#'+dialog)).toBeVisible();
+    await page.locator('#'+activate).focus();await page.keyboard.press('Enter');await expect(page.locator('#'+dialog)).toBeVisible();
     await expect(page.locator('#infoOverflowPanel')).toBeHidden();
     for(const key of ['Tab','Shift+Tab']){await page.keyboard.press(key);expect(await page.evaluate(id=>document.getElementById(id)!.contains(document.activeElement),dialog)).toBe(true);}
-    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();await expect(page.locator('#'+button)).toBeFocused();
+    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();await expect(page.locator('#'+opener)).toBeFocused();
   });
 }
