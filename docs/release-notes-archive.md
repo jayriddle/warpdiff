@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.25
+
+- Info bar, keyboard shortcuts, and slot colors are now in one Settings panel. Press H to open keyboard shortcuts, and press H again to close them.
+- The sliders button in the header opens Settings on the info bar. Appearance and privacy stays its own button.
+
 ## v3.19.24
 
 - Preparation and Media status appear in the header only when a file needs attention. Preparation stays available from Help, including before files are loaded. Media status stays available from Help after files are loaded.

@@ -368,7 +368,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 
 ## Keyboard Shortcuts Reference
 
-All hotkeys are customizable — press **H** to open the shortcuts panel, then click any key to rebind it. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
+All hotkeys are customizable — press **H** to open the Hotkeys tab in Settings, then choose a key and press the new one. Press **H** again to close. If Settings is open on another tab, **H** switches to Hotkeys. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
 
 ### Files
 | Key | Action |
@@ -438,7 +438,7 @@ All hotkeys are customizable — press **H** to open the shortcuts panel, then c
 | Key | Action |
 |-----|--------|
 | **?** | Help (Getting Started) |
-| **H** | Shortcuts panel |
+| **H** | Keyboard shortcuts in Settings |
 | **Esc** | Dismiss loupe / close panel |
 
 ---
@@ -480,7 +480,7 @@ For recognized MP4 and WebM files, decoded analysis and scrub audio require one 
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser. An unusually dense WebM soundtrack keeps the browser's own playback instead of a very large audio copy.
 
-Open **Customize info bar** using the sliders icon in the header. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
+Open **Settings** with the sliders icon in the header. The Info bar tab is selected. **Hotkeys** and **Colors** are the other tabs. Press **H** to jump to Hotkeys. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
 
 Choose **Default** to keep the original display, **Minimal** for zoom (images) or duration (video/audio), **Visual Focus** for picture and timing fields, **Audio Essentials** for loudness and source audio information, or **All Available**. Editing a preset changes its label to **Custom**. **Reset profile** restores the selected media type's Default without changing the other profiles.
 
@@ -490,7 +490,7 @@ Arrange elements in **Left aligned** and **Right aligned** sections. Drag an ele
 
 Select a field's name to set **Small**, **Standard**, or **Large** text, choose a color, or enable **Bold**. Default text size and Default color restore that field's inherited styling. The loudness warning above −9 LUFS retains a red **!** even with a custom text color.
 
-Click **+ Spacer** to insert a gap after the selected row in the same section. Spacers can be repeated, moved between sections, hidden or removed; choose a width from **12–48 pixels**. Leading/trailing gaps disappear within each section, and consecutive gaps or gaps across unavailable groups collapse to the largest width. Narrow bars first compress gaps to 12 pixels, preserve fields from the far right, then use the remaining room for the left section. Remaining selected available fields appear in **More**, shown as **⋯** in compact Grid bars. Extremely narrow portrait pictures allow the bar to extend within its own cell so the slot controls and overflow stay reachable. Customized Stack information moves to its own header row when space is tight. Escape closes More and returns focus to its button; Escape from the editor returns focus to Customize info bar.
+Click **+ Spacer** to insert a gap after the selected row in the same section. Spacers can be repeated, moved between sections, hidden or removed; choose a width from **12–48 pixels**. Leading/trailing gaps disappear within each section, and consecutive gaps or gaps across unavailable groups collapse to the largest width. Narrow bars first compress gaps to 12 pixels, preserve fields from the far right, then use the remaining room for the left section. Remaining selected available fields appear in **More**, shown as **⋯** in compact Grid bars. Extremely narrow portrait pictures allow the bar to extend within its own cell so the slot controls and overflow stay reachable. Customized Stack information moves to its own header row when space is tight. Escape closes More and returns focus to its button; Escape from Settings returns focus to the sliders button when you opened it from there. The Colors tab sets the Ref, A, B, and C colors. Appearance and privacy stays its own header button.
 
 Slot labels keep their existing identity and hide/restore controls. Image wipe keeps its pair chooser, and managed host reviews keep their standard display. Profiles change presentation only; playback, listening and original audio analysis continue to use their existing settings.
 

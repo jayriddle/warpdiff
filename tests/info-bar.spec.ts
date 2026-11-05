@@ -294,6 +294,14 @@ test('editor keyboard controls stay local, native focus is contained and Escape 
   await page.keyboard.press('s'); await page.keyboard.press('g'); await page.keyboard.press('Space');
   expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(before);
   expect(await page.locator('.asset-layer video').evaluateAll(videos => videos.every(video => (video as HTMLVideoElement).paused))).toBe(true);
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#settingsTabHotkeys')).toBeFocused();
+  await page.keyboard.press('s'); await page.keyboard.press('Space');
+  expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(before);
+  expect(await page.locator('.asset-layer video').evaluateAll(videos => videos.every(video => (video as HTMLVideoElement).paused))).toBe(true);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#settingsTabInfo')).toHaveAttribute('aria-selected', 'true');
   for (let i=0;i<45;i++) {
     await page.keyboard.press('Tab');
     expect(await page.evaluate(() => document.getElementById('infoEditorDialog')!.contains(document.activeElement))).toBe(true);

@@ -47,7 +47,8 @@ for (const raw of ['{broken','null','[]','"text"','42','true','{"mute":null,"sho
     expect(await page.evaluate(()=>(window as any).__testAPI._customKeys)).toEqual({});
     await expect(page.locator('#volumeSlider')).toHaveValue('35');
     await images(page);
-    await page.keyboard.press('h'); await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);
+    await page.keyboard.press('h'); await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsPanelHotkeys')).toBeVisible();
     await expect(page.locator('[data-action-id="mute"]')).toHaveText('M');
     expect(await page.evaluate(()=>(window as any).__readStored('pref_muted'))).toBe('true');
   });
@@ -101,7 +102,8 @@ for (const fault of ['getter','read','write','remove']) {
     const format=await page.evaluate(()=>(window as any).__testAPI.timecopyFmt);
     await page.keyboard.press('t');
     expect(await page.evaluate(()=>(window as any).__testAPI.timecopyFmt), 'The current visit must retain its format choice').not.toBe(format);
-    await page.keyboard.press('h');await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);
+    await page.keyboard.press('h');await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsPanelHotkeys')).toBeVisible();
     await page.locator('[data-action-id="mute"]').click();await page.keyboard.press('u');
     await expect(page.locator('[data-action-id="mute"]')).toHaveText('U');
     if (fault==='getter'||fault==='write') expect(await page.evaluate(()=>_prefs.readRaw('customHotkeys'))).toContain('"mute":"u"');

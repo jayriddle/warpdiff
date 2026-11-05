@@ -27,6 +27,7 @@ let _infoBarGeometryDirty = false;
 const _infoBarSurfaces = new Map();
 let _infoBarObserver = null;
 let _infoBarOverflow = null;
+let _settingsTab = 'info';
 let _infoEditorType = 'video';
 let _infoEditorSelection = null;
 let _infoEditorFocus = null;
@@ -427,19 +428,53 @@ function _infoEditorReorder(profile, id, target, align, after = false) {
     const index = targetIndex < 0 ? profile.elements.length : targetIndex + (after ? 1 : 0);
     profile.elements.splice(index,0,element);
 }
-function _openInfoBarEditor() {
+const _SETTINGS_TABS = ['info','hotkeys','colors'];
+const _SETTINGS_TAB_IDS = {info:'settingsTabInfo',hotkeys:'settingsTabHotkeys',colors:'settingsTabColors'};
+const _SETTINGS_PANEL_IDS = {info:'settingsPanelInfo',hotkeys:'settingsPanelHotkeys',colors:'settingsPanelColors'};
+function _selectSettingsTab(tab) {
+    if (!_SETTINGS_TABS.includes(tab)) tab = 'info';
+    const previous = _settingsTab;
+    _settingsTab = tab;
+    if (previous === 'hotkeys' && tab !== 'hotkeys') _reassigningActionId = null;
+    if (tab === 'hotkeys' && previous !== 'hotkeys') _reassigningActionId = null;
+    for (const name of _SETTINGS_TABS) {
+        const control = document.getElementById(_SETTINGS_TAB_IDS[name]);
+        const selected = name === tab;
+        control.setAttribute('aria-selected', String(selected));
+        control.tabIndex = selected ? 0 : -1;
+        document.getElementById(_SETTINGS_PANEL_IDS[name]).hidden = !selected;
+    }
+    if (tab === 'hotkeys') _renderShortcutsList();
+    if (tab === 'colors') _renderSlotColors();
+}
+function _openInfoBarEditor(tab = 'info') {
     if (_managedReviewActive()) return;
-    _closeAppearancePanel(); _closeInfoBarOverflow(false);
-    // macOS WebKit mouse clicks need not focus buttons. Return to the editor's
-    // actual trigger, rather than whichever page element retained focus.
-    _infoEditorFocus = document.getElementById('infoEditorButton');
-    const slot = assetOrder.find(candidate => mediaData[candidate] && getLayer(candidate)?.classList.contains('active'));
-    _infoEditorType = slot ? mediaData[slot].type : _infoEditorType;
-    _infoEditorSelection = _infoBarProfile(_infoEditorType).elements[0].id;
-    _renderInfoEditor();
-    _showAppDialog(document.getElementById('infoEditorDialog'));
-    document.getElementById('infoEditorButton').setAttribute('aria-expanded','true');
-    _renderInfoEditorPreview(); document.getElementById('infoEditorClose').focus();
+    const dialog = document.getElementById('infoEditorDialog');
+    const opening = !dialog.open;
+    if (opening) {
+        _closeAppearancePanel(); _closeInfoBarOverflow(false);
+        // macOS WebKit mouse clicks need not focus buttons. The header button
+        // returns to itself. H returns to whatever was focused before it.
+        _infoEditorFocus = tab === 'hotkeys' ? document.activeElement : document.getElementById('infoEditorButton');
+        const slot = assetOrder.find(candidate => mediaData[candidate] && getLayer(candidate)?.classList.contains('active'));
+        _infoEditorType = slot ? mediaData[slot].type : _infoEditorType;
+        _infoEditorSelection = _infoBarProfile(_infoEditorType).elements[0].id;
+        _renderInfoEditor();
+        _showAppDialog(dialog);
+        document.getElementById('infoEditorButton').setAttribute('aria-expanded','true');
+        _renderInfoEditorPreview();
+    } else _closeInfoBarOverflow(false);
+    _selectSettingsTab(tab);
+    document.getElementById(tab === 'hotkeys' ? 'settingsTabHotkeys' : 'infoEditorClose').focus();
+}
+function _settingsHotkeyPressed(event) {
+    if (!event || event.metaKey || event.ctrlKey || event.altKey || _reassigningActionId) return false;
+    const key = event.key;
+    const digit = event.shiftKey && event.code && event.code.startsWith('Digit') ? event.code.slice(5) : null;
+    const id = event.shiftKey
+        ? (_keymap['S+' + key] || _keymap['S+' + key.toLowerCase()] || (digit && _keymap['S+' + digit]) || _keymap[key] || _keymap[key.toLowerCase()])
+        : (_keymap[key] || _keymap[key.toLowerCase()]);
+    return id === 'shortcuts';
 }
 function _closeInfoBarEditor() {document.getElementById('infoEditorDialog').close();}
 function _renderInfoEditor() {
@@ -514,7 +549,8 @@ function _setupInfoBarEditor() {
     _infoBarProfiles = Object.fromEntries(_INFO_TYPES.map(type => [type,_infoBarNormalize(type,saved?.version === 1 ? saved.profiles?.[type] : null)]));
     _infoBarObserver = new ResizeObserver(() => _queueInfoBarRefresh());
     _infoBarInitialized = true;
-    document.getElementById('infoEditorButton').addEventListener('click',_openInfoBarEditor);
+    document.getElementById('infoEditorButton').addEventListener('click',() => _openInfoBarEditor('info'));
+    for (const name of _SETTINGS_TABS) document.getElementById(_SETTINGS_TAB_IDS[name]).addEventListener('click',() => _selectSettingsTab(name));
     const dialog = document.getElementById('infoEditorDialog');
     document.getElementById('infoEditorClose').addEventListener('click',_closeInfoBarEditor);
     dialog.addEventListener('close',() => {
@@ -614,8 +650,21 @@ function _setupInfoBarEditor() {
     document.addEventListener('keydown',event => {
         if (!dialog.open && (!_infoBarOverflow || document.querySelector('dialog[open]'))) return;
         if (event.key === 'Escape') {event.preventDefault();if (_infoBarOverflow) _closeInfoBarOverflow();else _closeInfoBarEditor();}
+        const tab = dialog.open && event.target.closest?.('[role="tab"]');
+        if (tab && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+            event.preventDefault();
+            const index = _SETTINGS_TABS.indexOf(_settingsTab);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? _SETTINGS_TABS.length-1
+                : (index+(event.key === 'ArrowLeft' ? -1 : 1)+_SETTINGS_TABS.length)%_SETTINGS_TABS.length;
+            _selectSettingsTab(_SETTINGS_TABS[next]);
+            document.getElementById(_SETTINGS_TAB_IDS[_SETTINGS_TABS[next]]).focus();
+        } else if (dialog.open && _settingsHotkeyPressed(event)) {
+            event.preventDefault();
+            _closeInfoBarOverflow(false);
+            toggleShortcutsPanel();
+        }
         if (dialog.open && event.key === 'Tab') {
-            const focusable = [...dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')].filter(element => element.getClientRects().length);
+            const focusable = [...dialog.querySelectorAll('button:not(:disabled):not([tabindex="-1"]), input:not(:disabled):not([tabindex="-1"]), select:not(:disabled), [tabindex="0"]')].filter(element => element.getClientRects().length);
             if (focusable.length) {
                 event.preventDefault();
                 const index = focusable.indexOf(document.activeElement);

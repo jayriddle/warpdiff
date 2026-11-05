@@ -1383,8 +1383,24 @@
         .info-overflow-row .info-item { margin: 0; min-width: 0; flex: 1; white-space: normal; overflow-wrap: anywhere; max-width: none; }
         #infoEditorDialog { width: min(800px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; margin: auto; padding: 0; border: 1px solid #49494e; border-radius: 12px; background: #1c1c1e; color: #ddd; font-size: 13px; }
         #infoEditorDialog::backdrop { background: #0009; }
-        .info-editor-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; border-bottom: 1px solid #38383f; background: #1c1c1e; }
+        .info-editor-heading { position: sticky; top: 0; z-index: 1; display: flex; flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #38383f; background: #1c1c1e; }
+        .info-editor-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .info-editor-heading h2 { margin: 0; font-size: 15px; }
+        .settings-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+        .settings-tab { flex: 1 1 auto; }
+        .settings-tab[aria-selected="true"] { background: #343b42; border-color: #9dbce1; color: #fff; }
+        #infoEditorDialog button.shortcut-kbd-clickable { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.2; color: #bbb; background: #333; border: 1px solid #444; border-radius: 3px; padding: 2px 7px; min-height: 0; }
+        #infoEditorDialog button.shortcut-kbd-clickable:hover { background: #444; border-color: #666; color: #fff; }
+        #infoEditorDialog button.shortcut-kbd-clickable.reassigning { background: #2a5a8a; border-color: #4a8ad4; color: #fff; min-width: 80px; text-align: center; font-size: 11px; }
+        #infoEditorDialog button.shortcut-kbd-clickable.conflict-flash { background: #8a2a2a; border-color: #d44a4a; color: #fcc; min-width: 120px; }
+        #infoEditorDialog button.shortcut-kbd-clickable.customised { background: #2a3a2a; border-color: #4a7a4a; color: #8c8; }
+        #infoEditorDialog button.shortcut-kbd-clickable.unbound { background: #2a1e00; border-color: #7a4a00; color: #f0a030; }
+        #infoEditorDialog button.shortcut-reset { background: none; border: 0; padding: 0 2px; min-height: 0; color: #666; font-size: 13px; }
+        #infoEditorDialog button.shortcut-reset:hover { color: #f88; }
+        #infoEditorDialog button.slot-appearance-reset { background: none; border: 0; color: #555; font-size: 11px; padding: 0 2px; margin-left: auto; min-height: 0; }
+        #infoEditorDialog button.slot-appearance-reset:hover { color: #f88; }
+        #settingsPanelHotkeys .shortcuts-list { padding: 0; }
+        #settingsPanelColors .slot-appearance-row { margin-top: 4px; }
         .info-editor-body { padding: 16px 18px; }
         #infoEditorDialog button, #infoEditorDialog select { font: inherit; color: #eee; background: #29292c; border: 1px solid #48484f; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
         #infoEditorDialog button:disabled { opacity: .4; cursor: default; }
@@ -1431,7 +1447,10 @@
             .header:has(#stackInfoStrip.info-custom) #headerRight { max-width: 100%; overflow-x: auto; }
             #stackInfoStrip.info-custom { order: 4; flex: 1 0 100%; }
         }
-        @media (max-width: 680px) { #infoEditorElements { display: block; } }
+        @media (max-width: 680px) {
+            #infoEditorElements { display: block; }
+            #infoEditorDialog .shortcuts-cols { flex-direction: column; gap: 0; }
+        }
         @media (max-width: 480px) {
             .info-editor-body { padding: 12px; }
             .info-editor-heading { padding: 12px; }
@@ -1442,6 +1461,7 @@
         }
         @media (pointer: coarse) {
             #infoEditorDialog button, #infoEditorDialog select { min-height: 44px; }
+            #infoEditorDialog button.shortcut-kbd-clickable, #infoEditorDialog button.shortcut-reset, #infoEditorDialog button.slot-appearance-reset { min-height: 32px; }
             #infoEditorDialog .info-editor-drag { flex-basis: 32px; min-height: 44px; }
             .info-editor-toggle { min-width: 35px; min-height: 44px; }
         }
@@ -3669,7 +3689,7 @@
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
             </div>
             </div><!-- /headerRight -->
-            <button id="infoEditorButton" type="button" class="analysis-btn" aria-label="Customize info bar" title="Customize info bar" aria-expanded="false" aria-controls="infoEditorDialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M9 3v6M15 9v6M8 15v6"/></svg></button>
+            <button id="infoEditorButton" type="button" class="analysis-btn" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="infoEditorDialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M9 3v6M15 9v6M8 15v6"/></svg></button>
             <button id="appearanceButton" type="button" aria-label="Appearance and privacy" title="Appearance and privacy" aria-expanded="false" aria-controls="appearancePanel">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
                 <span id="appearanceLabel">Original</span><span aria-hidden="true">⌄</span>
@@ -3683,7 +3703,7 @@
             </div>
             <div class="landing-title">Drop 1–4 files to review</div>
             <div class="landing-hints">
-                <kbd>L</kbd> load files · <kbd>H</kbd> hotkeys · <kbd>?</kbd> help
+                <kbd>L</kbd> load files · <kbd>H</kbd> keyboard shortcuts · <kbd>?</kbd> help
             </div>
             <aside id="usageInvitation" hidden aria-label="Optional usage sharing">
                 <strong id="usageInvitationTitle">Help shape WarpDiff</strong><span id="usageInvitationTest" hidden> · Local test only</span>
@@ -3912,7 +3932,15 @@
     </div>
 
     <dialog id="infoEditorDialog" aria-labelledby="infoEditorTitle">
-        <div class="info-editor-heading"><h2 id="infoEditorTitle">Customize info bar</h2><button type="button" id="infoEditorClose" aria-label="Close info bar editor">✕</button></div>
+        <div class="info-editor-heading">
+            <div class="info-editor-heading-row"><h2 id="infoEditorTitle">Settings</h2><button type="button" id="infoEditorClose" aria-label="Close settings">✕</button></div>
+            <div class="settings-tabs" role="tablist" aria-label="Settings">
+                <button type="button" class="settings-tab" role="tab" id="settingsTabInfo" aria-selected="true" aria-controls="settingsPanelInfo">Info bar</button>
+                <button type="button" class="settings-tab" role="tab" id="settingsTabHotkeys" aria-selected="false" aria-controls="settingsPanelHotkeys" tabindex="-1">Hotkeys</button>
+                <button type="button" class="settings-tab" role="tab" id="settingsTabColors" aria-selected="false" aria-controls="settingsPanelColors" tabindex="-1">Colors</button>
+            </div>
+        </div>
+        <div id="settingsPanelInfo" role="tabpanel" aria-labelledby="settingsTabInfo">
         <div class="info-editor-body">
             <div class="info-editor-toolbar">
                 <label class="info-editor-control">Media<select id="infoEditorType"><option value="image">Images</option><option value="video">Video</option><option value="audio">Audio</option></select></label>
@@ -3939,6 +3967,19 @@
                 </div>
             </div>
             <div class="info-editor-footer"><span id="infoEditorStatus" role="status" aria-live="polite"></span><button type="button" id="infoEditorReset">Reset profile</button></div>
+        </div>
+        </div>
+        <div id="settingsPanelHotkeys" role="tabpanel" aria-labelledby="settingsTabHotkeys" hidden>
+            <div class="info-editor-body">
+                <p class="info-editor-hint" id="settingsHotkeysHint">Choose a key, then press the new one. Press H again to close. Other shortcuts stay off while Settings is open.</p>
+                <div class="shortcuts-list"></div>
+            </div>
+        </div>
+        <div id="settingsPanelColors" role="tabpanel" aria-labelledby="settingsTabColors" hidden>
+            <div class="info-editor-body">
+                <p class="info-editor-hint">These colors mark Ref, A, B, and C. They stay in this browser. Appearance and privacy, in the header, is separate and does not change them.</p>
+                <div id="settingsColors"></div>
+            </div>
         </div>
     </dialog>
     <aside id="infoOverflowPanel" role="dialog" aria-label="Additional selected information" hidden>
@@ -4044,10 +4085,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.24';
+        const APP_VERSION = '3.19.25';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.24';
+        const _CHANGELOG_VERSION = '3.19.25';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -4163,7 +4204,7 @@
                 [_SVG_TILE_CHECK, 'Seamless tile check <kbd>Y</kbd>'],
                 [_SVG_WAVEFORM, 'Audio waveform + spectrogram <kbd>W</kbd>'],
                 [_SVG_SCOPES, 'Video scopes <kbd>V</kbd>'],
-                [document.querySelector('#infoEditorButton svg').outerHTML, 'Customize info bar']
+                [document.querySelector('#infoEditorButton svg').outerHTML, 'Settings — info bar, keyboard shortcuts, and slot colors']
             ].map(function(r) {
                 return '<tr><td style="width:28px;text-align:center;">' + _icon(r[0]) + '</td><td>' + r[1] + '</td></tr>';
             }).join('');
@@ -13931,7 +13972,7 @@
             // ── Panels ──
             { id: 'help', defaultKey: '?', label: 'Help', section: 'panels', global: true, altKey: '/', managed: false,
               fn: () => toggleQuickStart() },
-            { id: 'shortcuts', defaultKey: 'h', label: 'This panel', section: 'panels', global: true, managed: false,
+            { id: 'shortcuts', defaultKey: 'h', label: 'Keyboard shortcuts', section: 'panels', global: true, managed: false,
               fn: () => toggleShortcutsPanel() },
         ];
 
@@ -13968,8 +14009,10 @@
                     activeKbd.textContent = 'Esc not reassignable';
                     activeKbd.classList.add('conflict-flash');
                     setTimeout(() => {
+                        const actionId = _reassigningActionId;
                         _reassigningActionId = null;
                         _renderShortcutsList();
+                        if (actionId) document.querySelector('#settingsPanelHotkeys [data-action-id="' + actionId + '"]')?.focus();
                     }, 1000);
                 } else {
                     _reassigningActionId = null;
@@ -13981,8 +14024,10 @@
 
             const result = _reassignKey(_reassigningActionId, e.key);
             if (result === true) {
+                const assigned = _reassigningActionId;
                 _reassigningActionId = null;
                 _renderShortcutsList();
+                document.querySelector('#settingsPanelHotkeys [data-action-id="' + assigned + '"]')?.focus();
             } else if (result === 'conflict') {
                 // Keep reassign mode open, flash the kbd to show the conflict
                 const activeKbd = document.querySelector('.shortcut-kbd-clickable.reassigning');
@@ -14062,8 +14107,6 @@
                     dismissChangelog();
                 } else if (document.getElementById('quickStartPopup').classList.contains('show')) {
                     toggleQuickStart();
-                } else if (document.getElementById('shortcutsPanel').classList.contains('open')) {
-                    toggleShortcutsPanel();
                 } else if (document.getElementById('manualPanel').classList.contains('open')) {
                     toggleManualPanel();
                 }
@@ -14223,20 +14266,9 @@
 
         function toggleShortcutsPanel() {
             if (_managedReviewActive()) return;
-            const panel = document.getElementById('shortcutsPanel');
-            const opening = !panel.classList.contains('open');
-            panel.classList.toggle('open');
-            document.getElementById('shortcutsBackdrop').classList.toggle('open');
-            if (opening) {
-                _lastFocusBeforePanel = document.activeElement;
-                _reassigningActionId = null;
-                _renderShortcutsList();
-                _trapFocus(panel);
-                panel.focus();
-            } else {
-                _releaseFocusTrap(panel);
-                if (_lastFocusBeforePanel) { _lastFocusBeforePanel.focus(); _lastFocusBeforePanel = null; }
-            }
+            const dialog = document.getElementById('infoEditorDialog');
+            if (dialog.open && _settingsTab === 'hotkeys') { _closeInfoBarEditor(); return; }
+            _openInfoBarEditor('hotkeys');
         }
 
         function toggleManualPanel() {
@@ -14747,7 +14779,7 @@
                 <tr><td><kbd>Shift+C</kbd></td><td>Open timecode format chooser</td></tr>
                 <tr><td><kbd>Shift+G</kbd></td><td>Grab frame to gallery</td></tr>
                 <tr><td><kbd>{ }</kbd></td><td>Gallery: previous / next frame</td></tr>
-                <tr><td><kbd>H</kbd></td><td>Toggle shortcuts panel</td></tr>
+                <tr><td><kbd>H</kbd></td><td>Open keyboard shortcuts. Press again to close</td></tr>
                 <tr><td><kbd>?</kbd></td><td>Getting Started help</td></tr>
                 <tr><td><kbd>Esc</kbd></td><td>Dismiss loupe / close panel</td></tr>
             </table>
@@ -14780,7 +14812,7 @@
 
             <h2>Info Bar</h2>
             <p>By default, each asset displays an info bar in Grid or a header strip in Stack showing its slot label, FPS, duration, resolution, aspect ratio, and zoom. Videos also show their source audio format, verified layout or channel count, and sample rate when available, for example <strong>FLAC · 7.1 · 48 kHz</strong>. Hover for full details, including multiple audio tracks; the browser chooses the playback track. Unknown metadata and files with no audio track are identified explicitly. Listening presets do not change this source label; a transcoded video reports its newly loaded audio format. Recognized MP4 and WebM files need one readable audio track for decoded analysis and scrub audio. Multiple or unverifiable tracks keep browser-managed playback with a preparation notice; export the desired track and reload to enable those tools. If the audio file cannot be read, playback continues and a notice stays up; open the waveform again to try the read once more. That temporary read problem does not ask for preparation. Another file that still needs preparation stays listed. Audio-bearing assets also show integrated LUFS, LRA, and true peak. A recognized surround layout counts the surround speakers a little more and leaves the bass-effects channel out of the loudness number; if the layout is not recognized, every channel is included and the loudness number is marked as approximate. Audio files show sample rate, channels, bit depth/codec, and file size.</p>
-            <p>Open <strong>Customize info bar</strong> (the sliders icon in the header) and choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in <strong>Left aligned</strong> and <strong>Right aligned</strong> sections: drag their <strong>⠿ handles</strong> to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.</p>
+            <p>Open <strong>Settings</strong> (the sliders icon in the header) and stay on the Info bar tab. Choose Images, Video or Audio. Start with Default, Minimal, Visual Focus, Audio Essentials or All Available; editing a preset creates a Custom profile. Show or hide fields and switch audio information together or individually. Arrange elements in <strong>Left aligned</strong> and <strong>Right aligned</strong> sections: drag their <strong>⠿ handles</strong> to reorder or move between sections, with a line marking the drop position. Mouse and touch are supported; hold a touch or pen drag near the editor’s top or bottom edge to scroll to offscreen rows. The heading and close button stay visible. Focused handles use ↑ / ↓ to reorder and ← / → to change section. You can also select an element and change Section. Presets place Zoom on the right; keep it last there to anchor it at the far edge. Select a field to change text size, color or bold styling. Filename and file size are optional. Choices preview immediately, stay in this browser, and apply to Stack and Grid. Earlier custom profiles keep their existing order on the left. Reset profile restores only that media type's Default.</p>
             <p>Add <strong>spacers</strong> after the selected row in the same section to group related items. Move them between sections, hide or remove them, and set their width from 12–48 pixels. Empty edge groups and adjacent gaps collapse within each section. Narrow bars compress gaps, preserve right-edge fields first, then put remaining selected fields into <strong>More</strong> (<strong>⋯</strong> in compact Grid bars). Portrait bars can extend within their own cells to keep controls reachable; customized Stack information moves to its own header row when space is tight. Hidden fields stay excluded even after audio analysis arrives. Multiple source tracks are numbered within each selected field. A red ! retains the above −9 LUFS warning with custom colors. Slot controls, the image wipe pair chooser and managed host display retain their existing behavior. Escape closes More or the editor and returns focus.</p>
             <p>Aspect ratios that don't match a known standard are shown in amber as a heads-up to check your export settings.</p>
             <p>The frame counter detects frame rate automatically and snaps to the nearest standard rate (23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60). Video durations are shown as <code>M:SS:FF</code> (frames at the detected rate); audio durations use <code>M:SS.cc</code> (decimal centiseconds) since audio has no inherent frame rate.</p>
@@ -14843,7 +14875,7 @@
             <table style="margin: 4px 0 8px; border-spacing: 0 6px;" id="helpIconTable"></table>
 
             <h3>Info bar</h3>
-            <p>Use Customize info bar (the sliders icon) to choose information, arrange Left and Right sections, style fields, and add spacers. Start with a preset, then keep only the audio and visual details you need; keep Zoom in the right section to place it at the far edge. Image, video and audio choices are saved separately and apply to Stack and Grid.</p>
+            <p>Open Settings (the sliders icon) to the Info bar tab to choose information, arrange Left and Right sections, style fields, and add spacers. Start with a preset, then keep only the audio and visual details you need; keep Zoom in the right section to place it at the far edge. Image, video and audio choices are saved separately and apply to Stack and Grid. The Hotkeys tab lists every shortcut, and the Colors tab changes the Ref, A, B, and C colors. Press <kbd>H</kbd> to open Hotkeys directly. Press <kbd>H</kbd> again to close Settings. Appearance and privacy stays its own header button.</p>
 
             <h3>Zoom Loupe</h3>
             <ul>
@@ -14878,10 +14910,10 @@
 
             <h3>Keyboard-First</h3>
             <ul>
-                <li><kbd>?</kbd> this help screen, <kbd>H</kbd> all hotkeys</li>
+                <li><kbd>?</kbd> this help screen, <kbd>H</kbd> keyboard shortcuts</li>
                 <li><kbd>+</kbd> <kbd>−</kbd> zoom, <kbd>0</kbd> fit screen, <kbd>1</kbd> native pixels</li>
                 <li>Your preferences persist when browser storage is available; failed saves keep ordinary settings for this visit and show a notice</li>
-                <li>Remap any hotkey from the <kbd>H</kbd> panel</li>
+                <li>Remap any hotkey from the Hotkeys tab. Press <kbd>H</kbd> to open it, then choose a key and press the new one</li>
             </ul>
 
             <details id="helpAdvanced">
@@ -14917,8 +14949,8 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li><strong>Preparation and Media status appear only when a file needs attention.</strong> You can still open Preparation from Help, and Media status from Help after files are loaded.</li>
-                <li>A leftover “Preparation needed” notice no longer lingers after audio finishes loading on its own.</li>
+                <li><strong>Info bar, keyboard shortcuts, and slot colors are now in one Settings panel.</strong> Use the tabs to move between them.</li>
+                <li>Press H to open keyboard shortcuts. Press H again to close them. The sliders button in the header opens Settings on the info bar.</li>
             </ul>
         </div>
     </div>
@@ -14934,15 +14966,6 @@
     </div>
     <!-- Timecode chooser popup (click timecode display) -->
     <div id="tcChooser" class="tc-chooser"></div>
-
-    <div class="shortcuts-backdrop" id="shortcutsBackdrop"></div>
-    <div class="shortcuts-panel" id="shortcutsPanel" tabindex="-1">
-        <div class="shortcuts-panel-header">
-            <span>Hotkeys</span>
-            <button onclick="toggleShortcutsPanel()">✕</button>
-        </div>
-        <div class="shortcuts-list"></div>
-    </div>
 
     <!-- Measured macOS Chrome NV12/BT.709 compositor compensation. Applied only
          by the scrub session after observing that output path; never to I420. -->

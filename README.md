@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.24
+**Current version:** 3.19.25
 
 ---
 
@@ -20,9 +20,11 @@ Preparation is offered without opening a dialog during loading. The Preparation 
 
 [Local tool setup and limits](tools/media-prepare/companion/README.md). This candidate workflow is awaiting review and is not published yet.
 
-## Customize the info bar
+## Settings
 
-Open **Customize info bar** (the sliders icon in the header) to choose visible information, arrange elements in **Left aligned** and **Right aligned** sections with drag handles, and adjust their color, text size and bold styling. Presets keep Zoom at the far right; drag any field or spacer within or between sections to suit your layout. Mouse, touch and keyboard movement are supported. Start with **Default**, **Minimal**, **Visual Focus**, **Audio Essentials**, or **All Available**. Audio information can be hidden together or selected field by field. Add adjustable **spacers** to group related fields.
+The sliders icon in the header opens **Settings**. It has three tabs: **Info bar**, **Hotkeys**, and **Colors**. Press `H` to open the Hotkeys tab. Press `H` again to close Settings. If Settings is already open on another tab, `H` switches to Hotkeys. Appearance and privacy stays its own header button.
+
+On the Info bar tab, choose visible information, arrange elements in **Left aligned** and **Right aligned** sections with drag handles, and adjust their color, text size and bold styling. Presets keep Zoom at the far right; drag any field or spacer within or between sections to suit your layout. Mouse, touch and keyboard movement are supported. Start with **Default**, **Minimal**, **Visual Focus**, **Audio Essentials**, or **All Available**. Audio information can be hidden together or selected field by field. Add adjustable **spacers** to group related fields. The Colors tab changes the Ref, A, B, and C label colors. Those choices stay in this browser.
 
 Image, video and audio profiles are saved separately in this browser and apply to both Stack and Grid. Narrow bars compress spacers and keep right-edge fields first, then put remaining selected fields in **More** (shown as **⋯** in compact Grid bars). Customized Stack information moves to its own header row when space is tight. Reset profile restores the original display. See the [workflow](MANUAL.md#info-bar) and [review and verification record](docs/info-bar-review-2026-10-10/README.md).
 
@@ -130,8 +132,8 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 - `Shift+W` toggle linear/log frequency, `P` cycle spectrogram palettes
 
 **Keyboard-first**
-- Every action has a hotkey — press `?` for help, `H` for all hotkeys
-- Reassign any hotkey from the hotkeys panel (click a key to rebind)
+- Every action has a hotkey — press `?` for help, `H` for keyboard shortcuts
+- Reassign any hotkey from the Hotkeys tab in Settings (choose a key, then press the new one)
 - Zoom, pan, and navigate without touching the mouse
 - Preferences (loupe, volume, Fit / Ref audio scaling, spectrogram settings, custom hotkeys) persist when browser storage is available. Damaged settings recover individually. If saving fails, ordinary settings still work for the current visit and a notice explains they could not be saved.
 
@@ -144,7 +146,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 1. Open the [live app](https://jayriddle.github.io/warpdiff/) — or install it as a PWA
 2. Press **L** (or click **Load**, or drag and drop) and select 1–4 image, video, or audio files
 3. Use **Stack / Grid** buttons to switch views
-4. Press **H** to see all keyboard shortcuts
+4. Press **H** to open keyboard shortcuts in Settings
 
 Manually loaded files auto-sort oldest → newest by timestamp; host loads retain the supplied order. Four-item reviews use media-aware labels—**Image-1…Image-4**, **Video-1…Video-4**, or **Audio-1…Audio-4**—and visual media opens in a 2×2 Inline grid. See [MANUAL.md](MANUAL.md) for full documentation.
 
