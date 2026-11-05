@@ -44,10 +44,18 @@ test('an ordinary image leaves both header buttons hidden and Help can still ope
   const help = page.locator('#helpMediaStatusBtn');
   await expect(help).toBeVisible();
   await help.click();
-  await expect(page.locator('#mediaStatusDialog')).toBeVisible();
+  const dialog = page.locator('#mediaStatusDialog');
+  await expect(dialog).toBeVisible();
   await expect(page.locator('#mediaStatusContent')).toContainText('green.png');
+  await expect(page.locator('#mediaStatusRefresh')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#mediaStatusClose')).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(page.locator('#mediaStatusRefresh')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(help).toBeFocused();
+  await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.getElementById('quickStartPopup')!.contains(document.activeElement))).toBe(true);
 });
 
 test('Media status appears for a failed picture, hides after a later success, and returns focus to Help', async ({page}) => {

@@ -14,6 +14,7 @@ const _MEDIA_INPUT_ATTENTION = ['picture', 'nativePlayback', 'frameAccess', 'aud
 let _mediaInputStatusQueued = false;
 let _mediaInputStatusOpener = null;
 let _mediaInputRetiring = false;
+let _mediaInputHelpTrapSuspended = false;
 
 function _mediaInputShown(element) {
     return element && element.isConnected && !element.hidden && element.getClientRects().length ? element : null;
@@ -137,10 +138,27 @@ function _renderMediaInputStatus() {
         section.append(list); content.append(section);
     }
 }
+function _mediaInputSuspendHelpTrap() {
+    const help = document.getElementById('quickStartPopup');
+    // Help's capture-phase trap preventDefault's Tab. The dialog cycle then
+    // sees that and does not move, so opening Media status from Help would
+    // freeze the keyboard on one control. Release the trap while this dialog
+    // is up and put it back when Help is still the page underneath.
+    if (!help?.classList.contains('show') || !help._focusTrap) return;
+    _releaseFocusTrap(help);
+    _mediaInputHelpTrapSuspended = true;
+}
+function _mediaInputRestoreHelpTrap() {
+    if (!_mediaInputHelpTrapSuspended) return;
+    _mediaInputHelpTrapSuspended = false;
+    const help = document.getElementById('quickStartPopup');
+    if (help?.classList.contains('show') && !help._focusTrap) _trapFocus(help);
+}
 function _setMediaInputStatusOpen(open, opener = null) {
     const dialog = document.getElementById('mediaStatusDialog');
     if (open && !dialog.open) {
         _mediaInputStatusOpener = opener || document.activeElement;
+        _mediaInputSuspendHelpTrap();
         _mediaInputRefresh(); _showAppDialog(dialog);
     } else if (!open && dialog.open) dialog.close();
 }
@@ -154,6 +172,7 @@ function _mediaInputClear() {
 }
 function _mediaInputStatusClosed() {
     if (document.getElementById('mediaStatusDialog').open) return;
+    _mediaInputRestoreHelpTrap();
     const target = _mediaInputStatusOpener;
     _mediaInputStatusOpener = null;
     if (document.querySelector('dialog[open]')) return;
