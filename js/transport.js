@@ -943,16 +943,21 @@ function _driftLockTick(primary) {
         // its followers are on screen and correcting sub-half-frame drift there
         // buys nothing visible.)
         const halfFrame = 0.5 / Math.min(primaryFps, videoFrameRates[v.src] || 30);
-        const engage = isGridMode ? halfFrame : Math.min(halfFrame, 0.008);
+        // A wipe puts two clips on screen inside Stack. Those two use Grid's
+        // visible policy. The strong hidden nudge must not run on a picture
+        // the user can see. Any clip outside the wipe pair stays hidden.
+        const visible = isGridMode || (_wipeMode && _wipeFollowerVisible(v));
+        const engage = visible ? halfFrame : Math.min(halfFrame, 0.008);
         const drift = v.currentTime - primary.currentTime; // >0 → follower ahead
         const mag = Math.abs(drift);
         // Sub-_DRIFT_HARD_SEEK drift converges via rate trim in BOTH modes:
-        // Grid followers are visible → gentle ±2%; Stack's follower is
-        // display:none AND muted → a strong ±10% is undetectable and converges
-        // fast without ever seeking. (Stack used to hard-seek at half a frame,
-        // but a seek stalls a playing element for its seek latency, landing it
-        // behind by more than half a frame again → perpetual seek loop.)
-        const trim = isGridMode
+        // Visible followers (Grid, or the wipe pair) use a proportional trim.
+        // Stack's hidden follower is display:none AND muted → a strong ±10%
+        // is undetectable and converges fast without ever seeking. (Stack used
+        // to hard-seek at half a frame, but a seek stalls a playing element
+        // for its seek latency, landing it behind by more than half a frame
+        // again → perpetual seek loop.)
+        const trim = visible
             ? Math.min(_DRIFT_NUDGE_MAX, Math.max(_DRIFT_NUDGE, mag / _DRIFT_CONVERGE_TAU))
             : _DRIFT_NUDGE_HIDDEN;
         // WebKit renders a rate-trimmed follower unevenly, and the stutter

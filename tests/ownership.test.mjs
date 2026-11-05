@@ -1149,7 +1149,7 @@ runMediaAdmissionChecks(check);
                        '_DRIFT_NUDGE_MAX', '_DRIFT_CONVERGE_TAU',
                        '_WK_SEEK_STABLE_TICKS', '_WK_SEEK_COOLDOWN_MS']
     .map(n => (SRC.match(new RegExp('const ' + n + ' = [^;]+;')) || [''])[0]).join('\n');
-  const runTick = (primary, followers, grid, rateTrimSmooth = true) => {
+  const runTick = (primary, followers, grid, rateTrimSmooth = true, wipe = false) => {
     const ctx = {
       hasAudios: false, isDragging: false, _bulkSyncActive: false,
       isGridMode: grid, videoFrameRates: { p: 24, hi: 60, lo: 24 },
@@ -1157,6 +1157,9 @@ runMediaAdmissionChecks(check);
       _RATE_TRIM_IS_SMOOTH: rateTrimSmooth,
       performance: { now: () => 1e6 },
       getTransportVideos: () => [primary, ...followers],
+      // A wipe makes its pair visible inside Stack. false keeps the hidden policy.
+      _wipeMode: !!wipe,
+      _wipeFollowerVisible: typeof wipe === 'function' ? wipe : () => wipe === true,
     };
     new Function(...Object.keys(ctx), 'primary',
       driftConsts + '\n' + extractFn('_driftLockTick') + '\n_driftLockTick(primary);'
@@ -1167,6 +1170,22 @@ runMediaAdmissionChecks(check);
     const p = vid(1.0), f = vid(1.05); // 50ms ahead, stack mode — below _DRIFT_HARD_SEEK
     runTick(p, [f], false);
     check('drift-lock[stack]: sub-threshold drift NUDGES strongly (no seek — seeks land behind and loop)',
+          f.currentTime === 1.05 && f._driftNudge === -1 &&
+          Math.abs(f.playbackRate - 0.90) < 1e-9);
+  }
+  {
+    // 50 ms ahead is past a frame, so the visible trim caps at ±12% (rate 0.88),
+    // not the hidden ±10% (rate 0.90). The picture is on screen during a wipe.
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], false, true, true);
+    check('drift-lock[wipe]: on-screen wipe follower uses the gentle trim, not hidden ±10%',
+          f.currentTime === 1.05 && f._driftNudge === -1 &&
+          Math.abs(f.playbackRate - 0.88) < 1e-9);
+  }
+  {
+    const p = vid(1.0), f = vid(1.05);
+    runTick(p, [f], false, true, () => false);
+    check('drift-lock[wipe]: a clip outside the wipe pair keeps the hidden ±10% nudge',
           f.currentTime === 1.05 && f._driftNudge === -1 &&
           Math.abs(f.playbackRate - 0.90) < 1e-9);
   }

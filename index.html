@@ -895,9 +895,10 @@
             z-index: 12; /* above the incoming wrapper (11) until the swap */
         }
 
-        /* Image wipe: both comparison layers stay live in Stack while the reveal
-           wrapper is clipped by js/wipe.js. Pointer ownership stays on the stage
-           except for the dedicated divider hit target. */
+        /* Wipe: both comparison layers stay live in Stack while the reveal
+           wrapper is clipped by js/wipe.js. Images and videos share this path.
+           Video stays on the native element so macOS color management is kept.
+           Pointer ownership stays on the stage except for the divider. */
         body.wipe-mode:not(.grid-mode) .asset-layer.wipe-base,
         body.wipe-mode:not(.grid-mode) .asset-layer.wipe-reveal {
             opacity: 1;
@@ -3694,7 +3695,7 @@
                     </div>
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
-                <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Image wipe comparison (Q)" aria-pressed="false"></button>
+                <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Wipe comparison (Q)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="tileCheckToggleBtn" onclick="toggleTileCheck(); this.blur();" title="Seamless tile check (Y)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
@@ -5490,12 +5491,20 @@
         }
 
         // The video slots the overlay should engage for this drag: all visible
-        // video slots in Grid mode, just the visible asset in Stack mode.
+        // video slots in Grid mode, both clips of a Stack wipe, otherwise just
+        // the visible Stack asset. The wipe stays on the native <video> during
+        // playback; this overlay is the existing scrub preview, clipped with it.
         function _scrubOverlaySlots() {
             if (_isSoloPlayback()) return _soloPlaybackSlot ? [_soloPlaybackSlot] : [];
             if (isGridMode) {
                 return assetOrder.filter(s =>
                     mediaData[s] && mediaData[s].type === 'video' && !_hiddenSlots.has(s));
+            }
+            if (_wipeMode) {
+                const pair = _wipePair();
+                if (pair && pair.every(s => mediaData[s] && mediaData[s].type === 'video')) {
+                    return pair.filter(s => !_hiddenSlots.has(s));
+                }
             }
             const slot = assetOrder[currentAssetIndex];
             return (mediaData[slot] && mediaData[slot].type === 'video') ? [slot] : [];
@@ -9828,6 +9837,34 @@
                 _scrubRelayoutRaf = requestAnimationFrame(tick);
             }
 
+            // Stack hides every clip except the active one, so a drag seeks only
+            // that clip and catches the others up on release. Grid, and a Stack
+            // wipe, show more than one picture: those followers are seeked during
+            // the drag on the same throttle Grid already uses. A hidden third
+            // clip stays on the release-only path.
+            function _scrubInactiveDue(now) {
+                const showFollowers = isGridMode || _wipeMode;
+                const seekInactive = !isDragging ||
+                    (showFollowers && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
+                if (seekInactive && showFollowers) _inactiveLastSeekTime = now;
+                return seekInactive;
+            }
+
+            function _scrubSeekFollowers(active, pct, seekDur, now) {
+                if (!_scrubAllVideos) return;
+                const seekInactive = _scrubInactiveDue(now);
+                for (let i = 0; i < _scrubAllVideos.length; i++) {
+                    const v = _scrubAllVideos[i];
+                    if (v === active || isNaN(v.duration)) continue;
+                    if (!seekInactive) continue;
+                    if (isDragging && _wipeMode && !isGridMode && !_wipeFollowerVisible(v)) continue;
+                    if (isDragging && _scrubOverlayEffective(v)) continue;
+                    const vfps = videoFrameRates[v.src] || 30;
+                    const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                    if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
+                }
+            }
+
             // Seek all videos to the position under the cursor and update the UI.
             // Direct synchronous currentTime assignment — no rAF needed; browsers
             // coalesce rapid seeks internally, and this eliminates races with the
@@ -9880,23 +9917,7 @@
                         }
                     }
                 }
-                if (_scrubAllVideos) {
-                    // Stack mode: inactive videos are hidden — skip their seeks during drag.
-                    // Grid mode: throttle inactive seeks to ~100ms; all synced on mouseup.
-                    const seekInactive = !isDragging ||
-                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
-                    if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
-                    for (let i = 0; i < _scrubAllVideos.length; i++) {
-                        const v = _scrubAllVideos[i];
-                        if (v !== video && !isNaN(v.duration)) {
-                            if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayEffective(v)) continue;
-                            const vfps = videoFrameRates[v.src] || 30;
-                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
-                        }
-                    }
-                }
+                _scrubSeekFollowers(video, pct, seekDur, now);
 
                 // Update timecode and waveform cursor from the seek TARGET, not
                 // video.currentTime — during overlay scrubs the video isn't seeked.
@@ -9965,21 +9986,7 @@
                         }
                     }
                 }
-                if (_scrubAllVideos) {
-                    const seekInactive = !isDragging ||
-                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
-                    if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
-                    for (let i = 0; i < _scrubAllVideos.length; i++) {
-                        const v = _scrubAllVideos[i];
-                        if (v !== media && !isNaN(v.duration)) {
-                            if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayEffective(v)) continue;
-                            const vfps = videoFrameRates[v.src] || 30;
-                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
-                        }
-                    }
-                }
+                _scrubSeekFollowers(media, pct, seekDur, now);
                 if (_elProgressBar) updateProgressBarForLoop(t, seekDur);
                 if (hasAudios) {
                     updateAudioProgress(media);
@@ -13929,7 +13936,7 @@
               fn: () => {
                   if (_diffMode) cycleDiffPair();
               } },
-            { id: 'wipeMode', defaultKey: 'q', label: 'Image wipe', section: 'analysis', hostAvailable: () => hasImages,
+            { id: 'wipeMode', defaultKey: 'q', label: 'Wipe', section: 'analysis', hostAvailable: () => hasImages || hasVideos,
               fn: () => toggleWipeMode() },
             { id: 'wipeCycle', defaultKey: 'q', shift: true, label: 'Cycle wipe pair', section: 'analysis',
               fn: () => { if (_wipeMode) cycleWipePair(1); } },
@@ -14667,7 +14674,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
 
             <h2>Seamless Tile Check</h2>
             <p>Press <kbd>Y</kbd> with images loaded to analyze any source as a repeating surface. <strong>3×3</strong> repeats the complete image nine times; <strong>Offset</strong> moves its four source edges into a center cross; <strong>Heatmap</strong> marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.</p>
@@ -14778,8 +14785,8 @@
                 <tr><td><kbd>Y</kbd></td><td>Toggle seamless Tile Check</td></tr>
                 <tr><td><kbd>D</kbd></td><td>Toggle difference mode (Stack)</td></tr>
                 <tr><td><kbd>Shift+D</kbd></td><td>Cycle difference pair</td></tr>
-                <tr><td><kbd>Q</kbd></td><td>Toggle image wipe (Stack)</td></tr>
-                <tr><td><kbd>Shift+Q</kbd></td><td>Cycle image wipe pair</td></tr>
+                <tr><td><kbd>Q</kbd></td><td>Toggle wipe (Stack, images or videos)</td></tr>
+                <tr><td><kbd>Shift+Q</kbd></td><td>Cycle wipe pair</td></tr>
                 <tr><td><kbd>B</kbd></td><td>Toggle black &amp; white</td></tr>
                 <tr><td><kbd>N</kbd></td><td>Toggle no-video mode (audio focus)</td></tr>
                 <tr><td><kbd>T</kbd></td><td>Cycle timecode format</td></tr>
@@ -14908,7 +14915,7 @@
             <h3>Analysis</h3>
             <ul>
                 <li><kbd>Y</kbd> seamless Tile Check — 3×3 and centered-seam previews, edge/corner ratings, and optional heatmap</li>
-                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the centered header control</li>
+                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the centered header control. The same wipe compares videos</li>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
                 <li><kbd>W</kbd> audio waveform + spectrogram, with shared Fit / Ref level scaling</li>

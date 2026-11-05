@@ -2695,14 +2695,101 @@ test.describe('Image Wipe', () => {
     expect(plate.aligned).toBe(true);
   });
 
-  test('video wipe remains explicitly gated', async ({ page }) => {
+  test('Q wipes two videos in Stack and keeps both clips live', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await page.keyboard.press('s');
     await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
     await page.keyboard.press('q');
+
+    await expect(page.locator('body')).toHaveClass(/wipe-mode/);
+    await expect(page.locator('#wipeDivider')).toBeVisible();
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
+    expect(await getVar(page, 'wipeMode')).toBe(true);
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+
+    const geometry = await page.evaluate(() => {
+      const base = document.querySelector('.asset-layer.wipe-base .video-wrapper') as HTMLElement;
+      const reveal = document.querySelector('.asset-layer.wipe-reveal .video-wrapper') as HTMLElement;
+      const a = base.getBoundingClientRect();
+      const b = reveal.getBoundingClientRect();
+      return {
+        aligned: Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+                 Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
+        baseDisplay: getComputedStyle(base).display,
+        revealDisplay: getComputedStyle(reveal).display,
+        clip: getComputedStyle(reveal).clipPath,
+        bothVideos: !!(base.querySelector('video') && reveal.querySelector('video')),
+        x: a.x,
+        y: a.y,
+        w: a.width,
+        h: a.height,
+      };
+    });
+    expect(geometry.aligned).toBe(true);
+    expect(geometry.baseDisplay).toBe('block');
+    expect(geometry.revealDisplay).toBe('block');
+    expect(geometry.clip).toContain('50%');
+    expect(geometry.bothVideos).toBe(true);
+    expect(await page.evaluate(() => (window as any)._scrubOverlaySlots().slice().sort()))
+      .toEqual(['editA', 'editB']);
+
+    const dividerBox = await page.locator('#wipeDivider').boundingBox();
+    expect(dividerBox).not.toBeNull();
+    await page.mouse.move(dividerBox!.x + dividerBox!.width / 2, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(geometry.x + geometry.w * 0.25, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.up();
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.25, 2);
+    expect(await page.locator('.asset-layer.wipe-reveal .video-wrapper').evaluate(el => getComputedStyle(el).clipPath))
+      .toContain('25%');
+
+    await page.keyboard.press('+');
+    await page.keyboard.press('+');
+    const divider = await page.locator('#wipeDivider').boundingBox();
+    expect(divider).not.toBeNull();
+    // Pan left and up: at this zoom the content can only move toward the overflow.
+    const panFrom = { x: Math.min(divider!.x + divider!.width + 120, 820), y: 320 };
+    await page.mouse.move(panFrom.x, panFrom.y);
+    await page.mouse.down();
+    await page.mouse.move(panFrom.x - 80, panFrom.y - 40, { steps: 4 });
+    const during = await page.evaluate(() => ({
+      x: (window as any).__testAPI.panOffsetX,
+      y: (window as any).__testAPI.panOffsetY,
+    }));
+    await page.mouse.up();
+    const moved = await page.evaluate(() => {
+      const a = document.querySelector('.asset-layer.wipe-base .video-wrapper')!.getBoundingClientRect();
+      const b = document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!.getBoundingClientRect();
+      return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+             Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
+    });
+    expect(moved).toBe(true);
+    expect(Math.abs(during.x) + Math.abs(during.y)).toBeGreaterThan(10);
+
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForFunction(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return vids.length === 2 && vids.every(v => !v.paused && v.currentTime > 0.15)
+        && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.2;
+    }, undefined, { timeout: 8000 });
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForFunction(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).every((v: any) => v.paused));
+    const paused = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime));
+    await page.evaluate(() => (window as any).stepFrame(1));
+    await page.waitForFunction((before: number[]) => {
+      const times = Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime);
+      return times.length === 2 && times.every((t, i) => t > before[i] + 0.01)
+        && Math.abs(times[0] - times[1]) < 0.15;
+    }, paused, { timeout: 8000 });
+
+    await page.keyboard.press('g');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
     expect(await getVar(page, 'wipeMode')).toBe(false);
-    await expect(page.locator('#toast')).toContainText('Video wipe is not available yet');
+    await expect(page.locator('#wipeDivider')).not.toBeVisible();
   });
 
   test('Difference mode takes ownership from wipe', async ({ page }) => {
