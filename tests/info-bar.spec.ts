@@ -629,15 +629,22 @@ test('settings tabs show one selected style and keep the dialog the same size', 
     const quiet = tabs.find(tab => tab.getAttribute('aria-selected') === 'false')!;
     const chosen = getComputedStyle(selected[0]);
     const other = getComputedStyle(quiet);
+    const panel = getComputedStyle(document.getElementById('infoEditorDialog')!);
+    const heading = document.querySelector('.info-editor-heading')!.getBoundingClientRect().bottom;
     return {
       count: selected.length,
       id: selected[0].id,
       background: chosen.backgroundColor,
       weight: chosen.fontWeight,
       color: chosen.color,
+      bottomBorder: chosen.borderBottomColor,
+      topBorder: chosen.borderTopColor,
+      panel: panel.backgroundColor,
       quietBackground: other.backgroundColor,
       quietWeight: other.fontWeight,
-      quietColor: other.color
+      quietColor: other.color,
+      selectedReachesLine: selected[0].getBoundingClientRect().bottom >= heading - 1,
+      quietStopsAboveLine: quiet.getBoundingClientRect().bottom < heading - 0.5
     };
   });
   const first = await box();
@@ -645,6 +652,11 @@ test('settings tabs show one selected style and keep the dialog the same size', 
   expect(style.count).toBe(1);
   expect(style.id).toBe('settingsTabInfo');
   expect(style.background).not.toBe(style.quietBackground);
+  expect(style.background).toBe(style.panel);
+  expect(style.bottomBorder).toBe(style.panel);
+  expect(style.topBorder).not.toBe(style.panel);
+  expect(style.selectedReachesLine).toBe(true);
+  expect(style.quietStopsAboveLine).toBe(true);
   expect(style.weight).not.toBe(style.quietWeight);
   expect(style.color).not.toBe(style.quietColor);
   for (const id of ['settingsTabHotkeys', 'settingsTabColors', 'settingsTabInfo']) {
