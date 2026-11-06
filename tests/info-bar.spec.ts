@@ -294,6 +294,14 @@ test('editor keyboard controls stay local, native focus is contained and Escape 
   await page.keyboard.press('s'); await page.keyboard.press('g'); await page.keyboard.press('Space');
   expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(before);
   expect(await page.locator('.asset-layer video').evaluateAll(videos => videos.every(video => (video as HTMLVideoElement).paused))).toBe(true);
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#settingsTabHotkeys')).toBeFocused();
+  await page.keyboard.press('s'); await page.keyboard.press('Space');
+  expect(await page.evaluate(() => (window as any).__testAPI.isGridMode)).toBe(before);
+  expect(await page.locator('.asset-layer video').evaluateAll(videos => videos.every(video => (video as HTMLVideoElement).paused))).toBe(true);
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('#settingsTabInfo')).toHaveAttribute('aria-selected', 'true');
   for (let i=0;i<45;i++) {
     await page.keyboard.press('Tab');
     expect(await page.evaluate(() => document.getElementById('infoEditorDialog')!.contains(document.activeElement))).toBe(true);
@@ -565,16 +573,17 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
   await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true});
   await open(page,'video');await page.locator('#infoEditorPreset').selectOption('visual');
   const dialog = page.locator('#infoEditorDialog');
+  const scroller = page.locator('#settingsPanelInfo');
   await page.locator('[data-info-drag="resolution"]').scrollIntoViewIfNeeded();
   const start = await page.locator('[data-info-drag="resolution"]').boundingBox();
   const bounds = await dialog.boundingBox();
   const source = {x:start!.x+start!.width/2,y:start!.y+start!.height/2};
   const edge = {x:source.x,y:bounds!.y+bounds!.height-12};
-  const before = await dialog.evaluate(element=>element.scrollTop);
+  const before = await scroller.evaluate(element=>element.scrollTop);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...source,id:1}]});
   for(let step=1;step<=8;step++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:source.x,y:source.y+(edge.y-source.y)*step/8,id:1}]});
   // A held finger must keep scrolling: pointermove-only scrolling stalls after one step.
-  await expect.poll(()=>dialog.evaluate(element=>element.scrollTop)).toBeGreaterThan(before+100);
+  await expect.poll(()=>scroller.evaluate(element=>element.scrollTop)).toBeGreaterThan(before+100);
   await expect.poll(()=>page.locator('[data-element-id="zoom"]').evaluate(row=>{
     const rect=row.getBoundingClientRect(), bounds=document.getElementById('infoEditorDialog')!.getBoundingClientRect();
     return rect.top>=bounds.top+40 && rect.bottom<=bounds.bottom-40;
@@ -601,15 +610,117 @@ test('touch dragging scrolls to an offscreen section and retires scrolling after
   await expect.poll(()=>page.evaluate(()=>eval('_infoEditorScrollRaf')!==null)).toBe(true);
   await cdp.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
   await expect.poll(()=>page.evaluate(()=>eval('_infoEditorScrollRaf'))).toBeNull();
-  const stopped = await dialog.evaluate(element=>element.scrollTop);
+  const stopped = await scroller.evaluate(element=>element.scrollTop);
   // Verify no scrolling chain survives the captured gesture over multiple display frames.
   await page.evaluate(async()=>{for(let i=0;i<20;i++) await new Promise(requestAnimationFrame);});
-  expect(await dialog.evaluate(element=>element.scrollTop)).toBe(stopped);
+  expect(await scroller.evaluate(element=>element.scrollTop)).toBe(stopped);
   expect(await page.evaluate(()=>localStorage.getItem('pref_infoBarProfiles'))).toBe(saved);
   // The close control must stay reachable after scrolling a long touch dialog.
   await expect(page.locator('#infoEditorClose')).toBeInViewport();
   await close(page);await expect(page.locator('#infoEditorButton')).toBeFocused();
   await cdp.detach();
+});
+
+test('resizing Settings keeps the focused control and a shortcut being chosen', async ({ page }) => {
+  await page.setViewportSize({width:1100,height:800});
+  await open(page);
+  await page.locator('#infoEditorPreset').focus();
+  await page.setViewportSize({width:900,height:700});
+  await expect(page.locator('#infoEditorPreset')).toBeFocused();
+  await page.keyboard.press('h');
+  await page.locator('[data-action-id="mute"]').click();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await expect(page.locator('[data-action-id="mute"]')).toBeFocused();
+  await page.setViewportSize({width:1000,height:760});
+  await expect(page.locator('[data-action-id="mute"]')).toBeFocused();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await expect(page.locator('#infoEditorDialog')).toBeVisible();
+});
+
+test('the comparison window and Settings dialog do not cover the info bar color line', async ({ page }) => {
+  await load(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  await page.locator('#comparisonView').focus();
+  expect(await page.locator('#comparisonView').evaluate(el => getComputedStyle(el).outlineStyle)).toBe('none');
+  const line = await page.evaluate(() => {
+    const bar = document.querySelector('.asset-layer.active-audio .asset-info-bar');
+    if (!bar) return null;
+    const after = getComputedStyle(bar, '::after');
+    const barBox = bar.getBoundingClientRect();
+    const view = document.getElementById('comparisonView')!.getBoundingClientRect();
+    return { height: after.height, color: after.backgroundColor, barTop: barBox.top, viewTop: view.top };
+  });
+  expect(line).not.toBeNull();
+  expect(line!.height).toBe('1px');
+  expect(line!.color).not.toBe('rgba(0, 0, 0, 0)');
+  await open(page);
+  await page.locator('#infoEditorDialog').evaluate(el => el.focus());
+  expect(await page.locator('#infoEditorDialog').evaluate(el => getComputedStyle(el).outlineStyle)).toBe('none');
+  await page.keyboard.press('Tab');
+  const control = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement;
+    const style = getComputedStyle(el);
+    return { inside: document.getElementById('infoEditorDialog')!.contains(el), outline: style.outlineStyle, width: parseFloat(style.outlineWidth) };
+  });
+  expect(control.inside).toBe(true);
+  expect(control.outline).not.toBe('none');
+  expect(control.width).toBeGreaterThan(0);
+});
+
+test('settings tabs show one selected style and keep the dialog the same size', async ({ page }) => {
+  await open(page);
+  const box = () => page.locator('#infoEditorDialog').boundingBox();
+  const look = () => page.evaluate(() => {
+    const tabs = [...document.querySelectorAll('#infoEditorDialog [role="tab"]')] as HTMLElement[];
+    const selected = tabs.filter(tab => tab.getAttribute('aria-selected') === 'true');
+    const quiet = tabs.find(tab => tab.getAttribute('aria-selected') === 'false')!;
+    const chosen = getComputedStyle(selected[0]);
+    const other = getComputedStyle(quiet);
+    const panel = getComputedStyle(document.getElementById('infoEditorDialog')!);
+    const heading = document.querySelector('.info-editor-heading')!.getBoundingClientRect().bottom;
+    return {
+      count: selected.length,
+      id: selected[0].id,
+      background: chosen.backgroundColor,
+      weight: chosen.fontWeight,
+      color: chosen.color,
+      bottomBorder: chosen.borderBottomColor,
+      topBorder: chosen.borderTopColor,
+      panel: panel.backgroundColor,
+      quietBackground: other.backgroundColor,
+      quietWeight: other.fontWeight,
+      quietColor: other.color,
+      selectedReachesLine: selected[0].getBoundingClientRect().bottom >= heading - 1,
+      quietStopsAboveLine: quiet.getBoundingClientRect().bottom < heading - 0.5
+    };
+  });
+  const first = await box();
+  let style = await look();
+  expect(style.count).toBe(1);
+  expect(style.id).toBe('settingsTabInfo');
+  expect(style.background).not.toBe(style.quietBackground);
+  expect(style.background).toBe(style.panel);
+  expect(style.bottomBorder).toBe(style.panel);
+  expect(style.topBorder).not.toBe(style.panel);
+  expect(style.selectedReachesLine).toBe(true);
+  expect(style.quietStopsAboveLine).toBe(true);
+  expect(style.weight).not.toBe(style.quietWeight);
+  expect(style.color).not.toBe(style.quietColor);
+  for (const id of ['settingsTabHotkeys', 'settingsTabColors', 'settingsTabInfo']) {
+    await page.locator('#' + id).click();
+    style = await look();
+    expect(style.count).toBe(1);
+    expect(style.id).toBe(id);
+    expect(style.background).not.toBe(style.quietBackground);
+    const next = await box();
+    expect(Math.abs(next!.width - first!.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(next!.height - first!.height)).toBeLessThanOrEqual(1);
+  }
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+  const hotkeys = await box();
+  expect(Math.abs(hotkeys!.width - first!.width)).toBeLessThanOrEqual(1);
+  expect(Math.abs(hotkeys!.height - first!.height)).toBeLessThanOrEqual(1);
+  expect((await look()).count).toBe(1);
 });
 
 test('three portrait Inline and Offset bars keep selected controls inside the viewport', async ({ page }) => {

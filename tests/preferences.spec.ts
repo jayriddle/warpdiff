@@ -47,7 +47,8 @@ for (const raw of ['{broken','null','[]','"text"','42','true','{"mute":null,"sho
     expect(await page.evaluate(()=>(window as any).__testAPI._customKeys)).toEqual({});
     await expect(page.locator('#volumeSlider')).toHaveValue('35');
     await images(page);
-    await page.keyboard.press('h'); await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);
+    await page.keyboard.press('h'); await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsPanelHotkeys')).toBeVisible();
     await expect(page.locator('[data-action-id="mute"]')).toHaveText('M');
     expect(await page.evaluate(()=>(window as any).__readStored('pref_muted'))).toBe('true');
   });
@@ -101,12 +102,30 @@ for (const fault of ['getter','read','write','remove']) {
     const format=await page.evaluate(()=>(window as any).__testAPI.timecopyFmt);
     await page.keyboard.press('t');
     expect(await page.evaluate(()=>(window as any).__testAPI.timecopyFmt), 'The current visit must retain its format choice').not.toBe(format);
-    await page.keyboard.press('h');await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);
+    await page.keyboard.press('h');await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsPanelHotkeys')).toBeVisible();
     await page.locator('[data-action-id="mute"]').click();await page.keyboard.press('u');
     await expect(page.locator('[data-action-id="mute"]')).toHaveText('U');
     if (fault==='getter'||fault==='write') expect(await page.evaluate(()=>_prefs.readRaw('customHotkeys'))).toContain('"mute":"u"');
   });
 }
+
+test('closing Settings cancels an in-progress shortcut reassignment', async ({page}) => {
+  await seed(page);await started(page);await images(page);
+  await page.keyboard.press('h');
+  await page.locator('[data-action-id="mute"]').click();
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
+  await page.locator('#infoEditorClose').click();
+  await expect(page.locator('#infoEditorDialog')).toBeHidden();
+  const before=await page.locator('#muteBtn').innerHTML();
+  await page.keyboard.press('u');
+  expect(await page.locator('#muteBtn').innerHTML(), 'The next key must not become a new shortcut').toBe(before);
+  await page.keyboard.press('m');
+  expect(await page.locator('#muteBtn').innerHTML()).not.toBe(before);
+  await page.keyboard.press('h');
+  await expect(page.locator('[data-action-id="mute"]')).toHaveText('M');
+  expect(await page.evaluate(()=>(window as any).__testAPI._customKeys)).toEqual({});
+});
 
 test('failed saves preserve current volume and notify once without changing durable settings', async ({page}) => {
   await seed(page,{pref_volume:'35'});await started(page);await images(page);

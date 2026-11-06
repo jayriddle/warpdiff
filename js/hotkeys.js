@@ -165,6 +165,7 @@ function _resetHotkey(actionId) {
     _prefs.writeRaw('customHotkeys', JSON.stringify(_customKeys));
     _buildKeymap();
     _renderShortcutsList();
+    document.querySelector('#settingsPanelHotkeys [data-action-id="' + actionId + '"]')?.focus();
 }
 function _resetAllHotkeys() {
     _customKeys = {};
@@ -197,17 +198,14 @@ const _sectionHeaders = {
 };
 
 function _renderShortcutsList() {
-    const list = document.querySelector('#shortcutsPanel .shortcuts-list');
+    const list = document.querySelector('#settingsPanelHotkeys .shortcuts-list');
     if (!list) return;
     list.innerHTML = '';
-    // Remove any previous reset-all row and appearance section (re-rendered below as panel footer)
     const oldReset = list.parentElement.querySelector('.shortcut-reset-all-row');
     if (oldReset) oldReset.remove();
-    const oldAppear = list.parentElement.querySelector('.slot-appearance-section');
-    if (oldAppear) oldAppear.remove();
 
     // ── Conflict warnings (full-width row inside the scrollable list) ──
-    const oldConflicts = list.parentElement.querySelector('.shortcut-conflicts');
+    const oldConflicts = list.querySelector('.shortcut-conflicts');
     if (oldConflicts) oldConflicts.remove();
     if (_keymapConflicts.length > 0) {
         const box = document.createElement('div');
@@ -284,7 +282,7 @@ function _renderShortcutsList() {
             col.appendChild(_buildPairedRow(action));
             // Append Esc Esc row right after loop points
             if (action.paired === 'loopPoints') {
-                col.appendChild(_buildFixedRow('<kbd>Esc</kbd> <small>2×</small>', 'Clear loop markers'));
+                col.appendChild(_buildFixedRow('Esc 2×', 'Clear loop markers'));
             }
             continue;
         }
@@ -293,7 +291,7 @@ function _renderShortcutsList() {
     }
 
     // "Escape" row in left column (non-reassignable, same section as panels)
-    leftCol.appendChild(_buildFixedRow('<kbd>Esc</kbd>', 'Dismiss panel'));
+    leftCol.appendChild(_buildFixedRow('Esc', 'Close settings'));
 
     const colsRow = document.createElement('div');
     colsRow.className = 'shortcuts-cols';
@@ -301,86 +299,12 @@ function _renderShortcutsList() {
     colsRow.appendChild(rightCol);
     list.appendChild(colsRow);
 
-    // ── Appearance section (slot color pickers) ──
-    const SLOTS = SLOT_DEFS.map(slot => ({ id: slot.key, label: slot.shortLabel }));
-    const appearSection = document.createElement('div');
-    appearSection.className = 'slot-appearance-section';
-
-    const appearHeader = document.createElement('div');
-    appearHeader.className = 'shortcut-section-header';
-    appearHeader.textContent = 'Appearance';
-    appearSection.appendChild(appearHeader);
-
-    const swatchRow = document.createElement('div');
-    swatchRow.className = 'slot-appearance-row';
-
-    SLOTS.forEach(({ id, label }) => {
-        const bgVar  = `--slot-${id}-bg`;
-        const txtVar = `--slot-${id}-txt`;
-        const currentBg  = getComputedStyle(document.documentElement).getPropertyValue(bgVar).trim()
-                        || _SLOT_COLOR_DEFAULTS[id];
-        const currentTxt = getComputedStyle(document.documentElement).getPropertyValue(txtVar).trim()
-                        || '#0a0c0a';
-
-        const swatch = document.createElement('label');
-        swatch.className = 'slot-color-swatch';
-        swatch.style.background = currentBg;
-        swatch.style.color      = currentTxt;
-        swatch.title = `Change ${label} slot color`;
-
-        const dot = document.createElement('span');
-        dot.className = 'slot-color-dot';
-        dot.style.background = currentTxt;
-
-        const name = document.createElement('span');
-        name.textContent = label;
-
-        const picker = document.createElement('input');
-        picker.type  = 'color';
-        picker.value = currentBg;
-
-        picker.addEventListener('input', () => {
-            _applySlotColors(Object.assign({}, _slotColors, { [id]: picker.value }), false);
-            const newTxt = getComputedStyle(document.documentElement).getPropertyValue(`--slot-${id}-txt`).trim();
-            swatch.style.background = picker.value;
-            swatch.style.color      = newTxt;
-            dot.style.background    = newTxt;
-            resetBtn.classList.toggle('hidden', _isDefaultColors());
-        });
-
-        // Persist on close — _slotColors already up-to-date from input events
-        picker.addEventListener('change', () => {
-            _applySlotColors(_slotColors, true);
-        });
-
-        swatch.appendChild(dot);
-        swatch.appendChild(name);
-        swatch.appendChild(picker);
-        swatchRow.appendChild(swatch);
-    });
-
-    // Reset to defaults button
-    const resetBtn = document.createElement('button');
-    resetBtn.className = 'slot-appearance-reset';
-    resetBtn.title  = 'Reset to default colors';
-    resetBtn.textContent = 'Reset';
-    const _isDefaultColors = () =>
-        SLOTS.every(({ id }) => _slotColors[id] === _SLOT_COLOR_DEFAULTS[id]);
-    resetBtn.classList.toggle('hidden', _isDefaultColors());
-    resetBtn.addEventListener('click', () => {
-        _applySlotColors(_SLOT_COLOR_DEFAULTS, true);
-        _renderShortcutsList(); // re-render to sync swatch values
-    });
-
-    swatchRow.appendChild(resetBtn);
-    appearSection.appendChild(swatchRow);
-    list.parentElement.appendChild(appearSection);
-
     // Reset All button (only show if any customised)
     if (Object.keys(_customKeys).length > 0) {
         const resetRow = document.createElement('div');
         resetRow.className = 'shortcut-reset-all-row';
         const resetBtn = document.createElement('button');
+        resetBtn.type = 'button';
         resetBtn.className = 'shortcut-reset-all';
         resetBtn.textContent = 'Reset All to Defaults';
         resetBtn.addEventListener('click', _resetAllHotkeys);
@@ -388,6 +312,63 @@ function _renderShortcutsList() {
         // Append below the columns
         list.parentElement.appendChild(resetRow);
     }
+    if (_reassigningActionId) list.querySelector('[data-action-id="' + _reassigningActionId + '"]')?.focus();
+}
+
+// Slot colors live on the Settings Colors tab. The same saved colors drive the comparison.
+function _renderSlotColors() {
+    const host = document.getElementById('settingsColors');
+    if (!host) return;
+    host.replaceChildren();
+    const SLOTS = SLOT_DEFS.map(slot => ({ id: slot.key, label: slot.shortLabel }));
+    const swatchRow = document.createElement('div');
+    swatchRow.className = 'slot-appearance-row';
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'slot-appearance-reset';
+    resetBtn.title = 'Reset to default colors';
+    resetBtn.textContent = 'Reset';
+    const isDefault = () => SLOTS.every(({ id }) => _slotColors[id] === _SLOT_COLOR_DEFAULTS[id]);
+    resetBtn.classList.toggle('hidden', isDefault());
+    resetBtn.addEventListener('click', () => {
+        _applySlotColors(_SLOT_COLOR_DEFAULTS, true);
+        _renderSlotColors();
+    });
+    SLOTS.forEach(({ id, label }) => {
+        const bgVar = `--slot-${id}-bg`;
+        const txtVar = `--slot-${id}-txt`;
+        const currentBg = getComputedStyle(document.documentElement).getPropertyValue(bgVar).trim()
+            || _SLOT_COLOR_DEFAULTS[id];
+        const currentTxt = getComputedStyle(document.documentElement).getPropertyValue(txtVar).trim()
+            || '#0a0c0a';
+        const swatch = document.createElement('label');
+        swatch.className = 'slot-color-swatch';
+        swatch.style.background = currentBg;
+        swatch.style.color = currentTxt;
+        swatch.title = `Change ${label} slot color`;
+        const dot = document.createElement('span');
+        dot.className = 'slot-color-dot';
+        dot.style.background = currentTxt;
+        const name = document.createElement('span');
+        name.textContent = label;
+        const picker = document.createElement('input');
+        picker.type = 'color';
+        picker.value = currentBg;
+        picker.setAttribute('aria-label', `Change ${label} slot color`);
+        picker.addEventListener('input', () => {
+            _applySlotColors(Object.assign({}, _slotColors, { [id]: picker.value }), false);
+            const newTxt = getComputedStyle(document.documentElement).getPropertyValue(`--slot-${id}-txt`).trim();
+            swatch.style.background = picker.value;
+            swatch.style.color = newTxt;
+            dot.style.background = newTxt;
+            resetBtn.classList.toggle('hidden', isDefault());
+        });
+        picker.addEventListener('change', () => _applySlotColors(_slotColors, true));
+        swatch.append(dot, name, picker);
+        swatchRow.appendChild(swatch);
+    });
+    swatchRow.appendChild(resetBtn);
+    host.appendChild(swatchRow);
 }
 
 function _buildPairedRow(action) {
@@ -404,18 +385,7 @@ function _buildPairedRow(action) {
         keySpan.appendChild(_buildKbd(p));
         if (_isCustomised(p.id)) keySpan.appendChild(_buildResetIcon(p));
         // Show altKey as a secondary kbd if present and not customised
-        if (p.altKey && !_isCustomised(p.id)) {
-            const altKbd = document.createElement('kbd');
-            altKbd.textContent = _keyDisplay(p.altKey, p.shift);
-            altKbd.className = 'shortcut-kbd-clickable';
-            altKbd.title = 'Alternate key (not reassignable)';
-            altKbd.addEventListener('click', () => {
-                altKbd.textContent = 'Not reassignable';
-                altKbd.classList.add('flash-conflict');
-                setTimeout(() => { altKbd.textContent = _keyDisplay(p.altKey, p.shift); altKbd.classList.remove('flash-conflict'); }, 1000);
-            });
-            keySpan.appendChild(altKbd);
-        }
+        if (p.altKey && !_isCustomised(p.id)) keySpan.appendChild(_buildFixedKey(_keyDisplay(p.altKey, p.shift)));
     });
     row.appendChild(keySpan);
     const descSpan = document.createElement('span');
@@ -436,18 +406,7 @@ function _buildSingleRow(action) {
     keySpan.className = 'shortcut-key';
     keySpan.appendChild(_buildKbd(action));
     if (_isCustomised(action.id)) keySpan.appendChild(_buildResetIcon(action));
-    if (action.altKey && !_isCustomised(action.id)) {
-        const altKbd = document.createElement('kbd');
-        altKbd.textContent = _keyDisplay(action.altKey, action.shift);
-        altKbd.className = 'shortcut-kbd-clickable';
-        altKbd.title = 'Alternate key (not reassignable)';
-        altKbd.addEventListener('click', () => {
-            altKbd.textContent = 'Not reassignable';
-            altKbd.classList.add('conflict-flash');
-            setTimeout(() => { altKbd.textContent = _keyDisplay(action.altKey, action.shift); altKbd.classList.remove('conflict-flash'); }, 1000);
-        });
-        keySpan.appendChild(altKbd);
-    }
+    if (action.altKey && !_isCustomised(action.id)) keySpan.appendChild(_buildFixedKey(_keyDisplay(action.altKey, action.shift)));
     row.appendChild(keySpan);
     const descSpan = document.createElement('span');
     descSpan.className = 'shortcut-desc';
@@ -463,48 +422,58 @@ function _buildKbd(action) {
     const isBlocked  = _keymapConflicts.some(c => c.actionId === action.id);
     const hasNoKey   = !_isCustomised(action.id) && !action.defaultKey;
     const isUnbound  = isBlocked || hasNoKey;
-    const kbd = document.createElement('kbd');
-    kbd.textContent = _reassigningActionId === action.id ? 'Press a key\u2026'
-                    : isUnbound                          ? '\u2014'
-                    : _keyDisplay(_actionKey(action.id), action.shift, action.alt);
+    const label = _reassigningActionId === action.id ? 'Press a key\u2026'
+                : isUnbound                          ? '\u2014'
+                : _keyDisplay(_actionKey(action.id), action.shift, action.alt);
+    const kbd = document.createElement('button');
+    kbd.type = 'button';
+    kbd.textContent = label;
     kbd.className = 'shortcut-kbd-clickable' +
                     (_reassigningActionId === action.id ? ' reassigning' : '') +
                     (_isCustomised(action.id) ? ' customised' : '') +
                     (isUnbound ? ' unbound' : '');
-    kbd.title = isUnbound ? 'No key assigned \u2014 click to assign' : 'Click to reassign';
+    kbd.title = isUnbound ? 'No key assigned — click to assign' : 'Click to reassign';
+    kbd.setAttribute('aria-label', (isUnbound ? 'Assign key for ' : 'Reassign ') + action.label + ', ' + label);
     kbd.dataset.actionId = action.id;
     kbd.addEventListener('click', _startReassign);
     return kbd;
 }
 
 function _buildResetIcon(action) {
-    const rst = document.createElement('span');
+    const rst = document.createElement('button');
+    rst.type = 'button';
     rst.className = 'shortcut-reset';
     rst.textContent = '↺';
-    rst.title = 'Reset to default (' + _keyDisplay(action.defaultKey, action.shift, action.alt) + ')';
+    const title = 'Reset to default (' + _keyDisplay(action.defaultKey, action.shift, action.alt) + ')';
+    rst.title = title;
+    rst.setAttribute('aria-label', title);
     rst.addEventListener('click', (ev) => { ev.stopPropagation(); _resetHotkey(action.id); });
     return rst;
 }
 
-function _buildFixedRow(keyHtml, label) {
+function _buildFixedKey(keyText) {
+    const key = document.createElement('button');
+    key.type = 'button';
+    key.className = 'shortcut-kbd-clickable';
+    key.textContent = keyText;
+    key.title = 'Not reassignable';
+    key.addEventListener('click', () => {
+        key.textContent = 'Not reassignable';
+        key.classList.add('conflict-flash');
+        setTimeout(() => {
+            key.classList.remove('conflict-flash');
+            key.textContent = keyText;
+        }, 1200);
+    });
+    return key;
+}
+
+function _buildFixedRow(keyText, label) {
     const row = document.createElement('div');
     row.className = 'shortcut-row';
     const keySpan = document.createElement('span');
     keySpan.className = 'shortcut-key';
-    keySpan.innerHTML = keyHtml;
-    // Flash "not reassignable" on click
-    keySpan.querySelectorAll('kbd').forEach(kbd => {
-        kbd.className = 'shortcut-kbd-clickable';
-        kbd.style.cursor = 'pointer';
-        kbd.addEventListener('click', () => {
-            kbd.textContent = 'Not reassignable';
-            kbd.classList.add('conflict-flash');
-            setTimeout(() => {
-                kbd.classList.remove('conflict-flash');
-                kbd.textContent = 'Esc';
-            }, 1200);
-        });
-    });
+    keySpan.appendChild(_buildFixedKey(keyText));
     row.appendChild(keySpan);
     const descSpan = document.createElement('span');
     descSpan.className = 'shortcut-desc';

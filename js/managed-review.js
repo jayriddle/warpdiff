@@ -16,5 +16,5 @@ function _applyManagedReviewChrome() {
     _resetPreparedImport();
     _closeInfoBarEditor();
     for (const id of ['quickStartPopup', 'quickStartBackdrop', 'changelogPopup', 'changelogBackdrop']) document.getElementById(id).classList.remove('show');
-    for (const id of ['shortcutsPanel', 'shortcutsBackdrop', 'manualPanel', 'manualBackdrop']) document.getElementById(id).classList.remove('open');
+    for (const id of ['manualPanel', 'manualBackdrop']) document.getElementById(id).classList.remove('open');
 }

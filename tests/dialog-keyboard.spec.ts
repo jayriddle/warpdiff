@@ -26,8 +26,12 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
         requestAnimationFrame(()=>resolve(first && first===signature() ? first : ''));
       });
     }))).not.toBe('');
-    await more.first().click();
-    await expect(page.locator('#infoOverflowPanel')).toBeVisible();
+    // WebKit can shift the bar once more after two stable frames. A click that
+    // lands beside More leaves the list closed, so try again until it opens.
+    await expect(async()=>{
+      if(await page.locator('#infoOverflowPanel').isHidden()) await more.first().click();
+      await expect(page.locator('#infoOverflowPanel')).toBeVisible({timeout:1000});
+    }).toPass({timeout:8000});
     let opener=button,activate=button;
     if(button==='preparedPackageBtn'){
       await page.locator('#helpBtn').focus();await page.keyboard.press('Enter');await expect(page.locator('#quickStartPopup')).toBeVisible();
@@ -41,6 +45,9 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
     await page.locator('#'+activate).focus();await page.keyboard.press('Enter');await expect(page.locator('#'+dialog)).toBeVisible();
     await expect(page.locator('#infoOverflowPanel')).toBeHidden();
     for(const key of ['Tab','Shift+Tab']){await page.keyboard.press(key);expect(await page.evaluate(id=>document.getElementById(id)!.contains(document.activeElement),dialog)).toBe(true);}
-    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();await expect(page.locator('#'+opener)).toBeFocused();
+    await page.keyboard.press('Escape');await expect(page.locator('#'+dialog)).not.toBeVisible();
+    // A comparison that finishes loading must not pull focus off Settings.
+    if(opener==='infoEditorButton') await page.evaluate(()=>_focusComparisonAfterLoad());
+    await expect(page.locator('#'+opener)).toBeFocused();
   });
 }

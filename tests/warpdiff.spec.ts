@@ -219,7 +219,9 @@ test.describe('host-load protocol and embedded lifecycle', () => {
 
     const frame = page.locator('iframe').contentFrame();
     await frame.locator('body').evaluate(() => (window as any).toggleShortcutsPanel());
-    await expect(frame.locator('#shortcutsPanel')).toBeVisible();
+    await expect(frame.locator('#infoEditorDialog')).toBeVisible();
+    await expect(frame.locator('#settingsPanelHotkeys')).toBeVisible();
+    await expect(frame.locator('[data-action-id="mute"]')).toHaveJSProperty('tagName', 'BUTTON');
     await frame.locator('[data-action-id="mute"]').click();
     await page.keyboard.press('u');
 
@@ -796,8 +798,27 @@ test.describe('Keyboard Shortcuts', () => {
     await page.goto('/');
     await page.keyboard.press('Escape'); // close first-visit Help before the shortcut keys
     await page.keyboard.press('h');
-    await expect(page.locator('#shortcutsPanel')).toHaveClass(/open/);  // "shortcuts-panel open"
-    await page.keyboard.press('Escape'); // Close it
+    await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#settingsPanelHotkeys')).toBeVisible();
+    await expect(page.locator('#settingsTabHotkeys')).toBeFocused();
+    await expect(page.locator('[data-action-id="mute"]')).toHaveJSProperty('tagName', 'BUTTON');
+    await page.keyboard.press('h'); // already on Hotkeys, so H closes Settings
+    await expect(page.locator('#infoEditorDialog')).toBeHidden();
+    await page.locator('#infoEditorButton').click();
+    await expect(page.locator('#settingsTabInfo')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#infoEditorPreset')).toBeVisible();
+    await page.locator('#settingsTabInfo').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#settingsTabColors')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.slot-color-swatch')).toHaveCount(4);
+    await page.keyboard.press('h'); // from Colors, H switches to Hotkeys and stays open
+    await expect(page.locator('#infoEditorDialog')).toBeVisible();
+    await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#infoEditorDialog')).toBeHidden();
     await page.keyboard.press('?');
     await expect(page.locator('#quickStartPopup')).toBeVisible();
   });

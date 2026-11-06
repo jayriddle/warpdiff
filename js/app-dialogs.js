@@ -5,7 +5,7 @@ function _showAppDialog(dialog) {
     _closeAppearancePanel();
     _closeInfoBarOverflow(false);
     _setFfmpegPanelOpen(false);
-    for (const [id, close] of [['shortcutsPanel', toggleShortcutsPanel], ['manualPanel', toggleManualPanel], ['timecopyPanel', toggleTimecopyPanel]]) {
+    for (const [id, close] of [['manualPanel', toggleManualPanel], ['timecopyPanel', toggleTimecopyPanel]]) {
         if (document.getElementById(id)?.classList.contains('open')) close();
     }
     _reassigningActionId = null;
