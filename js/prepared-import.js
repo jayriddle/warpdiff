@@ -148,7 +148,6 @@ function _loadOrdinaryMediaFromHelp() {
 }
 function _setupPreparedImportEntryPoints() {
     document.getElementById('preparedPackageBtn').addEventListener('click', event => _setPreparedImportOpen(true, event.currentTarget));
-    document.getElementById('helpLoadFiles').addEventListener('click', _loadOrdinaryMediaFromHelp);
 }
 // Help follows the main script in the document; its controls do not exist yet.
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _setupPreparedImportEntryPoints, {once:true});

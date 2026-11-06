@@ -13,16 +13,23 @@ test('Preparation and Media status stay hidden until they are needed', async ({p
   await expect(page.locator('#preparationBtn')).toBeHidden();
   await expect(page.locator('#mediaStatusBtn')).toBeHidden();
   await page.locator('#helpBtn').click();
-  await expect(page.locator('#helpPreparationBtn')).toBeVisible();
+  await expect(page.locator('#helpLoadFiles')).toHaveCount(0);
+  await expect(page.locator('#helpPreparationBtn')).toHaveCount(0);
   await expect(page.locator('#helpMediaStatusBtn')).toBeHidden();
-  await page.locator('#helpPreparationBtn').click();
+  await expect(page.locator('#quickStartPopup .quick-start-close')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#helpBtn')).toBeFocused();
+  await page.goto('/?from=rest#preparation=' + encodeURIComponent('http://127.0.0.1:9'));
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await expect(page.locator('#preparationBtn')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('#localPreparationDialog')).toBeHidden();
   await expect(page.locator('#quickStartPopup')).toBeHidden();
   await expect(page.locator('#preparationBtn')).toBeHidden();
-  await expect(page.locator('#helpBtn')).toBeFocused();
+  expect(await page.evaluate(() => {
+    const dialog = document.getElementById('localPreparationDialog')!;
+    return !dialog.open && !dialog.contains(document.activeElement);
+  })).toBe(true);
 });
 
 test('a preparation link opens the dialog directly and keeps the header button', async ({page}) => {

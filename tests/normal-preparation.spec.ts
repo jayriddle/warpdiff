@@ -45,8 +45,8 @@ test.afterEach(async({page})=>{
 async function openPreparation(page:any){
   if(await page.locator('#localPreparationDialog').isVisible())return;
   if(await page.locator('#preparationBtn').isVisible()){await page.locator('#preparationBtn').click();return;}
-  if(!await page.locator('#quickStartPopup').isVisible())await page.locator('#helpBtn').click();
-  await page.locator('#helpPreparationBtn').click();
+  await page.evaluate(()=>(window as any)._showLocalPreparation());
+  await expect(page.locator('#localPreparationDialog')).toBeVisible();
 }
 async function connect(page:any,origin=helper.origin,approve=true){
   await openPreparation(page);

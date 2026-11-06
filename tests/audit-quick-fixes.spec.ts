@@ -120,8 +120,7 @@ test('a rejected audio file read shows a retryable notice and leaves playback us
   await expect(alert).toBeHidden();
   await expect(page.locator('#layerEditA video')).toHaveJSProperty('error', null);
   await expect(page.locator('#preparationBtn')).toBeHidden();
-  await page.locator('#helpBtn').click();
-  await page.locator('#helpPreparationBtn').click();
+  await page.evaluate(()=>(window as any)._showLocalPreparation());
   await expect(page.locator('#localPreparationDialog')).toBeVisible();
   await expect(page.locator('#localPreparationFiles li')).toHaveCount(0);
   await expect(page.locator('#localPreparationRun')).toBeDisabled();
