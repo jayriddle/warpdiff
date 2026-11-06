@@ -766,8 +766,10 @@
             display: flex;
             flex-direction: column;
         }
-        #comparisonView:focus { outline: none; }
-        #comparisonView:focus-visible { outline: 2px solid #a9c9ff; outline-offset: -2px; }
+        /* Focus can rest here so the keyboard keeps working. A ring on this
+           container sits on the top info bar and hides its color line. */
+        #comparisonView:focus,
+        #comparisonView:focus-visible { outline: none; }
 
         .asset-container {
             width: 100%;
@@ -1381,6 +1383,8 @@
         .info-overflow-row { display: flex; align-items: start; gap: 12px; padding: 4px 0; }
         .info-overflow-row > span:first-child { width: 105px; flex: 0 0 auto; color: #aaa; }
         .info-overflow-row .info-item { margin: 0; min-width: 0; flex: 1; white-space: normal; overflow-wrap: anywhere; max-width: none; }
+        #infoEditorDialog:focus,
+        #infoEditorDialog:focus-visible { outline: none; }
         #infoEditorDialog:not([open]) { display: none; }
         #infoEditorDialog[open] { display: flex; flex-direction: column; width: min(800px, calc(100vw - 24px)); height: min(var(--settings-height, 720px), calc(100dvh - 32px)); max-height: calc(100dvh - 32px); overflow: hidden; box-sizing: border-box; margin: auto; padding: 0; border: 1px solid #49494e; border-radius: 12px; background: #1c1c1e; color: #ddd; font-size: 13px; }
         #infoEditorDialog.settings-measuring { height: auto; max-height: none; overflow: visible; }

@@ -637,6 +637,35 @@ test('resizing Settings keeps the focused control and a shortcut being chosen', 
   await expect(page.locator('#infoEditorDialog')).toBeVisible();
 });
 
+test('the comparison window and Settings dialog do not cover the info bar color line', async ({ page }) => {
+  await load(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+  await page.locator('#comparisonView').focus();
+  expect(await page.locator('#comparisonView').evaluate(el => getComputedStyle(el).outlineStyle)).toBe('none');
+  const line = await page.evaluate(() => {
+    const bar = document.querySelector('.asset-layer.active-audio .asset-info-bar');
+    if (!bar) return null;
+    const after = getComputedStyle(bar, '::after');
+    const barBox = bar.getBoundingClientRect();
+    const view = document.getElementById('comparisonView')!.getBoundingClientRect();
+    return { height: after.height, color: after.backgroundColor, barTop: barBox.top, viewTop: view.top };
+  });
+  expect(line).not.toBeNull();
+  expect(line!.height).toBe('1px');
+  expect(line!.color).not.toBe('rgba(0, 0, 0, 0)');
+  await open(page);
+  await page.locator('#infoEditorDialog').evaluate(el => el.focus());
+  expect(await page.locator('#infoEditorDialog').evaluate(el => getComputedStyle(el).outlineStyle)).toBe('none');
+  await page.keyboard.press('Tab');
+  const control = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement;
+    const style = getComputedStyle(el);
+    return { inside: document.getElementById('infoEditorDialog')!.contains(el), outline: style.outlineStyle, width: parseFloat(style.outlineWidth) };
+  });
+  expect(control.inside).toBe(true);
+  expect(control.outline).not.toBe('none');
+  expect(control.width).toBeGreaterThan(0);
+});
+
 test('settings tabs show one selected style and keep the dialog the same size', async ({ page }) => {
   await open(page);
   const box = () => page.locator('#infoEditorDialog').boundingBox();
