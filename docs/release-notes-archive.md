@@ -2,6 +2,34 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.28
+
+Highlights from the last two months
+
+### Video and comparing
+
+- Compare two videos with a draggable wipe to see changes side by side.
+- Step through videos more reliably, even with rapid taps or different frame rates.
+- Scrub forward or backward with continuous audio that keeps voices at their natural pitch.
+
+### Audio
+
+- Bring dialogue forward with Dialogue Focus, or listen to the center channel on surround soundtracks.
+- Get more accurate loudness and peak readings, including for surround sound.
+- Hear the full soundtrack in WebM videos, including recordings made in a browser.
+
+### Layout and settings
+
+- Choose which file details appear, rearrange them, and save different layouts for images, video and audio.
+- Find file-detail settings, keyboard shortcuts and slot colors together in one Settings panel.
+
+### Opening files and reliability
+
+- Use the optional preparation tool to open files the browser can't play, without changing your originals.
+- Keep your current comparison when a file can't be prepared or none of your replacement images open.
+- Playback and controls stay responsive while audio graphs and measurements load in the background.
+- Updates no longer interrupt an open comparison, and the app keeps your last full offline copy.
+
 ## v3.19.27
 
 - You can wipe between two videos in Stack. Press Q and drag the line. The Wipe / A–B switch sits in the header beside Balance, and it no longer covers the other header buttons. Image wipe is fixed the same way.
