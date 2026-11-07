@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.27
+
+- You can wipe between two videos in Stack. Press Q and drag the line. The Wipe / A–B switch sits in the header beside Balance, and it no longer covers the other header buttons. Image wipe is fixed the same way.
+- Quick loads go straight to the comparison. The loading screen only appears if files are still opening.
+- There is a little more space between the file name and the first detail next to it.
+
 ## v3.19.26
 
 - Help is a little simpler. The extra Load files and Preparation buttons at the top of Getting Started are gone. Use Load in the header, press L, or drag files in.

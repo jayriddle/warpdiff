@@ -1,6 +1,6 @@
-// Image wipe controller. Stateful classic script: shares app globals from index.html.
-// The presentation path deliberately uses real DOM layers + clip-path so the same
-// geometry can later be validated for video without replacing the interaction model.
+// Wipe controller for images and videos. Stateful classic script: shares app globals
+// from index.html. The presentation path uses real DOM layers + clip-path so video
+// keeps the native color path. Video is a compositor trial: no canvas wipe.
 
 let _wipeMode = false;
 let _wipePairIndex = 0;
@@ -18,6 +18,24 @@ function _wipePair() {
     if (!pairs.length) return null;
     if (_wipePairIndex >= pairs.length) _wipePairIndex = 0;
     return pairs[_wipePairIndex];
+}
+
+// True when this playing/scrubbed video is one of the two clips on screen.
+// The other loaded videos stay hidden and keep the Stack follower policy.
+function _wipeFollowerVisible(video) {
+    if (!_wipeMode || !video) return false;
+    const pair = _wipePair();
+    if (!pair) return false;
+    for (let i = 0; i < pair.length; i++) {
+        const layer = getLayer(pair[i]);
+        if (layer && layer.querySelector('video') === video) return true;
+    }
+    return false;
+}
+
+function _wipeComparable(loaded) {
+    return loaded.every(slot => mediaData[slot].type === 'image')
+        || loaded.every(slot => mediaData[slot].type === 'video');
 }
 
 function _wipeSlotText(slot) {
@@ -86,12 +104,23 @@ function _wipeMediaContentRect(slot, wrapper, media) {
     };
 }
 
+function _clearWipePairHost() {
+    const host = document.getElementById('wipePairHost');
+    if (!host) return;
+    host.replaceChildren();
+    host.classList.remove('wipe-pair-chooser');
+    host.hidden = true;
+    host.removeAttribute('role');
+    host.removeAttribute('aria-label');
+}
+
 function _renderWipePairChooser(nameEl) {
     const pairs = _getWipePairs();
     const focusedKey = nameEl.contains(document.activeElement)
         ? document.activeElement.dataset.wipeFocusKey
         : '';
     nameEl.replaceChildren();
+    nameEl.hidden = false;
     nameEl.classList.add('wipe-pair-chooser');
     nameEl.setAttribute('role', 'group');
     nameEl.setAttribute('aria-label', 'Wipe comparison pair');
@@ -130,8 +159,8 @@ function _updateWipeButton() {
     btn.setAttribute('aria-pressed', _wipeMode ? 'true' : 'false');
     const pair = _wipePair();
     btn.title = _wipeMode && pair
-        ? 'Image wipe: ' + _wipePairText(pair) + ' (Q)'
-        : 'Image wipe comparison (Q)';
+        ? 'Wipe: ' + _wipePairText(pair) + ' (Q)'
+        : 'Wipe comparison (Q)';
 }
 
 function _renderWipeLayers() {
@@ -151,7 +180,7 @@ function _renderWipeLayers() {
 
 function _fitWipeRevealMedia(slot, wrapper, width, height) {
     const layer = getLayer(slot);
-    const media = layer && layer.querySelector('img');
+    const media = layer && layer.querySelector('img, video');
     if (!media) return;
     const { w: origW, h: origH } = mediaDims(media);
     const { nw, nh } = _rotatedDims(slot, origW, origH);
@@ -245,15 +274,15 @@ function _setWipeMode(enabled, announce = true) {
     if (enabled) {
         const loaded = assetOrder.filter(slot => mediaData[slot]);
         if (loaded.length < 2) {
-            if (announce) showToast('Need at least 2 images for wipe');
+            if (announce) showToast('Need at least 2 images or videos for wipe');
             return false;
         }
         if (isGridMode) {
-            if (announce) showToast('Image wipe available in Stack only');
+            if (announce) showToast('Wipe is available in Stack only');
             return false;
         }
-        if (loaded.some(slot => mediaData[slot].type !== 'image')) {
-            if (announce) showToast('Video wipe is not available yet');
+        if (!_wipeComparable(loaded)) {
+            if (announce) showToast('Wipe needs a set of images or a set of videos');
             return false;
         }
         if (_diffMode) _setDiffMode(false, false);

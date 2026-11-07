@@ -626,7 +626,9 @@
             display: none;
             width: min(440px, calc(100vw - 32px));
         }
-        .landing-cta.loading .landing-status { display: block; }
+        /* The drop hint hides as soon as loading starts. The card itself waits
+           until the load is still running, so a fast open does not flash it. */
+        .landing-cta.loading.loading-revealed .landing-status { display: block; }
         .loading-progress-title {
             margin-bottom: 10px;
             color: #ccc;
@@ -895,9 +897,10 @@
             z-index: 12; /* above the incoming wrapper (11) until the swap */
         }
 
-        /* Image wipe: both comparison layers stay live in Stack while the reveal
-           wrapper is clipped by js/wipe.js. Pointer ownership stays on the stage
-           except for the dedicated divider hit target. */
+        /* Wipe: both comparison layers stay live in Stack while the reveal
+           wrapper is clipped by js/wipe.js. Images and videos share this path.
+           Video stays on the native element so macOS color management is kept.
+           Pointer ownership stays on the stage except for the divider. */
         body.wipe-mode:not(.grid-mode) .asset-layer.wipe-base,
         body.wipe-mode:not(.grid-mode) .asset-layer.wipe-reveal {
             opacity: 1;
@@ -1313,10 +1316,16 @@
         .asset-info-bar .asset-audio-format:empty,
         #stackInfoStrip .sih-audio-format:empty { display: none; }
         /* Keep the source label hoverable in narrow Grid bars without pushing
-           loudness metrics or zoom off the edge. Height stays one line. */
-        body.grid-mode .asset-info-bar:has(.asset-audio-format:not(:empty)) {
+           loudness metrics or zoom off the edge. Height stays one line.
+           This tightens gaps between the direct fields only. The name pill
+           keeps a wider gap of its own, and custom item rows are separate. */
+        body.grid-mode .asset-info-bar:not(.info-custom):has(.asset-audio-format:not(:empty)) {
             gap: 4px;
             padding-inline: 8px;
+        }
+        .asset-info-bar:not(.info-custom) > .asset-name { margin-inline-end: 2px; }
+        body.grid-mode .asset-info-bar:not(.info-custom):has(.asset-audio-format:not(:empty)) > .asset-name {
+            margin-inline-end: 8px;
         }
         .asset-info-bar .asset-audio-format:not(:empty) { min-width: 50px; }
         /* Dim the --fps placeholder until the real value is known */
@@ -1350,10 +1359,10 @@
         /* Shared configurable metadata presentation → js/info-bar.js */
         #infoEditorButton { flex: 0 0 auto; padding: 4px 6px; }
         #infoEditorButton svg { width: 18px; height: 18px; }
-        .asset-info-bar.info-custom { gap: 4px; padding-inline: 8px; }
+        .asset-info-bar.info-custom { gap: 12px; padding-inline: 8px; }
         .asset-info-bar.info-custom > :not(.asset-name):not(.info-items):not(.info-more),
         #stackInfoStrip.info-custom > :not(.sih-name):not(.info-items):not(.info-more) { display: none !important; }
-        #stackInfoStrip.info-custom { padding-right: 0; gap: 4px; }
+        #stackInfoStrip.info-custom { padding-right: 0; gap: 12px; }
         .info-items { display: flex; flex: 1 1 0; min-width: 0; min-height: 18px; align-items: center; line-height: 1.25; }
         .info-section { display: flex; min-width: 0; align-items: center; }
         .info-section-left { flex: 1 1 0; }
@@ -1626,21 +1635,24 @@
             white-space: nowrap;
             letter-spacing: 0.03em;
         }
+        #stackInfoStrip:not(.info-custom) > .sih-name { margin-inline-end: 5px; }
         /* Same deep fills as Grid info bar — identical in all states */
         #stackInfoStrip.sih-slot-original .sih-name { background: var(--slot-original-bg); color: var(--slot-original-txt); }
         #stackInfoStrip.sih-slot-editA    .sih-name { background: var(--slot-editA-bg);    color: var(--slot-editA-txt); }
         #stackInfoStrip.sih-slot-editB    .sih-name { background: var(--slot-editB-bg);    color: var(--slot-editB-txt); }
         #stackInfoStrip.sih-slot-editC    .sih-name { background: var(--slot-editC-bg);    color: var(--slot-editC-txt); }
-        #stackInfoStrip.sih-wipe .sih-name {
-            background: rgba(45,124,255,0.2);
-            box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
-            color: #c8dcff;
-        }
-        #stackInfoStrip .sih-name.wipe-pair-chooser {
+        /* The pair switch sits in the right-hand compare group, in normal flow,
+           so it cannot cover Fit, Balance, or the view and analysis icons. */
+        #wipePairHost { display: none; align-items: center; flex: 0 0 auto; }
+        body.wipe-mode #wipePairHost.wipe-pair-chooser {
             display: inline-flex;
             align-items: center;
             gap: 2px;
             padding: 2px;
+            border-radius: 5px;
+            background: rgba(45,124,255,0.2);
+            box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
+            color: #c8dcff;
         }
         .wipe-pair-prefix {
             padding: 0 5px;
@@ -1661,36 +1673,10 @@
         .wipe-pair-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .wipe-pair-option.active { background: #2d7cff; color: #fff; }
         .wipe-pair-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
-        body.wipe-mode #stackInfoStrip.sih-wipe {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: max-content;
-            min-width: 0;
-            padding: 0;
-            transform: translate(-50%, -50%);
-            overflow: visible;
-            z-index: 2;
-        }
-        body.wipe-mode #stackInfoStrip.sih-wipe > :not(.sih-name) {
-            display: none !important;
-        }
-        body.wipe-mode #sihAccentBar { display: none !important; }
-        /* The centered chooser supersedes the Ref/A/B asset pills during wipe.
-           Removing the redundant strip also prevents overlap on narrow headers. */
+        /* The pair switch replaces the Ref/A/B pills. The rest of the header,
+           including waveform and scopes, stays in its normal right-hand place. */
         body.wipe-mode #modeStrip,
         body.wipe-mode #iconSep1 { display: none !important; }
-        @media (max-width: 720px) {
-            body.wipe-mode #stackInfoStrip.sih-wipe {
-                top: calc(100% + 6px);
-                max-width: calc(100vw - 16px);
-                padding: 2px;
-                transform: translateX(-50%);
-                border-radius: 6px;
-                background: rgba(21,21,21,0.94);
-                box-shadow: 0 2px 10px rgba(0,0,0,0.55);
-            }
-        }
         /* Slot-colored accent bar — absolutely positioned at top of header,
            width/left set by JS to span from label pill to zoom pill */
         #sihAccentBar {
@@ -3694,7 +3680,8 @@
                     </div>
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
-                <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Image wipe comparison (Q)" aria-pressed="false"></button>
+                <div id="wipePairHost" hidden></div>
+                <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Wipe comparison (Q)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="tileCheckToggleBtn" onclick="toggleTileCheck(); this.blur();" title="Seamless tile check (Y)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
                 <button class="analysis-btn" id="scopesToggleBtn" onclick="toggleVideoScopes(); this.blur();" title="Video scopes (V)"></button>
@@ -4096,10 +4083,10 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.26';
+        const APP_VERSION = '3.19.27';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
-        const _CHANGELOG_VERSION = '3.19.26';
+        const _CHANGELOG_VERSION = '3.19.27';
         // WebKit media-engine marker (fastSeek is WebKit-only — the same
         // capability check behind _RATE_TRIM_IS_SMOOTH in js/transport.js).
         // Gates the Stack-mode CSS that keeps inactive video wrappers
@@ -5490,12 +5477,20 @@
         }
 
         // The video slots the overlay should engage for this drag: all visible
-        // video slots in Grid mode, just the visible asset in Stack mode.
+        // video slots in Grid mode, both clips of a Stack wipe, otherwise just
+        // the visible Stack asset. The wipe stays on the native <video> during
+        // playback; this overlay is the existing scrub preview, clipped with it.
         function _scrubOverlaySlots() {
             if (_isSoloPlayback()) return _soloPlaybackSlot ? [_soloPlaybackSlot] : [];
             if (isGridMode) {
                 return assetOrder.filter(s =>
                     mediaData[s] && mediaData[s].type === 'video' && !_hiddenSlots.has(s));
+            }
+            if (_wipeMode) {
+                const pair = _wipePair();
+                if (pair && pair.every(s => mediaData[s] && mediaData[s].type === 'video')) {
+                    return pair.filter(s => !_hiddenSlots.has(s));
+                }
             }
             const slot = assetOrder[currentAssetIndex];
             return (mediaData[slot] && mediaData[slot].type === 'video') ? [slot] : [];
@@ -5899,6 +5894,8 @@
         let _loadingProgressLong = false;
         let _loadingProgressCancelable = false;
         let _loadingProgressToken = null;
+        let _loadingRevealTimer = null;
+        const _LOADING_CARD_DELAY_MS = 500;
 
         function _loadingSlotLabel(slot, assetType, total) {
             if (_managedReviewActive()) return slotLabel(slot);
@@ -6026,6 +6023,28 @@
             }, 1000);
         }
 
+        function _revealLoadingCard() {
+            _loadingRevealTimer = null;
+            const cta = document.getElementById('landingCta');
+            if (!cta || !cta.classList.contains('loading') || !_loadingProgressItems.length) return;
+            cta.classList.add('loading-revealed');
+        }
+
+        // Fast loads finish before this and never show the card. A slot error
+        // reveals it immediately so the failure is not held behind the delay.
+        function _armLoadingCard(immediate) {
+            const cta = document.getElementById('landingCta');
+            if (!cta) return;
+            clearTimeout(_loadingRevealTimer);
+            _loadingRevealTimer = null;
+            if (immediate || _loadingProgressItems.some(item => item.kind === 'error')) {
+                cta.classList.add('loading-revealed');
+                return;
+            }
+            cta.classList.remove('loading-revealed');
+            _loadingRevealTimer = setTimeout(_revealLoadingCard, _LOADING_CARD_DELAY_MS);
+        }
+
         function _setLoadingSlotState(slot, state, kind = 'working') {
             _mediaInputStatusChanged();
             _usage.slotState(slot, kind);
@@ -6034,6 +6053,7 @@
             item.state = state;
             item.kind = kind;
             _renderLoadingProgress();
+            if (kind === 'error') _armLoadingCard(true);
         }
 
         function _cancelLoadingProgress() {
@@ -6048,16 +6068,19 @@
             cta.classList.add('loading');
             _loadingProgressTitle = msg || 'Loading…';
             _renderLoadingProgress();
+            _armLoadingCard(false);
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(3, true);
         }
         function hideLoading() {
             clearInterval(_loadingProgressTimer);
             _loadingProgressTimer = null;
+            clearTimeout(_loadingRevealTimer);
+            _loadingRevealTimer = null;
             _loadingProgressItems = [];
             _loadingProgressLong = false;
             _loadingProgressCancelable = false;
             const cta = document.getElementById('landingCta');
-            cta.classList.remove('loading');
+            cta.classList.remove('loading', 'loading-revealed');
             const status = document.getElementById('landingStatus');
             if (status) status.textContent = 'Loading…';
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(1, true);
@@ -9828,6 +9851,34 @@
                 _scrubRelayoutRaf = requestAnimationFrame(tick);
             }
 
+            // Stack hides every clip except the active one, so a drag seeks only
+            // that clip and catches the others up on release. Grid, and a Stack
+            // wipe, show more than one picture: those followers are seeked during
+            // the drag on the same throttle Grid already uses. A hidden third
+            // clip stays on the release-only path.
+            function _scrubInactiveDue(now) {
+                const showFollowers = isGridMode || _wipeMode;
+                const seekInactive = !isDragging ||
+                    (showFollowers && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
+                if (seekInactive && showFollowers) _inactiveLastSeekTime = now;
+                return seekInactive;
+            }
+
+            function _scrubSeekFollowers(active, pct, seekDur, now) {
+                if (!_scrubAllVideos) return;
+                const seekInactive = _scrubInactiveDue(now);
+                for (let i = 0; i < _scrubAllVideos.length; i++) {
+                    const v = _scrubAllVideos[i];
+                    if (v === active || isNaN(v.duration)) continue;
+                    if (!seekInactive) continue;
+                    if (isDragging && _wipeMode && !isGridMode && !_wipeFollowerVisible(v)) continue;
+                    if (isDragging && _scrubOverlayEffective(v)) continue;
+                    const vfps = videoFrameRates[v.src] || 30;
+                    const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
+                    if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
+                }
+            }
+
             // Seek all videos to the position under the cursor and update the UI.
             // Direct synchronous currentTime assignment — no rAF needed; browsers
             // coalesce rapid seeks internally, and this eliminates races with the
@@ -9880,23 +9931,7 @@
                         }
                     }
                 }
-                if (_scrubAllVideos) {
-                    // Stack mode: inactive videos are hidden — skip their seeks during drag.
-                    // Grid mode: throttle inactive seeks to ~100ms; all synced on mouseup.
-                    const seekInactive = !isDragging ||
-                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
-                    if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
-                    for (let i = 0; i < _scrubAllVideos.length; i++) {
-                        const v = _scrubAllVideos[i];
-                        if (v !== video && !isNaN(v.duration)) {
-                            if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayEffective(v)) continue;
-                            const vfps = videoFrameRates[v.src] || 30;
-                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
-                        }
-                    }
-                }
+                _scrubSeekFollowers(video, pct, seekDur, now);
 
                 // Update timecode and waveform cursor from the seek TARGET, not
                 // video.currentTime — during overlay scrubs the video isn't seeked.
@@ -9965,21 +10000,7 @@
                         }
                     }
                 }
-                if (_scrubAllVideos) {
-                    const seekInactive = !isDragging ||
-                        (isGridMode && (_IS_WEBKIT_MEDIA || now - _inactiveLastSeekTime >= 100));
-                    if (seekInactive && isGridMode) _inactiveLastSeekTime = now;
-                    for (let i = 0; i < _scrubAllVideos.length; i++) {
-                        const v = _scrubAllVideos[i];
-                        if (v !== media && !isNaN(v.duration)) {
-                            if (!seekInactive) continue;
-                            if (isDragging && _scrubOverlayEffective(v)) continue;
-                            const vfps = videoFrameRates[v.src] || 30;
-                            const target = Math.min(pct * seekDur, v.duration - 0.5 / vfps);
-                            if (!_queueNativeScrubSeek(v, target)) v.currentTime = target;
-                        }
-                    }
-                }
+                _scrubSeekFollowers(media, pct, seekDur, now);
                 if (_elProgressBar) updateProgressBarForLoop(t, seekDur);
                 if (hasAudios) {
                     updateAudioProgress(media);
@@ -10836,6 +10857,7 @@
             if (!strip) return;
 
             if (isGridMode || !getLoadedSlotCount()) {
+                if (!_wipeMode) _clearWipePairHost();
                 strip.style.display = 'none';
                 if (!getLoadedSlotCount()) {
                     strip.className = '';
@@ -10850,9 +10872,9 @@
 
             // Find the active layer and its slot
             const activeLayer = document.querySelector('.asset-layer.active');
-            if (!activeLayer) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
+            if (!activeLayer) { if (!_wipeMode) _clearWipePairHost(); strip.style.display = 'none'; _updateSihAccentBar(null); return; }
             const slot = assetOrder.find(candidate => getLayer(candidate) === activeLayer) || null;
-            if (!slot || !mediaData[slot]) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
+            if (!slot || !mediaData[slot]) { if (!_wipeMode) _clearWipePairHost(); strip.style.display = 'none'; _updateSihAccentBar(null); return; }
 
             // Read from the hidden info bar spans — they're kept up to date by applyZoom()
             // and file-load handlers even though the bar itself isn't displayed in Stack mode.
@@ -10881,20 +10903,20 @@
             const customInfo = strip.classList.contains('info-custom');
             strip.className = (slot ? 'sih-slot-' + slot : '') + (customInfo ? ' info-custom' : '');
             const wipePair = _wipeMode ? _wipePair() : null;
-            strip.classList.toggle('sih-wipe', !!wipePair);
+            const pairHost = document.getElementById('wipePairHost');
+            if (pairHost) {
+                if (wipePair) _renderWipePairChooser(pairHost);
+                else _clearWipePairHost();
+            }
 
             // Slot name pill: hide for single generic asset (no IHWA context)
             const nameEl = strip.querySelector('.sih-name');
             const showName = getLoadedSlotCount() > 1 || !!_ihwaSlotLabels;
             nameEl.style.display = showName ? '' : 'none';
-            if (wipePair) {
-                _renderWipePairChooser(nameEl);
-            } else {
-                nameEl.classList.remove('wipe-pair-chooser');
-                nameEl.removeAttribute('role');
-                nameEl.removeAttribute('aria-label');
-                nameEl.textContent = rawName || '';
-            }
+            nameEl.classList.remove('wipe-pair-chooser');
+            nameEl.removeAttribute('role');
+            nameEl.removeAttribute('aria-label');
+            nameEl.textContent = rawName || '';
 
             // Zoom pill
             const zoomEl = strip.querySelector('.sih-zoom');
@@ -13929,7 +13951,7 @@
               fn: () => {
                   if (_diffMode) cycleDiffPair();
               } },
-            { id: 'wipeMode', defaultKey: 'q', label: 'Image wipe', section: 'analysis', hostAvailable: () => hasImages,
+            { id: 'wipeMode', defaultKey: 'q', label: 'Wipe', section: 'analysis', hostAvailable: () => hasImages || hasVideos,
               fn: () => toggleWipeMode() },
             { id: 'wipeCycle', defaultKey: 'q', shift: true, label: 'Cycle wipe pair', section: 'analysis',
               fn: () => { if (_wipeMode) cycleWipePair(1); } },
@@ -14610,7 +14632,7 @@
                 <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
-            <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. A fast load goes straight to the comparison. If preparation is still running after a brief moment, this screen appears; a problem shows it right away, and the drop hint stays hidden in the meantime. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
             <p><strong>Prepare and open:</strong> Load or drop files normally. If a video or audio file cannot be used fully, <strong>Preparation</strong> appears in the header. Use the local tool’s <strong>Open WarpDiff</strong> link to open <strong>Preparation</strong> before you load files, then connect the separately running local tool, approve its connection window, and choose <strong>Prepare and open</strong>. Copies return here automatically with the other comparison files; no package or second picker is needed. Originals remain untouched. Video may become H.264 up to 1080p with stereo AAC; audio-only copies retain channel count/rate in PCM WAV. Analysis describes the loaded copy. Close/cancel, Escape, clear or accepted replacement cancels active work; invalid selections preserve it. Managed hosts retain control of their files. Setup and limits are linked in the Preparation dialog. <strong>Other ways to prepare</strong> retains the copied-command fallback. A local tool/FFmpeg installation is separate; no converter is bundled or downloaded by WarpDiff. Preparation is offered without opening a dialog during loading. Choose it in the header when it appears. Returned copies are checked before replacement; a failed check keeps the current comparison and allows retry. After opening, Preparation offers <strong>Reopen previous comparison</strong>. Companion files and optional analysis follow ordinary local loading rather than a host deadline. HDR (PQ/HLG) picture reencoding is refused. Missing or unspecified SDR tags assume BT.709 when the longer side is at least 1280 or the shorter side is at least 720, and BT.601 otherwise, in either orientation. A declared matrix, primaries or transfer is kept. Missing ones are filled from that declared tag, using the matrix first, then primaries, then transfer. A BT.709 or SMPTE 170M transfer alone does not choose the matrix or primaries, because those curves are the same; frame size does. Frame size is also used when all three tags are absent. An sRGB transfer with no matrix stays sRGB and assumes BT.709 matrix and primaries. Opening the copy names an assumption in a short notice, which does not replace the Preparation dialog status. RGB, GBR and palette pictures use that same matrix. The source transfer, including sRGB and BT.470, is kept and tagged; matrix, primaries and range become limited-range BT.709 with dithering. A declared unsupported tag is still refused. Untagged 8-bit 4:2:0 H.264 is copied unchanged. Compatible picture copies preserve their declared interpretation.</p>
             <p><strong>Prepared packages (advanced):</strong> Ordinary media uses <strong>Load</strong> or drag and drop; no package is needed. For files from the optional external tool, open <strong>Help → Advanced → Import externally prepared media</strong>. The dialog explains setup under <strong>How to get prepared files</strong> and offers <strong>Load files</strong> to return to normal loading. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check prepared files</strong> leaves the current comparison in place and retains an immutable snapshot of the checked video. Loading uses those checked bytes even if the selected disk file subsequently changes. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
             <p><strong>Media status:</strong> The header button appears when a loaded file has a definite problem or limitation, such as a picture or soundtrack that cannot be used, pixels that cannot be read, or a tool that is unavailable. An ordinary successful file stays quiet, including when a detail is only <strong>Not verified</strong>. After loading, open <strong>Media status</strong> from Help to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability either way. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>
@@ -14667,7 +14689,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize; video wipe is not available yet.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the header control beside the compare buttons to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. The pair control stays in the header beside the compare buttons, so Help and the view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
 
             <h2>Seamless Tile Check</h2>
             <p>Press <kbd>Y</kbd> with images loaded to analyze any source as a repeating surface. <strong>3×3</strong> repeats the complete image nine times; <strong>Offset</strong> moves its four source edges into a center cross; <strong>Heatmap</strong> marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.</p>
@@ -14778,8 +14800,8 @@
                 <tr><td><kbd>Y</kbd></td><td>Toggle seamless Tile Check</td></tr>
                 <tr><td><kbd>D</kbd></td><td>Toggle difference mode (Stack)</td></tr>
                 <tr><td><kbd>Shift+D</kbd></td><td>Cycle difference pair</td></tr>
-                <tr><td><kbd>Q</kbd></td><td>Toggle image wipe (Stack)</td></tr>
-                <tr><td><kbd>Shift+Q</kbd></td><td>Cycle image wipe pair</td></tr>
+                <tr><td><kbd>Q</kbd></td><td>Toggle wipe (Stack, images or videos)</td></tr>
+                <tr><td><kbd>Shift+Q</kbd></td><td>Cycle wipe pair</td></tr>
                 <tr><td><kbd>B</kbd></td><td>Toggle black &amp; white</td></tr>
                 <tr><td><kbd>N</kbd></td><td>Toggle no-video mode (audio focus)</td></tr>
                 <tr><td><kbd>T</kbd></td><td>Cycle timecode format</td></tr>
@@ -14908,7 +14930,7 @@
             <h3>Analysis</h3>
             <ul>
                 <li><kbd>Y</kbd> seamless Tile Check — 3×3 and centered-seam previews, edge/corner ratings, and optional heatmap</li>
-                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the centered header control</li>
+                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the header control beside the compare buttons. The same wipe compares videos</li>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
                 <li><kbd>W</kbd> audio waveform + spectrogram, with shared Fit / Ref level scaling</li>
@@ -14955,8 +14977,9 @@
         </div>
         <div class="quick-start-body">
             <ul>
-                <li><strong>Help is a little simpler.</strong> The extra Load files and Preparation buttons at the top are gone.</li>
-                <li>Use Load in the header, press L, or drag files in.</li>
+                <li><strong>You can wipe between two videos.</strong> In Stack, press Q and drag the line. The Wipe / A–B switch sits in the header beside Balance, and it no longer covers the other header buttons. Image wipe is fixed the same way.</li>
+                <li><strong>Quick loads stay quiet.</strong> The loading screen only appears if files are still opening.</li>
+                <li><strong>File names have a little more room.</strong> There is more space between the name and the first detail next to it.</li>
             </ul>
         </div>
     </div>

@@ -485,8 +485,8 @@ test.describe('Page Load & Initial State', () => {
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(/show/);
     await expect(page.locator('#changelogVersion')).toHaveText('v' + versions.notes);
-    await expect(page.locator('#changelogPopup')).toContainText('Help is a little simpler');
-    await expect(page.locator('#changelogPopup')).toContainText('Use Load in the header, press L, or drag files in.');
+    await expect(page.locator('#changelogPopup')).toContainText('You can wipe between two videos');
+    await expect(page.locator('#changelogPopup')).toContainText('The loading screen only appears if files are still opening.');
     // Dismissing missed news records the actual app version and won't repeat.
     await page.locator('#changelogPopup .quick-start-close').click();
     const currentVersion = await page.locator('#appVersion').textContent();
@@ -529,9 +529,9 @@ test.describe('Page Load & Initial State', () => {
 test.describe('File Loading & Slot Assignment', () => {
   test('loading screen identifies ready and pending videos before revealing the comparison', async ({ page }) => {
     await page.goto('/');
+    await page.keyboard.press('Escape');
+    await page.clock.install();
     await page.evaluate(() => {
-      document.getElementById('quickStartPopup')?.classList.remove('show');
-      document.getElementById('quickStartBackdrop')?.classList.remove('show');
       (window as any).__testAPI.beginLoadingProgress([
         { slot: 'editA', name: 'long-first-video.mp4' },
         { slot: 'editB', name: 'second-video.mp4' },
@@ -539,6 +539,12 @@ test.describe('File Loading & Slot Assignment', () => {
       (window as any).__testAPI.setLoadingSlotState('editA', 'Ready', 'ready');
       (window as any).__testAPI.setLoadingSlotState('editB', 'Decoding first frame…');
     });
+
+    await expect(page.locator('#landingStatus')).toBeHidden();
+    await expect(page.locator('.landing-title')).toBeHidden();
+    await expect(page.locator('.landing-hints')).toBeHidden();
+    await expect(page.locator('#landingCta')).toHaveClass(/loading/);
+    await page.clock.fastForward(500);
 
     await expect(page.locator('.loading-progress-title')).toHaveText('Preparing 2 videos…');
     await expect(page.locator('[data-loading-slot="editA"]')).toContainText('A');
@@ -549,10 +555,62 @@ test.describe('File Loading & Slot Assignment', () => {
       "A is ready. Waiting for B's first frame so every video appears together."
     );
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    await page.locator('#landingStatus').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.loading-progress-cancel')).toBeFocused();
 
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.clock.fastForward(2500);
+    await expect(page.locator('.loading-progress-note')).toContainText('Large or complex video files can take a moment.');
+
+    await page.locator('.loading-progress-cancel').focus();
+    await expect(page.locator('.loading-progress-cancel')).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(page.locator('#landingCta')).not.toHaveClass(/loading/);
     await expect(page.locator('.loading-progress-item')).toHaveCount(0);
+    await expect(page.locator('.landing-title')).toBeVisible();
+  });
+
+  test('a fast image load skips the loading card and does not restore the drop hint', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__loadingFlash = { card: false, hintDuringLoad: false };
+      const watch = () => {
+        const cta = document.getElementById('landingCta');
+        const title = document.querySelector('.landing-title');
+        if (!cta) return;
+        if (cta.classList.contains('loading-revealed')) (window as any).__loadingFlash.card = true;
+        if (cta.classList.contains('loading') && title && getComputedStyle(title).display !== 'none') {
+          (window as any).__loadingFlash.hintDuringLoad = true;
+        }
+      };
+      new MutationObserver(watch).observe(document.documentElement, {
+        subtree: true, attributes: true, attributeFilter: ['class'],
+      });
+    });
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await expect(page.locator('#comparisonView')).toBeVisible();
+    await expect(page.locator('#landingCta')).toBeHidden();
+    expect(await page.evaluate(() => (window as any).__loadingFlash)).toEqual({ card: false, hintDuringLoad: false });
+  });
+
+  test('a loading error shows the card immediately', async ({ page }) => {
+    await page.goto('/');
+    await page.keyboard.press('Escape');
+    const shown = await page.evaluate(() => {
+      (window as any).__testAPI.beginLoadingProgress([
+        { slot: 'editA', name: 'broken.png' },
+      ], 'image', true);
+      const before = getComputedStyle(document.getElementById('landingStatus')!).display;
+      const hint = getComputedStyle(document.querySelector('.landing-title')!).display;
+      (window as any).__testAPI.setLoadingSlotState('editA', 'Could not decode', 'error');
+      const after = getComputedStyle(document.getElementById('landingStatus')!).display;
+      return { before, hint, after };
+    });
+    expect(shown.before).toBe('none');
+    expect(shown.hint).toBe('none');
+    expect(shown.after).not.toBe('none');
+    await expect(page.locator('[data-loading-slot="editA"]')).toContainText('Could not decode');
+    await expect(page.locator('.loading-progress-cancel')).toBeVisible();
   });
 
   test('loads 1 file as single asset review', async ({ page }) => {
@@ -2458,15 +2516,34 @@ test.describe('Image Wipe', () => {
     await expect(page.locator('body')).toHaveClass(/wipe-mode/);
     await expect(page.locator('#wipeDivider')).toBeVisible();
     await expect(page.locator('#stackInfoStrip .sih-name')).toBeVisible();
-    await expect(page.locator('.wipe-pair-prefix')).toHaveText('WIPE');
+    await expect(page.locator('#wipePairHost .wipe-pair-prefix')).toHaveText('WIPE');
     await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
-    const wipeHeader = await page.locator('#stackInfoStrip .sih-name').evaluate(el => {
-      const r = el.getBoundingClientRect();
-      return { center: r.left + r.width / 2, viewportCenter: innerWidth / 2, right: r.right };
+    const placed = await page.evaluate(() => {
+      const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect();
+      const chooser = document.getElementById('wipePairHost')!.getBoundingClientRect();
+      const balance = rect('balanceModeBtn');
+      const wave = rect('waveformToggleBtn');
+      const scopes = rect('scopesToggleBtn');
+      const header = document.querySelector('.header')!.getBoundingClientRect();
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      return {
+        chooserAfterBalance: chooser.left >= balance.right - 1,
+        chooserBeforeWave: chooser.right <= wave.left + 1,
+        waveBeforeScopes: wave.right <= scopes.left + 1,
+        scopesNearRight: header.right - scopes.right < 420,
+        coversBalance: overlaps(chooser, balance),
+        coversWave: overlaps(chooser, wave),
+        coversScopes: overlaps(chooser, scopes),
+      };
     });
-    expect(wipeHeader.center).toBeCloseTo(wipeHeader.viewportCenter, 0);
-    expect(wipeHeader.right).toBeLessThanOrEqual(900);
-    await expect(page.locator('#stackInfoStrip .sih-resolution')).not.toBeVisible();
+    expect(placed.chooserAfterBalance).toBe(true);
+    expect(placed.chooserBeforeWave).toBe(true);
+    expect(placed.waveBeforeScopes).toBe(true);
+    expect(placed.scopesNearRight).toBe(true);
+    expect(placed.coversBalance).toBe(false);
+    expect(placed.coversWave).toBe(false);
+    expect(placed.coversScopes).toBe(false);
     expect(await getVar(page, 'wipeMode')).toBe(true);
     expect(await page.locator('.asset-layer.wipe-base').count()).toBe(1);
     expect(await page.locator('.asset-layer.wipe-reveal').count()).toBe(1);
@@ -2589,17 +2666,27 @@ test.describe('Image Wipe', () => {
       const header = document.querySelector('.header')!.getBoundingClientRect();
       const help = document.querySelector('#helpBtn')!.getBoundingClientRect();
       const grid = document.querySelector('#gridIconBtn')!.getBoundingClientRect();
+      const balance = document.querySelector('#balanceModeBtn')!.getBoundingClientRect();
+      const wave = document.querySelector('#waveformToggleBtn')!.getBoundingClientRect();
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
       const buttonAt = (r: DOMRect) => document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)
         .map(el => el.closest('button')).find(Boolean) as HTMLButtonElement | undefined;
       return {
-        chooserBelowHeader: chooser.top >= header.bottom,
+        chooserInsideHeader: chooser.top >= header.top && chooser.bottom <= header.bottom + 1,
         helpTop: buttonAt(help)?.id,
         gridTop: buttonAt(grid)?.id,
+        coversBalance: overlaps(chooser, balance),
+        coversWave: overlaps(chooser, wave),
+        coversGrid: overlaps(chooser, grid),
       };
     });
-    expect(layout.chooserBelowHeader).toBe(true);
+    expect(layout.chooserInsideHeader).toBe(true);
     expect(layout.helpTop).toBe('helpBtn');
     expect(layout.gridTop).toBe('gridIconBtn');
+    expect(layout.coversBalance).toBe(false);
+    expect(layout.coversWave).toBe(false);
+    expect(layout.coversGrid).toBe(false);
   });
 
   test('clicking the plate snaps the divider while pan drags and outside clicks do not', async ({ page }) => {
@@ -2695,14 +2782,101 @@ test.describe('Image Wipe', () => {
     expect(plate.aligned).toBe(true);
   });
 
-  test('video wipe remains explicitly gated', async ({ page }) => {
+  test('Q wipes two videos in Stack and keeps both clips live', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 });
     await page.goto('/');
-    await loadMedia(page, ['landscape_a.mp4', 'landscape_b.mp4']);
+    await loadMedia(page, ['vorbis_a.webm', 'vorbis_b.webm']);
     await page.keyboard.press('s');
     await page.waitForFunction(() => !(window as any).__testAPI?.isGridMode);
     await page.keyboard.press('q');
+
+    await expect(page.locator('body')).toHaveClass(/wipe-mode/);
+    await expect(page.locator('#wipeDivider')).toBeVisible();
+    await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
+    expect(await getVar(page, 'wipeMode')).toBe(true);
+    expect(await getVar(page, 'wipePair')).toEqual(['editA', 'editB']);
+
+    const geometry = await page.evaluate(() => {
+      const base = document.querySelector('.asset-layer.wipe-base .video-wrapper') as HTMLElement;
+      const reveal = document.querySelector('.asset-layer.wipe-reveal .video-wrapper') as HTMLElement;
+      const a = base.getBoundingClientRect();
+      const b = reveal.getBoundingClientRect();
+      return {
+        aligned: Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+                 Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1,
+        baseDisplay: getComputedStyle(base).display,
+        revealDisplay: getComputedStyle(reveal).display,
+        clip: getComputedStyle(reveal).clipPath,
+        bothVideos: !!(base.querySelector('video') && reveal.querySelector('video')),
+        x: a.x,
+        y: a.y,
+        w: a.width,
+        h: a.height,
+      };
+    });
+    expect(geometry.aligned).toBe(true);
+    expect(geometry.baseDisplay).toBe('block');
+    expect(geometry.revealDisplay).toBe('block');
+    expect(geometry.clip).toContain('50%');
+    expect(geometry.bothVideos).toBe(true);
+    expect(await page.evaluate(() => (window as any)._scrubOverlaySlots().slice().sort()))
+      .toEqual(['editA', 'editB']);
+
+    const dividerBox = await page.locator('#wipeDivider').boundingBox();
+    expect(dividerBox).not.toBeNull();
+    await page.mouse.move(dividerBox!.x + dividerBox!.width / 2, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(geometry.x + geometry.w * 0.25, dividerBox!.y + dividerBox!.height / 2);
+    await page.mouse.up();
+    expect(await getVar(page, 'wipePosition')).toBeCloseTo(0.25, 2);
+    expect(await page.locator('.asset-layer.wipe-reveal .video-wrapper').evaluate(el => getComputedStyle(el).clipPath))
+      .toContain('25%');
+
+    await page.keyboard.press('+');
+    await page.keyboard.press('+');
+    const divider = await page.locator('#wipeDivider').boundingBox();
+    expect(divider).not.toBeNull();
+    // Pan left and up: at this zoom the content can only move toward the overflow.
+    const panFrom = { x: Math.min(divider!.x + divider!.width + 120, 820), y: 320 };
+    await page.mouse.move(panFrom.x, panFrom.y);
+    await page.mouse.down();
+    await page.mouse.move(panFrom.x - 80, panFrom.y - 40, { steps: 4 });
+    const during = await page.evaluate(() => ({
+      x: (window as any).__testAPI.panOffsetX,
+      y: (window as any).__testAPI.panOffsetY,
+    }));
+    await page.mouse.up();
+    const moved = await page.evaluate(() => {
+      const a = document.querySelector('.asset-layer.wipe-base .video-wrapper')!.getBoundingClientRect();
+      const b = document.querySelector('.asset-layer.wipe-reveal .video-wrapper')!.getBoundingClientRect();
+      return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 &&
+             Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
+    });
+    expect(moved).toBe(true);
+    expect(Math.abs(during.x) + Math.abs(during.y)).toBeGreaterThan(10);
+
+    await page.evaluate(() => (window as any).playAllMedia());
+    await page.waitForFunction(() => {
+      const vids = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      return vids.length === 2 && vids.every(v => !v.paused && v.currentTime > 0.15)
+        && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.2;
+    }, undefined, { timeout: 8000 });
+    await page.evaluate(() => (window as any).pauseAllMedia());
+    await page.waitForFunction(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).every((v: any) => v.paused));
+    const paused = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime));
+    await page.evaluate(() => (window as any).stepFrame(1));
+    await page.waitForFunction((before: number[]) => {
+      const times = Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime);
+      return times.length === 2 && times.every((t, i) => t > before[i] + 0.01)
+        && Math.abs(times[0] - times[1]) < 0.15;
+    }, paused, { timeout: 8000 });
+
+    await page.keyboard.press('g');
+    await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
     expect(await getVar(page, 'wipeMode')).toBe(false);
-    await expect(page.locator('#toast')).toContainText('Video wipe is not available yet');
+    await expect(page.locator('#wipeDivider')).not.toBeVisible();
   });
 
   test('Difference mode takes ownership from wipe', async ({ page }) => {

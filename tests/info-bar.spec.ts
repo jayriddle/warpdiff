@@ -153,8 +153,15 @@ test('field order and typography apply to Stack and Grid without changing playba
   await expect(bars.first().locator('.info-field-duration')).toHaveCSS('color','rgb(68, 170, 255)');
   const gridOrder = await bars.first().locator('.info-items [data-info-kind="field"]').evaluateAll(items => items.map(item => (item as HTMLElement).dataset.infoId));
   expect(gridOrder.indexOf('duration')).toBeLessThan(gridOrder.indexOf('fps'));
+  const nameGap = async (bar: string, name: string, row: string) => page.locator(bar).first().evaluate((root, sel) => {
+    const label = root.querySelector(sel.name)!.getBoundingClientRect();
+    const items = root.querySelector(sel.row)!.getBoundingClientRect();
+    return Math.round(items.left - label.right);
+  }, { name, row });
+  expect(await nameGap('.asset-info-bar.info-custom', '.asset-name', '.info-items')).toBe(12);
   await page.keyboard.press('s');
   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);
+  expect(await nameGap('#stackInfoStrip', '.sih-name', '.info-items')).toBe(12);
   await expect(page.locator('#stackInfoStrip .info-field-duration')).toHaveCSS('color','rgb(68, 170, 255)');
   const stackOrder = await page.locator('#stackInfoStrip .info-items [data-info-kind="field"]').evaluateAll(items => items.map(item => (item as HTMLElement).dataset.infoId));
   expect(stackOrder).toEqual(gridOrder);
@@ -367,7 +374,7 @@ test('image wipe uses its pair chooser and restores custom metadata on exit', as
   await page.keyboard.press('s');
   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);
   await page.keyboard.press('q');
-  await expect(page.locator('#stackInfoStrip .wipe-pair-chooser')).toBeVisible();
+  await expect(page.locator('#wipePairHost.wipe-pair-chooser')).toBeVisible();
   await expect(page.locator('#stackInfoStrip')).not.toHaveClass(/info-custom/);
   await page.keyboard.press('q');
   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);

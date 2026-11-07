@@ -233,7 +233,7 @@ function _infoBarGridMinWidth(root) {
     const record = _infoBarSurfaces.get(root);
     const fieldsSelected = record?.profile.elements.some(element => element.kind === 'field' && element.visible);
     const rightSelected = record?.profile.elements.some(element => element.kind === 'field' && element.visible && element.align === 'right');
-    const controls = (root.querySelector('.asset-name')?.getBoundingClientRect().width || 0) + 8 + (fieldsSelected ? 4 + 32 : 0);
+    const controls = (root.querySelector('.asset-name')?.getBoundingClientRect().width || 0) + 8 + (fieldsSelected ? 12 + 32 : 0);
     const columns = document.body.classList.contains('inline-cols') ? 3 : 2;
     const available = Math.floor((innerWidth-16-(columns-1)*4)/columns);
     // Three portrait columns must fit the viewport too. Keep identity/More room;

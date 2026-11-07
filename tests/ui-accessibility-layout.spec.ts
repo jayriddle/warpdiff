@@ -8,7 +8,7 @@ const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 const broken = (name: string) => ({ name, mimeType: 'image/png', buffer: Buffer.from('not a png') });
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.26'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.27'));
 });
 
 async function loadGreen(page: Page) {
@@ -71,9 +71,9 @@ test('What\'s New keeps Tab inside the popup', async ({ page }) => {
   await page.locator('#appVersion').click();
   const popup = page.locator('#changelogPopup');
   await expect(popup).toBeVisible();
-  await expect(page.locator('#changelogVersion')).toHaveText('v3.19.26');
-  await expect(popup).toContainText('Help is a little simpler');
-  await expect(popup).toContainText('Use Load in the header, press L, or drag files in.');
+  await expect(page.locator('#changelogVersion')).toHaveText('v3.19.27');
+  await expect(popup).toContainText('You can wipe between two videos');
+  await expect(popup).toContainText('The loading screen only appears if files are still opening.');
   await expect.poll(() => page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
