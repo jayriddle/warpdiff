@@ -485,8 +485,8 @@ test.describe('Page Load & Initial State', () => {
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(/show/);
     await expect(page.locator('#changelogVersion')).toHaveText('v' + versions.notes);
-    await expect(page.locator('#changelogPopup')).toContainText('Help is a little simpler');
-    await expect(page.locator('#changelogPopup')).toContainText('Use Load in the header, press L, or drag files in.');
+    await expect(page.locator('#changelogPopup')).toContainText('You can wipe between two videos');
+    await expect(page.locator('#changelogPopup')).toContainText('The loading screen only appears if files are still opening.');
     // Dismissing missed news records the actual app version and won't repeat.
     await page.locator('#changelogPopup .quick-start-close').click();
     const currentVersion = await page.locator('#appVersion').textContent();
