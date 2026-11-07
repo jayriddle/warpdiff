@@ -1316,10 +1316,16 @@
         .asset-info-bar .asset-audio-format:empty,
         #stackInfoStrip .sih-audio-format:empty { display: none; }
         /* Keep the source label hoverable in narrow Grid bars without pushing
-           loudness metrics or zoom off the edge. Height stays one line. */
-        body.grid-mode .asset-info-bar:has(.asset-audio-format:not(:empty)) {
+           loudness metrics or zoom off the edge. Height stays one line.
+           This tightens gaps between the direct fields only. The name pill
+           keeps a wider gap of its own, and custom item rows are separate. */
+        body.grid-mode .asset-info-bar:not(.info-custom):has(.asset-audio-format:not(:empty)) {
             gap: 4px;
             padding-inline: 8px;
+        }
+        .asset-info-bar:not(.info-custom) > .asset-name { margin-inline-end: 2px; }
+        body.grid-mode .asset-info-bar:not(.info-custom):has(.asset-audio-format:not(:empty)) > .asset-name {
+            margin-inline-end: 8px;
         }
         .asset-info-bar .asset-audio-format:not(:empty) { min-width: 50px; }
         /* Dim the --fps placeholder until the real value is known */
@@ -1353,10 +1359,10 @@
         /* Shared configurable metadata presentation → js/info-bar.js */
         #infoEditorButton { flex: 0 0 auto; padding: 4px 6px; }
         #infoEditorButton svg { width: 18px; height: 18px; }
-        .asset-info-bar.info-custom { gap: 4px; padding-inline: 8px; }
+        .asset-info-bar.info-custom { gap: 12px; padding-inline: 8px; }
         .asset-info-bar.info-custom > :not(.asset-name):not(.info-items):not(.info-more),
         #stackInfoStrip.info-custom > :not(.sih-name):not(.info-items):not(.info-more) { display: none !important; }
-        #stackInfoStrip.info-custom { padding-right: 0; gap: 4px; }
+        #stackInfoStrip.info-custom { padding-right: 0; gap: 12px; }
         .info-items { display: flex; flex: 1 1 0; min-width: 0; min-height: 18px; align-items: center; line-height: 1.25; }
         .info-section { display: flex; min-width: 0; align-items: center; }
         .info-section-left { flex: 1 1 0; }
@@ -1629,6 +1635,7 @@
             white-space: nowrap;
             letter-spacing: 0.03em;
         }
+        #stackInfoStrip:not(.info-custom) > .sih-name { margin-inline-end: 5px; }
         /* Same deep fills as Grid info bar — identical in all states */
         #stackInfoStrip.sih-slot-original .sih-name { background: var(--slot-original-bg); color: var(--slot-original-txt); }
         #stackInfoStrip.sih-slot-editA    .sih-name { background: var(--slot-editA-bg);    color: var(--slot-editA-txt); }
