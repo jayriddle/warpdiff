@@ -8,7 +8,7 @@ const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 const broken = (name: string) => ({ name, mimeType: 'image/png', buffer: Buffer.from('not a png') });
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.27'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.28'));
 });
 
 async function loadGreen(page: Page) {
@@ -71,13 +71,54 @@ test('What\'s New keeps Tab inside the popup', async ({ page }) => {
   await page.locator('#appVersion').click();
   const popup = page.locator('#changelogPopup');
   await expect(popup).toBeVisible();
-  await expect(page.locator('#changelogVersion')).toHaveText('v3.19.27');
-  await expect(popup).toContainText('You can wipe between two videos');
-  await expect(popup).toContainText('The loading screen only appears if files are still opening.');
+  await expect(page.locator('#changelogVersion')).toHaveText('v3.19.28');
+  await expect(popup).toContainText('Highlights from the last two months');
+  await expect(popup).toContainText('Compare two videos with a draggable wipe to see changes side by side.');
+  await expect(popup).toContainText('Updates no longer interrupt an open comparison, and the app keeps your last full offline copy.');
   await expect.poll(() => page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
 });
+
+for (const width of [320, 390]) {
+  test(`What's New stays on screen and scrolls at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 640 });
+    await page.goto('/');
+    await page.locator('#appVersion').click();
+    const popup = page.locator('#changelogPopup');
+    await expect(popup).toBeVisible();
+    const fit = await popup.evaluate(dialog => {
+      const body = dialog.querySelector('.quick-start-body') as HTMLElement;
+      const rect = dialog.getBoundingClientRect();
+      const items = [...body.querySelectorAll('li')];
+      const last = items[items.length - 1] as HTMLElement;
+      body.scrollTop = body.scrollHeight;
+      const lastRect = last.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
+      return {
+        scrolls: body.scrollHeight > body.clientHeight + 1,
+        noHorizontal: body.scrollWidth <= body.clientWidth + 1,
+        within: rect.top >= -1 && rect.left >= -1
+          && rect.bottom <= window.innerHeight + 1
+          && rect.right <= window.innerWidth + 1,
+        lastText: last.textContent,
+        lastVisible: lastRect.top >= bodyRect.top - 1 && lastRect.bottom <= bodyRect.bottom + 1,
+        headings: [...body.querySelectorAll('h3')].map(node => node.textContent)
+      };
+    });
+    expect(fit.scrolls).toBe(true);
+    expect(fit.noHorizontal).toBe(true);
+    expect(fit.within).toBe(true);
+    expect(fit.lastText).toBe('Updates no longer interrupt an open comparison, and the app keeps your last full offline copy.');
+    expect(fit.lastVisible).toBe(true);
+    expect(fit.headings).toEqual([
+      'Video and comparing',
+      'Audio',
+      'Layout and settings',
+      'Opening files and reliability'
+    ]);
+  });
+}
 
 test('volume, picture name, header and metadata meet the accessible-name and contrast bar', async ({ page }) => {
   await loadGreen(page);

@@ -18,6 +18,10 @@ test('unsupported audio retains its source, offers preparation without interrupt
   await page.goto('/');
   await expect(page.locator('#externalAudioBtn')).toBeHidden();
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/ac3_video.mp4'));
+  // The load handoff follows Load onto Play once. Wait for that pass before
+  // checking that preparation itself leaves a later Load focus in place.
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  await expect(page.locator('#playPauseBtn')).toBeFocused();
   await page.locator('#loadBtn').focus();
   // Exercise the undecodable-track owner even on systems with native AC-3.
   await page.evaluate(() => {

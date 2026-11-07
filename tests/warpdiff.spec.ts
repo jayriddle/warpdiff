@@ -485,8 +485,9 @@ test.describe('Page Load & Initial State', () => {
     await expect(page.locator('#quickStartPopup')).not.toBeVisible();
     await expect(page.locator('#changelogPopup')).toHaveClass(/show/);
     await expect(page.locator('#changelogVersion')).toHaveText('v' + versions.notes);
-    await expect(page.locator('#changelogPopup')).toContainText('You can wipe between two videos');
-    await expect(page.locator('#changelogPopup')).toContainText('The loading screen only appears if files are still opening.');
+    await expect(page.locator('#changelogPopup')).toContainText('Highlights from the last two months');
+    await expect(page.locator('#changelogPopup')).toContainText('Compare two videos with a draggable wipe to see changes side by side.');
+    await expect(page.locator('#changelogPopup')).toContainText('Updates no longer interrupt an open comparison, and the app keeps your last full offline copy.');
     // Dismissing missed news records the actual app version and won't repeat.
     await page.locator('#changelogPopup .quick-start-close').click();
     const currentVersion = await page.locator('#appVersion').textContent();
