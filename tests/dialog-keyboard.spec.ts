@@ -7,6 +7,15 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
     await page.addInitScript(()=>localStorage.setItem('lastSeenVersion','999.0.0'));
     await page.goto('/');await page.locator('#multiFileInput').setInputFiles(['landscape_a.mp4','landscape_b.mp4'].map(n=>path.join(__dirname,'fixtures',n)));
     await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+    if(button==='preparationBtn'){
+      await page.evaluate(()=>{
+        const file=new File(['a'],'review.mp4',{type:'video/mp4'});
+        const w=window as any;
+        w.__recoveryProbe={files:[file],preparedFiles:new Set([file]),announced:true,notices:[]};
+        w.eval('_localPreparationRecovery = window.__recoveryProbe; _localPreparationRecovery.token = _loadingProgressToken; _renderLocalPreparation()');
+      });
+      await expect(page.locator('#preparationBtn')).toBeVisible();
+    }
     await page.locator('#infoEditorButton').click();await page.locator('#infoEditorPreset').selectOption('all');await page.locator('#infoEditorClose').click();
     await expect(page.locator('#infoEditorButton')).toHaveAttribute('aria-expanded','false');
     // Two landscape clips in a wide window often stack, and a full-width bar
@@ -38,8 +47,7 @@ for(const [button,dialog] of [['preparationBtn','localPreparationDialog'],['prep
       await page.locator('#helpAdvanced summary').focus();await page.keyboard.press('Enter');
     }else if(!(await page.locator('#'+button).isVisible())){
       await page.locator('#helpBtn').focus();await page.keyboard.press('Enter');await expect(page.locator('#quickStartPopup')).toBeVisible();
-      if(button==='preparationBtn'){activate='helpPreparationBtn';opener='helpBtn';}
-      else activate=opener='helpMediaStatusBtn';
+      activate=opener='helpMediaStatusBtn';
       await expect(page.locator('#'+activate)).toBeVisible();
     }
     await page.locator('#'+activate).focus();await page.keyboard.press('Enter');await expect(page.locator('#'+dialog)).toBeVisible();

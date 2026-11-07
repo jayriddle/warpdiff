@@ -137,10 +137,9 @@ function _localPreparationClosed() {
     _localPreparationOpener = null;
     _renderLocalPreparation();
     const header = document.getElementById('preparationBtn');
-    const helpPrep = document.getElementById('helpPreparationBtn');
     const help = document.getElementById('helpBtn');
     const target = _preparationControlShown(opener) || _preparationControlShown(header)
-        || _preparationControlShown(helpPrep) || _preparationControlShown(help);
+        || _preparationControlShown(help);
     if (target) target.focus({preventScroll:true});
 }
 function _renderLocalPreparation() {
@@ -170,7 +169,7 @@ function _renderLocalPreparation() {
     const button = document.getElementById('preparationBtn');
     if (button) {
         // The header control stays out of the way until there is something to do.
-        // Help → Preparation remains available so the tool can be connected first.
+        // The local tool link can open this dialog before a file needs attention.
         // Managed review has no local-preparation chrome. An open dialog keeps its
         // opener on screen until it closes.
         const preparedCopies = !!batch?.files.some(item => item.prepared);
@@ -378,12 +377,6 @@ function _setupLocalPreparation() {
             return {kind:'files',files:[prepared.file]};
         }});
     document.getElementById('preparationBtn').addEventListener('click',event => _showLocalPreparation(event.currentTarget));
-    document.getElementById('helpPreparationBtn').addEventListener('click',() => {
-        // Help covers the header. Close it so Preparation's own dialog, and the
-        // header button once it has a reason to stay, can be used directly.
-        if (document.getElementById('quickStartPopup').classList.contains('show')) toggleQuickStart();
-        _showLocalPreparation(document.getElementById('helpBtn'));
-    });
     document.getElementById('localPreparationConnect').addEventListener('click',_connectLocalPreparation);
     document.getElementById('localPreparationDisconnect').addEventListener('click',() => {_localPreparationConnection.disconnect();_renderLocalPreparation();});
     document.getElementById('localPreparationRun').addEventListener('click',_runLocalPreparation);

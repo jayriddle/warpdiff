@@ -2,6 +2,10 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.26
+
+- Help is a little simpler. The extra Load files and Preparation buttons at the top of Getting Started are gone. Use Load in the header, press L, or drag files in.
+
 ## v3.19.25
 
 - Info bar, keyboard shortcuts, and slot colors are now in one Settings panel. Press H to open keyboard shortcuts, and press H again to close them.

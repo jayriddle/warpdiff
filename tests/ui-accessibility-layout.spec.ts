@@ -8,7 +8,7 @@ const fixture = (name: string) => path.join(__dirname, 'fixtures', name);
 const broken = (name: string) => ({ name, mimeType: 'image/png', buffer: Buffer.from('not a png') });
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.25'));
+  await page.addInitScript(() => localStorage.setItem('lastSeenVersion', '3.19.26'));
 });
 
 async function loadGreen(page: Page) {
@@ -53,6 +53,7 @@ test('first-visit Help takes focus and keeps Tab inside', async ({ page }) => {
   await page.goto('/');
   const popup = page.locator('#quickStartPopup');
   await expect(popup).toBeVisible();
+  await expect(page.locator('#quickStartPopup .quick-start-close')).toBeFocused();
   await expect.poll(() => page.evaluate(() => {
     const dialog = document.getElementById('quickStartPopup');
     return !!dialog && dialog.getAttribute('role') === 'dialog' && dialog.contains(document.activeElement);
@@ -70,6 +71,9 @@ test('What\'s New keeps Tab inside the popup', async ({ page }) => {
   await page.locator('#appVersion').click();
   const popup = page.locator('#changelogPopup');
   await expect(popup).toBeVisible();
+  await expect(page.locator('#changelogVersion')).toHaveText('v3.19.26');
+  await expect(popup).toContainText('Help is a little simpler');
+  await expect(popup).toContainText('Use Load in the header, press L, or drag files in.');
   await expect.poll(() => page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
   expect(await page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);

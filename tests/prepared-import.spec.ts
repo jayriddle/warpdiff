@@ -197,10 +197,17 @@ async function delayed(page:any){await select(page);await page.evaluate(()=>{con
   await page.addInitScript(()=>localStorage.removeItem('lastSeenVersion'));await page.reload();
   await expect(page.locator('#quickStartPopup')).toBeVisible();
   await expect(page.locator('#quickStartPopup h3').first()).toHaveText('Getting Started');
+  await expect(page.locator('#helpLoadFiles')).toHaveCount(0);
+  await expect(page.locator('#helpPreparationBtn')).toHaveCount(0);
+  await expect(page.locator('#quickStartPopup')).toContainText('Load');
+  await expect(page.locator('#quickStartPopup .quick-start-close')).toBeFocused();
   await expect(page.locator('#helpAdvanced')).not.toHaveAttribute('open','');await expect(page.locator('#preparedPackageBtn')).not.toBeVisible();
   await expect(page.locator('#preparedImportDialog')).not.toBeVisible();
-  const chooser=page.waitForEvent('filechooser');await page.locator('#helpLoadFiles').click();await(await chooser).setFiles(fixture('blue.png'));
-  await expect.poll(()=>current(page)).toEqual(['blue.png']);await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#quickStartPopup')).not.toBeVisible();
+  expect(await page.evaluate(()=>!document.getElementById('quickStartPopup')!.contains(document.activeElement))).toBe(true);
+  const chooser=page.waitForEvent('filechooser');await page.locator('#loadBtn').click();await(await chooser).setFiles(fixture('blue.png'));
+  await expect.poll(()=>current(page)).toEqual(['blue.png']);
  });
  test('keyboard activation reaches advanced import and Escape returns to the visible Help opener',async({page,browserName})=>{
   await page.locator('#preparedImportCancel').click();await page.locator('#helpAdvanced summary').focus();await page.keyboard.press('Enter');
