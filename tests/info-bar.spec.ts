@@ -367,7 +367,7 @@ test('image wipe uses its pair chooser and restores custom metadata on exit', as
   await page.keyboard.press('s');
   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);
   await page.keyboard.press('q');
-  await expect(page.locator('#stackInfoStrip .wipe-pair-chooser')).toBeVisible();
+  await expect(page.locator('#wipePairHost.wipe-pair-chooser')).toBeVisible();
   await expect(page.locator('#stackInfoStrip')).not.toHaveClass(/info-custom/);
   await page.keyboard.press('q');
   await expect(page.locator('#stackInfoStrip')).toHaveClass(/info-custom/);

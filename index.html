@@ -1632,16 +1632,18 @@
         #stackInfoStrip.sih-slot-editA    .sih-name { background: var(--slot-editA-bg);    color: var(--slot-editA-txt); }
         #stackInfoStrip.sih-slot-editB    .sih-name { background: var(--slot-editB-bg);    color: var(--slot-editB-txt); }
         #stackInfoStrip.sih-slot-editC    .sih-name { background: var(--slot-editC-bg);    color: var(--slot-editC-txt); }
-        #stackInfoStrip.sih-wipe .sih-name {
-            background: rgba(45,124,255,0.2);
-            box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
-            color: #c8dcff;
-        }
-        #stackInfoStrip .sih-name.wipe-pair-chooser {
+        /* The pair switch sits in the right-hand compare group, in normal flow,
+           so it cannot cover Fit, Balance, or the view and analysis icons. */
+        #wipePairHost { display: none; align-items: center; flex: 0 0 auto; }
+        body.wipe-mode #wipePairHost.wipe-pair-chooser {
             display: inline-flex;
             align-items: center;
             gap: 2px;
             padding: 2px;
+            border-radius: 5px;
+            background: rgba(45,124,255,0.2);
+            box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
+            color: #c8dcff;
         }
         .wipe-pair-prefix {
             padding: 0 5px;
@@ -1662,36 +1664,10 @@
         .wipe-pair-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .wipe-pair-option.active { background: #2d7cff; color: #fff; }
         .wipe-pair-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
-        body.wipe-mode #stackInfoStrip.sih-wipe {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            width: max-content;
-            min-width: 0;
-            padding: 0;
-            transform: translate(-50%, -50%);
-            overflow: visible;
-            z-index: 2;
-        }
-        body.wipe-mode #stackInfoStrip.sih-wipe > :not(.sih-name) {
-            display: none !important;
-        }
-        body.wipe-mode #sihAccentBar { display: none !important; }
-        /* The centered chooser supersedes the Ref/A/B asset pills during wipe.
-           Removing the redundant strip also prevents overlap on narrow headers. */
+        /* The pair switch replaces the Ref/A/B pills. The rest of the header,
+           including waveform and scopes, stays in its normal right-hand place. */
         body.wipe-mode #modeStrip,
         body.wipe-mode #iconSep1 { display: none !important; }
-        @media (max-width: 720px) {
-            body.wipe-mode #stackInfoStrip.sih-wipe {
-                top: calc(100% + 6px);
-                max-width: calc(100vw - 16px);
-                padding: 2px;
-                transform: translateX(-50%);
-                border-radius: 6px;
-                background: rgba(21,21,21,0.94);
-                box-shadow: 0 2px 10px rgba(0,0,0,0.55);
-            }
-        }
         /* Slot-colored accent bar — absolutely positioned at top of header,
            width/left set by JS to span from label pill to zoom pill */
         #sihAccentBar {
@@ -3695,6 +3671,7 @@
                     </div>
                 </div>
                 <span style="color:#444; margin:0 1px;">|</span>
+                <div id="wipePairHost" hidden></div>
                 <button class="analysis-btn" id="wipeToggleBtn" onclick="toggleWipeMode(); this.blur();" title="Wipe comparison (Q)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="tileCheckToggleBtn" onclick="toggleTileCheck(); this.blur();" title="Seamless tile check (Y)" aria-pressed="false"></button>
                 <button class="analysis-btn" id="waveformToggleBtn" onclick="toggleAudioViz(); this.blur();" title="Audio waveform / spectrogram (W)"></button>
@@ -10843,6 +10820,7 @@
             if (!strip) return;
 
             if (isGridMode || !getLoadedSlotCount()) {
+                if (!_wipeMode) _clearWipePairHost();
                 strip.style.display = 'none';
                 if (!getLoadedSlotCount()) {
                     strip.className = '';
@@ -10857,9 +10835,9 @@
 
             // Find the active layer and its slot
             const activeLayer = document.querySelector('.asset-layer.active');
-            if (!activeLayer) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
+            if (!activeLayer) { if (!_wipeMode) _clearWipePairHost(); strip.style.display = 'none'; _updateSihAccentBar(null); return; }
             const slot = assetOrder.find(candidate => getLayer(candidate) === activeLayer) || null;
-            if (!slot || !mediaData[slot]) { strip.style.display = 'none'; _updateSihAccentBar(null); return; }
+            if (!slot || !mediaData[slot]) { if (!_wipeMode) _clearWipePairHost(); strip.style.display = 'none'; _updateSihAccentBar(null); return; }
 
             // Read from the hidden info bar spans — they're kept up to date by applyZoom()
             // and file-load handlers even though the bar itself isn't displayed in Stack mode.
@@ -10888,20 +10866,20 @@
             const customInfo = strip.classList.contains('info-custom');
             strip.className = (slot ? 'sih-slot-' + slot : '') + (customInfo ? ' info-custom' : '');
             const wipePair = _wipeMode ? _wipePair() : null;
-            strip.classList.toggle('sih-wipe', !!wipePair);
+            const pairHost = document.getElementById('wipePairHost');
+            if (pairHost) {
+                if (wipePair) _renderWipePairChooser(pairHost);
+                else _clearWipePairHost();
+            }
 
             // Slot name pill: hide for single generic asset (no IHWA context)
             const nameEl = strip.querySelector('.sih-name');
             const showName = getLoadedSlotCount() > 1 || !!_ihwaSlotLabels;
             nameEl.style.display = showName ? '' : 'none';
-            if (wipePair) {
-                _renderWipePairChooser(nameEl);
-            } else {
-                nameEl.classList.remove('wipe-pair-chooser');
-                nameEl.removeAttribute('role');
-                nameEl.removeAttribute('aria-label');
-                nameEl.textContent = rawName || '';
-            }
+            nameEl.classList.remove('wipe-pair-chooser');
+            nameEl.removeAttribute('role');
+            nameEl.removeAttribute('aria-label');
+            nameEl.textContent = rawName || '';
 
             // Zoom pill
             const zoomEl = strip.querySelector('.sih-zoom');
@@ -14674,7 +14652,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the centered header control to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. On narrow windows the wipe control moves below the header so Help and view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the header control beside the compare buttons to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. The pair control stays in the header beside the compare buttons, so Help and the view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
 
             <h2>Seamless Tile Check</h2>
             <p>Press <kbd>Y</kbd> with images loaded to analyze any source as a repeating surface. <strong>3×3</strong> repeats the complete image nine times; <strong>Offset</strong> moves its four source edges into a center cross; <strong>Heatmap</strong> marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.</p>
@@ -14915,7 +14893,7 @@
             <h3>Analysis</h3>
             <ul>
                 <li><kbd>Y</kbd> seamless Tile Check — 3×3 and centered-seam previews, edge/corner ratings, and optional heatmap</li>
-                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the centered header control. The same wipe compares videos</li>
+                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the header control beside the compare buttons. The same wipe compares videos</li>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
                 <li><kbd>W</kbd> audio waveform + spectrogram, with shared Fit / Ref level scaling</li>

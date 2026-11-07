@@ -2458,15 +2458,34 @@ test.describe('Image Wipe', () => {
     await expect(page.locator('body')).toHaveClass(/wipe-mode/);
     await expect(page.locator('#wipeDivider')).toBeVisible();
     await expect(page.locator('#stackInfoStrip .sih-name')).toBeVisible();
-    await expect(page.locator('.wipe-pair-prefix')).toHaveText('WIPE');
+    await expect(page.locator('#wipePairHost .wipe-pair-prefix')).toHaveText('WIPE');
     await expect(page.locator('.wipe-pair-option.active')).toHaveText('A–B');
-    const wipeHeader = await page.locator('#stackInfoStrip .sih-name').evaluate(el => {
-      const r = el.getBoundingClientRect();
-      return { center: r.left + r.width / 2, viewportCenter: innerWidth / 2, right: r.right };
+    const placed = await page.evaluate(() => {
+      const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect();
+      const chooser = document.getElementById('wipePairHost')!.getBoundingClientRect();
+      const balance = rect('balanceModeBtn');
+      const wave = rect('waveformToggleBtn');
+      const scopes = rect('scopesToggleBtn');
+      const header = document.querySelector('.header')!.getBoundingClientRect();
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+      return {
+        chooserAfterBalance: chooser.left >= balance.right - 1,
+        chooserBeforeWave: chooser.right <= wave.left + 1,
+        waveBeforeScopes: wave.right <= scopes.left + 1,
+        scopesNearRight: header.right - scopes.right < 420,
+        coversBalance: overlaps(chooser, balance),
+        coversWave: overlaps(chooser, wave),
+        coversScopes: overlaps(chooser, scopes),
+      };
     });
-    expect(wipeHeader.center).toBeCloseTo(wipeHeader.viewportCenter, 0);
-    expect(wipeHeader.right).toBeLessThanOrEqual(900);
-    await expect(page.locator('#stackInfoStrip .sih-resolution')).not.toBeVisible();
+    expect(placed.chooserAfterBalance).toBe(true);
+    expect(placed.chooserBeforeWave).toBe(true);
+    expect(placed.waveBeforeScopes).toBe(true);
+    expect(placed.scopesNearRight).toBe(true);
+    expect(placed.coversBalance).toBe(false);
+    expect(placed.coversWave).toBe(false);
+    expect(placed.coversScopes).toBe(false);
     expect(await getVar(page, 'wipeMode')).toBe(true);
     expect(await page.locator('.asset-layer.wipe-base').count()).toBe(1);
     expect(await page.locator('.asset-layer.wipe-reveal').count()).toBe(1);
@@ -2589,17 +2608,27 @@ test.describe('Image Wipe', () => {
       const header = document.querySelector('.header')!.getBoundingClientRect();
       const help = document.querySelector('#helpBtn')!.getBoundingClientRect();
       const grid = document.querySelector('#gridIconBtn')!.getBoundingClientRect();
+      const balance = document.querySelector('#balanceModeBtn')!.getBoundingClientRect();
+      const wave = document.querySelector('#waveformToggleBtn')!.getBoundingClientRect();
+      const overlaps = (a: DOMRect, b: DOMRect) =>
+        a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
       const buttonAt = (r: DOMRect) => document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)
         .map(el => el.closest('button')).find(Boolean) as HTMLButtonElement | undefined;
       return {
-        chooserBelowHeader: chooser.top >= header.bottom,
+        chooserInsideHeader: chooser.top >= header.top && chooser.bottom <= header.bottom + 1,
         helpTop: buttonAt(help)?.id,
         gridTop: buttonAt(grid)?.id,
+        coversBalance: overlaps(chooser, balance),
+        coversWave: overlaps(chooser, wave),
+        coversGrid: overlaps(chooser, grid),
       };
     });
-    expect(layout.chooserBelowHeader).toBe(true);
+    expect(layout.chooserInsideHeader).toBe(true);
     expect(layout.helpTop).toBe('helpBtn');
     expect(layout.gridTop).toBe('gridIconBtn');
+    expect(layout.coversBalance).toBe(false);
+    expect(layout.coversWave).toBe(false);
+    expect(layout.coversGrid).toBe(false);
   });
 
   test('clicking the plate snaps the divider while pan drags and outside clicks do not', async ({ page }) => {

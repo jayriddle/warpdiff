@@ -104,12 +104,23 @@ function _wipeMediaContentRect(slot, wrapper, media) {
     };
 }
 
+function _clearWipePairHost() {
+    const host = document.getElementById('wipePairHost');
+    if (!host) return;
+    host.replaceChildren();
+    host.classList.remove('wipe-pair-chooser');
+    host.hidden = true;
+    host.removeAttribute('role');
+    host.removeAttribute('aria-label');
+}
+
 function _renderWipePairChooser(nameEl) {
     const pairs = _getWipePairs();
     const focusedKey = nameEl.contains(document.activeElement)
         ? document.activeElement.dataset.wipeFocusKey
         : '';
     nameEl.replaceChildren();
+    nameEl.hidden = false;
     nameEl.classList.add('wipe-pair-chooser');
     nameEl.setAttribute('role', 'group');
     nameEl.setAttribute('aria-label', 'Wipe comparison pair');
