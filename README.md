@@ -87,7 +87,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 
 **Loading feedback**
 - **Media status** appears in the header when a loaded input has a definite problem or limitation. Help → Media status stays available after loading. The report shows observed picture, pixel access, native playback, decoded-audio analysis and scrub-audio availability for each loaded input. It distinguishes reported timing from unverified frame-rate, synchronization and original-source fidelity claims. Refresh checks current frames without starting playback or preparation. [Scope and verification](docs/media-admission-report-2026-10-17/README.md)
-- Each assigned slot and filename reports **Opening**, **Reading metadata**, **Decoding first frame**, or **Ready** while a comparison is prepared
+- Each assigned slot and filename reports **Opening**, **Reading metadata**, **Decoding first frame**, or **Ready** while a comparison is prepared. A fast load skips this screen; a slow load shows it after a brief moment, and a problem shows it immediately
 - Ready files are checked off while WarpDiff identifies the slower file, explains that every asset will appear together, and offers **Cancel** for manual loads
 
 **Zoom loupe** (`Z`)

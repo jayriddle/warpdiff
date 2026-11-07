@@ -626,7 +626,9 @@
             display: none;
             width: min(440px, calc(100vw - 32px));
         }
-        .landing-cta.loading .landing-status { display: block; }
+        /* The drop hint hides as soon as loading starts. The card itself waits
+           until the load is still running, so a fast open does not flash it. */
+        .landing-cta.loading.loading-revealed .landing-status { display: block; }
         .loading-progress-title {
             margin-bottom: 10px;
             color: #ccc;
@@ -5885,6 +5887,8 @@
         let _loadingProgressLong = false;
         let _loadingProgressCancelable = false;
         let _loadingProgressToken = null;
+        let _loadingRevealTimer = null;
+        const _LOADING_CARD_DELAY_MS = 500;
 
         function _loadingSlotLabel(slot, assetType, total) {
             if (_managedReviewActive()) return slotLabel(slot);
@@ -6012,6 +6016,28 @@
             }, 1000);
         }
 
+        function _revealLoadingCard() {
+            _loadingRevealTimer = null;
+            const cta = document.getElementById('landingCta');
+            if (!cta || !cta.classList.contains('loading') || !_loadingProgressItems.length) return;
+            cta.classList.add('loading-revealed');
+        }
+
+        // Fast loads finish before this and never show the card. A slot error
+        // reveals it immediately so the failure is not held behind the delay.
+        function _armLoadingCard(immediate) {
+            const cta = document.getElementById('landingCta');
+            if (!cta) return;
+            clearTimeout(_loadingRevealTimer);
+            _loadingRevealTimer = null;
+            if (immediate || _loadingProgressItems.some(item => item.kind === 'error')) {
+                cta.classList.add('loading-revealed');
+                return;
+            }
+            cta.classList.remove('loading-revealed');
+            _loadingRevealTimer = setTimeout(_revealLoadingCard, _LOADING_CARD_DELAY_MS);
+        }
+
         function _setLoadingSlotState(slot, state, kind = 'working') {
             _mediaInputStatusChanged();
             _usage.slotState(slot, kind);
@@ -6020,6 +6046,7 @@
             item.state = state;
             item.kind = kind;
             _renderLoadingProgress();
+            if (kind === 'error') _armLoadingCard(true);
         }
 
         function _cancelLoadingProgress() {
@@ -6034,16 +6061,19 @@
             cta.classList.add('loading');
             _loadingProgressTitle = msg || 'Loading…';
             _renderLoadingProgress();
+            _armLoadingCard(false);
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(3, true);
         }
         function hideLoading() {
             clearInterval(_loadingProgressTimer);
             _loadingProgressTimer = null;
+            clearTimeout(_loadingRevealTimer);
+            _loadingRevealTimer = null;
             _loadingProgressItems = [];
             _loadingProgressLong = false;
             _loadingProgressCancelable = false;
             const cta = document.getElementById('landingCta');
-            cta.classList.remove('loading');
+            cta.classList.remove('loading', 'loading-revealed');
             const status = document.getElementById('landingStatus');
             if (status) status.textContent = 'Loading…';
             if (window._starfieldSetSpeed) window._starfieldSetSpeed(1, true);
@@ -14595,7 +14625,7 @@
                 <li>4 files → labeled by media type in oldest-to-newest order: <strong>Image-1…Image-4</strong>, <strong>Video-1…Video-4</strong>, or <strong>Audio-1…Audio-4</strong></li>
                 <li>Manually loaded files sort oldest → newest by last-modified timestamp; host loads retain the supplied order and labels</li>
             </ul>
-            <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
+            <p><strong>While files are preparing:</strong> The loading screen identifies every assigned slot and filename as it opens metadata and decodes the first visible frame. A fast load goes straight to the comparison. If preparation is still running after a brief moment, this screen appears; a problem shows it right away, and the drop hint stays hidden in the meantime. Ready files are checked off while slower files keep an animated status, and WarpDiff explains that it is waiting to reveal the complete comparison together. A longer wait adds a large-file reminder; click <strong>Cancel</strong> to stop a manual load.</p>
             <p><strong>Prepare and open:</strong> Load or drop files normally. If a video or audio file cannot be used fully, <strong>Preparation</strong> appears in the header. Use the local tool’s <strong>Open WarpDiff</strong> link to open <strong>Preparation</strong> before you load files, then connect the separately running local tool, approve its connection window, and choose <strong>Prepare and open</strong>. Copies return here automatically with the other comparison files; no package or second picker is needed. Originals remain untouched. Video may become H.264 up to 1080p with stereo AAC; audio-only copies retain channel count/rate in PCM WAV. Analysis describes the loaded copy. Close/cancel, Escape, clear or accepted replacement cancels active work; invalid selections preserve it. Managed hosts retain control of their files. Setup and limits are linked in the Preparation dialog. <strong>Other ways to prepare</strong> retains the copied-command fallback. A local tool/FFmpeg installation is separate; no converter is bundled or downloaded by WarpDiff. Preparation is offered without opening a dialog during loading. Choose it in the header when it appears. Returned copies are checked before replacement; a failed check keeps the current comparison and allows retry. After opening, Preparation offers <strong>Reopen previous comparison</strong>. Companion files and optional analysis follow ordinary local loading rather than a host deadline. HDR (PQ/HLG) picture reencoding is refused. Missing or unspecified SDR tags assume BT.709 when the longer side is at least 1280 or the shorter side is at least 720, and BT.601 otherwise, in either orientation. A declared matrix, primaries or transfer is kept. Missing ones are filled from that declared tag, using the matrix first, then primaries, then transfer. A BT.709 or SMPTE 170M transfer alone does not choose the matrix or primaries, because those curves are the same; frame size does. Frame size is also used when all three tags are absent. An sRGB transfer with no matrix stays sRGB and assumes BT.709 matrix and primaries. Opening the copy names an assumption in a short notice, which does not replace the Preparation dialog status. RGB, GBR and palette pictures use that same matrix. The source transfer, including sRGB and BT.470, is kept and tagged; matrix, primaries and range become limited-range BT.709 with dithering. A declared unsupported tag is still refused. Untagged 8-bit 4:2:0 H.264 is copied unchanged. Compatible picture copies preserve their declared interpretation.</p>
             <p><strong>Prepared packages (advanced):</strong> Ordinary media uses <strong>Load</strong> or drag and drop; no package is needed. For files from the optional external tool, open <strong>Help → Advanced → Import externally prepared media</strong>. The dialog explains setup under <strong>How to get prepared files</strong> and offers <strong>Load files</strong> to return to normal loading. Select <strong>warpdiff-package.json</strong> and the prepared MP4, optionally the original for byte matching, and up to three companion images or videos. <strong>Check prepared files</strong> leaves the current comparison in place and retains an immutable snapshot of the checked video. Loading uses those checked bytes even if the selected disk file subsequently changes. The summary separates inspected stereo format and file binding from declared transformations and unverified timing, source fidelity and measurements. <strong>Load comparison</strong> starts a new comparison through normal decoder checks and timestamp ordering; the original is not added automatically. Inspection failure or cancellation preserves the current comparison. Tab and Shift+Tab stay in the dialog; cancelling a file chooser keeps the form. Cancel or Escape restores focus. Changing a selection requires another check; clear, a new load or a host load cancels pending checks. Manifest: up to 16 KiB; prepared/original: up to 64 MiB each. Analysis describes the prepared stereo copy; keep the original for multichannel measurements. Nothing is uploaded or converted here. Managed reviews continue to load through their host.</p>
             <p><strong>Media status:</strong> The header button appears when a loaded file has a definite problem or limitation, such as a picture or soundtrack that cannot be used, pixels that cannot be read, or a tool that is unavailable. An ordinary successful file stays quiet, including when a detail is only <strong>Not verified</strong>. After loading, open <strong>Media status</strong> from Help to inspect each input’s picture, readable pixels, native playback, audio decoding, loaded-file analysis and scrub-audio availability either way. Unavailable tools include an explanation; <strong>Not verified</strong> means there is insufficient evidence. Reported duration and known container audio start do not certify exact frame rate/CFR, complete A/V synchronization, original-source fidelity or measurement conformance. <strong>Refresh</strong> checks current frames without starting playback or preparing a file. Escape or <strong>Close</strong> returns focus to the opener; clearing or reloading retires the previous reports.</p>

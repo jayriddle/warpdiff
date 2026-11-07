@@ -529,9 +529,9 @@ test.describe('Page Load & Initial State', () => {
 test.describe('File Loading & Slot Assignment', () => {
   test('loading screen identifies ready and pending videos before revealing the comparison', async ({ page }) => {
     await page.goto('/');
+    await page.keyboard.press('Escape');
+    await page.clock.install();
     await page.evaluate(() => {
-      document.getElementById('quickStartPopup')?.classList.remove('show');
-      document.getElementById('quickStartBackdrop')?.classList.remove('show');
       (window as any).__testAPI.beginLoadingProgress([
         { slot: 'editA', name: 'long-first-video.mp4' },
         { slot: 'editB', name: 'second-video.mp4' },
@@ -539,6 +539,12 @@ test.describe('File Loading & Slot Assignment', () => {
       (window as any).__testAPI.setLoadingSlotState('editA', 'Ready', 'ready');
       (window as any).__testAPI.setLoadingSlotState('editB', 'Decoding first frame…');
     });
+
+    await expect(page.locator('#landingStatus')).toBeHidden();
+    await expect(page.locator('.landing-title')).toBeHidden();
+    await expect(page.locator('.landing-hints')).toBeHidden();
+    await expect(page.locator('#landingCta')).toHaveClass(/loading/);
+    await page.clock.fastForward(500);
 
     await expect(page.locator('.loading-progress-title')).toHaveText('Preparing 2 videos…');
     await expect(page.locator('[data-loading-slot="editA"]')).toContainText('A');
@@ -549,10 +555,62 @@ test.describe('File Loading & Slot Assignment', () => {
       "A is ready. Waiting for B's first frame so every video appears together."
     );
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+    await page.locator('#landingStatus').focus();
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.loading-progress-cancel')).toBeFocused();
 
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.clock.fastForward(2500);
+    await expect(page.locator('.loading-progress-note')).toContainText('Large or complex video files can take a moment.');
+
+    await page.locator('.loading-progress-cancel').focus();
+    await expect(page.locator('.loading-progress-cancel')).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(page.locator('#landingCta')).not.toHaveClass(/loading/);
     await expect(page.locator('.loading-progress-item')).toHaveCount(0);
+    await expect(page.locator('.landing-title')).toBeVisible();
+  });
+
+  test('a fast image load skips the loading card and does not restore the drop hint', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as any).__loadingFlash = { card: false, hintDuringLoad: false };
+      const watch = () => {
+        const cta = document.getElementById('landingCta');
+        const title = document.querySelector('.landing-title');
+        if (!cta) return;
+        if (cta.classList.contains('loading-revealed')) (window as any).__loadingFlash.card = true;
+        if (cta.classList.contains('loading') && title && getComputedStyle(title).display !== 'none') {
+          (window as any).__loadingFlash.hintDuringLoad = true;
+        }
+      };
+      new MutationObserver(watch).observe(document.documentElement, {
+        subtree: true, attributes: true, attributeFilter: ['class'],
+      });
+    });
+    await page.goto('/');
+    await loadImages(page, ['red.png', 'green.png']);
+    await expect(page.locator('#comparisonView')).toBeVisible();
+    await expect(page.locator('#landingCta')).toBeHidden();
+    expect(await page.evaluate(() => (window as any).__loadingFlash)).toEqual({ card: false, hintDuringLoad: false });
+  });
+
+  test('a loading error shows the card immediately', async ({ page }) => {
+    await page.goto('/');
+    await page.keyboard.press('Escape');
+    const shown = await page.evaluate(() => {
+      (window as any).__testAPI.beginLoadingProgress([
+        { slot: 'editA', name: 'broken.png' },
+      ], 'image', true);
+      const before = getComputedStyle(document.getElementById('landingStatus')!).display;
+      const hint = getComputedStyle(document.querySelector('.landing-title')!).display;
+      (window as any).__testAPI.setLoadingSlotState('editA', 'Could not decode', 'error');
+      const after = getComputedStyle(document.getElementById('landingStatus')!).display;
+      return { before, hint, after };
+    });
+    expect(shown.before).toBe('none');
+    expect(shown.hint).toBe('none');
+    expect(shown.after).not.toBe('none');
+    await expect(page.locator('[data-loading-slot="editA"]')).toContainText('Could not decode');
+    await expect(page.locator('.loading-progress-cancel')).toBeVisible();
   });
 
   test('loads 1 file as single asset review', async ({ page }) => {
