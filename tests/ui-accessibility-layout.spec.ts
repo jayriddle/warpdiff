@@ -90,21 +90,26 @@ for (const width of [320, 390]) {
     const fit = await popup.evaluate(dialog => {
       const body = dialog.querySelector('.quick-start-body') as HTMLElement;
       const rect = dialog.getBoundingClientRect();
-      const last = body.querySelector('li:last-child') as HTMLElement;
+      const items = [...body.querySelectorAll('li')];
+      const last = items[items.length - 1] as HTMLElement;
       body.scrollTop = body.scrollHeight;
+      const lastRect = last.getBoundingClientRect();
+      const bodyRect = body.getBoundingClientRect();
       return {
         scrolls: body.scrollHeight > body.clientHeight + 1,
         noHorizontal: body.scrollWidth <= body.clientWidth + 1,
         within: rect.top >= -1 && rect.left >= -1
           && rect.bottom <= window.innerHeight + 1
           && rect.right <= window.innerWidth + 1,
-        lastVisible: last.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom + 1,
+        lastText: last.textContent,
+        lastVisible: lastRect.top >= bodyRect.top - 1 && lastRect.bottom <= bodyRect.bottom + 1,
         headings: [...body.querySelectorAll('h3')].map(node => node.textContent)
       };
     });
     expect(fit.scrolls).toBe(true);
     expect(fit.noHorizontal).toBe(true);
     expect(fit.within).toBe(true);
+    expect(fit.lastText).toBe('Updates no longer interrupt an open comparison, and the app keeps your last full offline copy.');
     expect(fit.lastVisible).toBe(true);
     expect(fit.headings).toEqual([
       'Video and comparing',
