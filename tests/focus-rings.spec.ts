@@ -18,10 +18,13 @@ async function ring(page: Page, selector: string) {
   });
 }
 
-function expectNoRing(info: { outlineStyle: string; outlineWidth: number; boxShadow: string }) {
+function expectNoRing(info: { outlineStyle: string; outlineWidth: number; boxShadow: string }, focused = true) {
   expect(info.outlineStyle).toBe('none');
-  expect(info.outlineWidth).toBe(0);
   expect(info.boxShadow).toBe('none');
+  // A focused control has its outline width cleared. An unfocused WebKit
+  // button can still report a leftover width while the style is none, and
+  // that outline is not drawn.
+  if (focused) expect(info.outlineWidth).toBe(0);
 }
 
 test('play, What\'s New, and Settings tabs show no focus ring', async ({ page, browserName }) => {
@@ -34,8 +37,9 @@ test('play, What\'s New, and Settings tabs show no focus ring', async ({ page, b
   await play.click();
   // Chrome keeps the button focused after a click. macOS WebKit does not move
   // focus onto a button for a click, so there is no highlight to leave behind.
-  if (browserName !== 'webkit') await expect(play).toBeFocused();
-  expectNoRing(await ring(page, '#playPauseBtn'));
+  const playFocused = await play.evaluate(el => document.activeElement === el);
+  if (browserName !== 'webkit') expect(playFocused).toBe(true);
+  expectNoRing(await ring(page, '#playPauseBtn'), playFocused);
 
   await page.locator('#volumeSlider').focus();
   await page.keyboard.press('Shift+Tab');
@@ -63,8 +67,9 @@ test('play, What\'s New, and Settings tabs show no focus ring', async ({ page, b
   await expect(page.locator('#infoEditorDialog')).toBeVisible();
   const info = page.locator('#settingsTabInfo');
   await info.click();
-  if (browserName !== 'webkit') await expect(info).toBeFocused();
-  expectNoRing(await ring(page, '#settingsTabInfo'));
+  const tabFocused = await info.evaluate(el => document.activeElement === el);
+  if (browserName !== 'webkit') expect(tabFocused).toBe(true);
+  expectNoRing(await ring(page, '#settingsTabInfo'), tabFocused);
   await info.focus();
   await expect(info).toBeFocused();
   expectNoRing(await ring(page, '#settingsTabInfo'));
