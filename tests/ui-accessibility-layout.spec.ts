@@ -219,3 +219,175 @@ test('a picture that fails beside a good one stays marked', async ({ page }) => 
   await expect(failed.getByRole('button', { name: 'Load files' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#comparisonView img')].some(img => (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
 });
+
+function imageFiles(names: string[]) {
+  return names.map(name => ({
+    name,
+    mimeType: 'image/png',
+    buffer: fs.readFileSync(fixture(name)),
+  }));
+}
+
+async function stackImages(page: Page, names: string[]) {
+  await page.goto('/');
+  await page.locator('#multiFileInput').setInputFiles(imageFiles(names));
+  await expect(page.locator('#comparisonView')).toHaveClass(/active/);
+  if (await page.evaluate(() => (window as any).__testAPI.isGridMode)) {
+    await page.locator('#stackIconBtn').click();
+    await page.waitForFunction(() => !(window as any).__testAPI.isGridMode);
+  }
+  await page.keyboard.press('q');
+  await expect(page.locator('body')).toHaveClass(/wipe-mode/);
+  await expect(page.locator('#wipePairHost.wipe-pair-chooser')).toBeVisible();
+}
+
+function headerFit(page: Page) {
+  return page.evaluate(() => {
+    const box = (id: string) => document.getElementById(id)!.getBoundingClientRect();
+    const inside = (rect: DOMRect) => rect.width > 8 && rect.height > 8
+      && rect.left >= -1 && rect.right <= window.innerWidth + 1
+      && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
+    const overlaps = (a: DOMRect, b: DOMRect) =>
+      a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+    const host = box('wipePairHost');
+    const header = document.querySelector('.header')!.getBoundingClientRect();
+    const balance = box('balanceModeBtn');
+    const wave = box('waveformToggleBtn');
+    const guards = ['wipeToggleBtn', 'waveformToggleBtn', 'scopesToggleBtn', 'infoEditorButton', 'appearanceButton'];
+    return {
+      below: document.body.classList.contains('wipe-pair-below'),
+      hostBelowHeader: host.top >= header.bottom - 1,
+      hostInside: inside(host),
+      guards: guards.every(id => inside(box(id))),
+      coversBalance: overlaps(host, balance),
+      coversWave: overlaps(host, wave),
+      chooserAfterBalance: host.left >= balance.right - 1,
+      chooserBeforeWave: host.right <= wave.left + 1,
+      name: document.querySelector('#stackInfoStrip .sih-name')!.textContent,
+      labels: [...document.querySelectorAll('.wipe-pair-option')].map(button => button.textContent),
+    };
+  });
+}
+
+test('two images keep the wipe switch in the header row', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await stackImages(page, ['red.png', 'green.png']);
+  const fit = await headerFit(page);
+  expect(fit.below).toBe(false);
+  expect(fit.guards).toBe(true);
+  expect(fit.chooserAfterBalance).toBe(true);
+  expect(fit.chooserBeforeWave).toBe(true);
+  expect(fit.coversBalance).toBe(false);
+  expect(fit.coversWave).toBe(false);
+  expect(fit.labels).toEqual(['A–B']);
+  expect(fit.name).not.toBe('');
+});
+
+test('three images at 800px drop the wipe switch under the header', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 700 });
+  await stackImages(page, ['red.png', 'green.png', 'blue.png']);
+  const fit = await headerFit(page);
+  expect(fit.below).toBe(true);
+  expect(fit.hostBelowHeader).toBe(true);
+  expect(fit.hostInside).toBe(true);
+  expect(fit.guards).toBe(true);
+  expect(fit.coversBalance).toBe(false);
+  expect(fit.labels).toEqual(['Ref–A', 'Ref–B', 'A–B']);
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await expect.poll(() => page.evaluate(() => document.body.classList.contains('wipe-pair-below'))).toBe(false);
+  const wide = await headerFit(page);
+  expect(wide.chooserAfterBalance).toBe(true);
+  expect(wide.chooserBeforeWave).toBe(true);
+  expect(wide.guards).toBe(true);
+});
+
+test('four images at 1280px drop the wipe switch under the header', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await stackImages(page, ['red.png', 'green.png', 'blue.png', 'fourth.png']);
+  const fit = await headerFit(page);
+  expect(fit.below).toBe(true);
+  expect(fit.hostBelowHeader).toBe(true);
+  expect(fit.hostInside).toBe(true);
+  expect(fit.guards).toBe(true);
+  expect(fit.coversBalance).toBe(false);
+  expect(fit.labels).toEqual([
+    'Image-1–Image-2', 'Image-1–Image-3', 'Image-1–Image-4',
+    'Image-2–Image-3', 'Image-2–Image-4', 'Image-3–Image-4',
+  ]);
+});
+
+test('What\'s New scrolls from the keyboard and keeps Tab and Escape', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await page.goto('/');
+  await page.locator('#appVersion').click();
+  const notes = page.locator('#changelogPopup .quick-start-body');
+  await expect(notes).toBeFocused();
+  await expect(notes).toHaveAttribute('aria-label', "What's new highlights");
+  expect(await notes.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  const scroll = () => notes.evaluate(el => el.scrollTop);
+  expect(await scroll()).toBe(0);
+  await page.keyboard.press('End');
+  expect(await scroll()).toBeGreaterThan(100);
+  const lastVisible = await notes.evaluate(el => {
+    const last = el.querySelectorAll('li')[el.querySelectorAll('li').length - 1];
+    const body = el.getBoundingClientRect();
+    const item = last.getBoundingClientRect();
+    return item.top >= body.top - 1 && item.bottom <= body.bottom + 2;
+  });
+  expect(lastVisible).toBe(true);
+  await page.keyboard.press('Home');
+  expect(await scroll()).toBe(0);
+  await page.keyboard.press('PageDown');
+  const paged = await scroll();
+  expect(paged).toBeGreaterThan(40);
+  await page.keyboard.press('PageUp');
+  expect(await scroll()).toBeLessThan(paged);
+  await page.keyboard.press('ArrowDown');
+  expect(await scroll()).toBeGreaterThan(0);
+  await page.keyboard.press('ArrowUp');
+  expect(await scroll()).toBe(0);
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+  expect(await page.evaluate(() => document.getElementById('changelogPopup')!.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#changelogPopup')).toBeHidden();
+});
+
+test('H in a Settings field does not open Hotkeys', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#infoEditorButton').click();
+  await expect(page.locator('#infoEditorDialog')).toBeVisible();
+  await page.locator('#infoEditorPreset').focus();
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabInfo')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#infoEditorPreset')).toBeFocused();
+  await page.locator('#settingsTabColors').click();
+  await page.locator('#settingsPanelColors input[type="color"]').first().focus();
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabColors')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#settingsPanelColors input[type="color"]').first()).toBeFocused();
+  await page.evaluate(() => {
+    const panel = document.getElementById('settingsPanelColors')!;
+    const text = document.createElement('input');
+    text.id = 'settingsTextProbe';
+    text.type = 'text';
+    panel.appendChild(text);
+    const editable = document.createElement('div');
+    editable.id = 'settingsEditableProbe';
+    editable.contentEditable = 'true';
+    editable.tabIndex = 0;
+    editable.textContent = 'note';
+    panel.appendChild(editable);
+  });
+  await page.locator('#settingsTextProbe').focus();
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabColors')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#settingsTextProbe')).toBeFocused();
+  await page.locator('#settingsEditableProbe').focus();
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabColors')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#settingsEditableProbe')).toBeFocused();
+  await page.locator('#settingsTabInfo').focus();
+  await page.keyboard.press('h');
+  await expect(page.locator('#settingsTabHotkeys')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#infoEditorDialog')).toBeVisible();
+});

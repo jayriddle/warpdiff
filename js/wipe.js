@@ -112,6 +112,7 @@ function _clearWipePairHost() {
     host.hidden = true;
     host.removeAttribute('role');
     host.removeAttribute('aria-label');
+    _placeWipePairHost();
 }
 
 function _renderWipePairChooser(nameEl) {
@@ -150,6 +151,48 @@ function _renderWipePairChooser(nameEl) {
         const replacement = nameEl.querySelector('[data-wipe-focus-key="' + focusedKey + '"]');
         if (replacement) replacement.focus({ preventScroll: true });
     }
+    _placeWipePairHost();
+}
+
+// The pair switch stays in the header row after Balance while it fits.
+// When that row would push Settings, Appearance, or the compare icons off
+// the window, the switch drops to its own row under the header. The decision
+// is the measured fit, not a width breakpoint, and it is cached until the
+// window or the pair count changes so playback does not reflow the header.
+const _WIPE_HEADER_GUARDS = ['wipeToggleBtn', 'waveformToggleBtn', 'scopesToggleBtn', 'tileCheckToggleBtn', 'infoEditorButton', 'appearanceButton', 'balanceModeBtn', 'fitModeBtn'];
+let _wipePairPlaceKey = '';
+
+function _wipeControlOffscreen(element) {
+    if (!element || element.hidden || !element.getClientRects().length) return false;
+    const box = element.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return false;
+    return box.left < -1 || box.right > window.innerWidth + 1 || box.top < -1;
+}
+
+function _wipeHeaderCrowded() {
+    for (let i = 0; i < _WIPE_HEADER_GUARDS.length; i++) {
+        if (_wipeControlOffscreen(document.getElementById(_WIPE_HEADER_GUARDS[i]))) return true;
+    }
+    return _wipeControlOffscreen(document.getElementById('wipePairHost'));
+}
+
+function _placeWipePairHost() {
+    const host = document.getElementById('wipePairHost');
+    const active = !!(host && !host.hidden && _wipeMode && host.classList.contains('wipe-pair-chooser'));
+    const key = active ? window.innerWidth + ':' + _getWipePairs().length : 'off';
+    if (key === _wipePairPlaceKey) return;
+    _wipePairPlaceKey = key;
+    if (!active) {
+        document.body.classList.remove('wipe-pair-below', 'wipe-header-tight');
+        return;
+    }
+    // Measure the in-flow row, then drop the switch only if something spills.
+    // A dropped switch that still leaves Appearance past the edge, which WebKit
+    // does by a few pixels at 800px, tightens the header's side padding only.
+    document.body.classList.remove('wipe-pair-below', 'wipe-header-tight');
+    if (!_wipeHeaderCrowded()) return;
+    document.body.classList.add('wipe-pair-below');
+    if (_wipeHeaderCrowded()) document.body.classList.add('wipe-header-tight');
 }
 
 function _updateWipeButton() {

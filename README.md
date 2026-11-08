@@ -4,7 +4,7 @@ A browser-based tool for reviewing and comparing 1–4 images, videos, or audio 
 
 **[Open WarpDiff →](https://jayriddle.github.io/warpdiff/)**
 
-**Current version:** 3.19.28
+**Current version:** 3.19.29
 
 ---
 
@@ -123,7 +123,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 
 **Analysis**
 - `Y` seamless Tile Check — inspect any loaded image in a repeated 3×3 or centered-seam Offset preview. Independent Left↔Right, Top↔Bottom, and corner ratings compare boundary color/gradient continuity with the image's normal texture; an optional heatmap pinpoints suspicious seam segments
-- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff or select any loaded pair in the header control beside the compare buttons. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector. The same wipe compares videos, still on the native video element
+- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff or select any loaded pair in the header control beside the compare buttons. When that control does not fit, it moves under the header. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector. The same wipe compares videos, still on the native video element
 - `D` difference mode — pixel difference between any loaded pair in Stack mode; arrow keys or `Shift+D` cycle pairs. During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes. The scopes panel always identifies its current source
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default); the shared **Fit / Ref** control switches between per-asset detail and a fixed dBFS reference scale, while encoded leading/trailing audio gaps remain aligned to the video timeline

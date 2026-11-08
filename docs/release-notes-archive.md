@@ -2,6 +2,12 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.29
+
+- If the Wipe pair switch does not fit on the header row, it moves to its own row just under the header. Settings, Appearance, and the compare buttons stay on screen.
+- What's New can be scrolled with the arrow keys, Page Up, Page Down, Home, and End.
+- Pressing H inside a Settings menu, text field, or color field no longer jumps to Hotkeys.
+
 ## v3.19.28
 
 Highlights from the last two months
