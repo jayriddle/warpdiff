@@ -7,6 +7,10 @@ Preserved on 2026-09-30 when the What’s New popup was condensed. These histori
 - The blue highlight around buttons and lists is gone, including Play and the What's New list.
 - The keyboard works the same way. Arrow keys still scroll What's New, and shortcuts, Escape, and Tab are unchanged.
 
+## v3.19.30
+
+- Scrubbing a wide or high-resolution video stays sharp. It no longer goes soft while you drag and then sharpen when you let go.
+
 ## v3.19.29
 
 - If the Wipe pair switch does not fit on the header row, it moves to its own row just under the header. Settings, Appearance, and the compare buttons stay on screen.

@@ -248,7 +248,7 @@ Press **E** to cycle through waveform display modes: Waveform only → Waveform 
 
 Click and drag on the waveform or spectrogram to scrub playback. Shift+drag to set a loop region.
 
-Chrome scrubbing preserves decoding that can still reach the requested frame when you change direction, and reuses cached frames. Software-decoded High 4:4:4 H.264 keeps more full-resolution preview frames within the existing cache budget. Very long gaps between keyframes can still delay a first seek to an uncached position.
+Chrome scrubbing preserves decoding that can still reach the requested frame when you change direction, and reuses cached frames. Wide and high-resolution pictures stay sharp while you scrub, instead of going soft until you let go. Software-decoded High 4:4:4 H.264 keeps more full-resolution preview frames within the existing cache budget. Very long gaps between keyframes can still delay a first seek to an uncached position.
 
 Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking. This budget counts retained files and pending reads, including cancellation until it finishes; it does not cap total browser memory or audio analysis. Unknown input sizes also use native scrubbing.
 

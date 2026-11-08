@@ -52,7 +52,7 @@ Rapid frame-step taps keep their requested position while native pictures finish
 
 After scrubbing, Play and Restart (`R`) restore the selected playback scope and loop range. Restart also suspends the idle scrub decoder while retaining cached frames for the next drag. See the [restart verification record](docs/restart-playback-2026-09-15.md).
 
-Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long keyframe gaps can still delay an uncached seek. See the [scrubbing investigation](docs/playback-lag-investigation-2026-10-05.md).
+Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Wide and high-resolution pictures stay sharp while you scrub, instead of going soft until you let go. Very long keyframe gaps can still delay an uncached seek. See the [scrubbing investigation](docs/playback-lag-investigation-2026-10-05.md).
 
 Videos above 256 MiB, or unable to fit the shared 512 MiB encoded-input budget, use native video scrubbing. Playback and audio preview remain available. Video sample tables above one million entries also use native seeking. See the [input hardening record](docs/media-input-hardening-2026-10-15/README.md) for the limits and verification.
 

@@ -79,7 +79,7 @@ An [optional repository-only local tool](tools/media-prepare/README.md) produces
 
 Both Play and Restart (`R`) restore looping after a scrub, follow the selected Sync/Solo scope and loop range, and retain cached frames for the next drag.
 
-Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Very long gaps between keyframes can still delay an uncached seek; scrubbing does not transcode the original video.
+Chrome scrubbing preserves useful decoding on direction changes and retains more full-resolution preview frames for software-decoded High 4:4:4 H.264. Wide and high-resolution pictures stay sharp while you scrub, instead of going soft until you let go. Very long gaps between keyframes can still delay an uncached seek; scrubbing does not transcode the original video.
 
 Encoded scrub inputs are limited to 256 MiB per video and 512 MiB across retained and pending reads. Videos that cannot fit use native video scrubbing; playback and audio preview remain available. Video sample tables above one million entries also use native seeking. Decoded frames, audio analysis and browser-native buffers have separate memory costs.
 

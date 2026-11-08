@@ -41,6 +41,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
       close() { this.state = 'closed'; }
       emit(index, format, colorSpace) { const frame = new Frame(index, format); if (colorSpace) Object.assign(frame.colorSpace, colorSpace); this.callbacks.output(frame); }
     }
+    const win = { location: { href: 'https://example.test/warpdiff/?review=1' }, matchMedia(){gamutQueries++;return gamut;}, devicePixelRatio: 1 };
     const realm = {
       VideoDecoder: Decoder,
       EncodedVideoChunk: class { constructor(chunk) { Object.assign(this, chunk); } },
@@ -52,7 +53,7 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
         const bitmap = { closed: false, close() { this.closed = true; } };
         bitmaps.push({ frame, options, bitmap, resolve: () => resolve(bitmap), reject });
       }),
-      URL, navigator: { platform }, window: { location: { href: 'https://example.test/warpdiff/?review=1' },matchMedia(){gamutQueries++;return gamut;} },
+      URL, navigator: { platform }, window: win,
     };
     runInNewContext(source+'\nglobalThis.gamutListenerCount = () => _scrubGamutListeners.size;', realm);
     let session;
@@ -63,11 +64,13 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     }
     if (!session) return { session, decoders };
     await session.ready;
-    const canvas = { width: 0, height: 0, style:{filter:''}, getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
+    const canvas = { width: 0, height: 0, style:{filter:''}, rect:{width:0,height:0},
+      getBoundingClientRect() { return { width: this.rect.width, height: this.rect.height }; },
+      getContext: () => ({ drawImage: frame => draws.push(frame.timestamp), clearRect() {} }) };
     session.attach(canvas, 'srgb');
     const paint = () => { const callbacks = [...raf.values()]; raf.clear(); callbacks.forEach(fn => fn()); };
     const settle = async () => { await Promise.resolve(); await Promise.resolve(); };
-    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle, canvas, setGamut(value){gamut.matches=value;gamutListeners.forEach(fn=>fn());},gamutQueries:()=>gamutQueries };
+    return { session, decoder: decoders[0], decoders, bitmaps, resources, draws, paint, settle, canvas, win, setGamut(value){gamut.matches=value;gamutListeners.forEach(fn=>fn());},gamutQueries:()=>gamutQueries };
   }
 
   {
@@ -215,15 +218,117 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     check('scrub[planar-cache]: clear closes all emitted and retained frames and balances bytes',
       h.resources.every(frame => frame.closed) && h.session.cacheStats.frames === 0 && h.session.cacheStats.bytes === 0);
   }
-  for (const options of [{ codec: 'avc1.f4001f', width: 2560, height: 1440 }, { codec: 'avc1.f4001f' }, {}]) {
-    const h = await sessionFor(options);
-    h.session.request(1, true); h.decoder.emit(24, options.width ? 'I420' : null);
+  {
+    const h = await sessionFor({ codec: 'avc1.f4001f', width: 2560, height: 1440 });
+    h.session.request(1, true); h.decoder.emit(24, 'I420');
     h.paint();
-    check('scrub[bitmap]: resized, opaque and ordinary-codec output retains bitmap fallback',
-      h.bitmaps.length === 1 && h.bitmaps[0].options.resizeWidth === 1280 && h.session.cacheStats.frames === 0);
+    check('scrub[bitmap]: a long-GOP 1440p frame keeps the 1280×720 preview area',
+      h.bitmaps.length === 1 && h.bitmaps[0].options?.resizeWidth === 1280 && h.bitmaps[0].options?.resizeHeight === 720 && h.session.cacheStats.frames === 0);
     h.bitmaps[0].resolve(); await h.settle();
-    check('scrub[bitmap]: fallback publishes a usable cache entry', h.session.cacheStats.frames === 1);
+    check('scrub[bitmap]: resized preview publishes a usable cache entry', h.session.cacheStats.frames === 1 && h.session.cacheStats.width === 1280);
     h.session.close();
+  }
+  for (const options of [{ codec: 'avc1.f4001f' }, {}]) {
+    const h = await sessionFor(options);
+    h.session.request(1, true); h.decoder.emit(24, null);
+    h.paint();
+    check('scrub[bitmap]: opaque and ordinary full-budget frames are not downscaled',
+      h.bitmaps.length === 1 && h.bitmaps[0].options == null && h.session.cacheStats.frames === 0);
+    h.bitmaps[0].resolve(); await h.settle();
+    check('scrub[bitmap]: full-size fallback publishes a usable cache entry',
+      h.session.cacheStats.frames === 1 && h.session.cacheStats.width === 1280 && h.session.cacheStats.height === 720);
+    h.session.close();
+  }
+  {
+    const realm = {};
+    runInNewContext(source, realm);
+    const ceil = 192 * 1024 * 1024, floor = 96 * 1024 * 1024;
+    const wide = realm._scrubVideoCacheFrameSize(1956, 432, 300, 0, 0);
+    check('scrub[geometry]: a wide frame inside the 720p area stays full resolution',
+      wide.full && wide.width === 1956 && wide.height === 432 && wide.budget === ceil);
+    const hdShort = realm._scrubVideoCacheFrameSize(1920, 1080, 15, 0, 0);
+    check('scrub[geometry]: 1080p stays full resolution when the GOP fits the ceiling',
+      hdShort.full && hdShort.width === 1920 && hdShort.bytes * 15 === hdShort.budget && hdShort.budget <= ceil);
+    const hdLong = realm._scrubVideoCacheFrameSize(1920, 1080, 60, 0, 0);
+    check('scrub[geometry]: a long 1080p GOP keeps the 1280×720 area inside the ceiling',
+      !hdLong.full && hdLong.width === 1280 && hdLong.height === 720 && hdLong.budget === ceil);
+    const uhd = realm._scrubVideoCacheFrameSize(3840, 2160, 60, 0, 0);
+    check('scrub[geometry]: 4K without a display size keeps the 1280×720 area',
+      uhd.width === 1280 && uhd.height === 720 && uhd.budget === ceil);
+    const shown = realm._scrubVideoCacheFrameSize(3840, 2160, 60, 1920, 1080);
+    check('scrub[geometry]: 4K shown at 1080p is cached at least at the on-screen size',
+      shown.width >= 1920 && shown.height >= 1080 && shown.width <= 3840 && shown.budget === ceil);
+    const fullscreen = realm._scrubVideoCacheFrameSize(3840, 2160, 60, 4000, 2200);
+    check('scrub[geometry]: a display larger than the source does not cache past the source',
+      fullscreen.full && fullscreen.width === 3840 && fullscreen.height === 2160 && fullscreen.budget === ceil);
+    const small = realm._scrubVideoCacheFrameSize(320, 180, 2, 0, 0);
+    check('scrub[geometry]: a tiny GOP still keeps the 96 MB floor',
+      small.full && small.budget === floor);
+  }
+  {
+    const h = await sessionFor({ width: 1956, height: 432, count: 48 });
+    h.session.request(1, true); h.decoder.emit(24); h.paint();
+    check('scrub[bitmap]: wide ordinary frames are stored without a resize',
+      h.bitmaps.length === 1 && h.bitmaps[0].options == null);
+    h.bitmaps[0].resolve(); await h.settle();
+    check('scrub[bitmap]: the wide cache entry is the full 1956×432 frame',
+      h.session.cacheStats.frames === 1 && h.session.cacheStats.width === 1956 && h.session.cacheStats.height === 432
+      && h.session.cacheStats.bytes === 1956 * 432 * 4);
+    h.session.request(1, true);
+    check('scrub[bitmap]: revisiting the wide frame is a full-size cache hit',
+      h.session.cacheStats.hits === 1 && h.canvas.width === 1956 && h.canvas.height === 432);
+    h.session.close();
+  }
+  {
+    const h = await sessionFor({ codec: 'avc1.f4001f', width: 1956, height: 432, count: 48, platform: 'MacIntel' });
+    h.session.request(1, true); h.decoder.emit(24, 'I420'); h.paint();
+    check('scrub[planar-cache]: wide software frames stay full-resolution I420',
+      h.bitmaps.length === 0 && h.session.cacheStats.frames === 1 && h.session.cacheStats.width === 1956
+      && h.session.cacheStats.bytes === 1956 * 432 * 1.5);
+    h.session.close();
+  }
+  {
+    const h = await sessionFor({ width: 3840, height: 2160, count: 96 });
+    h.session.request(1, true); h.decoder.emit(24); h.paint();
+    check('scrub[bitmap]: 4K preview is 1280×720 until the display needs more',
+      h.bitmaps.length === 1 && h.bitmaps[0].options?.resizeWidth === 1280 && h.bitmaps[0].options?.resizeHeight === 720);
+    h.bitmaps[0].resolve(); await h.settle();
+    const resets = h.decoder.resets;
+    h.canvas.rect.width = 1920; h.canvas.rect.height = 1080;
+    h.session.request(1, true);
+    check('scrub[bitmap]: growing the display drops the smaller bitmap and restarts the frame',
+      h.session.cacheStats.hits === 0 && h.session.cacheStats.frames === 0 && h.bitmaps[0].bitmap.closed && h.decoder.resets === resets + 1);
+    h.decoder.emit(24); h.paint();
+    check('scrub[bitmap]: the replacement frame covers the larger display',
+      h.bitmaps.length === 2 && h.bitmaps[1].options?.resizeWidth === 1920 && h.bitmaps[1].options?.resizeHeight === 1080);
+    h.bitmaps[1].resolve(); await h.settle();
+    h.canvas.rect.width = 640; h.canvas.rect.height = 360;
+    h.session.request(1, true);
+    check('scrub[bitmap]: shrinking the display still uses the sharper cached frame',
+      h.session.cacheStats.hits === 1 && h.session.cacheStats.width === 1920);
+    h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
+  }
+  {
+    const h = await sessionFor({ width: 3840, height: 2160, count: 96 });
+    h.canvas.rect.width = 960; h.canvas.rect.height = 540; h.win.devicePixelRatio = 2;
+    h.session.request(1, true); h.decoder.emit(24); h.paint();
+    check('scrub[bitmap]: devicePixelRatio counts toward the on-screen size',
+      h.bitmaps.length === 1 && h.bitmaps[0].options?.resizeWidth === 1920 && h.bitmaps[0].options?.resizeHeight === 1080);
+    h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
+  }
+  {
+    const h = await sessionFor({ width: 3840, height: 2160, count: 96 });
+    h.canvas.rect.width = 3840; h.canvas.rect.height = 2160;
+    h.session.request(1, true);
+    for (let index = 16; index <= 32; index++) h.decoder.emit(index);
+    h.paint();
+    const full = 3840 * 2160 * 4;
+    const fit = Math.floor((192 * 1024 * 1024) / full);
+    check('scrub[bitmap]: 4K fullscreen skips frames the ceiling would drop immediately',
+      fit === 6 && h.bitmaps.length === 13 && h.session.cacheStats.bytes === fit * full && h.session.cacheStats.bytes <= 192 * 1024 * 1024);
+    h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
+    check('scrub[bitmap]: 4K fullscreen reservations close without exceeding the ceiling',
+      h.session.cacheStats.bytes === 0 && h.bitmaps.every(b => b.bitmap.closed) && h.resources.every(frame => frame.closed));
   }
   {
     const h = await sessionFor({ codec: 'avc1.f4001f' });
