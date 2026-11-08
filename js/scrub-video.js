@@ -339,10 +339,10 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         // budget is painted from the decoder and not retained.
         if (size.bytes > CACHE_BUDGET) return;
         // Frames farther than this from the current target would be evicted by
-        // cacheEvictFor the moment they land. The count follows the bitmap that
-        // will actually be stored, so a larger on-screen size does not queue
-        // work the ceiling would throw away.
-        const maxCacheFrames = Math.max(8, Math.floor(CACHE_BUDGET / size.bytes));
+        // cacheEvictFor the moment they land. The count is how many of these
+        // bitmaps actually fit, including a 4K fullscreen frame (~6). A fixed
+        // floor of 8 would clone the extras and drop them immediately.
+        const maxCacheFrames = Math.max(1, Math.floor(CACHE_BUDGET / size.bytes));
         if (targetPts >= 0 && Math.abs(pts - targetPts) > maxCacheFrames * frameDur) return;
         let clone;
         try { clone = frame.clone(); } catch (_) { return; }

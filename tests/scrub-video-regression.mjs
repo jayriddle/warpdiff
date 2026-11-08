@@ -317,6 +317,20 @@ export async function runScrubVideoChecks(check, source = readFileSync(new URL('
     h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
   }
   {
+    const h = await sessionFor({ width: 3840, height: 2160, count: 96 });
+    h.canvas.rect.width = 3840; h.canvas.rect.height = 2160;
+    h.session.request(1, true);
+    for (let index = 16; index <= 32; index++) h.decoder.emit(index);
+    h.paint();
+    const full = 3840 * 2160 * 4;
+    const fit = Math.floor((192 * 1024 * 1024) / full);
+    check('scrub[bitmap]: 4K fullscreen skips frames the ceiling would drop immediately',
+      fit === 6 && h.bitmaps.length === 13 && h.session.cacheStats.bytes === fit * full && h.session.cacheStats.bytes <= 192 * 1024 * 1024);
+    h.session.close(); h.bitmaps.forEach(b => b.resolve()); await h.settle();
+    check('scrub[bitmap]: 4K fullscreen reservations close without exceeding the ceiling',
+      h.session.cacheStats.bytes === 0 && h.bitmaps.every(b => b.bitmap.closed) && h.resources.every(frame => frame.closed));
+  }
+  {
     const h = await sessionFor({ codec: 'avc1.f4001f' });
     h.session.request(10, true);
     h.decoder.emit(240); h.decoder.emit(239, null); h.paint();
