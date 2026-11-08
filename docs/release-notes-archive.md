@@ -2,6 +2,11 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.31
+
+- The blue highlight around buttons and lists is gone, including Play and the What's New list.
+- The keyboard works the same way. Arrow keys still scroll What's New, and shortcuts, Escape, and Tab are unchanged.
+
 ## v3.19.30
 
 - Scrubbing a wide or high-resolution video stays sharp. It no longer goes soft while you drag and then sharpen when you let go.

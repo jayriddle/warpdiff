@@ -13,6 +13,7 @@ export default defineConfig({
     {name:'webkit-contextual-header',testMatch:'contextual-header.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-audit-quick-fixes',testMatch:'audit-quick-fixes.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-ui-accessibility-layout',testMatch:'ui-accessibility-layout.spec.ts',use:{browserName:'webkit'}},
+    {name:'webkit-focus-rings',testMatch:'focus-rings.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-native-video-output',testMatch:'native-video-output.spec.ts',use:{browserName:'webkit'}},
     {name:'webkit-color-rendering', testMatch:'color-rendering.spec.ts', use:{browserName:'webkit'}},
     {name:'webkit-normal-preparation', testMatch:'normal-preparation.spec.ts', use:{browserName:'webkit'}},

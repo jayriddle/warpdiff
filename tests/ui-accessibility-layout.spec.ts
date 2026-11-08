@@ -323,7 +323,8 @@ test('What\'s New scrolls from the keyboard and keeps Tab and Escape', async ({ 
   const notes = page.locator('#changelogPopup .quick-start-body');
   await expect(notes).toBeFocused();
   await expect(notes).toHaveAttribute('aria-label', "What's new highlights");
-  expect(await notes.evaluate(el => getComputedStyle(el).outlineStyle)).not.toBe('none');
+  // The list stays focused so the keys below can scroll it, without a focus ring.
+  expect(await notes.evaluate(el => getComputedStyle(el).outlineStyle)).toBe('none');
   const scroll = () => notes.evaluate(el => el.scrollTop);
   expect(await scroll()).toBe(0);
   await page.keyboard.press('End');

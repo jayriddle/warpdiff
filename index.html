@@ -69,14 +69,6 @@
             background: #666;
         }
 
-        .position-toggle:focus {
-            outline: none;
-        }
-        .position-toggle:focus-visible {
-            outline: 2px solid #f0a030;
-            outline-offset: 2px;
-        }
-
         .help-tooltip {
             position: absolute;
             bottom: 100%;
@@ -299,7 +291,6 @@
         .audio-listening-panel label { display:flex; justify-content:space-between; gap:10px; margin-top:10px; }
         .audio-listening-panel input { display:block; width:100%; margin:8px 0 12px; accent-color:#88bfee; }
         .audio-listening-panel p { margin:10px 0 0; color:#bbb; font-size:12px; }
-        .audio-listening-panel :focus-visible, .audio-listening-control summary:focus-visible { outline:2px solid #88bfee; outline-offset:3px; }
         .volume-control {
             display: flex;
             align-items: center;
@@ -505,12 +496,6 @@
 
         .changelog-popup .quick-start-body li {
             margin-bottom: 8px;
-        }
-
-        .changelog-popup .quick-start-body:focus,
-        .changelog-popup .quick-start-body:focus-visible {
-            outline: 2px solid #a9c9ff;
-            outline-offset: -2px;
         }
 
         @media (max-width: 480px) {
@@ -757,7 +742,6 @@
             cursor: pointer;
         }
         .loading-progress-cancel:hover { border-color: #68758a; color: #d2d8e2; }
-        .loading-progress-cancel:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 2px; }
 
         .landing-title {
             font-size: 14px;
@@ -1240,7 +1224,6 @@
             cursor: pointer;
         }
         .mute-nudge .mn-act:hover { color: #ffc172; }
-        .mute-nudge .mn-act:focus-visible { outline: 2px solid #f0a63c; outline-offset: 2px; }
         @media (prefers-reduced-motion: reduce) { .mute-nudge { transition: opacity 0.01s; } }
 
         /* Asset info bar styling */
@@ -1430,7 +1413,6 @@
         #infoEditorDialog button.settings-tab:hover { color: #e4e4ea; background: #222228; border-color: transparent; }
         #infoEditorDialog button.settings-tab[aria-selected="true"] { z-index: 2; margin-bottom: -1px; padding-bottom: 9px; color: #fff; font-weight: 700; background: #1c1c1e; border: 1px solid #38383f; border-bottom-color: #1c1c1e; box-shadow: none; }
         #infoEditorDialog button.settings-tab[aria-selected="true"]:hover { color: #fff; background: #1c1c1e; border-color: #38383f; border-bottom-color: #1c1c1e; }
-        #infoEditorDialog button.settings-tab:focus-visible { outline: 2px solid #b5c8de; outline-offset: 2px; }
         #infoEditorDialog button.shortcut-kbd-clickable { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; line-height: 1.2; color: #bbb; background: #333; border: 1px solid #444; border-radius: 3px; padding: 2px 7px; min-height: 0; }
         #infoEditorDialog button.shortcut-kbd-clickable:hover { background: #444; border-color: #666; color: #fff; }
         #infoEditorDialog button.shortcut-kbd-clickable.reassigning { background: #2a5a8a; border-color: #4a8ad4; color: #fff; min-width: 80px; text-align: center; font-size: 11px; }
@@ -1483,7 +1465,6 @@
         #infoEditorStatus { flex: 1; font-size: 12px; color: #aaa; }
         #infoEditorStatus[role="alert"] { color: #f5b477; }
         #infoEditorDialog input[type="checkbox"], #infoEditorSpacerWidth { accent-color: #b5c8de; }
-        #infoEditorButton:focus-visible, #infoEditorDialog :focus-visible, #infoOverflowPanel :focus-visible, .info-more:focus-visible { outline: 2px solid #b5c8de; outline-offset: 2px; }
         @media (max-width: 1100px) {
             .header:has(#stackInfoStrip.info-custom) { flex-wrap: wrap; gap: 6px; }
             .header:has(#stackInfoStrip.info-custom) #headerRight { max-width: 100%; overflow-x: auto; }
@@ -1715,7 +1696,6 @@
         }
         .wipe-pair-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .wipe-pair-option.active { background: #2d7cff; color: #fff; }
-        .wipe-pair-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
         /* The pair switch replaces the Ref/A/B pills. The rest of the header,
            including waveform and scopes, stays in its normal right-hand place. */
         body.wipe-mode #modeStrip,
@@ -2608,7 +2588,6 @@
         }
         .scopes-source-option:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .scopes-source-option.active { background: rgba(74,221,32,0.2); color: #a9f29a; box-shadow: inset 0 0 0 1px rgba(74,221,32,0.6); }
-        .scopes-source-option:focus-visible { outline: 2px solid #a9c9ff; outline-offset: 1px; }
         .scopes-row {
             display: flex;
             gap: 4px;
@@ -3144,13 +3123,7 @@
             color: #111;
             box-shadow: 0 0 0 1px rgba(255, 193, 92, 0.18);
         }
-        .audio-level-btn:focus-visible {
-            outline: 2px solid #ffd083;
-            outline-offset: 1px;
-        }
         .analysis-btn svg { width: 20px; height: 20px; display: block; }
-        .analysis-btn:focus { outline: none; }
-        .analysis-btn:focus-visible { outline: 2px solid #f0a030; outline-offset: 2px; }
         .analysis-btn.warn { color: #f0a030; }
         .analysis-btn.warn:hover { background: #3a2e10; color: #f5b840; }
 
@@ -3184,9 +3157,6 @@
         .fp-copy-btn:hover { border-color: #555; color: #aaa; }
         .fp-copy-btn.copied { color: #5cb85c; border-color: #2a5a2a; }
         .fp-copy-btn:disabled { opacity: 0.6; cursor: default; }
-        .fp-copy-btn:focus-visible, .fp-download:focus-visible, .fp-header button:focus-visible {
-            outline: 2px solid #9dcaff; outline-offset: 3px;
-        }
         .fp-note { font-size: 12px; color: #bbb; margin: 12px 0 8px; line-height: 1.5; }
         .fp-note p { margin: 10px 0; }
         .fp-note ol { padding-left: 22px; }
@@ -3194,7 +3164,6 @@
         .fp-download { color: #9dcaff; font-size: 12px; }
         .fp-load-btn { display: block; margin-top: 12px; padding: 7px 12px; border-radius: 4px;
             border: 1px solid #555; background: #292929; color: #ddd; cursor: pointer; }
-        .fp-load-btn:focus-visible { outline: 2px solid #9dcaff; outline-offset: 3px; }
 
         /* Asset pills — match info bar .asset-name style exactly; slot colors via inline */
         .asset-btn {
@@ -3517,14 +3486,11 @@
         .usage-section p { margin-bottom: 10px; color: #bbb; }
         #usageDisclosure { margin-bottom: 12px; }
         #usageDisclosure summary { cursor: pointer; color: var(--appearance-accent); margin-bottom: 10px; }
-        #usageDisclosure summary:focus-visible { outline: 2px solid var(--appearance-accent); outline-offset: 3px; }
         .usage-section a { color: var(--appearance-accent); }
         .usage-actions { display: flex; gap: 8px; flex-wrap: wrap; }
         .usage-actions button { border: 1px solid #555; border-radius: 6px; background: #262626; color: #eee; padding: 7px 11px; cursor: pointer; font: inherit; }
         .usage-actions button[aria-pressed="true"] { border-color: var(--appearance-accent); }
         .usage-actions button:disabled { opacity: .45; cursor: default; }
-        #appearancePanel button:focus-visible, #appearanceButton:focus-visible, #usageInvitation button:focus-visible {
-            outline: 2px solid var(--appearance-accent); outline-offset: 3px; }
         #usageStatus { margin-top: 10px; font-size: 11px; color: #bbb; }
         #usageTestNotice { color: #edc276; border: 1px solid #65512f; padding: 8px; border-radius: 5px; }
         #usageTestStats { margin-top: 10px; font-size: 11px; }
@@ -3656,6 +3622,17 @@
         .local-preparation-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
         #localPreparationRun { background:#805214; border-color:#c79548; }
         body.managed-review #preparationBtn { display:none!important; }
+
+        /* Keyboard focus stays put so shortcuts, Tab, and arrow-key scrolling
+           keep working. Chrome and Safari paint outline:auto in the accent
+           color — a blue rounded border on a Mac — and a click leaves the
+           control focused, so the ring would stay. Drop-target dashes are
+           not a focus ring. Text fields keep their own border. */
+        :focus:not(.info-drop-section),
+        :focus-visible:not(.info-drop-section) {
+            outline: none !important;
+            outline-width: 0 !important;
+        }
     </style>
 </head>
 <body>
@@ -4126,7 +4103,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.30';
+        const APP_VERSION = '3.19.31';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.28';
@@ -9621,7 +9598,7 @@
             // Shift+Tab away, and Escape still dismisses the dialog.
             const notes = document.querySelector('#changelogPopup .quick-start-body');
             if (notes && document.getElementById('changelogPopup').classList.contains('show')) {
-                notes.focus({ preventScroll: true, focusVisible: true });
+                notes.focus({ preventScroll: true });
             }
         }
         function _scrollChangelogBody(event) {
