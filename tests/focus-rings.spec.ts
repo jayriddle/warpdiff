@@ -24,7 +24,7 @@ function expectNoRing(info: { outlineStyle: string; outlineWidth: number; boxSha
   expect(info.boxShadow).toBe('none');
 }
 
-test('play, What\'s New, and Settings tabs show no focus ring', async ({ page }) => {
+test('play, What\'s New, and Settings tabs show no focus ring', async ({ page, browserName }) => {
   await page.evaluate(() => {
     const controls = document.getElementById('videoControls')!;
     controls.classList.add('active');
@@ -32,11 +32,18 @@ test('play, What\'s New, and Settings tabs show no focus ring', async ({ page })
   });
   const play = page.locator('#playPauseBtn');
   await play.click();
-  await expect(play).toBeFocused();
+  // Chrome keeps the button focused after a click. macOS WebKit does not move
+  // focus onto a button for a click, so there is no highlight to leave behind.
+  if (browserName !== 'webkit') await expect(play).toBeFocused();
   expectNoRing(await ring(page, '#playPauseBtn'));
 
   await page.locator('#volumeSlider').focus();
   await page.keyboard.press('Shift+Tab');
+  if (browserName === 'webkit' && await play.evaluate(el => document.activeElement !== el)) {
+    // macOS WebKit skips buttons on Tab. Option-Tab reaches them.
+    await page.locator('#volumeSlider').focus();
+    await page.keyboard.press('Alt+Shift+Tab');
+  }
   await expect(play).toBeFocused();
   expectNoRing(await ring(page, '#playPauseBtn'));
 
@@ -56,6 +63,9 @@ test('play, What\'s New, and Settings tabs show no focus ring', async ({ page })
   await expect(page.locator('#infoEditorDialog')).toBeVisible();
   const info = page.locator('#settingsTabInfo');
   await info.click();
+  if (browserName !== 'webkit') await expect(info).toBeFocused();
+  expectNoRing(await ring(page, '#settingsTabInfo'));
+  await info.focus();
   await expect(info).toBeFocused();
   expectNoRing(await ring(page, '#settingsTabInfo'));
   await page.keyboard.press('ArrowRight');
