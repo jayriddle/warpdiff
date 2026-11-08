@@ -666,11 +666,18 @@ test('the comparison window and Settings dialog do not cover the info bar color 
   const control = await page.evaluate(() => {
     const el = document.activeElement as HTMLElement;
     const style = getComputedStyle(el);
-    return { inside: document.getElementById('infoEditorDialog')!.contains(el), outline: style.outlineStyle, width: parseFloat(style.outlineWidth) };
+    return {
+      inside: document.getElementById('infoEditorDialog')!.contains(el),
+      outline: style.outlineStyle,
+      width: parseFloat(style.outlineWidth),
+      shadow: style.boxShadow,
+    };
   });
   expect(control.inside).toBe(true);
-  expect(control.outline).not.toBe('none');
-  expect(control.width).toBeGreaterThan(0);
+  // Tab still moves into the dialog. The focused control does not paint a ring.
+  expect(control.outline).toBe('none');
+  expect(control.width).toBe(0);
+  expect(control.shadow).toBe('none');
 });
 
 test('settings tabs show one selected style and keep the dialog the same size', async ({ page }) => {
