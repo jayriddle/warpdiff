@@ -2,6 +2,10 @@
 
 Preserved on 2026-09-30 when the What’s New popup was condensed. These historical development notes include unpublished intermediate revisions and superseded behavior; they are not a description of the current release. Current behavior is documented in README, FEATURES and MANUAL.
 
+## v3.19.30
+
+- Scrubbing a wide or high-resolution video stays sharp. It no longer goes soft while you drag and then sharpen when you let go.
+
 ## v3.19.29
 
 - If the Wipe pair switch does not fit on the header row, it moves to its own row just under the header. Settings, Appearance, and the compare buttons stay on screen.
