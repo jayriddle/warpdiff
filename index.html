@@ -507,6 +507,12 @@
             margin-bottom: 8px;
         }
 
+        .changelog-popup .quick-start-body:focus,
+        .changelog-popup .quick-start-body:focus-visible {
+            outline: 2px solid #a9c9ff;
+            outline-offset: -2px;
+        }
+
         @media (max-width: 480px) {
             .changelog-popup {
                 width: min(420px, calc(100vw - 16px));
@@ -1669,6 +1675,27 @@
             background: rgba(45,124,255,0.2);
             box-shadow: inset 0 0 0 1px rgba(45,124,255,0.65);
             color: #c8dcff;
+        }
+        /* Dropped only when the in-flow switch would push the other header
+           controls off screen. The center strip and icon order stay put. */
+        body.wipe-header-tight .header { padding-inline: 8px; }
+        /* Last resort under the dropped switch: let Settings and Appearance wrap
+           onto the next header line instead of leaving the window. */
+        body.wipe-header-wrap .header { flex-wrap: wrap; align-items: flex-start; row-gap: 6px; }
+        body.wipe-header-wrap #headerRight { min-width: 0; }
+        body.wipe-pair-below #wipePairHost.wipe-pair-chooser {
+            position: absolute;
+            left: 50%;
+            top: calc(100% + 6px);
+            transform: translateX(-50%);
+            max-width: calc(100vw - 16px);
+            z-index: 4;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 2px;
+            border-radius: 6px;
+            background: rgba(21,21,21,0.94);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.55);
         }
         .wipe-pair-prefix {
             padding: 0 5px;
@@ -4099,7 +4126,7 @@
     <script src="js/audio-decode.js"></script>
     <script src="js/transport.js"></script>
     <script>
-        const APP_VERSION = '3.19.28';
+        const APP_VERSION = '3.19.29';
         // Only a release with meaningful user-facing news advances this marker.
         // Quiet maintenance updates keep the preceding summary without repeating it.
         const _CHANGELOG_VERSION = '3.19.28';
@@ -9588,6 +9615,32 @@
                 document.getElementById('changelogBackdrop'),
                 document.activeElement
             );
+            // Land in the list, not on Close. Arrow keys, Page Up/Down, Home
+            // and End then scroll it, and a screen reader starts at the
+            // highlights instead of the dismiss button. Close is one
+            // Shift+Tab away, and Escape still dismisses the dialog.
+            const notes = document.querySelector('#changelogPopup .quick-start-body');
+            if (notes && document.getElementById('changelogPopup').classList.contains('show')) {
+                notes.focus({ preventScroll: true, focusVisible: true });
+            }
+        }
+        function _scrollChangelogBody(event) {
+            const notes = event.currentTarget;
+            if (!notes) return;
+            const line = 48;
+            const page = Math.max(line, notes.clientHeight);
+            const max = Math.max(0, notes.scrollHeight - notes.clientHeight);
+            let next = null;
+            if (event.key === 'ArrowDown') next = notes.scrollTop + line;
+            else if (event.key === 'ArrowUp') next = notes.scrollTop - line;
+            else if (event.key === 'PageDown') next = notes.scrollTop + page;
+            else if (event.key === 'PageUp') next = notes.scrollTop - page;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = max;
+            if (next === null) return;
+            event.preventDefault();
+            event.stopPropagation();
+            notes.scrollTop = Math.max(0, Math.min(max, next));
         }
 
         function toggleQuickStart() {
@@ -14199,6 +14252,7 @@
             _setupAudioListeningControl();
             _setupAppearance(); // appearance + usage preference owners → js/appearance.js, js/usage.js
             _setupInfoBarEditor(); // preferences + metadata presentation → js/info-bar.js
+            document.querySelector('#changelogPopup .quick-start-body')?.addEventListener('keydown', _scrollChangelogBody);
 
             // Restore persisted preferences to UI
             const savedVol = _prefs.load('volume', 100);
@@ -14705,7 +14759,7 @@
             <p>The loupe hides during panning and updates live during video playback and frame stepping. Loupe size and magnification level persist across sessions.</p>
 
             <h2>Image Wipe</h2>
-            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the header control beside the compare buttons to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. The pair control stays in the header beside the compare buttons, so Help and the view-mode buttons remain usable. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
+            <p>Press <kbd>Q</kbd> in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is left of the cutoff and the second is right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the idle boundary and disappears while the pointer is held down. With three images, use the header control beside the compare buttons to select Ref–A, Ref–B, or A–B directly; <kbd>Shift+Q</kbd> and the left/right asset arrows cycle them in the same order. The wipe header stays dedicated to the comparison pair. When scopes are open, the scopes panel provides its own source selector and labels the complete asset being analyzed. The zoom loupe and <kbd>Alt+←</kbd> / <kbd>Alt+→</kbd> rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. Mismatched aspect ratios use complete presentation plates with neutral matte, so neither image bleeds through the other's unused area. Clicking the divider focuses it for precise arrow-key adjustment, with Shift+arrow for larger steps. The pair control stays beside the compare buttons when it fits. When it does not, it moves to a row just under the header so Help, Settings, and the view buttons stay on screen. Wipe follows zoom, pan, rotation, and resize. The same cutoff compares videos: both clips stay on the native video element and play together.</p>
 
             <h2>Seamless Tile Check</h2>
             <p>Press <kbd>Y</kbd> with images loaded to analyze any source as a repeating surface. <strong>3×3</strong> repeats the complete image nine times; <strong>Offset</strong> moves its four source edges into a center cross; <strong>Heatmap</strong> marks strong and weak seam segments. Source buttons—and the left/right arrows while Tile Check is open—move between all loaded images.</p>
@@ -14946,7 +15000,7 @@
             <h3>Analysis</h3>
             <ul>
                 <li><kbd>Y</kbd> seamless Tile Check — 3×3 and centered-seam previews, edge/corner ratings, and optional heatmap</li>
-                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the header control beside the compare buttons. The same wipe compares videos</li>
+                <li><kbd>Q</kbd> image wipe — drag or click to place the cutoff; choose Ref–A, Ref–B, or A–B in the header control beside the compare buttons. If that control does not fit, it moves under the header. The same wipe compares videos</li>
                 <li><kbd>D</kbd> difference mode — pixel difference between two assets (Stack mode)</li>
                 <li><kbd>V</kbd> video scopes — histogram, waveform monitor, vectorscope</li>
                 <li><kbd>W</kbd> audio waveform + spectrogram, with shared Fit / Ref level scaling</li>
@@ -14991,7 +15045,7 @@
             <h2 id="changelogTitle">What's New <span class="version-badge" id="changelogVersion"></span></h2>
             <button type="button" class="quick-start-close" onclick="dismissChangelog()" aria-label="Close what's new">✕</button>
         </div>
-        <div class="quick-start-body">
+        <div class="quick-start-body" tabindex="0" aria-label="What's new highlights">
             <p><strong>Highlights from the last two months</strong></p>
             <h3>Video and comparing</h3>
             <ul>

@@ -492,6 +492,9 @@ function _openInfoBarEditor(tab = 'info') {
 }
 function _settingsHotkeyPressed(event) {
     if (!event || event.metaKey || event.ctrlKey || event.altKey || _reassigningActionId) return false;
+    // Selects, text and color fields, and editable text keep their letters.
+    // Buttons, tabs, and the rest of Settings still use H to open or close Hotkeys.
+    if (typeof _shortcutTargetOwnsKey === 'function' && _shortcutTargetOwnsKey(event)) return false;
     const key = event.key;
     const digit = event.shiftKey && event.code && event.code.startsWith('Digit') ? event.code.slice(5) : null;
     const id = event.shiftKey

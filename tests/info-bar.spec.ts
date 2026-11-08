@@ -634,7 +634,7 @@ test('resizing Settings keeps the focused control and a shortcut being chosen', 
   await page.locator('#infoEditorPreset').focus();
   await page.setViewportSize({width:900,height:700});
   await expect(page.locator('#infoEditorPreset')).toBeFocused();
-  await page.keyboard.press('h');
+  await page.locator('#settingsTabHotkeys').click();
   await page.locator('[data-action-id="mute"]').click();
   await expect(page.locator('[data-action-id="mute"]')).toHaveText('Press a key…');
   await expect(page.locator('[data-action-id="mute"]')).toBeFocused();

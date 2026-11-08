@@ -2673,16 +2673,22 @@ test.describe('Image Wipe', () => {
         a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
       const buttonAt = (r: DOMRect) => document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)
         .map(el => el.closest('button')).find(Boolean) as HTMLButtonElement | undefined;
+      const inside = (rect: DOMRect) => rect.width > 8 && rect.left >= -1 && rect.right <= window.innerWidth + 1
+        && rect.top >= -1 && rect.bottom <= window.innerHeight + 1;
+      const guard = (id: string) => inside(document.getElementById(id)!.getBoundingClientRect());
       return {
-        chooserInsideHeader: chooser.top >= header.top && chooser.bottom <= header.bottom + 1,
+        // The switch leaves the header row when it does not fit, instead of covering the actions.
+        chooserBelowHeader: chooser.top >= header.bottom - 1 && inside(chooser),
         helpTop: buttonAt(help)?.id,
         gridTop: buttonAt(grid)?.id,
         coversBalance: overlaps(chooser, balance),
         coversWave: overlaps(chooser, wave),
         coversGrid: overlaps(chooser, grid),
+        actionsOnScreen: ['wipeToggleBtn', 'waveformToggleBtn', 'scopesToggleBtn', 'infoEditorButton', 'appearanceButton'].every(guard),
       };
     });
-    expect(layout.chooserInsideHeader).toBe(true);
+    expect(layout.chooserBelowHeader).toBe(true);
+    expect(layout.actionsOnScreen).toBe(true);
     expect(layout.helpTop).toBe('helpBtn');
     expect(layout.gridTop).toBe('gridIconBtn');
     expect(layout.coversBalance).toBe(false);
