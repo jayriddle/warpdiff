@@ -183,16 +183,18 @@ function _placeWipePairHost() {
     if (key === _wipePairPlaceKey) return;
     _wipePairPlaceKey = key;
     if (!active) {
-        document.body.classList.remove('wipe-pair-below', 'wipe-header-tight');
+        document.body.classList.remove('wipe-pair-below', 'wipe-header-tight', 'wipe-header-wrap');
         return;
     }
     // Measure the in-flow row, then drop the switch only if something spills.
     // A dropped switch that still leaves Appearance past the edge, which WebKit
     // does by a few pixels at 800px, tightens the header's side padding only.
-    document.body.classList.remove('wipe-pair-below', 'wipe-header-tight');
+    document.body.classList.remove('wipe-pair-below', 'wipe-header-tight', 'wipe-header-wrap');
     if (!_wipeHeaderCrowded()) return;
     document.body.classList.add('wipe-pair-below');
-    if (_wipeHeaderCrowded()) document.body.classList.add('wipe-header-tight');
+    if (!_wipeHeaderCrowded()) return;
+    document.body.classList.add('wipe-header-tight');
+    if (_wipeHeaderCrowded()) document.body.classList.add('wipe-header-wrap');
 }
 
 function _updateWipeButton() {

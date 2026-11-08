@@ -1679,6 +1679,10 @@
         /* Dropped only when the in-flow switch would push the other header
            controls off screen. The center strip and icon order stay put. */
         body.wipe-header-tight .header { padding-inline: 8px; }
+        /* Last resort under the dropped switch: let Settings and Appearance wrap
+           onto the next header line instead of leaving the window. */
+        body.wipe-header-wrap .header { flex-wrap: wrap; align-items: flex-start; row-gap: 6px; }
+        body.wipe-header-wrap #headerRight { min-width: 0; }
         body.wipe-pair-below #wipePairHost.wipe-pair-chooser {
             position: absolute;
             left: 50%;
