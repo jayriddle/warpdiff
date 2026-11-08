@@ -27,6 +27,8 @@ const sentinels = [
   path.join(fixturesDir, 'dialogue_51_aac.mp4'),
   // AC-3 soundtrack: exercises external preparation and explicit browser reload.
   path.join(fixturesDir, 'ac3_video.mp4'),
+  // Wide 1px stripes for the scrub-cache sharpness regression.
+  path.join(fixturesDir, 'stripes_wide.mp4'),
 ];
 const generator = path.join(fixturesDir, 'generate.sh');
 

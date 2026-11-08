@@ -17,10 +17,10 @@
 //
 // Memory: the session retains the full file bytes (sample chunks are subarray
 // views into them). Decoded frames close after paint/caching; the revisit cache
-// holds display-capped ImageBitmaps, or compact software I420 VideoFrames, under
-// an estimated pixel-byte budget sized to the
-// file's longest GOP (96 MB floor, 192 MB ceiling) — see the cache block for
-// why holding a whole GOP is what makes BACKWARD scrubbing usable.
+// holds full-source ImageBitmaps when a frame fits the preview budget, or
+// compact software I420 VideoFrames, under an estimated pixel-byte budget sized
+// to the file's longest GOP (96 MB floor, 192 MB ceiling) — see the cache block
+// for why holding a whole GOP is what makes BACKWARD scrubbing usable.
 //
 // Globals consumed by index.html:
 //   _scrubVideoSupported()          — feature gate
@@ -127,6 +127,57 @@ function _scrubWideGamut() {
     return !!_scrubGamutQuery?.matches;
 }
 
+// How large a cached scrub frame should be.
+//
+// The budget is still the GOP window: 96 MB floor, 192 MB ceiling, 1.25× the
+// longest GOP so a target in the middle of a run still has the whole run cached.
+// Holding that run is what makes backward scrubbing cheap — a decoder only moves
+// forward, so a backward target it has already passed costs reset() plus a
+// decode from the keyframe (measured: 15 resets / 32 stalls at a 27-frame window
+// versus 8 / 18 once the cache held a 48-frame GOP).
+//
+// Resolution is separate from that byte ceiling. A hard 1280px width cap stored
+// a 1956×432 frame at 1280×283 and stretched it back to the source canvas, so
+// cached scrubbing looked softer than a fresh decode. Pixel count is the right
+// limit: 1956×432 is fewer pixels than the old 1280×720 preview. Frames at or
+// under that area stay at full source size. Larger frames stay full size when
+// the whole GOP fits in the ceiling; otherwise they scale down only far enough
+// to fit, and never softer than the old 1280×720 area. The on-screen size
+// (CSS pixels × devicePixelRatio) is a floor, so a 4K frame shown large is not
+// stored smaller than the picture the user actually sees. A bitmap that later
+// becomes smaller than the screen is a miss, not a blurry hit.
+const SCRUB_CACHE_FLOOR = 96 * 1024 * 1024;
+const SCRUB_CACHE_CEIL = 192 * 1024 * 1024;
+const SCRUB_CACHE_LEGACY_PIXELS = 1280 * 720;
+function _scrubVideoCacheFrameSize(srcW, srcH, gopFrames, displayW, displayH) {
+    srcW = Math.max(2, Math.round(Number(srcW)) || 2);
+    srcH = Math.max(2, Math.round(Number(srcH)) || 2);
+    gopFrames = Math.max(1, Math.round(Number(gopFrames)) || 1);
+    const fullBytes = srcW * srcH * 4;
+    const pixels = srcW * srcH;
+    let scale = 1;
+    if (pixels > SCRUB_CACHE_LEGACY_PIXELS && gopFrames * fullBytes > SCRUB_CACHE_CEIL) {
+        const gopScale = Math.sqrt(SCRUB_CACHE_CEIL / (gopFrames * fullBytes));
+        const legacyScale = Math.sqrt(SCRUB_CACHE_LEGACY_PIXELS / pixels);
+        scale = Math.min(1, Math.max(gopScale, legacyScale));
+    }
+    const dispW = Number(displayW) || 0;
+    const dispH = Number(displayH) || 0;
+    if (dispW > 1 && dispH > 1) scale = Math.min(1, Math.max(scale, dispW / srcW, dispH / srcH));
+    let width = Math.max(2, Math.min(srcW, Math.round(srcW * scale)));
+    let height = Math.max(2, Math.min(srcH, Math.round(srcH * scale)));
+    if (dispW > 1 && dispH > 1) {
+        width = Math.min(srcW, Math.max(width, Math.ceil(Math.min(srcW, dispW))));
+        height = Math.min(srcH, Math.max(height, Math.ceil(Math.min(srcH, dispH))));
+    }
+    const bytes = width * height * 4;
+    return {
+        width, height, bytes,
+        budget: Math.min(SCRUB_CACHE_CEIL, Math.max(SCRUB_CACHE_FLOOR, gopFrames * bytes)),
+        full: width === srcW && height === srcH
+    };
+}
+
 function _createScrubVideoSession(bytes, onColorRejected) {
     if (!_scrubVideoSupported()) return null;
     const info = _demuxMP4Video(bytes);
@@ -169,31 +220,12 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     if (info.description) config.description = info.description;
 
     // ── Decoded-frame cache ──────────────────────────────────────────────
-    // Frames are normally cached as display-capped ImageBitmaps
-    // so revisiting a position (backward jumps, back-and-forth A/B scrubbing)
-    // paints instantly with no re-decode. Bitmaps are capped at 1280px wide
-    // (scrub preview quality; a 4K frame would be ~33 MB raw), evicting the
-    // entries farthest from the current target.
-    const cacheScale = Math.min(1, 1280 / (info.codedWidth || 1280));
-    const cacheW = Math.max(2, Math.round((info.codedWidth || 640) * cacheScale));
-    const cacheH = Math.max(2, Math.round((info.codedHeight || 360) * cacheScale));
-    const cacheFrameBytes = cacheW * cacheH * 4;
-    // Size the budget to hold ONE FULL GOP where that's affordable, instead of a
-    // flat 96 MB. A decoder only runs forward, so any backward target the
-    // in-flight run has already passed costs reset() + a re-decode from the GOP
-    // keyframe. Walking back through a GOP is free IF that run's frames are
-    // still cached — and ruinous if they aren't: at a flat 96 MB the cache held
-    // 27 frames against a 48-frame GOP, so backward travel fell off the cached
-    // window every ~27 frames and re-decoded from the keyframe again. Measured
-    // in real Chrome on two 10 s 1080p clips (GOP 48), median of 3 backward
-    // drags of 61 requests each: 15 resets / 500 decode() calls / 32 visible
-    // stalls at 27 frames, vs 8 / 285 / 18 once the cache held the GOP.
-    // Forward drags are unaffected (5 resets either way) — they extend the
-    // in-flight run rather than restarting it, which is the whole asymmetry.
-    // Files with dense keyframes keep the 96 MB floor; only sparse-keyframe
-    // files (the ones that scrub badly in the first place) spend more.
-    const CACHE_FLOOR = 96 * 1024 * 1024;
-    const CACHE_CEIL = 192 * 1024 * 1024;   // ~54 frames at 1280×720
+    // Frames are cached so revisiting a position (backward jumps, back-and-forth
+    // A/B scrubbing) paints instantly with no re-decode. Size comes from
+    // _scrubVideoCacheFrameSize: full source pixels when they fit the budget,
+    // otherwise a downscale that still covers the on-screen picture and stays
+    // at least as sharp as a 1280×720 preview. Entries farthest from the
+    // current target are evicted.
     // Include the run AFTER the last keyframe: measuring only the gaps BETWEEN
     // keyframes misses it entirely, and it is the longest GOP in exactly the
     // worst case — a file with one keyframe at index 0 (keyint=infinite screen
@@ -210,13 +242,19 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     if (lastKey >= 0 && nSamples - lastKey > maxGop) maxGop = nSamples - lastKey;
     // 1.25× so the window still spans the GOP when the target sits partway
     // through it (the run caches around the target, not from the keyframe).
-    const CACHE_BUDGET = Math.min(CACHE_CEIL,
-        Math.max(CACHE_FLOOR, Math.ceil(maxGop * 1.25) * cacheFrameBytes));
-    // How many frames actually FIT in the budget (~27 at the 96 MB floor, ~54 at
-    // the ceiling). Frames farther than this from the current target would be
-    // evicted by cacheEvictFor the moment they land — see cacheStore's gate.
-    const maxCacheFrames = Math.max(8, Math.floor(CACHE_BUDGET / cacheFrameBytes));
-    const cache = new Map();          // decode idx → { bm: ImageBitmap | VideoFrame | null, pts, bytes }
+    // Measured in real Chrome on two 10 s 1080p clips (GOP 48), median of 3
+    // backward drags of 61 requests each: 15 resets / 500 decode() calls / 32
+    // visible stalls when the cache held 27 frames, vs 8 / 285 / 18 once it
+    // held the GOP. Forward drags were 5 resets either way — they extend the
+    // in-flight run rather than restarting it. Files with dense keyframes keep
+    // the 96 MB floor; only sparse-keyframe files spend more, and never past
+    // the 192 MB ceiling (~54 frames at 1280×720).
+    const srcW = info.codedWidth || 640;
+    const srcH = info.codedHeight || 360;
+    const gopFrames = Math.ceil(maxGop * 1.25);
+    const fitted = _scrubVideoCacheFrameSize(srcW, srcH, gopFrames, 0, 0);
+    const CACHE_BUDGET = fitted.budget;
+    const cache = new Map();          // decode idx → { bm, pts, bytes, w, h, exact }
     let cacheBytes = 0;
     let cacheHits = 0;
     // decode idx from an output frame's µs timestamp
@@ -241,14 +279,47 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         }
     }
 
+    // CSS pixels of the overlay times devicePixelRatio. Zero before layout,
+    // or while a hidden Stack layer has no box, so the budget size stands.
+    function displayedDevicePixels() {
+        if (!canvas || typeof canvas.getBoundingClientRect !== 'function') return null;
+        let rect;
+        try { rect = canvas.getBoundingClientRect(); } catch (_) { return null; }
+        if (!rect || !(rect.width > 1) || !(rect.height > 1)) return null;
+        const ratio = typeof window !== 'undefined' ? Number(window.devicePixelRatio) : 1;
+        const dpr = Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+        return { w: Math.ceil(rect.width * dpr), h: Math.ceil(rect.height * dpr) };
+    }
+
+    function activeFrameSize() {
+        const disp = displayedDevicePixels();
+        return _scrubVideoCacheFrameSize(srcW, srcH, gopFrames, disp ? disp.w : 0, disp ? disp.h : 0);
+    }
+
+    // A bitmap stored for a smaller view must not be stretched over a larger
+    // one (resize, zoom, fullscreen, a sharper display). Drop it and decode
+    // again. Full-source entries already cover every display size.
+    function cacheDropUndersized() {
+        const need = activeFrameSize();
+        const stale = [];
+        for (const [k, entry] of cache) {
+            if ((entry.w || 0) < need.width || (entry.h || 0) < need.height) stale.push(k);
+        }
+        for (const k of stale) cacheRemove(k);
+        return stale.length > 0;
+    }
+
     function cacheStore(frame) {
         const idx = idxByTs.get(frame.timestamp);
-        if (idx === undefined || cache.has(idx) || dead) return;
+        if (idx === undefined || dead) return;
+        cacheDropUndersized();
+        if (cache.has(idx)) return;
         const pts = samples[idx].pts;
+        const size = activeFrameSize();
         // Software AVC output can retain compact, full-resolution YUV frames.
         // Opaque/GPU frames and resized previews retain the bitmap path, so a
         // cache does not pin a hardware decoder's surface pool.
-        if (softwareAvc && cacheScale === 1 && frame.format === 'I420') {
+        if (softwareAvc && size.full && frame.format === 'I420') {
             try {
                 const frameBytes = frame.allocationSize({ rect: {
                     x: 0, y: 0, width: frame.codedWidth, height: frame.codedHeight
@@ -258,22 +329,33 @@ function _createScrubVideoSession(bytes, onColorRejected) {
                     if (targetPts >= 0 && Math.abs(pts - targetPts) > planarFrames * frameDur) return;
                     const clone = frame.clone();
                     cacheEvictFor(pts, frameBytes);
-                    cache.set(idx, { bm: clone, pts, bytes: frameBytes });
+                    cache.set(idx, { bm: clone, pts, bytes: frameBytes, w: srcW, h: srcH, exact: true });
                     cacheBytes += frameBytes;
                     return;
                 }
             } catch (_) { /* retain the bitmap fallback */ }
         }
+        // One frame must fit the ceiling. A pathological source larger than the
+        // budget is painted from the decoder and not retained.
+        if (size.bytes > CACHE_BUDGET) return;
+        // Frames farther than this from the current target would be evicted by
+        // cacheEvictFor the moment they land. The count follows the bitmap that
+        // will actually be stored, so a larger on-screen size does not queue
+        // work the ceiling would throw away.
+        const maxCacheFrames = Math.max(8, Math.floor(CACHE_BUDGET / size.bytes));
         if (targetPts >= 0 && Math.abs(pts - targetPts) > maxCacheFrames * frameDur) return;
         let clone;
         try { clone = frame.clone(); } catch (_) { return; }
-        cacheEvictFor(pts, cacheFrameBytes);
+        cacheEvictFor(pts, size.bytes);
         // A reservation is an evictable entry, even before its bitmap resolves.
         // An evicted/cleared promise cannot refill the cache or refund twice.
-        const entry = { bm: null, pts, bytes: cacheFrameBytes };
+        const entry = { bm: null, pts, bytes: size.bytes, w: size.width, h: size.height, exact: size.full };
         cache.set(idx, entry);
         cacheBytes += entry.bytes;
-        createImageBitmap(clone, { resizeWidth: cacheW, resizeHeight: cacheH })
+        const bitmap = size.full
+            ? createImageBitmap(clone)
+            : createImageBitmap(clone, { resizeWidth: size.width, resizeHeight: size.height });
+        bitmap
             .then(bm => {
                 clone.close();
                 if (dead || cache.get(idx) !== entry) { bm.close(); return; }
@@ -350,6 +432,30 @@ function _createScrubVideoSession(bytes, onColorRejected) {
     // order of magnitude (a whole GOP decodes in a burst); painting every output
     // synchronously floods the main thread with drawImage calls and starves the
     // drag's mousemove handling — the stutter this replaced.
+    // Paint without a second resample. Fresh frames and full-source bitmaps fill
+    // the source-sized canvas (one CSS downscale to the screen). A smaller
+    // preview bitmap keeps its own backing store so it is not stretched up to
+    // the source size and then scaled back down. Canvas width resets drawing
+    // state; the context object and its color space stay.
+    let canvasColorMode = 'srgb';
+    function paintExact(source, w, h) {
+        if (!ctx2d || !canvas || dead) return;
+        const dw = Math.max(1, Math.round(w) || 1);
+        const dh = Math.max(1, Math.round(h) || 1);
+        if (canvas.width !== dw || canvas.height !== dh) {
+            canvas.width = dw;
+            canvas.height = dh;
+            if (canvasColorMode === 'display-p3') {
+                try {
+                    const ctx = canvas.getContext('2d', { colorSpace: 'display-p3' });
+                    if (ctx) ctx2d = ctx;
+                } catch (_) { /* keep the context attach() already created */ }
+            }
+            if (canvas.style) canvas.style.filter = presentationFilter;
+        }
+        ctx2d.drawImage(source, 0, 0, dw, dh);
+    }
+
     function paintPending() {
         rafId = 0;
         const f = pendingFrame;
@@ -358,7 +464,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         const pts = f.timestamp / 1e6;
         if (!dead && ctx2d && !runIsPrefetch &&
             pts > paintFloor && pts <= targetPts + frameDur * 0.5) {
-            ctx2d.drawImage(f, 0, 0, canvas.width, canvas.height);
+            paintExact(f, srcW, srcH);
             lastPaintedPts = f.timestamp / 1e6;
             framesPainted++;
             _notifyPaint(lastPaintedPts);
@@ -541,7 +647,15 @@ function _createScrubVideoSession(bytes, onColorRejected) {
         get lastPaintedPts() { return lastPaintedPts; },
         get dead() { return dead; },
         get suspended() { return suspended; },
-        get cacheStats() { return { frames: Array.from(cache.values()).filter(entry => entry.bm).length, bytes: cacheBytes, hits: cacheHits }; },
+        get cacheStats() {
+            const ready = Array.from(cache.values()).filter(entry => entry.bm);
+            let width = 0, height = 0;
+            for (const entry of ready) {
+                width = width ? Math.min(width, entry.w || 0) : (entry.w || 0);
+                height = height ? Math.min(height, entry.h || 0) : (entry.h || 0);
+            }
+            return { frames: ready.length, bytes: cacheBytes, hits: cacheHits, width, height };
+        },
         get frameColorSpace() { return _lastFrameColorSpace; },
 
         setPaintListener(listener) {
@@ -561,6 +675,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // conversion/rounding differences even for software-decoded SDR.
             const mode = colorSpaceOverride || (info.colr?.primaries === 1 ? 'srgb' :
                 (_scrubWideGamut() ? 'display-p3' : 'srgb'));
+            canvasColorMode = mode;
             let ctx = null;
             if (mode === 'display-p3') {
                 try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); }
@@ -610,9 +725,14 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // Cache hit — paint instantly, no decode. Neutralize any in-flight
             // run's painting (its outputs keep caching but stop painting) by
             // moving the target/floor to the served frame.
+            const droppedUndersized = cacheDropUndersized();
             const hit = cache.get(idx);
             if (hit && hit.bm && ctx2d) {
-                ctx2d.drawImage(hit.bm, 0, 0, canvas.width, canvas.height);
+                // Full-source frames (including compact I420) fill the source
+                // canvas. A downscaled bitmap is drawn at its own pixel size so
+                // the browser scales it once, to the screen.
+                if (hit.exact) paintExact(hit.bm, srcW, srcH);
+                else paintExact(hit.bm, hit.bm.width || hit.w, hit.bm.height || hit.h);
                 cacheHits++;
                 framesPainted++;
                 lastPaintedPts = pts;
@@ -625,7 +745,11 @@ function _createScrubVideoSession(bytes, onColorRejected) {
                 maybePrefetchBackward(idx, key);
                 return;
             }
-            if (nextFeed >= 0 && key === curKey && pts >= lastOutputPts) {
+            // A display growth drops bitmaps that are now too small. Continuing
+            // a run that has already emitted this target would keep the soft
+            // paint: that frame will not be decoded again unless the run restarts.
+            if (nextFeed >= 0 && key === curKey && pts >= lastOutputPts &&
+                !(droppedUndersized && pts <= lastOutputPts)) {
                 // Same GOP, at/ahead of decode progress — retarget and keep the
                 // run. This covers forward extension AND backward wobbles whose
                 // frame hasn't been decoded yet (target 10s, decode at 5s, wobble
@@ -650,7 +774,7 @@ function _createScrubVideoSession(bytes, onColorRejected) {
             // backward. If we're already showing (approximately) the requested
             // frame, do nothing — a reset here would re-decode the whole GOP on
             // every wobble, which reads as stutter.
-            if (nextFeed >= 0 && key === curKey &&
+            if (!droppedUndersized && nextFeed >= 0 && key === curKey &&
                 pts >= lastPaintedPts - 2 * frameDur && pts <= lastPaintedPts + frameDur) {
                 return;
             }

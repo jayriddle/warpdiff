@@ -135,6 +135,20 @@ ffmpeg -hide_banner -loglevel error -y \
     -f lavfi -i "sine=frequency=700:duration=3" \
     -c:v libvpx-vp9 -b:v 200k "${VORBIS_ENC[@]}" "$OUT/vorbis_30.webm"
 
+# Wide 1956×432 1px vertical stripes. Fewer pixels than a 1280×720 frame, so the
+# scrub cache must keep them full size. A 1280-wide bitmap stretched back to
+# the source canvas drops the stripe contrast to almost nothing. High profile
+# (not lossless 4:4:4) and a real colr box take the ordinary bitmap cache on
+# Linux Chrome; one keyframe keeps the back-and-forth scrub inside one GOP.
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i "color=c=black:s=1956x432:r=24:d=2,format=yuv420p,geq=lum='if(mod(X\\,2)\\,16\\,235)':cb=128:cr=128" \
+    -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=2" \
+    -map 0:v:0 -map 1:a:0 \
+    -c:v libx264 -profile:v high -pix_fmt yuv420p -preset veryfast -crf 1 -g 240 -keyint_min 240 \
+    -color_range tv -color_primaries bt709 -color_trc bt709 -colorspace bt709 \
+    -movflags +faststart+write_colr -c:a aac -b:a 96k -ac 2 \
+    "$OUT/stripes_wide.mp4"
+
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=3" -ac 2 -c:a pcm_s16le  "$OUT/stereo.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=880:sample_rate=22050:duration=3" -ac 1 -c:a pcm_s16le  "$OUT/mono.wav"
 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:sample_rate=44100:duration=3" -ac 2 -c:a libmp3lame -b:a 128k "$OUT/track.mp3"
