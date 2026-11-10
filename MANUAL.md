@@ -312,20 +312,20 @@ Scopes update in real time during playback and on frame step. Works on both vide
 
 ---
 
-## Image Wipe
+## Wipe
 
-Press **Q** in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is on the left and the second is on the right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the boundary while idle and disappears while the pointer is held down. With three images, the header control beside the compare buttons directly selects **Ref–A**, **Ref–B**, or **A–B**. For mismatched aspect ratios, each asset includes a neutral matte so either side can fully replace the other without the underlying image bleeding through. Drag the cutoff left or right, or click the divider to focus it and use the arrow keys for precise adjustment. Hold **Shift** while pressing an arrow key for larger steps.
+Press **Q** in Stack mode to compare two images, or two videos, with a draggable hard cutoff. Pair order matches Grid order: the first asset is on the left and the second is on the right. Click inside the comparison plate to snap the cutoff there; a drag remains a normal pan gesture, and clicks outside the plate are ignored. A subtle guide line marks the boundary while idle and disappears while the pointer is held down. The header control beside the compare buttons selects **Ref–A**, **Ref–B**, or **A–B** directly. **Shift+Q** and the left and right arrows cycle those pairs in the same order. For mismatched aspect ratios, each asset includes a neutral matte so either side can fully replace the other without the underlying image bleeding through. Drag the cutoff left or right, or click the divider to focus it and use the arrow keys for precise adjustment. Hold **Shift** while pressing an arrow key for larger steps.
 
-The wipe header shows only what is being compared. When video scopes are open, the scopes panel provides its own source selector and clearly labels the complete asset being analyzed. The zoom loupe and `Alt+←` / `Alt+→` rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. The pair control stays beside the compare buttons when it fits. When it does not, it moves to a row just under the header so Help, Settings, and the view buttons stay on screen.
+The wipe header shows only what is being compared. When video scopes are open, the scopes panel provides its own source selector and clearly labels the complete asset being analyzed. The zoom loupe and `Alt+←` / `Alt+→` rotation follow the visible side under the cursor; the loupe label and rotation toast identify the affected asset. If the pointer is outside the comparison plate, rotation asks you to point to a side first. The pair switch stays beside the compare buttons when it fits. When the window is too narrow for that row, the switch moves to a row just under the header so Help, Settings, and the view buttons stay on screen.
 
 | Shortcut | Action |
 |----------|--------|
-| **Q** | Toggle image wipe on/off |
+| **Q** | Toggle wipe on/off |
 | **Shift+Q** or **← →** | Cycle Ref–A, Ref–B, and A–B |
 | **Header pair control** | Select any comparison directly |
 | **Scopes source buttons** | Select which complete asset feeds the scopes |
 
-Wipe follows Stack zoom, pan, rotation, and resize. Up/down arrows do not change the comparison pair unless the focused divider is using them for position adjustment. Difference mode and wipe are mutually exclusive. The same image wipe compares videos in Stack. Both clips stay on the native video element, play in sync, and move together when you scrub. Use Playback: Sync, the default. Solo still plays only the selected clip, so the other side of the wipe holds.
+Wipe follows Stack zoom, pan, rotation, and resize. Up and down arrows do not change the comparison pair unless the focused divider is using them for position adjustment. Difference mode and wipe are mutually exclusive. An image wipe and two videos share this cutoff. Both clips stay native video elements under a CSS clip, not a canvas composite. They play together and scrub together. Use Playback: Sync, the default. Solo still plays only the selected clip, so the other side of the wipe holds.
 
 ---
 
@@ -339,7 +339,7 @@ Press **Y** with one or more images loaded to open Tile Check. Select any loaded
 
 Tile Check scores **Left ↔ Right**, **Top ↔ Bottom**, and the four-way **Corners** separately, then uses the weakest result as the overall rating. It compares color, transparency, and texture-direction changes at each wrap boundary with ordinary transitions inside the same image. Results are labeled **Seamless**, **Review**, or **Visible seam**; the numeric score is supporting information rather than a guarantee.
 
-The detector measures technical edge continuity. An image can pass while still revealing an obvious repeated object, shadow, or lighting pattern, so always inspect the repeated preview. Analysis uses the original source pixels—not black-and-white display filtering, zoom, or rotation—and files remain local. The preview type and Heatmap choice persist across sessions. Tile Check, Image Wipe, and Difference are mutually exclusive.
+The detector measures technical edge continuity. An image can pass while still revealing an obvious repeated object, shadow, or lighting pattern, so always inspect the repeated preview. Analysis uses the original source pixels—not black-and-white display filtering, zoom, or rotation—and files remain local. The preview type and Heatmap choice persist across sessions. Tile Check, Wipe, and Difference are mutually exclusive.
 
 ---
 
@@ -368,7 +368,7 @@ When loading assets with different orientations (e.g. landscape and portrait vid
 
 ## Keyboard Shortcuts Reference
 
-All hotkeys are customizable — press **H** to open the Hotkeys tab in Settings, then choose a key and press the new one. Press **H** again to close. If Settings is open on another tab, **H** switches to Hotkeys. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
+All hotkeys are customizable — press **H** to open the Hotkeys tab in Settings, then choose a key and press the new one. Press **H** again to close. If Settings is open on another tab, **H** switches to Hotkeys. A menu, text field, or color field keeps **H**. Custom bindings persist across sessions. Typing in a text field, choosing from a menu, editing a color, and moving a slider keep those keys. Space and Enter activate a focused button. After files finish loading, focus moves to playback so Space starts the comparison. Choosing Load yourself and pressing Space still opens files.
 
 ### Files
 | Key | Action |
@@ -420,7 +420,7 @@ All hotkeys are customizable — press **H** to open the Hotkeys tab in Settings
 | **P** | Cycle spectrogram color palette |
 | **D** | Toggle difference mode (Stack) |
 | **Shift+D** | Cycle diff pair |
-| **Q** | Toggle image wipe (Stack) |
+| **Q** | Toggle wipe (Stack) |
 | **Shift+Q** | Cycle wipe pair |
 | **B** | Toggle black & white |
 | **N** | Toggle no-video mode (audio focus) |
@@ -480,7 +480,7 @@ For recognized MP4 and WebM files, decoded analysis and scrub audio require one 
 
 Video duration, seeking and loop bounds follow the native media timeline, including picture after a short soundtrack ends. Opus replacement requires a uniquely identified Opus track and an Opus decode; titles and comments do not affect audio routing. WebM soundtracks play for the whole file, including recordings made in a browser. An unusually dense WebM soundtrack keeps the browser's own playback instead of a very large audio copy.
 
-Open **Settings** with the sliders icon in the header. The Info bar tab is selected. **Hotkeys** and **Colors** are the other tabs. Press **H** to jump to Hotkeys. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
+Open **Settings** with the sliders icon in the header. The Info bar tab is selected. **Hotkeys** and **Colors** are the other tabs. Press **H** to jump to Hotkeys, unless a menu, text field, or color field has focus. Select **Images**, **Video**, or **Audio** to edit that media profile. Changes preview immediately, apply to both Stack and Grid, and are saved in this browser. You can configure profiles before loading files; the preview then uses sample values. Storage failures show a warning that choices apply only for the current visit.
 
 Choose **Default** to keep the original display, **Minimal** for zoom (images) or duration (video/audio), **Visual Focus** for picture and timing fields, **Audio Essentials** for loudness and source audio information, or **All Available**. Editing a preset changes its label to **Custom**. **Reset profile** restores the selected media type's Default without changing the other profiles.
 
@@ -492,7 +492,7 @@ Select a field's name to set **Small**, **Standard**, or **Large** text, choose 
 
 Click **+ Spacer** to insert a gap after the selected row in the same section. Spacers can be repeated, moved between sections, hidden or removed; choose a width from **12–48 pixels**. Leading/trailing gaps disappear within each section, and consecutive gaps or gaps across unavailable groups collapse to the largest width. Narrow bars first compress gaps to 12 pixels, preserve fields from the far right, then use the remaining room for the left section. Remaining selected available fields appear in **More**, shown as **⋯** in compact Grid bars. Extremely narrow portrait pictures allow the bar to extend within its own cell so the slot controls and overflow stay reachable. Customized Stack information moves to its own header row when space is tight. Escape closes More and returns focus to its button; Escape from Settings returns focus to the sliders button when you opened it from there. The Colors tab sets the Ref, A, B, and C colors. Appearance and privacy stays its own header button.
 
-Slot labels keep their existing identity and hide/restore controls. Image wipe keeps its pair chooser, and managed host reviews keep their standard display. Profiles change presentation only; playback, listening and original audio analysis continue to use their existing settings.
+Slot labels keep their existing identity and hide/restore controls. Wipe keeps its pair chooser, and managed host reviews keep their standard display. Profiles change presentation only; playback, listening and original audio analysis continue to use their existing settings.
 
 Video timecode displays as SS:FF or M:SS:FF. Audio timecode displays as S.cc or M:SS.cc (centiseconds). Press **T** to cycle timecode formats; press **C** to copy; **Shift+C** to open the format chooser.
 
@@ -506,7 +506,7 @@ WarpDiff is a Progressive Web App — install it from Chrome, Edge, or Safari fo
 
 ## Welcome & Changelog
 
-On your first visit, a **Getting Started** popup appears with an overview of the main features and takes the keyboard. Tab and Shift+Tab stay inside that window, and inside **What's New**, until you close it. On subsequent visits after an update, **What's New** shows what changed in the latest version. Both dismiss automatically when you load files, or you can close them with the ✕ button, Escape key, or clicking the backdrop. Focus returns to the control that opened the window.
+On your first visit, a **Getting Started** popup appears with an overview of the main features and takes the keyboard. Tab and Shift+Tab stay inside that window, and inside **What's New**, until you close it. **What's New** opens when there is an announcement you have not seen. Quiet maintenance updates keep the previous announcement, so they do not open it again. Arrow keys, Page Up, Page Down, Home, and End scroll the list. Both dismiss automatically when you load files, or you can close them with the ✕ button, Escape key, or clicking the backdrop. Focus returns to the control that opened the window.
 
 Press **?** or click the **Help** button in the header to reopen the Getting Started popup at any time.
 
