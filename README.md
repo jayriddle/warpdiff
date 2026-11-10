@@ -22,7 +22,7 @@ Preparation is offered without opening a dialog during loading. The Preparation 
 
 ## Settings
 
-The sliders icon in the header opens **Settings**. It has three tabs: **Info bar**, **Hotkeys**, and **Colors**. Press `H` to open the Hotkeys tab. Press `H` again to close Settings. If Settings is already open on another tab, `H` switches to Hotkeys. Appearance and privacy stays its own header button.
+The sliders icon in the header opens **Settings**. It has three tabs: **Info bar**, **Hotkeys**, and **Colors**. Press `H` to open the Hotkeys tab. Press `H` again to close Settings. If Settings is already open on another tab, `H` switches to Hotkeys. A menu, text field, or color field keeps `H`. Appearance and privacy stays its own header button.
 
 On the Info bar tab, choose visible information, arrange elements in **Left aligned** and **Right aligned** sections with drag handles, and adjust their color, text size and bold styling. Presets keep Zoom at the far right; drag any field or spacer within or between sections to suit your layout. Mouse, touch and keyboard movement are supported. Start with **Default**, **Minimal**, **Visual Focus**, **Audio Essentials**, or **All Available**. Audio information can be hidden together or selected field by field. Add adjustable **spacers** to group related fields. The Colors tab changes the Ref, A, B, and C label colors. Those choices stay in this browser.
 
@@ -123,7 +123,7 @@ Ordinary files use **Load** or drag and drop; no package is needed. For files fr
 
 **Analysis**
 - `Y` seamless Tile Check — inspect any loaded image in a repeated 3×3 or centered-seam Offset preview. Independent Left↔Right, Top↔Bottom, and corner ratings compare boundary color/gradient continuity with the image's normal texture; an optional heatmap pinpoints suspicious seam segments
-- `Q` image wipe — first asset left and second asset right, matching Grid order; click the plate to snap the cutoff or select any loaded pair in the header control beside the compare buttons. When that control does not fit, it moves under the header. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector. The same wipe compares videos, still on the native video element
+- `Q` wipe — an image wipe or two videos, first asset left and second asset right, matching Grid order; click the plate to snap the cutoff or select any loaded pair in the header control beside the compare buttons. Shift+Q and the left and right arrows cycle Ref–A, Ref–B, and A–B. When that control does not fit, it moves to a row under the header. The loupe and rotation follow the side under the cursor, while the scopes panel provides its own source selector. Both videos stay native video elements, play together, and scrub together under a CSS clip
 - `D` difference mode — pixel difference between any loaded pair in Stack mode; arrow keys or `Shift+D` cycle pairs. During playback the composite only updates when both videos are on the same frame, so a transient offset can't render as false motion ghosting
 - `V` video scopes — histogram (RGB / RGB+luma / CDF), waveform (luma / RGB parade / overlay), and vectorscope; click each scope to cycle modes. The scopes panel always identifies its current source
 - `W` audio waveform with dB color coding + spectrogram (Inferno palette by default); the shared **Fit / Ref** control switches between per-asset detail and a fixed dBFS reference scale, while encoded leading/trailing audio gaps remain aligned to the video timeline
@@ -156,7 +156,7 @@ Manually loaded files auto-sort oldest → newest by timestamp; host loads retai
 
 ### Architecture
 
-- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, image wipe, transport, the info bar editor, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
+- **Mostly one file, no build step** — `index.html` holds all the HTML/CSS and the bulk of the JS, with cohesive subsystems extracted into classic `<script>` files under `js/`, including audio analysis, scopes, hotkeys, media demuxing/decoding, frame-accurate scrubbing, timecode, wipe, transport, the info bar editor, and the landing animation. These are *not* ES modules — they share one global scope with the inline script, which is the only viable split given the no-build constraint. No framework, no runtime dependencies.
 - **PWA** — `manifest.json` + `sw.js` provide install + offline support. Published pages pin runtime files to their commit-specific directory. Offline installation checks the entire bundle before activation; an open comparison keeps its original files through an update. `CACHE_NAME` and `APP_VERSION` remain synchronized.
 - **Memory-aware rendering** — scopes and audio viz use cached typed-array buffers and `putImageData` to keep the hot path off the GC; the spectrogram bakes a 256-entry color LUT and scales contrast per clip.
 - **Two test layers** — a Playwright suite (real headless Chromium) covering transport, difference and wipe modes, pan/zoom, hotkey reassignment, layouts, and audio visualization; plus a dependency-free Node harness (`npm run test:ownership`) that asserts single-owner invariants, documentation/build/version hygiene, and pure-function logic without a browser.
@@ -212,7 +212,7 @@ See [release safeguards](docs/release-safeguards.md) for commands and coverage l
 
 ## Status
 
-Actively maintained. Each release has a brief "What's New" summary. See the [archived release notes](docs/release-notes-archive.md) and commit history for details.
+Actively maintained. What's New keeps one summary for the last announced release. Quiet maintenance updates keep that summary. See the [archived release notes](docs/release-notes-archive.md) and commit history for details.
 
 ## Bugs & Feature Requests
 

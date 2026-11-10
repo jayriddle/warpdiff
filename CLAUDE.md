@@ -148,19 +148,21 @@ Chrome's `<video>` element produces incorrect A/V timing for Opus audio tracks. 
 - Use `_prefixed` names for module-level private state (e.g., `_audioSlotVizData`, `_opusSyncSlots`). (Note: `_frameStepping` does not exist; the synchronization-suppression owner is `_bulkSyncActive`.)
 - Debounced layout functions use the pattern `functionNameDebounced` wrapping `functionName`.
 - **Single-owner discipline**: each piece of stateful behavior should have ONE owner (one function that writes it; everyone else routes through it). The ownership harness (`tests/ownership.test.mjs`) enforces this for the audited cases — when adding/refactoring an owner, update the corresponding guard.
+- Focus outlines are not drawn. Keyboard behavior is unchanged: shortcuts, Escape, Tab, and arrow-key scrolling still work. Text fields keep their own border. Drop-target dashes are not a focus ring.
+- Settings has Info bar, Hotkeys, and Colors tabs. H opens the Hotkeys tab, switches to it from another tab, and closes it when it is already selected. A menu, text field, or color field keeps H.
 
 ### Release checklist (every version bump)
 
 Do **all** of these on every version bump — they are one atomic unit, not optional extras:
 
 1. **Bump `APP_VERSION` in `index.html` and `CACHE_NAME` in `sw.js` together** (guarded by the ownership harness — they must match). The service worker uses `CACHE_NAME` to invalidate the cache for installed PWA users.
-2. **Add a "What's New" entry inside `#changelogPopup`** (search for `<h3>v3.x.y</h3>`). The popup auto-shows on version change.
+2. **Keep one What's New summary inside `#changelogPopup`.** `_CHANGELOG_VERSION` is the last release worth announcing. `_shouldShowChangelog` compares it with `lastSeenVersion`. Quiet maintenance keeps the previous summary and does not show the popup again to someone who already saw that announcement. The list scrolls with the arrow keys, Page Up, Page Down, Home, and End. Do not add a new `<h3>v3.x.y</h3>` on every version bump.
 3. **Update the docs for any user-facing change**, and always update `README.md`'s **`**Current version:**`** line to the new number (now guarded by the ownership harness — it must equal `APP_VERSION`). Sweep `README.md` / `FEATURES.md` / `MANUAL.md` for any behavior the release changed (a new feature, a changed default, a new/rebound hotkey) and keep them accurate — stale docs are a release bug.
 4. **After pushing to `main`, verify GitHub Pages actually published it.** The Pages *deploy* step (`actions/deploy-pages`) intermittently fails with `Deployment failed, try again later` even when the Jekyll *build* succeeds — a silent failure that leaves the live site on the previous version. Check the latest `pages build and deployment` run for the pushed SHA; if the deploy job failed, **re-run failed jobs** (Actions tab, or `rerun_failed_jobs`) and confirm the live site serves the new `APP_VERSION` before calling the release done.
 
 ### Documentation ownership
 
-There is no named human `CODEOWNERS` assignment. `README.md` owns the concise product/release overview, `FEATURES.md` the capability inventory, `MANUAL.md` the detailed workflow and keyboard reference, and `index.html` the in-app Manual, Getting Started panel, and What's New history. Update every affected surface in the same user-facing change; the ownership harness guards version alignment, retired terminology, core feature coverage, and known shortcut/documentation drift.
+There is no named human `CODEOWNERS` assignment. `README.md` owns the concise product/release overview, `FEATURES.md` the capability inventory, `MANUAL.md` the detailed workflow and keyboard reference, and `index.html` the in-app Manual, Getting Started panel, and concise current What's New summary. Update every affected surface in the same user-facing change; the ownership harness guards version alignment, retired terminology, core feature coverage, and known shortcut/documentation drift.
 
 ## Testing
 

@@ -1,9 +1,9 @@
 # WarpDiff Memory Management
 
 ## Architecture & Loading
-- **Single-file app**: All ~7100 lines of HTML/CSS/JS in `index.html` — no bundling, minimal parse overhead.
+- **App files**: `index.html` is about 15,000 lines and still holds the HTML, CSS, and most of the JS. The page also loads classic scripts from `js/` (not ES modules), including `wipe.js`, `scrub-video.js`, `transport.js`, and `audio-analysis.js`. They share one global scope with the inline script. No bundling.
 - **Asset loading**: Use `URL.createObjectURL(file)` for images/videos (not `FileReader` or base64) to avoid heap inflation and unnecessary memory copies. Revoke URLs when assets are unloaded.
-- **PWA/Service Worker**: `sw.js` uses network-first caching with `CACHE_NAME` synced to `APP_VERSION`. Offline-capable without excessive storage bloat.
+- **PWA/Service Worker**: `CACHE_NAME` in `sw.js` stays synced to `APP_VERSION`. A published install pins each runtime file to that release's cache. The document revalidates online and falls back to the cached copy; unstaged local development revalidates scripts and then updates the cache. Offline use starts after a complete bundle is stored.
 
 ## Audio Memory Optimizations
 
@@ -12,11 +12,11 @@
 
 - **Background analysis**: `js/audio-analysis.js` serializes video and audio-only jobs. Only the active job receives an additional original-sized PCM copy in `js/audio-analysis-worker.js`, sent through acknowledged slices of at most 1 MiB so staging cannot build an unbounded message queue. The source is never transferred or detached. The worker imports the existing `audio-viz.js` algorithms, transfers the finished typed-array aggregates back, and terminates after every job to release its PCM and FFT/K-weighting scratch. This adds transient PCM memory compared with foreground analysis; it is outside the scrub-preview budgets. Pending jobs retain their already-decoded source buffers but have no worker copy. Clearing media cancels the active worker and drops the queue; decode-generation fences prevent stale publication. If workers are unavailable, the original foreground calculation remains the compatibility path.
 
-- **Native audio routing**: `js/audio-routing.js` keeps one `MediaElementAudioSourceNode` and `GainNode` per media element for short source-switch fades. Inactive native media keeps its decoder running with zero output gain so source switches do not reset its playback clock. Routing begins only after decode identifies a supported channel count; browser-native mixing stays active beforehand. `_connectAudioOutput()` delegates to the shared listening matrix without additional PCM copies. Scrub/replacement sources disconnect their matrix nodes when they end; native matrices are released on clear or format change. No additional decoded buffers are retained. `_clearNativeAudioRoutes()` removes resume listeners, disconnects nodes, and clears the map before the shared context closes.
+- **Native audio routing**: `js/audio-routing.js` waits until decode reports a supported channel count; browser mixing stays in charge before that. Ordinary mono and stereo video then stay on the element's own volume (`_nativeDirectOutputs`), so picture and sound share one output. Verified surround, audio-only, Opus replacement, and the slow-playback experiment use one `MediaElementAudioSourceNode` and `GainNode` per element. Inactive graph-routed media keeps its decoder running with zero output gain. `_connectAudioOutput()` delegates to the shared listening matrix without additional PCM copies. Scrub and replacement sources disconnect their matrix nodes when they end. `_clearNativeAudioRoutes()` removes resume listeners, direct-volume timers, and graph nodes before the shared context closes. No additional decoded buffers are retained.
 - **Scrub audio**: Original analysis runs before preparing mono/stereo listening PCM, plus raw center for verified surround, at the AudioContext rate. `_scrubPreviewPlan` limits each video copy to 64 MiB; large clips get a filtered lower-rate short-preview copy, or an explained unavailable state if no 8 kHz-or-better copy fits. Chrome Opus retains its existing original buffer for replacement playback. The no-video view shares original analysis aggregates, not graphs recomputed from the listening copy.
 - **Scrub cadence**: Pointer activity and displayed-frame position have separate owners. The 50 ms clock renews 90 ms grains during slow motion even at one held frame, using the existing buffer and output matrix; no extra PCM is stored. `stopScrubSnippet()` clears gesture/target state, and each ended source disconnects its output nodes.
 - **AudioBuffer management**: `audioFileBuffers[slot]` deleted after decode. Decoded `AudioBuffer` lives in `_audioSlotVizData[slot].audioBuffer`; freed when `_audioSlotVizData = {}` in `clearAllMedia()`.
-- **AudioContext lifecycle**: Lazy-created via `getAudioContext()`. Closed and nulled in `clearAllMedia()` — `audioContext.close().catch(() => {}); audioContext = null` — so browser fully reclaims audio resources between loads. Fresh context created on next `getAudioContext()` call.
+- **AudioContext lifecycle**: Lazy-created via `getAudioContext()`. `clearAllMedia()` drops the app's reference immediately, resumes a suspended context so the last render can finish, and closes that captured context only after scrub and slow-playback retirement. The next `getAudioContext()` call creates a fresh context.
 - **Stale decode guard**: `_audioDecodeGen[slot]` counter incremented before each `decodeAudioData` call; captured in closure; checked before any state write in `.then()`. Prevents a slow decode completing after reload from writing `_audioSlotVizData` against a new batch. Reset to `{}` in `clearAllMedia()`.
 - **BPM & viz**: Uses typed arrays (`Float32Array`) for FFT, waveform buckets, spectral flux. Spectrogram palettes precomputed once.
 
@@ -39,6 +39,7 @@ This is an encoded-input accounting limit, not total memory: blob backing,
 stream chunks, demuxed sample tables, decoded-frame caches, audio decoding and
 analysis, native video buffers and garbage-collection delays remain additional.
 See `docs/media-input-hardening-2026-10-15/README.md` for verification.
+
 - **Cached buffers**: Critical for performance — `_wfmBuf`, `_wfmHits*` (Uint16Array), `_vsHit*` (Float32Array/Uint16Array) reused across *all* frames.
   - Reallocated *only* on canvas resize (`_wfmCachedW/H`, `_vsCachedSize`).
   - Comment: "Cached buffers for waveform monitor — reused across frames to avoid per-frame GC pressure."
@@ -47,11 +48,15 @@ See `docs/media-input-hardening-2026-10-15/README.md` for verification.
 - **Vectorscope**: Hit accumulation in typed arrays, graticule/skin-tone overlays drawn on top.
 - Offscreen canvas for frame sampling (`sampleVideoFrame()`).
 
+## Decoded scrub-frame cache
+
+`js/scrub-video.js` sizes the decoded-frame cache to the file's longest GOP, from a 96 MB floor to a 192 MB ceiling. As of 3.19.30, a frame at or under a 1280×720 area stays at full source size. A larger frame stays full size when its GOP fits in the 192 MB ceiling; otherwise it scales down just enough to fit, and never softer than a 1280×720 preview or the on-screen pixel size (CSS pixels × devicePixelRatio). A cached bitmap smaller than the current display is a miss. High 4:4:4 AVC can keep full-resolution I420 `VideoFrame`s. Opaque, resized, and other-codec output uses `ImageBitmap`s. Playback suspends the decoder and keeps the cache; clearing media closes it.
+
 ## Layout & Rendering
-- **Stack/Zoom modes**: `_perAssetFits[]`, `_stackZoomMode` — minimal state; `applyZoom()` computes fit/match scales without heavy objects.
+- **Stack/Zoom modes**: `_perAssetFits[]`, `_stackZoomMode` — minimal state; `applyZoom()` computes Fit and Balance scales without heavy objects.
 - **Grid layout**: `pickBestGridLayout()` computes equal-area using square roots and mins — pure math, no persistent large structures.
-- **Difference mode**: Computed on-the-fly per frame; no stored difference buffers.
-- **Loupe**: Canvas-based, follows cursor, uses native pixels at current zoom.
+- **Difference mode**: Drawn from the current frame. The offscreen compositing canvas, and Safari's reusable video frame, are released when the comparison is cleared.
+- **Loupe**: Follows the cursor at the current zoom. Video uses a CSS-positioned clone `<video>` and hides the canvas. Images use a display-p3 canvas.
 
 ## Magnifier Clone Video Elements
 - Clone `<video>` elements are created inside each loupe (`_magState[id].clone`) so hardware compositor path is used — `drawImage(video, canvas)` produces incorrect colours on macOS P3 displays.
@@ -59,7 +64,7 @@ See `docs/media-input-hardening-2026-10-15/README.md` for verification.
 - `clearAllMedia()` iterates `_magState`, pauses each clone, clears its `src`, removes it from the DOM, then wipes `_magState` entries. Prevents clone elements and blob URL refs leaking across file loads.
 
 ## General Patterns
-- **_prefixed private state**: All module globals prefixed (e.g. `_frameStepping`, `_audioSlotVizData`) for clarity.
+- **_prefixed private state**: Module globals use a `_` prefix (for example `_audioSlotVizData`). `_frameStepping` does not exist; the synchronization-suppression owner is `_bulkSyncActive`.
 - **Typed arrays everywhere**: Avoid JS numbers/objects for bulk data (bins, hits, audio samples, image data).
 - **GC pressure avoidance**: Reuse objects, debounce layout/resize handlers, cache where resize is infrequent.
 - **No build dependencies**: Zero npm packages in the app — keeps memory footprint tiny. `node_modules/` is dev-only (Playwright).
@@ -71,9 +76,9 @@ See `docs/media-input-hardening-2026-10-15/README.md` for verification.
 - `APP_VERSION` bumps must sync with sw.js `CACHE_NAME`.
 
 ## Review of CLAUDE.md
-- Matches all key technical patterns (midpoint seeking, epsilon timecode, stack zoom Fit/Match, equal-area grid, etc.).
+- Matches the current patterns that this file depends on (midpoint seeking, epsilon timecode, Stack zoom Fit/Balance, equal-area grid).
 - Naming conventions followed: Stack/Grid, GT/A/B slots, internal `tripartite*`.
-- Coding style: vanilla JS, edit `index.html` preferentially, `_prefixed` vars, debounced functions.
+- Coding style: vanilla JS, `_prefixed` vars, debounced functions. Extend an existing `js/` module when the code belongs there; otherwise edit `index.html`.
 
 This file serves as living memory for memory-sensitive implementations. Update when adding new features that allocate buffers, decode media, or render visuals.
 
