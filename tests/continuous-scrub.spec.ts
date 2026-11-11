@@ -111,8 +111,11 @@ test('continuous scrub is standard, retains center dialogue, and releases its st
   await page.evaluate(() => (window as any).eval('toggleMute()'));
   await expect.poll(() => page.evaluate(() => (window as any).eval('_continuousScrubEngine.state.active'))).toBe(false);
   await page.evaluate(() => (window as any).eval('toggleMute()'));
-  for (let i = 21; i <= 35; i++) {
-    await page.mouse.move(x + box.width * (i * 0.003) / duration, y);
+  // Preview velocity follows presented frames inside a 140ms window. A one-frame
+  // nudge settles before this assertion on current Chrome, so the drag crosses
+  // more than one 24fps frame during that window.
+  for (let i = 1; i <= 15; i++) {
+    await page.mouse.move(x + box.width * (0.06 + i * 0.012) / duration, y);
     await page.waitForTimeout(20);
   }
   expect(await page.evaluate(() => (window as any).eval('_continuousScrubEngine.state.active'))).toBe(true);
