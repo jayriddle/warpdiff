@@ -151,11 +151,13 @@ test('an unrelated preparation issue survives an audio-read retry', async ({ pag
     File.prototype.arrayBuffer = (window as any).__originalArrayBuffer;
   });
   await page.keyboard.press('w');
+  // waveformData is published by the decode owner after analysis. That work
+  // uses the same 30s native budget as js/audio-decode.js, not a 5s poll.
   await expect.poll(() => page.evaluate(() => {
     const batch = (window as any).eval('_localPreparationBatch');
     const slot = batch.files.find((item: { file: File }) => item.file.name === 'landscape_a.mp4').slot;
     return !!(window as any).eval('waveformData')[slot];
-  })).toBe(true);
+  }), {timeout: 30000}).toBe(true);
   await expect(page.locator('#audioTrackAlert')).toBeHidden();
   await expect(page.locator('#preparationBtn')).toHaveText('Preparation needed');
   await page.locator('#preparationBtn').click();
