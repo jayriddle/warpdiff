@@ -2869,16 +2869,34 @@ test.describe('Image Wipe', () => {
         && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.2;
     }, undefined, { timeout: 8000 });
     await page.evaluate(() => (window as any).pauseAllMedia());
-    await page.waitForFunction(() =>
-      Array.from(document.querySelectorAll('.asset-layer video')).every((v: any) => v.paused));
-    const paused = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime));
+    // Pause snap and the following step share _frameStepSeeks. The queue
+    // retires only after seeked and a presented frame (150ms fallback).
+    const frameStepSettled = () => {
+      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const pending = (window as any).eval('typeof _frameStepSeeks !== "undefined" && _frameStepSeeks.size > 0');
+      return videos.length === 2 && videos.every(video => video.paused && !video.seeking && video.readyState >= 2) && !pending;
+    };
+    await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
+    const framesOf = () => page.evaluate(() => {
+      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const rates = (window as any).eval('videoFrameRates');
+      return videos.map(video => {
+        const fps = rates[video.src] || 30;
+        return { time: video.currentTime, fps, frame: Math.floor(video.currentTime * fps + 0.01) };
+      });
+    });
+    const before = await framesOf();
     await page.evaluate(() => (window as any).stepFrame(1));
-    await page.waitForFunction((before: number[]) => {
-      const times = Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime);
-      return times.length === 2 && times.every((t, i) => t > before[i] + 0.01)
-        && Math.abs(times[0] - times[1]) < 0.15;
-    }, paused, { timeout: 8000 });
+    await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
+    const after = await framesOf();
+    expect(before).toHaveLength(2);
+    expect(after).toHaveLength(2);
+    for (let i = 0; i < 2; i++) {
+      expect(after[i].fps).toBe(before[i].fps);
+      expect(after[i].frame).toBe(before[i].frame + 1);
+    }
+    const fps = Math.min(after[0].fps, after[1].fps);
+    expect(Math.abs(after[0].time - after[1].time)).toBeLessThanOrEqual(0.5 / fps);
 
     await page.keyboard.press('g');
     await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
