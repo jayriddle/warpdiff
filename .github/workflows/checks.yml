@@ -56,12 +56,62 @@ jobs:
           cache: npm
       - name: Install fixture tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends zsh
+          # Retry only when apt cannot resolve a host. Other install failures
+          # stay immediate. Four tries, then 5s, 10s, and 20s.
+          attempt=1
+          max=4
+          delay=5
+          while true; do
+            log=$(mktemp)
+            if sudo apt-get update 2>&1 | tee "$log" && sudo apt-get install -y --no-install-recommends zsh 2>&1 | tee -a "$log"; then
+              rm -f "$log"
+              break
+            fi
+            if ! grep -Eq 'Temporary failure resolving|Could not resolve|Name or service not known|Temporary failure in name resolution' "$log"; then
+              echo "apt failed for a reason other than name resolution"
+              rm -f "$log"
+              exit 1
+            fi
+            rm -f "$log"
+            if [ "$attempt" -ge "$max" ]; then
+              echo "apt could not resolve package hosts after ${max} attempts"
+              exit 1
+            fi
+            echo "apt could not resolve a package host (attempt ${attempt}/${max}); retrying in ${delay}s"
+            sleep "$delay"
+            attempt=$((attempt + 1))
+            delay=$((delay * 2))
+          done
           bash scripts/ci-install-ffmpeg.sh
       - run: npm ci
       - name: Install Chrome for native media codecs
-        run: npx playwright install chrome
+        run: |
+          # Current Chrome stable, not a pinned build. Retry only network
+          # failures. Four tries, then 5s, 10s, and 20s.
+          attempt=1
+          max=4
+          delay=5
+          while true; do
+            log=$(mktemp)
+            if npx playwright install chrome 2>&1 | tee "$log"; then
+              rm -f "$log"
+              break
+            fi
+            if ! grep -Eq 'ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|getaddrinfo|Temporary failure resolving|socket hang up|HTTP/2|INTERNAL_ERROR|curl: \(|Failed to download|net::ERR_' "$log"; then
+              echo "Chrome install failed for a reason other than the network"
+              rm -f "$log"
+              exit 1
+            fi
+            rm -f "$log"
+            if [ "$attempt" -ge "$max" ]; then
+              echo "Chrome install hit a network error after ${max} attempts"
+              exit 1
+            fi
+            echo "Chrome install hit a network error (attempt ${attempt}/${max}); retrying in ${delay}s"
+            sleep "$delay"
+            attempt=$((attempt + 1))
+            delay=$((delay * 2))
+          done
       - name: Verify Chrome launches
         run: |
           node --input-type=module -e "import { chromium } from '@playwright/test'; const browser = await chromium.launch({ channel: 'chrome', headless: true }); console.log(browser.version()); await browser.close();"

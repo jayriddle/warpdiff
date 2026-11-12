@@ -2869,16 +2869,45 @@ test.describe('Image Wipe', () => {
         && Math.abs(vids[0].currentTime - vids[1].currentTime) < 0.2;
     }, undefined, { timeout: 8000 });
     await page.evaluate(() => (window as any).pauseAllMedia());
-    await page.waitForFunction(() =>
-      Array.from(document.querySelectorAll('.asset-layer video')).every((v: any) => v.paused));
-    const paused = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime));
+    // Pause snap and the following step share _frameStepSeeks. The queue
+    // retires only after seeked and a presented frame (150ms fallback).
+    const frameStepSettled = () => {
+      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+      const pending = (window as any).eval('typeof _frameStepSeeks !== "undefined" && _frameStepSeeks.size > 0');
+      return videos.length === 2 && videos.every(video => video.paused && !video.seeking && video.readyState >= 2) && !pending;
+    };
+    await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
+    const readStep = () => page.evaluate(() => {
+      const videos = (window as any).eval('getTransportVideos()') as HTMLVideoElement[];
+      const rates = (window as any).eval('videoFrameRates');
+      const cursor = (window as any).eval('_frameStepCursor');
+      const ref = (window as any).eval('_syncReferenceVideo')(videos) as HTMLVideoElement | null;
+      return {
+        refIndex: ref ? videos.indexOf(ref) : -1,
+        targetFrame: cursor ? cursor.frame as number : null,
+        clips: videos.map(video => {
+          const fps = rates[video.src] || 30;
+          return { time: video.currentTime, fps, frame: Math.floor(video.currentTime * fps + 0.01) };
+        }),
+      };
+    });
+    const before = await readStep();
     await page.evaluate(() => (window as any).stepFrame(1));
-    await page.waitForFunction((before: number[]) => {
-      const times = Array.from(document.querySelectorAll('.asset-layer video')).map((v: any) => v.currentTime);
-      return times.length === 2 && times.every((t, i) => t > before[i] + 0.01)
-        && Math.abs(times[0] - times[1]) < 0.15;
-    }, paused, { timeout: 8000 });
+    await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
+    const after = await readStep();
+    expect(before.clips).toHaveLength(2);
+    expect(after.clips).toHaveLength(2);
+    expect(before.refIndex).toBeGreaterThanOrEqual(0);
+    expect(after.refIndex).toBe(before.refIndex);
+    // A follower already within half a frame is left where it is, so the two
+    // clips can sit on adjacent frame numbers before the step. stepFrame then
+    // moves the reference by one frame and puts every clip on that shared
+    // frame. Require that landing, not that each clip's own number increased.
+    const nextFrame = before.clips[before.refIndex].frame + 1;
+    expect(after.targetFrame).toBe(nextFrame);
+    for (const clip of after.clips) expect(clip.frame).toBe(nextFrame);
+    const fps = Math.min(...after.clips.map(clip => clip.fps));
+    expect(Math.abs(after.clips[0].time - after.clips[1].time)).toBeLessThanOrEqual(0.5 / fps);
 
     await page.keyboard.press('g');
     await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
@@ -4584,14 +4613,28 @@ test('graph fallback arrow-key video switches keep native renderers running and 
     const ctx = gains[0].context;
     const url = URL.createObjectURL(new Blob([`
       class SwitchProbe extends AudioWorkletProcessor {
-        constructor() { super(); this.previous = null; this.largest = 0; }
+        constructor() {
+          super();
+          this.generation = 0;
+          this.previous = null;
+          this.largest = 0;
+          this.peak = 0;
+          this.port.onmessage = (event) => {
+            if (event.data !== 'next') return;
+            this.generation += 1;
+            this.previous = null;
+            this.largest = 0;
+            this.peak = 0;
+          };
+        }
         process(inputs) {
-          const samples = inputs[0][0];
+          const samples = inputs[0] && inputs[0][0];
           if (samples) for (const value of samples) {
+            this.peak = Math.max(this.peak, Math.abs(value));
             if (this.previous !== null) this.largest = Math.max(this.largest, Math.abs(value - this.previous));
             this.previous = value;
           }
-          this.port.postMessage(this.largest);
+          this.port.postMessage({ generation: this.generation, largest: this.largest, peak: this.peak });
           return true;
         }
       }
@@ -4604,8 +4647,16 @@ test('graph fallback arrow-key video switches keep native renderers running and 
     const probe = new AudioWorkletNode(ctx, 'switch-probe');
     gains.forEach(gain => gain.connect(probe));
     probe.connect(ctx.destination); // processor outputs silence; analysis stays active
-    let largest = 0;
-    probe.port.onmessage = e => { largest = e.data; };
+    let steady = { generation: 0, largest: 0, peak: 0 };
+    let during = { generation: 1, largest: 0, peak: 0 };
+    probe.port.onmessage = e => {
+      if (e.data.generation === 0) steady = e.data;
+      else during = e.data;
+    };
+    const heard = performance.now() + 2000;
+    while (performance.now() < heard && !(steady.peak > 0.00001)) await new Promise(r => setTimeout(r, 20));
+    await new Promise(r => setTimeout(r, 150));
+    probe.port.postMessage('next');
     const nativeMutes: boolean[] = [];
     const selections: number[] = [];
     for (let i = 0; i < 6; i++) {
@@ -4617,14 +4668,17 @@ test('graph fallback arrow-key video switches keep native renderers running and 
     gains.forEach(gain => gain.disconnect(probe));
     probe.disconnect();
     app.pauseAllMedia();
-    return { largest, nativeMutes, selections };
+    return { steady, during, nativeMutes, selections };
   });
   expect(new Set(result.selections).size).toBe(2);
   expect(result.nativeMutes.every(muted => !muted)).toBe(true);
-  // The fixture is a low-amplitude sine, so large single-sample steps expose
-  // a renderer reset rather than ordinary content or a short linear fade.
-  expect(result.largest).toBeLessThan(0.02);
-  expect(result.largest).toBeGreaterThan(0.00001); // The probe actually received audio.
+  // The probe has to hear this clip before any switch, and that stretch has
+  // to be continuous. A reset or a dropout jumps by about the steady peak;
+  // the sine itself and the 15ms crossfade stay below it.
+  expect(result.steady.peak).toBeGreaterThan(0.00001);
+  expect(result.steady.largest).toBeLessThan(result.steady.peak);
+  expect(result.during.largest).toBeGreaterThan(0.00001);
+  expect(result.during.largest).toBeLessThan(result.steady.peak);
 });
 
 for (const mode of ['native', 'sync', 'full']) {

@@ -127,15 +127,47 @@ for(const [file,channels] of [['dialogue_51_opus.mp4',6],['dialogue_71_opus.mp4'
 for(const sampleRate of [44100,48000]) test(`dialogue short previews use the same center mix at ${sampleRate} Hz`,async({page})=>{
   await useAudioContextRate(page,sampleRate);
   await load(page);
-  const sample=async(mode:string)=>{
-    await page.evaluate(mode=> (window as any).eval(`(async()=>{
-      setAudioListening({mode:'${mode}',centerDb:0});const ctx=getAudioContext();await ctx.resume();
-      playScrubSnippet(1);const a=ctx.createAnalyser();a.fftSize=1024;_scrubGain.connect(a);window.__dialogueAnalyser=a;
-    })()`),mode);
+  const sample=async(mode:string)=>page.evaluate(async(mode:string)=>{
+    const app=window as any;
+    app.setAudioListening({mode,centerDb:0});
+    const ctx=app.getAudioContext();
+    await ctx.resume();
+    app.playScrubSnippet(1);
+    const analyser=ctx.createAnalyser();
+    analyser.fftSize=1024;
+    app.eval('_scrubGain').connect(analyser);
+    // The grain fades in for 10ms and the analyser holds one window of
+    // history. Read that window only once it sits in the steady part of
+    // this grain, on the audio clock, before the fade-out.
+    const deadline=performance.now()+5000;
+    let elapsed=0,fade=0,len=0,windowSeconds=0,lag=0;
+    while(performance.now()<deadline){
+      elapsed=ctx.currentTime-app.eval('_scrubSourceStartCtx');
+      fade=app.eval('_scrubSourceFadeLen');
+      len=app.eval('_scrubSourceSnippetLen');
+      windowSeconds=analyser.fftSize/ctx.sampleRate;
+      lag=128/ctx.sampleRate;
+      if(elapsed>=fade+windowSeconds+lag && elapsed<len-fade) break;
+      if(elapsed>=len) break;
+      await new Promise(resolve=>setTimeout(resolve,5));
+    }
+    if(!(elapsed>=fade+windowSeconds+lag && elapsed<len-fade))
+      throw new Error('Scrub grain was not sounding in its steady window');
+    const data=new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(data);
     // At 44.1kHz the tones do not occupy whole cycles in this window. Hann
     // weighting prevents center-tone leakage from looking like front audio.
-    await audioWait(page,.035);return bands(page,true);
-  };
+    const amplitude=(hz:number)=>{
+      let real=0,imag=0,weightSum=0;
+      for(let i=0;i<data.length;i++){
+        const angle=2*Math.PI*hz*i/analyser.context.sampleRate;
+        const weight=.5-.5*Math.cos(2*Math.PI*i/(data.length-1));
+        real+=data[i]*weight*Math.cos(angle);imag+=data[i]*weight*Math.sin(angle);weightSum+=weight;
+      }
+      return 2*Math.hypot(real,imag)/weightSum;
+    };
+    return {center:amplitude(1500),front:amplitude(375),surround:amplitude(3000)};
+  },mode);
   const full=await sample('full'),center=await sample('center');
   expect(full.center).toBeGreaterThan(.02);expect(full.front).toBeGreaterThan(.006);
   expect(center.center).toBeGreaterThan(.02);expect(center.front/center.center).toBeLessThan(.01);

@@ -187,7 +187,10 @@ test('native codec limits retain original surround metadata and give a preparati
   await page.goto('/');
   await page.locator('#multiFileInput').setInputFiles(path.join(__dirname, 'fixtures/dialogue_71.mp4'));
   await expect(page.locator('#layerEditA .asset-audio-format')).toHaveText('FLAC · 7.1 · 48 kHz');
-  await expect.poll(() => page.evaluate(() => (window as any).eval('!!_videoAudioBuffers.editA || !!_ffmpegCommands.editA'))).toBe(true);
+  // The format line is metadata. The decoded buffer or the preparation
+  // command is published when decode finishes. The app's own native budget
+  // is 30s (js/audio-decode.js); 1s only starts the WebCodecs fallback.
+  await expect.poll(() => page.evaluate(() => (window as any).eval('!!_videoAudioBuffers.editA || !!_ffmpegCommands.editA')), {timeout: 30000}).toBe(true);
   const state = await page.evaluate(() => (window as any).eval('({name:mediaData.editA.name, decoded:!!_videoAudioBuffers.editA, preparation:!!_ffmpegCommands.editA})'));
   expect(state.name).toBe('dialogue_71.mp4');
   if (state.preparation) {
