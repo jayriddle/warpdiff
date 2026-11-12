@@ -2877,26 +2877,37 @@ test.describe('Image Wipe', () => {
       return videos.length === 2 && videos.every(video => video.paused && !video.seeking && video.readyState >= 2) && !pending;
     };
     await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
-    const framesOf = () => page.evaluate(() => {
-      const videos = Array.from(document.querySelectorAll('.asset-layer video')) as HTMLVideoElement[];
+    const readStep = () => page.evaluate(() => {
+      const videos = (window as any).eval('getTransportVideos()') as HTMLVideoElement[];
       const rates = (window as any).eval('videoFrameRates');
-      return videos.map(video => {
-        const fps = rates[video.src] || 30;
-        return { time: video.currentTime, fps, frame: Math.floor(video.currentTime * fps + 0.01) };
-      });
+      const cursor = (window as any).eval('_frameStepCursor');
+      const ref = (window as any).eval('_syncReferenceVideo')(videos) as HTMLVideoElement | null;
+      return {
+        refIndex: ref ? videos.indexOf(ref) : -1,
+        targetFrame: cursor ? cursor.frame as number : null,
+        clips: videos.map(video => {
+          const fps = rates[video.src] || 30;
+          return { time: video.currentTime, fps, frame: Math.floor(video.currentTime * fps + 0.01) };
+        }),
+      };
     });
-    const before = await framesOf();
+    const before = await readStep();
     await page.evaluate(() => (window as any).stepFrame(1));
     await page.waitForFunction(frameStepSettled, undefined, { timeout: 8000 });
-    const after = await framesOf();
-    expect(before).toHaveLength(2);
-    expect(after).toHaveLength(2);
-    for (let i = 0; i < 2; i++) {
-      expect(after[i].fps).toBe(before[i].fps);
-      expect(after[i].frame).toBe(before[i].frame + 1);
-    }
-    const fps = Math.min(after[0].fps, after[1].fps);
-    expect(Math.abs(after[0].time - after[1].time)).toBeLessThanOrEqual(0.5 / fps);
+    const after = await readStep();
+    expect(before.clips).toHaveLength(2);
+    expect(after.clips).toHaveLength(2);
+    expect(before.refIndex).toBeGreaterThanOrEqual(0);
+    expect(after.refIndex).toBe(before.refIndex);
+    // A follower already within half a frame is left where it is, so the two
+    // clips can sit on adjacent frame numbers before the step. stepFrame then
+    // moves the reference by one frame and puts every clip on that shared
+    // frame. Require that landing, not that each clip's own number increased.
+    const nextFrame = before.clips[before.refIndex].frame + 1;
+    expect(after.targetFrame).toBe(nextFrame);
+    for (const clip of after.clips) expect(clip.frame).toBe(nextFrame);
+    const fps = Math.min(...after.clips.map(clip => clip.fps));
+    expect(Math.abs(after.clips[0].time - after.clips[1].time)).toBeLessThanOrEqual(0.5 / fps);
 
     await page.keyboard.press('g');
     await page.waitForFunction(() => (window as any).__testAPI?.isGridMode);
